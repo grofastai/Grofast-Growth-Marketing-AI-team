@@ -8,7 +8,7 @@ import {
   Loader2, LogOut, KeyRound, Clock, Target, AlertCircle, TrendingUp,
   Zap, Camera, HeartPulse, MapPin, UserPlus, Landmark, CreditCard,
   FileText, Upload, CheckCircle2, AlertTriangle, ChevronDown,
-  ChevronRight, Bell, Settings, Lock, FolderOpen, User, Download,
+  ChevronRight, Bell, Settings, Lock, User, Download,
 } from "lucide-react"
 import { updateOwnProfile } from "@/lib/actions/team"
 import { updatePersonalDetails, updateKYC, deleteKYCDocument, type KYCDocField } from "@/lib/actions/profile"
@@ -31,7 +31,7 @@ interface KYCData {
 }
 interface Stats {
   weekHours: number; weekMissed: number
-  totalCompleted: number; totalLeaves: number; avgHoursPerDay: number
+  totalCompleted: number; weekCompleted: number; weekLeaves: number; avgHoursPerDay: number
 }
 interface ChartDay { date: string; label: string; hours: number; isFuture: boolean }
 interface RecentUpdate { date: string; working_hours: number | null; shoot_count: number | null }
@@ -426,9 +426,9 @@ export default function ProfileClient({
                     </div>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                    <div>
-                      <h2 style={{ fontSize: 22, fontWeight: 900, color: "#111111", margin: "0 0 8px", fontFamily: "var(--font-jakarta)" }}>{displayName}</h2>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <h2 style={{ fontSize: 22, fontWeight: 900, color: "#111111", margin: "0 0 8px", fontFamily: "var(--font-jakarta)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</h2>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 11, fontWeight: 800, padding: "4px 12px", borderRadius: 99, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", border: "1px solid rgba(222,26,26,0.18)", letterSpacing: "0.04em" }}>
                           {profile?.role ?? "MEMBER"}
@@ -748,9 +748,9 @@ export default function ProfileClient({
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {[
                 { Icon: Clock,       label: "Hours Worked",    value: stats.weekHours > 0 ? `${stats.weekHours}h` : "—", color: "#DE1A1A",   bg: "rgba(222,26,26,0.08)"   },
-                { Icon: CheckCircle2,label: "Tasks Completed", value: stats.totalCompleted,                              color: "#22C55E",   bg: "rgba(34,197,94,0.08)"   },
+                { Icon: CheckCircle2,label: "Tasks Completed", value: stats.weekCompleted,                               color: "#22C55E",   bg: "rgba(34,197,94,0.08)"   },
                 { Icon: AlertCircle, label: "Missed Updates",  value: stats.weekMissed,                                  color: stats.weekMissed > 0 ? "#F59E0B" : "#22C55E", bg: stats.weekMissed > 0 ? "rgba(245,158,11,0.08)" : "rgba(34,197,94,0.08)" },
-                { Icon: TrendingUp,  label: "Leave Requests",  value: stats.totalLeaves,                                 color: "#6366F1",   bg: "rgba(99,102,241,0.08)"  },
+                { Icon: TrendingUp,  label: "Leave Requests",  value: stats.weekLeaves,                                  color: "#6366F1",   bg: "rgba(99,102,241,0.08)"  },
               ].map(({ Icon, label, value, color, bg }) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 34, height: 34, borderRadius: 10, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -982,6 +982,34 @@ export default function ProfileClient({
           </div>
         </div>
       )}
+
+      {/* ── Quick Actions ───────────────────────────────────────── */}
+      <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", padding: "20px 22px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", marginTop: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <Zap size={16} style={{ color: "#374151" }}/>
+          <span style={{ fontSize: 14, fontWeight: 800, color: "#111111" }}>Quick Actions</span>
+        </div>
+        <p style={{ fontSize: 12, color: "#9CA3AF", margin: "0 0 16px" }}>Jump to the things you do every day</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {([
+            { icon: "📝", title: "Submit Update",  desc: "Log today's work",       href: "/member/update",        accent: "#DE1A1A", bg: "rgba(222,26,26,0.06)",  border: "rgba(222,26,26,0.15)" },
+            { icon: "✅", title: "My Tasks",        desc: "View assigned tasks",    href: "/member/tasks",         accent: "#6366F1", bg: "rgba(99,102,241,0.06)", border: "rgba(99,102,241,0.15)" },
+            { icon: "🏖️", title: "Apply Leave",    desc: "Request time off",       href: "/member/leaves",        accent: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
+            { icon: "📢", title: "Announcements",  desc: "Company updates",         href: "/member/announcements", accent: "#22C55E", bg: "rgba(34,197,94,0.06)",  border: "rgba(34,197,94,0.15)" },
+          ] as const).map(({ icon, title, desc, href, accent, bg, border }) => (
+            <button key={title} onClick={() => router.push(href)}
+              style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10, padding: "16px", borderRadius: 16, border: `1.5px solid ${border}`, background: bg, cursor: "pointer", textAlign: "left", transition: "transform 0.1s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(0)" }}>
+              <span style={{ fontSize: 26, lineHeight: 1 }}>{icon}</span>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 800, color: accent, margin: "0 0 3px", fontFamily: "var(--font-jakarta)" }}>{title}</p>
+                <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>{desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* ── Coming Soon Modal ──────────────────────────────────────────────── */}
       {showComingSoon && (

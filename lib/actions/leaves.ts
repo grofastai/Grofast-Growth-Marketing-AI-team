@@ -2,6 +2,7 @@
 
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertNotification, insertManyNotifications } from './notifications'
@@ -16,7 +17,7 @@ function createAdminClient() {
 }
 
 const leaveSchema = z.object({
-  leave_type:          z.enum(['full_day', 'half_day', 'permission']).default('full_day'),
+  leave_type:          z.enum(['full_day', 'half_day', 'permission', 'wfh', 'shoot_day']).default('full_day'),
   from_date:           z.string().min(1, 'Date required'),
   to_date:             z.string().min(1, 'End date required'),
   half_day_period:     z.enum(['morning', 'afternoon']).optional(),
@@ -56,7 +57,7 @@ export async function submitLeaveRequest(
   const raw = {
     leave_type:          leaveType,
     from_date:           formData.get('from_date') as string,
-    to_date:             leaveType === 'full_day' ? (formData.get('to_date') as string) : (formData.get('from_date') as string),
+    to_date:             (leaveType === 'full_day' || leaveType === 'wfh') ? (formData.get('to_date') as string) : (formData.get('from_date') as string),
     half_day_period:     formData.get('half_day_period') || undefined,
     half_day_from_time:  (formData.get('half_day_from_time') as string) || undefined,
     half_day_to_time:    (formData.get('half_day_to_time') as string) || undefined,
@@ -71,27 +72,69 @@ export async function submitLeaveRequest(
     return { error: parsed.error.issues[0].message }
   }
 
+  const todayIST = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
+  if (parsed.data.from_date < todayIST) {
+    return { error: 'Cannot apply leave for past dates. You can apply for today or future dates only.' }
+  }
+
   const supabase = await createServerClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return { error: 'Not authenticated' }
 
-  let company_id = parseCompanyId(session.access_token)
+  const adminCl = createAdminClient()
+
+  // Resolve effective user — admin impersonation support
+  let effectiveUserId = session.user.id
+  const { data: selfProfile } = await adminCl.from('users').select('role, company_id').eq('id', session.user.id).single()
+  if (selfProfile?.role === 'ADMIN') {
+    const impersonateId = (await cookies()).get('gf_impersonate')?.value
+    if (impersonateId && impersonateId !== session.user.id) {
+      const { data: target } = await adminCl.from('users').select('company_id').eq('id', impersonateId).single()
+      if (target?.company_id && target.company_id === selfProfile.company_id) {
+        effectiveUserId = impersonateId
+      }
+    }
+  }
+
+  let company_id = selfProfile?.role === 'ADMIN' && effectiveUserId !== session.user.id
+    ? (await adminCl.from('users').select('company_id').eq('id', effectiveUserId).single()).data?.company_id ?? null
+    : parseCompanyId(session.access_token)
   if (!company_id) {
-    const { data: u } = await supabase.from('users').select('company_id').eq('id', session.user.id).single()
+    const { data: u } = await adminCl.from('users').select('company_id').eq('id', effectiveUserId).single()
     company_id = u?.company_id ?? null
   }
   if (!company_id) return { error: 'Could not resolve company. Please sign out and sign in again.' }
 
-  const { data: profile } = await supabase
+  const { data: profile } = await adminCl
     .from('users')
     .select('name, employee_id')
-    .eq('id', session.user.id)
+    .eq('id', effectiveUserId)
     .single()
 
-  const { data: overlapping } = await supabase
+  // Monthly limit check (full_day + half_day only; permission/wfh/shoot_day excluded)
+  const isExceptional = formData.get('is_exceptional') === 'true'
+  if (!isExceptional && (parsed.data.leave_type === 'full_day' || parsed.data.leave_type === 'half_day')) {
+    const currentMonth = parsed.data.from_date.slice(0, 7)
+    const { data: monthLeaves } = await adminCl
+      .from('leaves')
+      .select('from_date, to_date, leave_type')
+      .eq('user_id', effectiveUserId)
+      .gte('from_date', `${currentMonth}-01`)
+      .lte('from_date', `${currentMonth}-31`)
+      .in('status', ['approved', 'pending'])
+    const used = (monthLeaves ?? []).reduce((s, l) => {
+      const t = l.leave_type ?? 'full_day'
+      if (t === 'full_day') return s + (Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1)
+      if (t === 'half_day') return s + 0.5
+      return s
+    }, 0)
+    if (used >= 5) return { error: 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.' }
+  }
+
+  const { data: overlapping } = await adminCl
     .from('leaves')
     .select('id, leave_type')
-    .eq('user_id', session.user.id)
+    .eq('user_id', effectiveUserId)
     .lte('from_date', parsed.data.to_date)
     .gte('to_date', parsed.data.from_date)
     .not('status', 'eq', 'rejected')
@@ -109,12 +152,12 @@ export async function submitLeaveRequest(
     }
   }
 
-  const { data: inserted, error: insertError } = await (supabase.from('leaves') as any).insert({
+  const { data: inserted, error: insertError } = await (adminCl.from('leaves') as any).insert({
     company_id,
-    user_id:             session.user.id,
+    user_id:             effectiveUserId,
     from_date:           parsed.data.from_date,
     to_date:             parsed.data.to_date,
-    reason:              parsed.data.reason,
+    reason:              isExceptional ? `[EXCEPTIONAL] ${parsed.data.reason}` : parsed.data.reason,
     leave_type:          parsed.data.leave_type,
     permission_hours:    parsed.data.permission_hours ?? null,
     permission_time:     parsed.data.permission_time ?? null,
@@ -125,6 +168,13 @@ export async function submitLeaveRequest(
   }).select('id').single()
 
   if (insertError) return { error: insertError.message }
+
+  // Route to the matching WhatsApp template per request type
+  const submitEvent = parsed.data.leave_type === 'wfh'
+    ? 'wfh.submitted' as const
+    : parsed.data.leave_type === 'shoot_day'
+    ? 'shoot.submitted' as const
+    : 'leave.submitted' as const
 
   if (profile && inserted?.id) {
     const adminClient = createAdminClient()
@@ -138,7 +188,7 @@ export async function submitLeaveRequest(
     const adminWithPhone = adminUsers?.find(a => a.phone)
     if (adminWithPhone?.phone) {
       sendNotification({
-        event:         'leave.submitted',
+        event:         submitEvent,
         leave_id:      inserted.id,
         employee_name: profile.name,
         employee_id:   profile.employee_id,
@@ -153,12 +203,18 @@ export async function submitLeaveRequest(
     if (adminUsers?.length) {
       const leaveLabel = parsed.data.leave_type === 'full_day'
         ? `${parsed.data.from_date} → ${parsed.data.to_date}`
-        : parsed.data.leave_type === 'half_day' ? `Half-day on ${parsed.data.from_date}` : `Permission on ${parsed.data.from_date}`
+        : parsed.data.leave_type === 'half_day' ? `Half-day on ${parsed.data.from_date}`
+        : parsed.data.leave_type === 'wfh' ? `WFH on ${parsed.data.from_date}`
+        : parsed.data.leave_type === 'shoot_day' ? `Shoot Day on ${parsed.data.from_date}`
+        : `Permission on ${parsed.data.from_date}`
+      const requestNoun = parsed.data.leave_type === 'wfh' ? 'requested Work From Home'
+        : parsed.data.leave_type === 'shoot_day' ? 'requested a Shoot Day'
+        : 'applied for leave'
       await insertManyNotifications(adminUsers.map(a => ({
         companyId: company_id,
         userId: a.id,
         type: 'leave_submitted',
-        title: `${profile.name} applied for leave`,
+        title: `${profile.name} ${requestNoun}`,
         body: leaveLabel,
         link: '/admin/leaves',
       })))
@@ -256,7 +312,7 @@ export async function updateLeaveRequest(
   const raw = {
     leave_type:          leaveType,
     from_date:           formData.get('from_date') as string,
-    to_date:             leaveType === 'full_day' ? (formData.get('to_date') as string) : (formData.get('from_date') as string),
+    to_date:             (leaveType === 'full_day' || leaveType === 'wfh') ? (formData.get('to_date') as string) : (formData.get('from_date') as string),
     half_day_period:     formData.get('half_day_period') || undefined,
     half_day_from_time:  (formData.get('half_day_from_time') as string) || undefined,
     half_day_to_time:    (formData.get('half_day_to_time') as string) || undefined,
@@ -268,6 +324,11 @@ export async function updateLeaveRequest(
 
   const parsed = leaveSchema.safeParse(raw)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const todayIST = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
+  if (parsed.data.from_date < todayIST) {
+    return { error: 'Cannot apply leave for past dates. You can apply for today or future dates only.' }
+  }
 
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -461,6 +522,7 @@ export async function updateLeaveStatus(
     to_date: string
     leave_type: string | null
     reason: string | null
+    created_at: string
     permission_time: string | null
     permission_end_time: string | null
     permission_hours: number | null
@@ -472,7 +534,7 @@ export async function updateLeaveStatus(
 
   const { data: leaveRaw } = await admin
     .from('leaves')
-    .select('company_id, user_id, from_date, to_date, leave_type, reason, permission_time, permission_end_time, permission_hours, half_day_from_time, half_day_to_time, half_day_period, users(name, phone)')
+    .select('company_id, user_id, from_date, to_date, leave_type, reason, created_at, permission_time, permission_end_time, permission_hours, half_day_from_time, half_day_to_time, half_day_period, users(name, phone)')
     .eq('id', leaveId)
     .single()
 
@@ -485,8 +547,9 @@ export async function updateLeaveStatus(
 
   if (error) return { success: false, error: error.message }
 
-  // Auto-update attendance when approved (skip permission leaves — they're still present)
-  if (status === 'approved' && leave && leave.leave_type !== 'permission') {
+  // Auto-update attendance when approved
+  // Skip permission (still present), wfh and shoot_day (handled separately below)
+  if (status === 'approved' && leave && leave.leave_type !== 'permission' && leave.leave_type !== 'wfh' && leave.leave_type !== 'shoot_day') {
     const curr = new Date(leave.from_date + 'T12:00:00')
     const end  = new Date(leave.to_date   + 'T12:00:00')
     while (curr <= end) {
@@ -507,7 +570,63 @@ export async function updateLeaveStatus(
           status:     attStatus,
         }).then(({ error: e }) => { if (e) console.error('[leave approval] attendance insert:', e.message) })
       }
+      // For full_day leave: delete any empty daily_update row so the 🌴 leave card shows in history
+      if (leave.leave_type === 'full_day') {
+        const { data: du } = await admin
+          .from('daily_updates')
+          .select('id, work_entries')
+          .eq('company_id', leave.company_id)
+          .eq('user_id', leave.user_id)
+          .eq('date', dateStr)
+          .maybeSingle()
+        if (du) {
+          const entries = Array.isArray(du.work_entries) ? (du.work_entries as { task_type?: string }[]).filter(e => e.task_type !== 'break') : []
+          if (entries.length === 0) {
+            admin.from('daily_updates').delete().eq('id', du.id)
+              .then(({ error: e }) => { if (e) console.error('[leave approval] daily_update cleanup:', e.message) })
+          }
+        }
+      }
       curr.setDate(curr.getDate() + 1)
+    }
+
+  // For same-day WFH/Shoot Day: auto clock-in using the time employee applied (leave.created_at)
+  // Rule: if applied before 9 AM → use 9:30 AM (shift start) as clock-in; after 9 AM → use actual apply time
+  } else if (status === 'approved' && leave && (leave.leave_type === 'wfh' || leave.leave_type === 'shoot_day')) {
+    const todayIst = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
+    // Only auto-clock-in when the leave was SUBMITTED on the same day (attendance-page button flow).
+    // Pre-planned leaves applied in advance have created_at from a different date — skip auto clock-in
+    // so the employee can manually clock in at the actual start time.
+    const createdIst = new Date(leave.created_at).toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
+    if (leave.from_date === todayIst && leave.to_date === todayIst && createdIst === leave.from_date) {
+      const { data: existing } = await admin
+        .from('attendance_logs')
+        .select('id, clock_in')
+        .eq('company_id', leave.company_id)
+        .eq('user_id', leave.user_id)
+        .eq('date', todayIst)
+        .maybeSingle()
+      // Always use actual apply time — shoots and WFH can legitimately start at 6 AM, 7 AM, etc.
+      const clockInTime = leave.created_at
+      const workType = leave.leave_type === 'shoot_day' ? 'shoot' : 'wfh'
+      if (!existing) {
+        // No record yet — plain insert (avoids onConflict key mismatch issues)
+        await admin.from('attendance_logs').insert({
+          company_id: leave.company_id,
+          user_id:    leave.user_id,
+          date:       todayIst,
+          clock_in:   clockInTime,
+          work_type:  workType,
+          status:     'present',
+        })
+      } else if (!existing.clock_in) {
+        // Record exists but no clock_in yet — update it
+        await admin.from('attendance_logs').update({
+          clock_in:  clockInTime,
+          work_type: workType,
+          status:    'present',
+        }).eq('id', existing.id)
+      }
     }
     // Auto-insert history entry
     try {
@@ -518,8 +637,11 @@ export async function updateLeaveStatus(
   }
 
   if (leave && leave.users?.phone) {
+    const leaveType = leave.leave_type ?? 'full_day'
+    const approvedEvent = leaveType === 'wfh' ? 'wfh.approved' : leaveType === 'shoot_day' ? 'shoot.approved' : leaveType === 'half_day' ? 'half_day.approved' : 'leave.approved'
+    const rejectedEvent = leaveType === 'wfh' ? 'wfh.rejected' : leaveType === 'shoot_day' ? 'shoot.rejected' : leaveType === 'half_day' ? 'half_day.rejected' : 'leave.rejected'
     sendNotification({
-      event:          status === 'approved' ? 'leave.approved' : 'leave.rejected',
+      event:          status === 'approved' ? approvedEvent : rejectedEvent,
       employee_name:  leave.users.name,
       employee_phone: leave.users.phone,
       from_date:      leave.from_date,
@@ -529,7 +651,7 @@ export async function updateLeaveStatus(
   }
 
   if (leave) {
-    const leaveLabel = leave.leave_type === 'permission' ? 'Permission' : leave.leave_type === 'half_day' ? 'Half Day Leave' : 'Full Day Leave'
+    const leaveLabel = leave.leave_type === 'permission' ? 'Permission' : leave.leave_type === 'half_day' ? 'Half Day Leave' : leave.leave_type === 'wfh' ? 'Work From Home' : leave.leave_type === 'shoot_day' ? 'Shoot Day' : 'Full Day Leave'
     insertNotification({
       companyId: leave.company_id,
       userId: leave.user_id,
@@ -546,4 +668,89 @@ export async function updateLeaveStatus(
   revalidatePath('/member/history')
   revalidatePath('/admin/activities')
   return { success: true }
+}
+
+// Called directly from the attendance page when employee clicks WFH/Shoot button
+export async function submitWfhAttendanceRequest(
+  leaveType: 'wfh' | 'shoot_day',
+  reason: string
+): Promise<{ success: boolean; error?: string; created_at?: string }> {
+  const supabase = await createServerClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { success: false, error: 'Not authenticated' }
+
+  let company_id = parseCompanyId(session.access_token)
+  if (!company_id) {
+    const { data: u } = await supabase.from('users').select('company_id').eq('id', session.user.id).single()
+    company_id = u?.company_id ?? null
+  }
+  if (!company_id) return { success: false, error: 'Could not resolve company' }
+
+  const todayIst = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('name, employee_id')
+    .eq('id', session.user.id)
+    .single()
+
+  // Check for existing WFH/Shoot request today (not rejected)
+  const { data: existing } = await (supabase.from('leaves') as any)
+    .select('id')
+    .eq('user_id', session.user.id)
+    .eq('from_date', todayIst)
+    .in('leave_type', ['wfh', 'shoot_day'])
+    .not('status', 'eq', 'rejected')
+    .maybeSingle()
+  if (existing) return { success: false, error: 'You already have a WFH/Shoot request for today' }
+
+  const { data: inserted, error: insertError } = await (supabase.from('leaves') as any).insert({
+    company_id,
+    user_id:    session.user.id,
+    leave_type: leaveType,
+    from_date:  todayIst,
+    to_date:    todayIst,
+    reason:     reason.trim() || (leaveType === 'shoot_day' ? 'Shoot day' : 'Work from home'),
+    status:     'pending',
+  }).select('created_at').single()
+
+  if (insertError) return { success: false, error: insertError.message }
+
+  // Notify admin
+  const adminClient = createAdminClient()
+  const { data: adminUsers } = await adminClient
+    .from('users')
+    .select('id, phone')
+    .eq('company_id', company_id)
+    .eq('role', 'ADMIN')
+
+  const adminWithPhone = adminUsers?.find(a => a.phone)
+  if (adminWithPhone?.phone) {
+    sendNotification({
+      event:         leaveType === 'shoot_day' ? 'shoot.submitted' : 'wfh.submitted',
+      leave_id:      inserted?.id,
+      employee_name: profile?.name ?? '',
+      employee_id:   profile?.employee_id ?? '',
+      from_date:     todayIst,
+      to_date:       todayIst,
+      reason:        reason.trim(),
+      admin_phone:   adminWithPhone.phone,
+    }).catch(console.error)
+  }
+
+  const leaveLabel = leaveType === 'shoot_day' ? 'Shoot Day' : 'WFH'
+  if (adminUsers?.length) {
+    insertManyNotifications(adminUsers.map(a => ({
+      companyId: company_id!,
+      userId:    a.id,
+      type:      'leave_submitted',
+      title:     `${profile?.name ?? 'Employee'} requested ${leaveLabel} today`,
+      body:      reason.trim() || leaveLabel,
+      link:      '/admin/leaves',
+    }))).catch(console.error)
+  }
+
+  revalidatePath('/member/attendance')
+  revalidatePath('/admin/leaves')
+  return { success: true, created_at: inserted?.created_at }
 }

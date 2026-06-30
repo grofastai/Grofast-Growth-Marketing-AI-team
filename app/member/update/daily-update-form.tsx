@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useTransition, useMemo, useEffect, useRef, Fragment, type CSSProperties } from "react"
 import { useRouter } from "next/navigation"
@@ -9,11 +9,11 @@ import {
   ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal, Calendar, X,
 } from "lucide-react"
 import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
+import { buildClientOptions } from "@/lib/utils/client-options"
+import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
 
 interface Project { id: string; business_name: string }
-interface TeamMember { id: string; name: string; employee_id: string; role: string }
-
-const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
+interface TeamMember { id: string; name: string; employee_id: string; role: string; team?: string | null }
 
 interface ShootEntry {
   id: string; clientName: string; customClient: string; title: string
@@ -164,6 +164,7 @@ type SavedEntry = {
   _client_type?: string; _brand?: string; _shop_name?: string
   _custom_client?: string; _location?: string; _travel_hours?: number
   _camera_hours?: number; _drone_hours?: number
+  price?: number | null
 }
 
 function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock[] {
@@ -190,6 +191,49 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
       clientNames: e.is_multi_client ? (e.client_names ?? []) : (e.client_name && e.client_name !== 'Internal' && e.task_type !== 'break' ? [e.client_name] : []),
       participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
     }))
+}
+
+// ── Learning blocks ─────────────────────────────────────────────────────────
+interface LearningBlock {
+  id: string; client: string; topic: string
+  from: string; to: string; notes: string
+}
+function newLearningBlock(): LearningBlock {
+  return { id: crypto.randomUUID(), client: "GROFAST DIGITAL", topic: "", from: "", to: "", notes: "" }
+}
+function calcLearningHours(from: string, to: string): number {
+  if (!from || !to) return 0
+  const [fh, fm] = from.split(":").map(Number)
+  const [th, tm] = to.split(":").map(Number)
+  const diff = (th * 60 + tm) - (fh * 60 + fm)
+  return diff > 0 ? Math.round(diff / 60 * 100) / 100 : 0
+}
+function parseExistingLearningBlocks(existingUpdate: Record<string, unknown>): LearningBlock[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  const learnEntries = Array.isArray(entries) ? entries.filter(e => e.task_type === 'learning') : []
+  if (learnEntries.length > 0) {
+    return learnEntries.map(e => {
+      const rawTitle = e.title ?? ''
+      const m = rawTitle.match(/^\[([^\]]+)\]\s*(.*)$/)
+      return {
+        id: e.id ?? crypto.randomUUID(),
+        client: m ? m[1] : 'GROFAST DIGITAL',
+        topic: m ? m[2] : rawTitle,
+        from: e.start_time ?? '',
+        to: e.end_time ?? '',
+        notes: e.notes ?? '',
+      }
+    })
+  }
+  // Legacy fallback: single learning_topic column
+  const legacyTopic = existingUpdate?.learning_topic as string | null
+  if (legacyTopic) {
+    return [{
+      id: crypto.randomUUID(), client: 'GROFAST DIGITAL', topic: legacyTopic,
+      from: '', to: '', notes: (existingUpdate?.learning_notes as string) ?? '',
+    }]
+  }
+  return [newLearningBlock()]
 }
 
 function parseExistingNonMediaBreaks(existingUpdate: Record<string, unknown>): MediaBreakEntry[] {
@@ -312,6 +356,25 @@ function parseExistingPosters(existingUpdate: Record<string, unknown>): EditEntr
     }))
 }
 
+function parseExistingNmEdits(existingUpdate: Record<string, unknown>): EditEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'edit')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      clientName: e._client_type ?? e.client_name ?? "",
+      brand: "", customClient: e._custom_client ?? "",
+      title: e.title ?? "", videoType: e.video_type ?? "", customVideoType: "", videoDuration: "",
+      startTime: e.start_time ?? "", endTime: e.end_time ?? "",
+      dateGiven: "", dateFinished: "",
+      timeTaken: e.duration_hours ?? 0,
+      driveUpdated: false, revisions: 0, hooksCompleted: 0,
+      videoLink: e.video_link ?? "", notes: e.notes ?? "",
+      participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+    }))
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 type PastUpdate = {
   id: string; date: string; working_hours: number | null; learning_hours: number | null
@@ -321,11 +384,14 @@ type PastUpdate = {
 }
 
 export default function DailyUpdateForm({
-  projects, sheetClientNames = [], pastClientNames = [], userName, team, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
+  projects, sheetClientNames = [], pastClientNames = [], userName, team, workLayout, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
+  todayClockedIn = true, requiresClockIn = false, defaultDate,
 }: {
   projects: Project[]; sheetClientNames?: string[]; pastClientNames?: string[]; userName: string; team?: string | null
+  workLayout?: 'media' | 'non_media' | 'freelance_media'
   existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
   teamMembers?: TeamMember[]; approvedLeaveDates?: string[]
+  todayClockedIn?: boolean; requiresClockIn?: boolean; defaultDate?: string
 }) {
   const router = useRouter()
   const existingUpdateRef = useRef(existingUpdate)
@@ -337,12 +403,16 @@ export default function DailyUpdateForm({
   const h         = now.getHours()
   const greeting  = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"
 
-  const isMediaTeam = team === "Media Team"
+  // Use workLayout if provided (new); fall back to team name for backward compat
+  const isMediaTeam = workLayout
+    ? workLayout !== 'non_media'
+    : (team === "Media Team" || team === "Media Production Team" || team === "Freelance Media Production")
+  const isFreelancerLayout = workLayout ? workLayout === 'freelance_media' : team === "Freelance Media Production"
 
   const todayStr = new Date().toISOString().split("T")[0]
 
   // ── Date selector ────────────────────────────────────────────────────────
-  const [selectedDate, setSelectedDate] = useState(todayStr)
+  const [selectedDate, setSelectedDate] = useState(defaultDate ?? todayStr)
   const [activeUpdate, setActiveUpdate] = useState<Record<string, unknown> | null>(existingUpdate ?? null)
 
   const dateLabel = new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
@@ -362,48 +432,38 @@ export default function DailyUpdateForm({
     }
     setActiveUpdate(found)
 
-    setShoots(found ? parseExistingShoots(found) : [])
-    setEdits(found ? parseExistingEdits(found) : [])
-    setTimeBlocks(found ? parseExistingBlocks(found) : [])
-    setMediaBreaks(found ? parseExistingMediaBreaks(found) : [])
-    setLearningTopic((found?.learning_topic as string) ?? "")
-    setLearningFrom(""); setLearningTo("")
-    setLearningNotes((found?.learning_notes as string) ?? "")
-    setLearningParticipantIds(found?.active_tab === "learning" ? ((found?.participant_ids as string[]) ?? []) : [])
-    setWorkingDone(!!(found && (found as Record<string, unknown>).working_hours))
-    setLearningDone(!!(found && (found as Record<string, unknown>).learning_hours))
-    setMediaDone(isMediaTeam && existingHasMedia(found))
-    setBreaksDone(isMediaTeam && existingHasBreaks(found))
+    const isPast = date !== todayStr
+    // Past date: always show clean empty form (existing entries viewable in History)
+    // Today: pre-fill with existing data so user can continue where they left off
+    setShoots(isPast ? [] : (found ? parseExistingShoots(found) : []))
+    setEdits(isPast ? [] : (found ? parseExistingEdits(found) : []))
+    setVoiceovers(isPast ? [] : (found ? parseExistingVoiceovers(found) : []))
+    setPosters(isPast ? [] : (found ? parseExistingPosters(found) : []))
+    setNmEdits(isPast ? [] : (!isMediaTeam && found ? parseExistingNmEdits(found) : []))
+    setTimeBlocks(isPast ? [] : (found ? parseExistingBlocks(found) : []))
+    setMediaBreaks(isPast ? [] : (found ? parseExistingMediaBreaks(found) : []))
+    setNonMediaBreaks(isPast ? [] : (found ? parseExistingNonMediaBreaks(found) : []))
+    setLearningBlocks(isPast ? [newLearningBlock()] : (found ? parseExistingLearningBlocks(found) : [newLearningBlock()]))
+    setLearningParticipantIds(isPast ? [] : (found?.active_tab === "learning" ? ((found?.participant_ids as string[]) ?? []) : []))
+    // Past date: never mark as done — always show fresh form regardless of existing data
+    setWorkingDone(isPast ? false : !!(found && (found as Record<string, unknown>).working_hours))
+    setLearningDone(isPast ? false : !!(found && (found as Record<string, unknown>).learning_hours))
+    setMediaDone(isPast ? false : (isMediaTeam && existingHasMedia(found)))
+    setBreaksDone(isPast ? false : (isMediaTeam && existingHasBreaks(found)))
     setSubmitted(false)
     setEditMode(false)
     setError(null)
     setWorkingError(null)
     setLearningError(null)
 
-    const foundTab = (found?.active_tab as string) ?? null
-    if (foundTab === "media" || foundTab === "learning" || foundTab === "working" || foundTab === "break") {
-      setTab(foundTab as "working" | "media" | "learning" | "break")
-    } else {
-      setTab(isMediaTeam ? "media" : "working")
-    }
+    setTab(isMediaTeam ? "media" : "working")
   }
 
   const [tab, setTab] = useState<"working" | "media" | "learning" | "break">(isMediaTeam ? "media" : "working")
 
-  // Normalize: collapse all whitespace (including non-breaking spaces) to single space, lowercase
-  const norm = (s: string) => s.replace(/[\s ]+/g, " ").trim().toLowerCase()
-  const seenLower = new Set(INTERNAL_BRANDS.map(norm))
-  const activeClientOptions: string[] = [...INTERNAL_BRANDS]
-  for (const n of [...projects.map(p => p.business_name), ...sheetClientNames]) {
-    const t = n?.replace(/[\s ]+/g, " ").trim()
-    if (t && !seenLower.has(norm(t))) { seenLower.add(norm(t)); activeClientOptions.push(t) }
-  }
-  // Past clients — deduped against active list
-  const pastClientOptions: string[] = []
-  for (const n of pastClientNames) {
-    const t = n?.replace(/[\s ]+/g, " ").trim()
-    if (t && !seenLower.has(norm(t))) { seenLower.add(norm(t)); pastClientOptions.push(t) }
-  }
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = buildClientOptions(
+    sheetClientNames, pastClientNames
+  )
   const allClientOptions = activeClientOptions
 
   // Tracks which entry IDs are in "past clients" mode
@@ -448,6 +508,12 @@ export default function DailyUpdateForm({
   const addPoster    = () => setPosters(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[] }])
   const patchPoster  = (id: string, patch: Partial<EditEntry>) => setPosters(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
   const removePoster = (id: string) => setPosters(p => p.filter(e => e.id !== id))
+
+  // ── Non-media editing ─────────────────────────────────────────────────────
+  const [nmEdits, setNmEdits] = useState<EditEntry[]>(() => (!isMediaTeam && existingUpdate) ? parseExistingNmEdits(existingUpdate) : [])
+  const addNmEdit    = () => setNmEdits(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[] }])
+  const patchNmEdit  = (id: string, patch: Partial<EditEntry>) => setNmEdits(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
+  const removeNmEdit = (id: string) => setNmEdits(p => p.filter(e => e.id !== id))
 
   // ── Time blocks (working) ────────────────────────────────────────────────
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>(() =>
@@ -497,22 +563,21 @@ export default function DailyUpdateForm({
   }))
   const removeNonMediaBreak = (id: string) => setNonMediaBreaks(p => p.filter(b => b.id !== id))
 
-  // ── Learning ─────────────────────────────────────────────────────────────
-  const [learningClient, setLearningClient] = useState("GROFAST DIGITAL")
-  const [learningTopic, setLearningTopic] = useState(
-    (existingUpdate?.learning_topic as string) ?? ""
+  // ── Learning (multi-block) ───────────────────────────────────────────────
+  const [learningBlocks, setLearningBlocks] = useState<LearningBlock[]>(() =>
+    existingUpdate ? parseExistingLearningBlocks(existingUpdate) : [newLearningBlock()]
   )
-  const [learningFrom, setLearningFrom] = useState("")
-  const [learningTo,   setLearningTo]   = useState("")
-  const learningHours = (() => {
-    if (!learningFrom || !learningTo) return 0
-    const [fh, fm] = learningFrom.split(":").map(Number)
-    const [th, tm] = learningTo.split(":").map(Number)
-    const diff = (th * 60 + tm) - (fh * 60 + fm)
-    return diff > 0 ? Math.round(diff / 60 * 100) / 100 : 0
-  })()
-  const [learningNotes, setLearningNotes] = useState(
-    (existingUpdate?.learning_notes as string) ?? ""
+  const addLearningBlock = () => setLearningBlocks(p => [...p, newLearningBlock()])
+  const removeLearningBlock = (id: string) =>
+    setLearningBlocks(p => p.length > 1 ? p.filter(b => b.id !== id) : p)
+  const patchLearningBlock = (id: string, patch: Partial<LearningBlock>) =>
+    setLearningBlocks(p => p.map(b => b.id === id ? { ...b, ...patch } : b))
+  const learningHours = Math.round(
+    learningBlocks.reduce((s, b) => s + calcLearningHours(b.from, b.to), 0) * 100
+  ) / 100
+  const learningSummaryTopic = learningBlocks.find(b => b.topic.trim())?.topic ?? ""
+  const filledLearningBlocks = learningBlocks.filter(
+    b => b.topic.trim() && b.from && b.to && calcLearningHours(b.from, b.to) > 0
   )
   const [learningParticipantIds, setLearningParticipantIds] = useState<string[]>(
     existingUpdate?.active_tab === "learning" ? ((existingUpdate?.participant_ids as string[]) ?? []) : []
@@ -534,9 +599,17 @@ export default function DailyUpdateForm({
       ((u as Record<string,unknown>).work_entries as Record<string,unknown>[])
         .some(e => e.task_type === 'break' && Number(e.duration_hours) > 0))
 
-  const [submitted,     setSubmitted]     = useState(false)
+  const [submitted,       setSubmitted]       = useState(false)
+  const [breakSubmitting, setBreakSubmitting] = useState(false)
+  const [successPopup,  setSuccessPopup]  = useState<string | null>(null)
+  useEffect(() => {
+    if (!successPopup) return
+    const t = setTimeout(() => setSuccessPopup(null), 2500)
+    return () => clearTimeout(t)
+  }, [successPopup])
   const [workingDone,   setWorkingDone]   = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).working_hours))
   const [learningDone,  setLearningDone]  = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).learning_hours))
+  const [learningStarted, setLearningStarted] = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).learning_hours))
   const [mediaDone,     setMediaDone]     = useState(() => isMediaTeam && existingHasMedia(existingUpdate as unknown as Record<string,unknown> | null))
   const [breaksDone,    setBreaksDone]    = useState(() => isMediaTeam && existingHasBreaks(existingUpdate as unknown as Record<string,unknown> | null))
   const [editMode,      setEditMode]      = useState(false)
@@ -550,9 +623,7 @@ export default function DailyUpdateForm({
   const [editError,     setEditError]     = useState<string | null>(null)
 
   // ── Participants (Worked With) ────────────────────────────────────────────────
-  const [participantIds,    setParticipantIds]    = useState<string[]>(
-    (existingUpdate?.participant_ids as string[]) ?? []
-  )
+  const [participantIds,    setParticipantIds]    = useState<string[]>([])
   const [participantSearch, setParticipantSearch] = useState("")
 
   function toggleParticipant(id: string) {
@@ -590,7 +661,7 @@ export default function DailyUpdateForm({
   const hasUnsaved = !workingDone && (
     shoots.length > 0 || edits.length > 0 ||
     timeBlocks.some(b => b.description.trim()) ||
-    learningTopic.trim().length > 0
+    learningBlocks.some(b => b.topic.trim().length > 0)
   )
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -639,7 +710,8 @@ export default function DailyUpdateForm({
   // ── Submit: working (time blocks) ────────────────────────────────────────
   function handleWorkingSubmit() {
     setWorkingError(null)
-    if (filledBlocks.length === 0) { setWorkingError("Add at least one time block with a description."); return }
+    if (requiresClockIn && !todayClockedIn && selectedDate === todayStr) { setWorkingError("Please clock in on the Attendance page before submitting today's work log."); return }
+    if (filledBlocks.length === 0 && posters.length === 0 && voiceovers.length === 0 && nmEdits.length === 0) { setWorkingError("Add at least one time block, poster, voiceover, or editing entry."); return }
 
     // Per-block validation: timings + description + client are all mandatory
     for (let i = 0; i < filledBlocks.length; i++) {
@@ -657,6 +729,55 @@ export default function DailyUpdateForm({
       }
     }
 
+    // Past date: check new blocks don't overlap with already-saved entries (all types, >3 min threshold)
+    if (isPastDate && activeUpdate) {
+      const existingEntries = (activeUpdate.work_entries as Record<string,unknown>[] | null) ?? []
+      const savedTimes = existingEntries.filter(e => e.start_time && e.end_time)
+      for (const b of filledBlocks) {
+        for (const ex of savedTimes) {
+          if (timesOverlap(b.startTime, b.endTime, ex.start_time as string, ex.end_time as string, 3)) {
+            setWorkingError(`Time ${b.startTime}–${b.endTime} overlaps with "${ex.title}" (${ex.start_time}–${ex.end_time}). Please fix the times.`); return
+          }
+        }
+      }
+    }
+
+    // Voiceover mandatory: client, title, start time, end time
+    for (let i = 0; i < voiceovers.length; i++) {
+      const v = voiceovers[i]
+      const label = voiceovers.length > 1 ? `Voiceover ${i + 1}: ` : "Voiceover: "
+      const client = v.clientName === "__custom__" ? v.customClient.trim() : v.clientName
+      if (!client) { setWorkingError(`${label}Select a client.`); return }
+      if (!v.title.trim()) { setWorkingError(`${label}Enter a title / project name.`); return }
+      if (!v.startTime) { setWorkingError(`${label}Enter start time.`); return }
+      if (!v.endTime)   { setWorkingError(`${label}Enter end time.`); return }
+      if (toMins(v.endTime) <= toMins(v.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+    }
+
+    // Poster mandatory: client, title, start time, end time
+    for (let i = 0; i < posters.length; i++) {
+      const p = posters[i]
+      const label = posters.length > 1 ? `Poster ${i + 1}: ` : "Poster: "
+      const client = p.clientName === "__custom__" ? p.customClient.trim() : p.clientName
+      if (!client) { setWorkingError(`${label}Select a client.`); return }
+      if (!p.title.trim()) { setWorkingError(`${label}Enter a poster name.`); return }
+      if (!p.startTime) { setWorkingError(`${label}Enter start time.`); return }
+      if (!p.endTime)   { setWorkingError(`${label}Enter end time.`); return }
+      if (toMins(p.endTime) <= toMins(p.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+    }
+
+    // Editing (non-media) mandatory: client, video name, start/end time
+    for (let i = 0; i < nmEdits.length; i++) {
+      const n = nmEdits[i]
+      const label = nmEdits.length > 1 ? `Edit ${i + 1}: ` : "Edit: "
+      const client = n.clientName === "__custom__" ? n.customClient.trim() : n.clientName
+      if (!client) { setWorkingError(`${label}Select a client.`); return }
+      if (!n.title.trim()) { setWorkingError(`${label}Enter a video name.`); return }
+      if (!n.startTime) { setWorkingError(`${label}Enter start time.`); return }
+      if (!n.endTime)   { setWorkingError(`${label}Enter end time.`); return }
+      if (toMins(n.endTime) <= toMins(n.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+    }
+
     const work_entries = [
       ...filledBlocks.map(t => {
         const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")
@@ -672,6 +793,7 @@ export default function DailyUpdateForm({
           task_type: "other" as const,
           title: t.description, start_time: t.startTime, end_time: t.endTime,
           duration_hours: t.durationHours, notes: "",
+          participant_ids: t.participantIds ?? [],
           video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
         }
       }),
@@ -713,6 +835,20 @@ export default function DailyUpdateForm({
         _client_type: e.clientName, _custom_client: e.customClient,
         participant_ids: e.participantIds,
       })),
+      ...nmEdits.map(e => ({
+        id: e.id,
+        client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        client_names: [] as string[],
+        is_multi_client: false,
+        task_type: "edit" as const,
+        title: e.title || "Editing", start_time: e.startTime, end_time: e.endTime,
+        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
+        notes: e.notes || undefined, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
+        video_type: e.videoType,
+        _client_type: e.clientName, _custom_client: e.customClient,
+        participant_ids: e.participantIds,
+      })),
     ]
     const allParticipantIds = [...new Set(filledBlocks.flatMap(b => b.participantIds))]
     startTransition(async () => {
@@ -723,14 +859,49 @@ export default function DailyUpdateForm({
         participant_ids: allParticipantIds,
       })
       if (!res.success) setWorkingError(res.error ?? "Submission failed.")
-      else { try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }; setWorkingDone(true); router.refresh() }
+      else {
+        try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
+        if (isPastDate) {
+          // Past date: show success banner, reset form for another entry, refresh data
+          setSubmitted(true)
+          setSuccessPopup("working")
+          setTimeBlocks([])
+          setVoiceovers([])
+          setPosters([])
+          setNmEdits([])
+          router.refresh()
+        } else {
+          setSuccessPopup("working")
+          setWorkingDone(true); router.refresh()
+        }
+      }
     })
   }
 
   // ── Submit: media (shoots + edits + breaks) ──────────────────────────────
   function handleMediaSubmit() {
     setError(null)
+    if (requiresClockIn && !todayClockedIn && selectedDate === todayStr) { setError("Please clock in on the Attendance page before submitting today's work log."); return }
     if (tab !== "break" && shoots.length === 0 && edits.length === 0 && voiceovers.length === 0 && posters.length === 0) { setError("Add at least one shoot, edit, voiceover, or poster entry."); return }
+
+    // Past date: check new entries don't overlap with already-saved entries (all types, >3 min threshold)
+    if (isPastDate && activeUpdate) {
+      const existingEntries = (activeUpdate.work_entries as Record<string,unknown>[] | null) ?? []
+      const savedTimes = existingEntries.filter(e => e.start_time && e.end_time)
+      const newEntries = [
+        ...shoots.map(s => ({ start: s.startTime, end: s.endTime, title: s.title || "Shoot" })),
+        ...edits.map(e => ({ start: e.startTime, end: e.endTime, title: e.title || "Edit" })),
+        ...voiceovers.map(e => ({ start: e.startTime, end: e.endTime, title: e.title || "Voiceover" })),
+        ...posters.map(e => ({ start: e.startTime, end: e.endTime, title: e.title || "Poster" })),
+      ]
+      for (const n of newEntries) {
+        for (const ex of savedTimes) {
+          if (timesOverlap(n.start, n.end, ex.start_time as string, ex.end_time as string, 3)) {
+            setError(`Time ${n.start}–${n.end} overlaps with "${ex.title}" (${ex.start_time}–${ex.end_time}). Please fix the times.`); return
+          }
+        }
+      }
+    }
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
@@ -740,7 +911,7 @@ export default function DailyUpdateForm({
         duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
         _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours > 0 ? Math.max(0, s.durationHours - s.droneHours) : 0, _drone_hours: s.droneHours,
-        participant_ids: s.participantIds,
+        participant_ids: [...new Set([...participantIds, ...s.participantIds])],
       })),
       ...edits.map(e => {
         const overlapH = calcOverlapHours(e.startTime, e.endTime, shoots)
@@ -757,7 +928,7 @@ export default function DailyUpdateForm({
           date_given: e.dateGiven, date_finished: e.dateFinished,
           drive_updated: e.driveUpdated, revisions: e.revisions, hooks_completed: e.hooksCompleted || 0,
           _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient, _overlap_hours: overlapH,
-          participant_ids: e.participantIds,
+          participant_ids: [...new Set([...participantIds, ...e.participantIds])],
         }
       }),
       ...voiceovers.map(e => ({
@@ -768,7 +939,7 @@ export default function DailyUpdateForm({
         duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
         _client_type: e.clientName, _custom_client: e.customClient,
-        participant_ids: e.participantIds,
+        participant_ids: [...new Set([...participantIds, ...e.participantIds])],
       })),
       ...posters.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
@@ -778,7 +949,7 @@ export default function DailyUpdateForm({
         duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
         _client_type: e.clientName, _custom_client: e.customClient,
-        participant_ids: e.participantIds,
+        participant_ids: [...new Set([...participantIds, ...e.participantIds])],
       })),
       ...mediaBreaks.filter(b => b.durationHours > 0).map(b => ({
         id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
@@ -806,16 +977,26 @@ export default function DailyUpdateForm({
         participant_ids: allMediaParticipantIds,
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
-      else { setMediaDone(true); setEditMode(false); router.refresh() }
+      else {
+        if (isPastDate) {
+          setSubmitted(true)
+          setSuccessPopup("media")
+          setShoots([]); setEdits([]); setVoiceovers([]); setPosters([])
+          router.refresh()
+        } else {
+          setSuccessPopup("media")
+          setMediaDone(true); setEditMode(false); router.refresh()
+        }
+      }
     })
   }
 
-  // ── Time overlap check between two time ranges ───────────────────────────
-  function timesOverlap(s1: string, e1: string, s2: string, e2: string): boolean {
+  // ── Time overlap check — returns overlap minutes; >3 min is a real conflict ─
+  function timesOverlap(s1: string, e1: string, s2: string, e2: string, thresholdMins = 0): boolean {
     if (!s1 || !e1 || !s2 || !e2) return false
     const a = toMins(s1), b = toMins(e1), c = toMins(s2), d = toMins(e2)
     if (b <= a || d <= c) return false
-    return Math.max(a, c) < Math.min(b, d)
+    return Math.min(b, d) - Math.max(a, c) > thresholdMins
   }
 
   // ── Per-entry save (media) ────────────────────────────────────────────────
@@ -884,7 +1065,7 @@ export default function DailyUpdateForm({
         duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
         _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours > 0 ? Math.max(0, s.durationHours - s.droneHours) : 0, _drone_hours: s.droneHours,
-        participant_ids: s.participantIds,
+        participant_ids: [...new Set([...participantIds, ...s.participantIds])],
       })),
       ...edits.map(e => {
         const overlapH = calcOverlapHours(e.startTime, e.endTime, shoots)
@@ -901,7 +1082,7 @@ export default function DailyUpdateForm({
           date_given: e.dateGiven, date_finished: e.dateFinished,
           drive_updated: e.driveUpdated, revisions: e.revisions, hooks_completed: e.hooksCompleted || 0,
           _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient, _overlap_hours: overlapH,
-          participant_ids: e.participantIds,
+          participant_ids: [...new Set([...participantIds, ...e.participantIds])],
         }
       }),
       ...voiceovers.map(e => ({
@@ -911,7 +1092,8 @@ export default function DailyUpdateForm({
         title: e.title || "Voiceover", start_time: e.startTime, end_time: e.endTime,
         duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
-        _client_type: e.clientName, _custom_client: e.customClient, participant_ids: e.participantIds,
+        _client_type: e.clientName, _custom_client: e.customClient,
+        participant_ids: [...new Set([...participantIds, ...e.participantIds])],
       })),
       ...posters.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
@@ -920,7 +1102,8 @@ export default function DailyUpdateForm({
         title: e.title || "Poster", start_time: e.startTime, end_time: e.endTime,
         duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
-        _client_type: e.clientName, _custom_client: e.customClient, participant_ids: e.participantIds,
+        _client_type: e.clientName, _custom_client: e.customClient,
+        participant_ids: [...new Set([...participantIds, ...e.participantIds])],
       })),
     ]
     const saveOverlapHours = edits.reduce((acc, e) => acc + calcOverlapHours(e.startTime, e.endTime, shoots), 0)
@@ -948,9 +1131,12 @@ export default function DailyUpdateForm({
   // ── Submit: learning ─────────────────────────────────────────────────────
   function handleLearningSubmit() {
     setLearningError(null)
-    if (!learningTopic.trim()) { setLearningError("Enter what you learned today."); return }
-    if (!learningFrom || !learningTo) { setLearningError("Set the From and To time."); return }
-    if (learningHours <= 0) { setLearningError("To time must be after From time."); return }
+    const incomplete = learningBlocks.find(b => b.topic.trim() || b.from || b.to)
+    if (filledLearningBlocks.length === 0) {
+      if (incomplete && !incomplete.topic.trim()) { setLearningError("Enter what you learned today."); return }
+      if (incomplete && (!incomplete.from || !incomplete.to)) { setLearningError("Set the From and To time."); return }
+      setLearningError("Add at least one learning block with a topic and time."); return
+    }
     startTransition(async () => {
       const res = await submitDailyUpdate({
         active_tab: "learning", date: selectedDate, links: [],
@@ -958,23 +1144,23 @@ export default function DailyUpdateForm({
         shoot_time_hours: 0, editing_time_hours: 0,
         learning_hours: 0,
         participant_ids: learningParticipantIds,
-        work_entries: [{
-          id: crypto.randomUUID(),
+        work_entries: filledLearningBlocks.map(b => ({
+          id: b.id,
           client_id: null,
-          client_name: learningClient,
+          client_name: b.client,
           client_names: [],
           is_multi_client: false,
           task_type: "learning" as const,
-          title: `[${learningClient}] ${learningTopic.trim()}`,
-          start_time: learningFrom || "",
-          end_time:   learningTo   || "",
-          duration_hours: learningHours,
-          notes: learningNotes || "",
+          title: `[${b.client}] ${b.topic.trim()}`,
+          start_time: b.from || "",
+          end_time:   b.to   || "",
+          duration_hours: calcLearningHours(b.from, b.to),
+          notes: b.notes || "",
           editing_videos: [],
-        }],
+        })),
       })
       if (!res.success) setLearningError(res.error ?? "Submission failed.")
-      else { setLearningDone(true); setEditMode(false); router.refresh() }
+      else { setSuccessPopup("learning"); setLearningDone(true); setEditMode(false); router.refresh() }
     })
   }
 
@@ -1013,6 +1199,7 @@ export default function DailyUpdateForm({
             task_type: "other" as const,
             title: t.description, start_time: t.startTime, end_time: t.endTime,
             duration_hours: t.durationHours, notes: `[${t.status}]`,
+            participant_ids: t.participantIds ?? [],
             video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
           }
         })
@@ -1020,16 +1207,21 @@ export default function DailyUpdateForm({
     const allParticipantIds = !isMediaTeam ? [...new Set(filledBlocks.flatMap(b => b.participantIds))] : []
     const work_entries = [...workingEntries, ...breakEntries]
 
-    startTransition(async () => {
-      const res = await submitDailyUpdate({
-        active_tab: "break", date: selectedDate, work_entries, links: [],
-        shoot_count: 0, editing_count: 0,
-        shoot_time_hours: 0, editing_time_hours: 0, learning_hours: 0,
-        participant_ids: allParticipantIds,
-      })
-      if (!res.success) setError(res.error ?? "Submission failed.")
-      else { if (isMediaTeam) { setBreaksDone(true); setEditMode(false) } else setWorkingDone(true); router.refresh() }
-    })
+    setBreakSubmitting(true)
+    ;(async () => {
+      try {
+        const res = await submitDailyUpdate({
+          active_tab: "break", date: selectedDate, work_entries, links: [],
+          shoot_count: 0, editing_count: 0,
+          shoot_time_hours: 0, editing_time_hours: 0, learning_hours: 0,
+          participant_ids: allParticipantIds,
+        })
+        if (!res.success) setError(res.error ?? "Submission failed.")
+        else { setSuccessPopup("break"); if (isMediaTeam) { setBreaksDone(true); setEditMode(false) } else setWorkingDone(true); router.refresh() }
+      } finally {
+        setBreakSubmitting(false)
+      }
+    })()
   }
 
   function handleSubmit() {
@@ -1062,7 +1254,8 @@ export default function DailyUpdateForm({
   // ── Already submitted screen ──────────────────────────────────────────────
   // Media team: all three tabs (media + learning + break) must be submitted.
   // Non-media: working is enough; learning is optional.
-  const allDone = isMediaTeam ? (mediaDone && learningDone && breaksDone) : workingDone
+  // Past dates always show the form (never the "done" screen) — user adds new entries, History handles editing
+  const allDone = !isPastDate && (isMediaTeam ? (mediaDone && learningDone && (isFreelancerLayout ? true : breaksDone)) : workingDone)
 
   // Past 14 days with no submission and no approved leave — shown in the submitted screen
   const unsubmittedDates = useMemo(() => {
@@ -1084,8 +1277,8 @@ export default function DailyUpdateForm({
     const rawSubmittedH = submittedEntries.length > 0
       ? submittedEntries.filter(e => e.task_type !== "break").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
       : 0
-    // fall back to working_hours when all entries are breaks (e.g. permission-only days)
-    const totalSubmittedH = rawSubmittedH > 0 ? rawSubmittedH : Number(subActUpd0?.working_hours) || 0
+    // Always prefer server-computed working_hours (interval-merge, overlap-safe) over simple sum
+    const totalSubmittedH = Number(subActUpd0?.working_hours) || rawSubmittedH || 0
 
     // Media team stats from work_entries — fall back to summary columns when work_entries is empty
     const subShoots   = submittedEntries.filter(e => e.task_type === "shoot")
@@ -1103,6 +1296,21 @@ export default function DailyUpdateForm({
 
     return (
       <div style={{ background:"#F5F6FA", minHeight:"100vh", padding:"24px 16px" }}>
+        {successPopup && (
+          <div onClick={() => setSuccessPopup(null)} style={{ position:"fixed", inset:0, zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.45)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:24, padding:"36px 40px", textAlign:"center", boxShadow:"0 24px 80px rgba(0,0,0,0.2)", maxWidth:320, width:"calc(100% - 48px)", animation:"gf-pop 0.3s cubic-bezier(0.34,1.56,0.64,1)" }}>
+              <style>{`@keyframes gf-pop{from{opacity:0;transform:scale(0.7)}to{opacity:1;transform:scale(1)}}`}</style>
+              <div style={{ width:72, height:72, borderRadius:"50%", background:"linear-gradient(135deg,#22C55E,#16A34A)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 18px", boxShadow:"0 8px 24px rgba(34,197,94,0.4)" }}>
+                <CheckCircle2 size={36} color="#fff" strokeWidth={2.5} />
+              </div>
+              <p style={{ fontSize:20, fontWeight:900, color:"#111827", margin:"0 0 6px", fontFamily:"var(--font-jakarta)" }}>Successfully Submitted!</p>
+              <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 22px", lineHeight:1.5 }}>
+                {successPopup === "working" ? "Work log saved ✓" : successPopup === "media" ? "Shoots & edits saved ✓" : successPopup === "learning" ? "Learning block saved ✓" : "Break saved ✓"}
+              </p>
+              <button onClick={() => setSuccessPopup(null)} style={{ background:"linear-gradient(135deg,#22C55E,#16A34A)", color:"#fff", border:"none", borderRadius:12, padding:"10px 28px", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(34,197,94,0.35)" }}>Done</button>
+            </div>
+          </div>
+        )}
         {/* Date selector strip */}
         <div style={{ background:"#FFFFFF", borderRadius:14, border: isPastDate ? "1.5px solid #F59E0B" : "1px solid #EBEDF2", padding:"10px 16px", display:"flex", alignItems:"center", gap:12, marginBottom:16, flexWrap:"wrap" }}>
           <div style={{ display:"flex", alignItems:"center", gap:8, flex:1, minWidth:200 }}>
@@ -1275,14 +1483,16 @@ export default function DailyUpdateForm({
     { id: "break"   as const, label: "☕  Break",     desc: "Break in / break out" },
   ]
   const TABS = isMediaTeam
-    ? ALL_TABS.filter(t => t.id === "media" || t.id === "learning" || t.id === "break")
+    ? isFreelancerLayout
+      ? ALL_TABS.filter(t => t.id === "media" || t.id === "learning")
+      : ALL_TABS.filter(t => t.id === "media" || t.id === "learning" || t.id === "break")
     : ALL_TABS.filter(t => t.id === "working" || t.id === "learning" || t.id === "break")
 
   return (
     <div className="p-4 md:p-6" style={{ background:"#F5F6FA", minHeight:"100vh" }}>
 
       {/* ── HEADER ────────────────────────────────────────────────────────── */}
-      <div style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:20, padding:"18px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, boxShadow:"0 8px 32px rgba(180,0,0,0.35)", flexWrap:"wrap", position:"relative", overflow:"hidden", marginBottom:20 }}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:20, padding:"16px 18px", gap:14, boxShadow:"0 8px 32px rgba(180,0,0,0.35)", position:"relative", overflow:"hidden", marginBottom:20 }}>
         <div style={{ position:"absolute", top:-50, right:-30, width:200, height:200, borderRadius:"50%", background:"rgba(255,255,255,0.05)", pointerEvents:"none" }} />
         <div style={{ position:"absolute", bottom:-40, left:60, width:150, height:150, borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }} />
 
@@ -1294,7 +1504,7 @@ export default function DailyUpdateForm({
           <p style={{ fontSize:11, color:"rgba(255,255,255,0.65)", margin:0 }}>{dateLabel}</p>
         </div>
 
-        <div style={{ display:"flex", alignItems:"center", borderRadius:16, overflow:"hidden", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", flex:1, maxWidth:340, position:"relative", zIndex:1 }}>
+        <div className="hidden sm:flex" style={{ alignItems:"center", borderRadius:16, overflow:"hidden", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", flex:1, maxWidth:340, position:"relative", zIndex:1 }}>
           <div style={{ position:"relative", width:70, height:80, flexShrink:0 }}>
             <Image src="/brand/assistant-girl.jpg" alt="" fill style={{ objectFit:"cover", objectPosition:"top center" }} />
           </div>
@@ -1329,6 +1539,24 @@ export default function DailyUpdateForm({
         </div>
       </div>
 
+
+      {/* ── 4A: Clock-in required block ── */}
+      {requiresClockIn && !todayClockedIn && (
+        <div style={{ background:"rgba(239,68,68,0.06)", border:"1.5px solid rgba(239,68,68,0.25)", borderRadius:14, padding:"16px 18px", marginBottom:16, display:"flex", alignItems:"flex-start", gap:12 }}>
+          <div style={{ width:36, height:36, borderRadius:10, background:"rgba(239,68,68,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:2 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div>
+            <p style={{ fontSize:14, fontWeight:800, color:"#DC2626", margin:"0 0 4px", fontFamily:"var(--font-jakarta)" }}>Clock In Required</p>
+            <p style={{ fontSize:12, color:"#6B7280", margin:"0 0 10px" }}>
+              You must clock in on the Attendance page before submitting today&apos;s work log.
+            </p>
+            <a href="/member/attendance" style={{ fontSize:12, fontWeight:700, color:"#DC2626", textDecoration:"underline", textUnderlineOffset:2 }}>
+              Go to Attendance →
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* ── DATE SELECTOR ────────────────────────────────────────────────── */}
       <div style={{ background:"#FFFFFF", borderRadius:14, border: isPastDate ? "1.5px solid #F59E0B" : "1px solid #EBEDF2", padding:"10px 16px", display:"flex", alignItems:"center", gap:12, marginBottom:16, boxShadow:"0 1px 4px rgba(0,0,0,0.05)", flexWrap:"wrap" }}>
@@ -1366,13 +1594,41 @@ export default function DailyUpdateForm({
         </div>
       </div>
 
+      {/* ── SUCCESS POPUP (all dates, all tabs) ─────────────────────────── */}
+      {successPopup && (
+        <div onClick={() => setSuccessPopup(null)} style={{ position:"fixed", inset:0, zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.45)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:24, padding:"36px 40px", textAlign:"center", boxShadow:"0 24px 80px rgba(0,0,0,0.2)", maxWidth:320, width:"calc(100% - 48px)", animation:"gf-pop 0.3s cubic-bezier(0.34,1.56,0.64,1)" }}>
+            <style>{`@keyframes gf-pop{from{opacity:0;transform:scale(0.7)}to{opacity:1;transform:scale(1)}}`}</style>
+            <div style={{ width:72, height:72, borderRadius:"50%", background:"linear-gradient(135deg,#22C55E,#16A34A)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 18px", boxShadow:"0 8px 24px rgba(34,197,94,0.4)" }}>
+              <CheckCircle2 size={36} color="#fff" strokeWidth={2.5} />
+            </div>
+            <p style={{ fontSize:20, fontWeight:900, color:"#111827", margin:"0 0 6px", fontFamily:"var(--font-jakarta)" }}>Successfully Submitted!</p>
+            <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 22px", lineHeight:1.5 }}>
+              {successPopup === "working" ? "Work log saved ✓" : successPopup === "media" ? "Shoots & edits saved ✓" : successPopup === "learning" ? "Learning block saved ✓" : "Break saved ✓"}
+            </p>
+            <button onClick={() => setSuccessPopup(null)} style={{ background:"linear-gradient(135deg,#22C55E,#16A34A)", color:"#fff", border:"none", borderRadius:12, padding:"10px 28px", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(34,197,94,0.35)" }}>Done</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── PAST DATE SUCCESS BANNER ─────────────────────────────────────── */}
+      {isPastDate && submitted && (
+        <div style={{ background:"#F0FDF4", border:"1.5px solid #22C55E", borderRadius:12, padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:16 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <CheckCircle2 size={18} style={{ color:"#22C55E", flexShrink:0 }} />
+            <p style={{ fontSize:13, fontWeight:700, color:"#15803D", margin:0 }}>Entry added to {dateLabel}! Add another entry below or go to History to edit.</p>
+          </div>
+          <button onClick={() => setSubmitted(false)} style={{ fontSize:18, lineHeight:1, color:"#15803D", background:"none", border:"none", cursor:"pointer", padding:"0 4px" }}>×</button>
+        </div>
+      )}
+
       {/* ── TABS (all teams) ─────────────────────────────────────────────── */}
-      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
+      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"nowrap", overflowX:"auto", WebkitOverflowScrolling:"touch", paddingBottom:2 }}>
         {TABS.map(t => {
           const isDone = t.id === "working" ? workingDone : t.id === "learning" ? learningDone : t.id === "media" ? mediaDone : t.id === "break" ? breaksDone : false
           return (
             <button key={t.id} onClick={() => { setTab(t.id); setError(null) }}
-              style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", padding:"12px 20px", borderRadius:14, cursor:"pointer", transition:"all 0.18s", flex:"1 1 120px",
+              style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", padding:"12px 20px", borderRadius:14, cursor:"pointer", transition:"all 0.18s", flexShrink:0, whiteSpace:"nowrap",
                 background: tab === t.id ? "#DE1A1A" : isDone ? "rgba(34,197,94,0.07)" : "#FFFFFF",
                 color:      tab === t.id ? "#fff"    : isDone ? "#16A34A" : "#6B7280",
                 boxShadow:  tab === t.id ? "0 4px 18px rgba(222,26,26,0.4)" : "0 1px 4px rgba(0,0,0,0.06)",
@@ -1555,38 +1811,61 @@ export default function DailyUpdateForm({
                 </div>
               )}
 
-              {/* ── Optional Voiceover section ─────────────────────────────── */}
-              <div style={{ borderTop:"1px dashed #EBEDF2", paddingTop:14, marginTop:16 }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: voiceovers.length > 0 ? 12 : 0 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                    <span style={{ fontSize:16 }}>🎙️</span>
-                    <span style={{ fontSize:12, fontWeight:700, color:"#374151" }}>Voiceover</span>
-                    {voiceovers.length > 0 && <span style={{ fontSize:10, color:"#8B5CF6", fontWeight:600 }}>{voiceovers.length} added</span>}
+              {/* ── Voiceover Today section ─────────────────────────────── */}
+              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                <SectionHead icon={<span style={{ fontSize:16 }}>🎙️</span>} label="Voiceover Today" count={voiceovers.length} color="#8B5CF6" />
+                {voiceovers.length === 0 ? (
+                  <div onClick={addVoiceover} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #DDD6FE", background:"rgba(139,92,246,0.02)", cursor:"pointer" }}>
+                    <div style={{ position:"relative", width:180, height:140 }}>
+                      <Image src="/brand/voiceover-girl.png" alt="Voiceover" fill style={{ objectFit:"contain" }} />
+                    </div>
+                    <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No voiceovers logged yet</p>
+                    <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#8B5CF6", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(139,92,246,0.35)" }}>+ Add Voiceover</span>
                   </div>
-                  <button onClick={addVoiceover} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", borderRadius:8, background:"rgba(139,92,246,0.08)", border:"1.5px solid rgba(139,92,246,0.3)", color:"#8B5CF6", fontSize:11, fontWeight:700, cursor:"pointer" }}>
-                    <Plus size={11}/> Add Voiceover
-                  </button>
-                </div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                 {voiceovers.map((e, vi) => {
                   const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
                   const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
                   const dur = calcDuration(e.startTime, e.endTime)
                   return (
-                    <div key={e.id} style={{ borderRadius:12, border:"1.5px solid rgba(139,92,246,0.2)", padding:"12px", marginBottom:8, background:"rgba(139,92,246,0.02)" }}>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                        <span style={{ fontSize:12, fontWeight:700, color:"#8B5CF6" }}>Voiceover #{vi+1}</span>
-                        <button onClick={() => removeVoiceover(e.id)} style={{ width:24, height:24, borderRadius:6, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          <X size={11} style={{ color:"#EF4444" }} />
+                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                        <span style={{ fontSize:11, fontWeight:800, color:"#8B5CF6", textTransform:"uppercase", letterSpacing:"0.1em" }}>Voiceover #{vi+1}</span>
+                        <button onClick={() => removeVoiceover(e.id)} style={{ width:26, height:26, borderRadius:8, background:"rgba(139,92,246,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Trash2 size={12} style={{ color:"#8B5CF6" }} />
                         </button>
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client</label>
-                          <select value={e.clientName} onChange={ev => patchVoiceover(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
-                            <option value="">Select client…</option>
-                            {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                            <option value="__custom__">Other…</option>
-                          </select>
+                          <div style={{ position:"relative" }}>
+                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
+                              <div>
+                                <button type="button" onClick={() => { exitPastMode(e.id); patchVoiceover(e.id, { clientName:"", customClient:"" }) }}
+                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
+                                  ← Back to Active Clients
+                                </button>
+                                <div style={{ position:"relative" }}>
+                                  <select value={e.clientName}
+                                    onChange={ev => { patchVoiceover(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
+                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                    <option value="">Select past client…</option>
+                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                  </select>
+                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                </div>
+                              </div>
+                            ) : (
+                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchVoiceover(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                <option value="">Select client…</option>
+                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                <option value="__custom__">✏️ Other (type manually)</option>
+                              </select>
+                            )}
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
                           {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchVoiceover(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
                         </div>
                         <div>
@@ -1605,7 +1884,7 @@ export default function DailyUpdateForm({
                         </div>
                         {dur > 0 && <span style={{ fontSize:11, fontWeight:800, color:"#8B5CF6", padding:"8px 10px", borderRadius:8, background:"rgba(139,92,246,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:8 }}>
                         <div>
                           <label style={L}>Drive / Audio Link</label>
                           <input value={e.videoLink} onChange={ev => patchVoiceover(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
@@ -1618,40 +1897,70 @@ export default function DailyUpdateForm({
                     </div>
                   )
                 })}
-              </div>
-
-              {/* ── Optional Poster section ────────────────────────────────── */}
-              <div style={{ borderTop:"1px dashed #EBEDF2", paddingTop:14, marginTop:4 }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: posters.length > 0 ? 12 : 0 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                    <span style={{ fontSize:16 }}>🖼️</span>
-                    <span style={{ fontSize:12, fontWeight:700, color:"#374151" }}>Poster</span>
-                    {posters.length > 0 && <span style={{ fontSize:10, color:"#EC4899", fontWeight:600 }}>{posters.length} added</span>}
                   </div>
-                  <button onClick={addPoster} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", borderRadius:8, background:"rgba(236,72,153,0.08)", border:"1.5px solid rgba(236,72,153,0.3)", color:"#EC4899", fontSize:11, fontWeight:700, cursor:"pointer" }}>
-                    <Plus size={11}/> Add Poster
+                )}
+                {voiceovers.length > 0 && (
+                  <button onClick={addVoiceover} style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, padding:"9px 18px", borderRadius:10, border:"1.5px dashed rgba(139,92,246,0.4)", background:"rgba(139,92,246,0.04)", color:"#8B5CF6", fontSize:12, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                    <Plus size={13} /> Add Another Voiceover
                   </button>
-                </div>
+                )}
+              </div>}
+
+              {/* ── Poster Today section ────────────────────────────────── */}
+              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                <SectionHead icon={<span style={{ fontSize:16 }}>🖼️</span>} label="Poster Today" count={posters.length} color="#EC4899" />
+                {posters.length === 0 ? (
+                  <div onClick={addPoster} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #FBCFE8", background:"rgba(236,72,153,0.02)", cursor:"pointer" }}>
+                    <div style={{ position:"relative", width:180, height:140 }}>
+                      <Image src="/brand/poster-girl.png" alt="Poster" fill style={{ objectFit:"contain" }} />
+                    </div>
+                    <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No posters logged yet</p>
+                    <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#EC4899", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(236,72,153,0.35)" }}>+ Add Poster</span>
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                 {posters.map((e, pi) => {
                   const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
                   const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
                   const dur = calcDuration(e.startTime, e.endTime)
                   return (
-                    <div key={e.id} style={{ borderRadius:12, border:"1.5px solid rgba(236,72,153,0.2)", padding:"12px", marginBottom:8, background:"rgba(236,72,153,0.02)" }}>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                        <span style={{ fontSize:12, fontWeight:700, color:"#EC4899" }}>Poster #{pi+1}</span>
-                        <button onClick={() => removePoster(e.id)} style={{ width:24, height:24, borderRadius:6, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          <X size={11} style={{ color:"#EF4444" }} />
+                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                        <span style={{ fontSize:11, fontWeight:800, color:"#EC4899", textTransform:"uppercase", letterSpacing:"0.1em" }}>Poster #{pi+1}</span>
+                        <button onClick={() => removePoster(e.id)} style={{ width:26, height:26, borderRadius:8, border:"none", background:"rgba(236,72,153,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Trash2 size={12} style={{ color:"#EC4899" }} />
                         </button>
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client</label>
-                          <select value={e.clientName} onChange={ev => patchPoster(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
-                            <option value="">Select client…</option>
-                            {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                            <option value="__custom__">Other…</option>
-                          </select>
+                          <div style={{ position:"relative" }}>
+                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
+                              <div>
+                                <button type="button" onClick={() => { exitPastMode(e.id); patchPoster(e.id, { clientName:"", customClient:"" }) }}
+                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
+                                  ← Back to Active Clients
+                                </button>
+                                <div style={{ position:"relative" }}>
+                                  <select value={e.clientName}
+                                    onChange={ev => { patchPoster(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
+                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                    <option value="">Select past client…</option>
+                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                  </select>
+                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                </div>
+                              </div>
+                            ) : (
+                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchPoster(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                <option value="">Select client…</option>
+                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                <option value="__custom__">✏️ Other (type manually)</option>
+                              </select>
+                            )}
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
                           {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchPoster(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
                         </div>
                         <div>
@@ -1670,7 +1979,7 @@ export default function DailyUpdateForm({
                         </div>
                         {dur > 0 && <span style={{ fontSize:11, fontWeight:800, color:"#EC4899", padding:"8px 10px", borderRadius:8, background:"rgba(236,72,153,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:8, marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
                         <div>
                           <label style={L}>Drive / File Link</label>
                           <input value={e.videoLink} onChange={ev => patchPoster(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
@@ -1680,14 +1989,194 @@ export default function DailyUpdateForm({
                           <input value={e.notes} onChange={ev => patchPoster(e.id, { notes: ev.target.value })} placeholder="Design details, revisions…" style={F} />
                         </div>
                       </div>
+                      {teamMembers.length > 0 && (
+                        <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
+                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                          <div style={{ position:"relative" }}>
+                            <select value="" onChange={ev => { const id = ev.target.value; if (id && !e.participantIds.includes(id)) patchPoster(e.id, { participantIds: [...e.participantIds, id] }) }}
+                              style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                              <option value="">Add teammate…</option>
+                              {teamMembers.filter(m => !e.participantIds.includes(m.id)).map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                          {e.participantIds.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                              {e.participantIds.map(pid => {
+                                const m = teamMembers.find(t => t.id === pid)
+                                if (!m) return null
+                                const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                return (
+                                  <button key={pid} type="button"
+                                    onClick={() => patchPoster(e.id, { participantIds: e.participantIds.filter(p => p !== pid) })}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(236,72,153,0.1)", border:"1.5px solid rgba(236,72,153,0.3)", cursor:"pointer" }}>
+                                    <div style={{ width:16, height:16, borderRadius:"50%", background:"#EC4899", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#BE185D" }}>{m.name.split(" ")[0]}</span>
+                                    <span style={{ fontSize:8, color:"#F472B6" }}>✕</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
-              </div>
+                  </div>
+                )}
+                {posters.length > 0 && (
+                  <button onClick={addPoster} style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, padding:"9px 18px", borderRadius:10, border:"1.5px dashed rgba(236,72,153,0.4)", background:"rgba(236,72,153,0.04)", color:"#EC4899", fontSize:12, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                    <Plus size={13} /> Add Another Poster
+                  </button>
+                )}
+              </div>}
+
+              {/* ── Editing Today section (non-media only) ──────────────── */}
+              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                <SectionHead icon={<span style={{ fontSize:16 }}>🎬</span>} label="Editing Today" count={nmEdits.length} color="#0D9488" />
+                {nmEdits.length === 0 ? (
+                  <div onClick={addNmEdit} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(13,148,136,0.35)", background:"rgba(13,148,136,0.02)", cursor:"pointer" }}>
+                    <div style={{ position:"relative", width:180, height:140 }}>
+                      <Image src="/brand/video-editor-boy.png" alt="Editing" fill style={{ objectFit:"contain" }} />
+                    </div>
+                    <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No editing logged yet</p>
+                    <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#0D9488", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(13,148,136,0.35)" }}>+ Add Editing</span>
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {nmEdits.map((e, ni) => {
+                  const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
+                  const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                  const dur = calcDuration(e.startTime, e.endTime)
+                  return (
+                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                        <span style={{ fontSize:11, fontWeight:800, color:"#0D9488", textTransform:"uppercase", letterSpacing:"0.1em" }}>Edit #{ni+1}</span>
+                        <button onClick={() => removeNmEdit(e.id)} style={{ width:26, height:26, borderRadius:8, background:"rgba(13,148,136,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Trash2 size={12} style={{ color:"#0D9488" }} />
+                        </button>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Client</label>
+                          <div style={{ position:"relative" }}>
+                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
+                              <div>
+                                <button type="button" onClick={() => { exitPastMode(e.id); patchNmEdit(e.id, { clientName:"", customClient:"" }) }}
+                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
+                                  ← Back to Active Clients
+                                </button>
+                                <div style={{ position:"relative" }}>
+                                  <select value={e.clientName}
+                                    onChange={ev => { patchNmEdit(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
+                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                    <option value="">Select past client…</option>
+                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                  </select>
+                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                </div>
+                              </div>
+                            ) : (
+                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchNmEdit(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                <option value="">Select client…</option>
+                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                <option value="__custom__">✏️ Other (type manually)</option>
+                              </select>
+                            )}
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                          {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchNmEdit(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
+                        </div>
+                        <div>
+                          <label style={L}>Video Name</label>
+                          <input value={e.title} onChange={ev => patchNmEdit(e.id, { title: ev.target.value })} placeholder="Video or project name" style={F} />
+                        </div>
+                      </div>
+                      <div style={{ marginBottom:8 }}>
+                        <label style={L}>Video Type</label>
+                        <div style={{ position:"relative" }}>
+                          <select value={e.videoType} onChange={ev => patchNmEdit(e.id, { videoType: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                            <option value="">Select type…</option>
+                            <option value="AI GENERATED">AI Generated</option>
+                            <option value="SIMPLE EDIT">Simple Edit</option>
+                            <option value="EDIT + AI">Edit + AI</option>
+                          </select>
+                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                        </div>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:8, alignItems:"end", marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Start Time</label>
+                          <input type="time" value={e.startTime} onChange={ev => patchNmEdit(e.id, { startTime: ev.target.value })} style={F} />
+                        </div>
+                        <div>
+                          <label style={L}>End Time</label>
+                          <input type="time" value={e.endTime} onChange={ev => patchNmEdit(e.id, { endTime: ev.target.value })} style={F} />
+                        </div>
+                        {dur > 0 && <span style={{ fontSize:11, fontWeight:800, color:"#0D9488", padding:"8px 10px", borderRadius:8, background:"rgba(13,148,136,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:8, marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
+                        <div>
+                          <label style={L}>Drive / File Link</label>
+                          <input value={e.videoLink} onChange={ev => patchNmEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
+                        </div>
+                        <div>
+                          <label style={L}>Notes</label>
+                          <input value={e.notes} onChange={ev => patchNmEdit(e.id, { notes: ev.target.value })} placeholder="Edit details…" style={F} />
+                        </div>
+                      </div>
+                      {teamMembers.length > 0 && (
+                        <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
+                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                          <div style={{ position:"relative" }}>
+                            <select value="" onChange={ev => { const id = ev.target.value; if (id && !e.participantIds.includes(id)) patchNmEdit(e.id, { participantIds: [...e.participantIds, id] }) }}
+                              style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                              <option value="">Add teammate…</option>
+                              {teamMembers.filter(m => !e.participantIds.includes(m.id)).map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                          {e.participantIds.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                              {e.participantIds.map(pid => {
+                                const m = teamMembers.find(t => t.id === pid)
+                                if (!m) return null
+                                const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                return (
+                                  <button key={pid} type="button"
+                                    onClick={() => patchNmEdit(e.id, { participantIds: e.participantIds.filter(p => p !== pid) })}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(13,148,136,0.1)", border:"1.5px solid rgba(13,148,136,0.3)", cursor:"pointer" }}>
+                                    <div style={{ width:16, height:16, borderRadius:"50%", background:"#0D9488", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#0F766E" }}>{m.name.split(" ")[0]}</span>
+                                    <span style={{ fontSize:8, color:"#5EEAD4" }}>✕</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                  </div>
+                )}
+                {nmEdits.length > 0 && (
+                  <button onClick={addNmEdit} style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, padding:"9px 18px", borderRadius:10, border:"1.5px dashed rgba(13,148,136,0.4)", background:"rgba(13,148,136,0.04)", color:"#0D9488", fontSize:12, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                    <Plus size={13} /> Add Another Editing
+                  </button>
+                )}
+              </div>}
 
               {/* Submit button for non-media team */}
               {!isMediaTeam && (
-                <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
                   <div>
                     {workingError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{workingError}</p>}
                     {!workingError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{filledBlocks.length} block{filledBlocks.length !== 1 ? "s" : ""} · {totalLoggedHours.toFixed(1)}h logged</p>}
@@ -1706,7 +2195,7 @@ export default function DailyUpdateForm({
                 </div>
               )}
               {!isMediaTeam && (
-                <p style={{ fontSize:11, marginTop:6, color:"#9CA3AF" }}>
+                <p style={{ fontSize:11, marginTop:16, color:"#9CA3AF", textAlign:"center" }}>
                   Saved entries appear in your{" "}
                   <a href="/member/history" style={{ color:"#6366F1", fontWeight:600 }}>History tab ↗</a>
                 </p>
@@ -1943,7 +2432,7 @@ export default function DailyUpdateForm({
                           </button>
                         </div>
                       </div>
-                      {/* Partner picker per shoot */}
+                      {/* Partner picker per shoot — all active MEMBER role users */}
                       {teamMembers.length > 0 && (
                         <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #F0F1F5" }}>
                           <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Shot With</p>
@@ -2010,7 +2499,7 @@ export default function DailyUpdateForm({
               {edits.length === 0 ? (
                 <div onClick={addEdit} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #C7D2FE", background:"rgba(99,102,241,0.02)", cursor:"pointer" }}>
                   <div style={{ position:"relative", width:180, height:140 }}>
-                    <Image src="/brand/edit-illustration.png" alt="Editing" fill style={{ objectFit:"contain" }} />
+                    <Image src="/brand/video-editor-boy.png" alt="Editing" fill style={{ objectFit:"contain" }} />
                   </div>
                   <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No editing logged yet</p>
                   <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#6366F1", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(99,102,241,0.35)" }}>+ Add edit</span>
@@ -2080,7 +2569,7 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             <select value={e.videoType} onChange={ev => patchEdit(e.id, { videoType: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select type…</option>
-                              {["Instagram Reels","Hook","Personal Branding","Ads and Hooks","Long Videos","Cinematic","YouTube Shorts"].map(t => <option key={t} value={t}>{t}</option>)}
+                              {["ADVERTISEMENT","ADVERTISEMENT WITH HOOKS","LONG FORMAT VIDEO","CINEMATIC","PROMOTION VIDEOS","INSTAGRAM REELS","YOUTUBE SHORTS","GREEN SCREEN EDITING","PERSONAL BRANDING"].map(t => <option key={t} value={t}>{t}</option>)}
                               <option value="__other__">✏️ Other (type…)</option>
                             </select>
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
@@ -2090,17 +2579,8 @@ export default function DailyUpdateForm({
                           )}
                         </div>
                         <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration (mins)</label>
-                          <div style={{ position:"relative" }}>
-                            <select value={e.videoDuration} onChange={ev => patchEdit(e.id, { videoDuration: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                              <option value="">Select…</option>
-                              <option value="15 sec">15 sec</option>
-                              <option value="30 sec">30 sec</option>
-                              <option value="45 sec">45 sec</option>
-                              {[1,1.5,2,2.5,3,3.5,4,4.5,5,10].map(m => <option key={m} value={`${m} min`}>{m} min</option>)}
-                            </select>
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration</label>
+                          <VideoDurationPicker value={e.videoDuration} onChange={v => patchEdit(e.id, { videoDuration: v })} />
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Revisions</label>
@@ -2170,43 +2650,6 @@ export default function DailyUpdateForm({
                           <input value={e.videoLink} onChange={ev => patchEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/… (optional)" style={F} />
                         </div>
                       </div>
-                      {/* Partner picker per edit */}
-                      {teamMembers.length > 0 && (
-                        <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #F0F1F5" }}>
-                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Edited With</p>
-                          {e.participantIds.length > 0 && (
-                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
-                              {e.participantIds.map(pid => {
-                                const tm = teamMembers.find(t => t.id === pid)
-                                if (!tm) return null
-                                const initials = tm.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
-                                return (
-                                  <button key={pid} onClick={() => patchEdit(e.id, { participantIds: e.participantIds.filter(p => p !== pid) })}
-                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
-                                    <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
-                                    <span style={{ fontSize:10, fontWeight:700, color:"#4338CA" }}>{tm.name.split(" ")[0]}</span>
-                                    <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          )}
-                          <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
-                            {teamMembers.slice(0, 20).map(tm => {
-                              const selected = e.participantIds.includes(tm.id)
-                              const initials = tm.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
-                              return (
-                                <button key={tm.id} onClick={() => patchEdit(e.id, { participantIds: selected ? e.participantIds.filter(p => p !== tm.id) : [...e.participantIds, tm.id] })}
-                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, cursor:"pointer", background: selected ? "rgba(99,102,241,0.1)" : "#F9FAFB", border:`1.5px solid ${selected ? "rgba(99,102,241,0.4)" : "#EBEDF2"}` }}>
-                                  <div style={{ width:16, height:16, borderRadius:"50%", background: selected ? "#6366F1" : "#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color: selected ? "#fff" : "#9CA3AF" }}>{initials}</div>
-                                  <span style={{ fontSize:10, fontWeight:700, color: selected ? "#4338CA" : "#374151" }}>{tm.name.split(" ")[0]}</span>
-                                  {selected && <span style={{ fontSize:8, color:"#6366F1" }}>✓</span>}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )}
                       {entryErrors[e.id] && (
                         <div style={{ margin:"8px 0 0", padding:"8px 12px", borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.25)", fontSize:11, fontWeight:600, color:"#DC2626" }}>
                           ⚠ {entryErrors[e.id]}
@@ -2231,143 +2674,6 @@ export default function DailyUpdateForm({
               )}
             </div>
 
-            {/* ── VOICEOVERS ──────────────────────────────────────────────── */}
-            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <div style={{ width:34, height:34, borderRadius:10, background:"rgba(139,92,246,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <span style={{ fontSize:18 }}>🎙️</span>
-                  </div>
-                  <div>
-                    <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Voiceovers</p>
-                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{voiceovers.length} voiceover{voiceovers.length !== 1 ? "s" : ""} · {totalVoiceoverHours.toFixed(1)}h</p>
-                  </div>
-                </div>
-                <button onClick={addVoiceover} style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, background:"rgba(139,92,246,0.08)", border:"1.5px solid rgba(139,92,246,0.3)", color:"#8B5CF6", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                  <Plus size={13}/> Add Voiceover
-                </button>
-              </div>
-              {voiceovers.map((e, vi) => {
-                const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
-                const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
-                const dur = calcDuration(e.startTime, e.endTime)
-                return (
-                  <div key={e.id} style={{ borderRadius:14, border:"1.5px solid rgba(139,92,246,0.2)", padding:"14px", marginBottom:10, background:"rgba(139,92,246,0.02)" }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                      <span style={{ fontSize:12, fontWeight:700, color:"#8B5CF6" }}>Voiceover #{vi+1}</span>
-                      <button onClick={() => removeVoiceover(e.id)} style={{ width:26, height:26, borderRadius:7, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        <X size={12} style={{ color:"#EF4444" }} />
-                      </button>
-                    </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
-                      <div>
-                        <label style={L}>Client</label>
-                        <select value={e.clientName} onChange={ev => patchVoiceover(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
-                          <option value="">Select client…</option>
-                          {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                          <option value="__custom__">Other…</option>
-                        </select>
-                        {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchVoiceover(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
-                      </div>
-                      <div>
-                        <label style={L}>Title / Project</label>
-                        <input value={e.title} onChange={ev => patchVoiceover(e.id, { title: ev.target.value })} placeholder="Script or project name" style={F} />
-                      </div>
-                    </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:10, alignItems:"end", marginBottom:10 }}>
-                      <div>
-                        <label style={L}>Start Time</label>
-                        <input type="time" value={e.startTime} onChange={ev => patchVoiceover(e.id, { startTime: ev.target.value })} style={F} />
-                      </div>
-                      <div>
-                        <label style={L}>End Time</label>
-                        <input type="time" value={e.endTime} onChange={ev => patchVoiceover(e.id, { endTime: ev.target.value })} style={F} />
-                      </div>
-                      {dur > 0 && <span style={{ fontSize:12, fontWeight:800, color:"#8B5CF6", padding:"8px 12px", borderRadius:8, background:"rgba(139,92,246,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
-                    </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                      <div>
-                        <label style={L}>Drive / Audio Link</label>
-                        <input value={e.videoLink} onChange={ev => patchVoiceover(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
-                      </div>
-                      <div>
-                        <label style={L}>Notes</label>
-                        <input value={e.notes} onChange={ev => patchVoiceover(e.id, { notes: ev.target.value })} placeholder="Script details, revisions…" style={F} />
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* ── POSTERS ─────────────────────────────────────────────────── */}
-            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <div style={{ width:34, height:34, borderRadius:10, background:"rgba(236,72,153,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <span style={{ fontSize:18 }}>🖼️</span>
-                  </div>
-                  <div>
-                    <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Posters</p>
-                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{posters.length} poster{posters.length !== 1 ? "s" : ""} · {totalPosterHours.toFixed(1)}h</p>
-                  </div>
-                </div>
-                <button onClick={addPoster} style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, background:"rgba(236,72,153,0.08)", border:"1.5px solid rgba(236,72,153,0.3)", color:"#EC4899", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                  <Plus size={13}/> Add Poster
-                </button>
-              </div>
-              {posters.map((e, pi) => {
-                const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
-                const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
-                const dur = calcDuration(e.startTime, e.endTime)
-                return (
-                  <div key={e.id} style={{ borderRadius:14, border:"1.5px solid rgba(236,72,153,0.2)", padding:"14px", marginBottom:10, background:"rgba(236,72,153,0.02)" }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                      <span style={{ fontSize:12, fontWeight:700, color:"#EC4899" }}>Poster #{pi+1}</span>
-                      <button onClick={() => removePoster(e.id)} style={{ width:26, height:26, borderRadius:7, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        <X size={12} style={{ color:"#EF4444" }} />
-                      </button>
-                    </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
-                      <div>
-                        <label style={L}>Client</label>
-                        <select value={e.clientName} onChange={ev => patchPoster(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
-                          <option value="">Select client…</option>
-                          {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                          <option value="__custom__">Other…</option>
-                        </select>
-                        {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchPoster(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
-                      </div>
-                      <div>
-                        <label style={L}>Poster Name</label>
-                        <input value={e.title} onChange={ev => patchPoster(e.id, { title: ev.target.value })} placeholder="Poster or design name" style={F} />
-                      </div>
-                    </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:10, alignItems:"end", marginBottom:10 }}>
-                      <div>
-                        <label style={L}>Start Time</label>
-                        <input type="time" value={e.startTime} onChange={ev => patchPoster(e.id, { startTime: ev.target.value })} style={F} />
-                      </div>
-                      <div>
-                        <label style={L}>End Time</label>
-                        <input type="time" value={e.endTime} onChange={ev => patchPoster(e.id, { endTime: ev.target.value })} style={F} />
-                      </div>
-                      {dur > 0 && <span style={{ fontSize:12, fontWeight:800, color:"#EC4899", padding:"8px 12px", borderRadius:8, background:"rgba(236,72,153,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
-                    </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                      <div>
-                        <label style={L}>Drive / File Link</label>
-                        <input value={e.videoLink} onChange={ev => patchPoster(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
-                      </div>
-                      <div>
-                        <label style={L}>Notes</label>
-                        <input value={e.notes} onChange={ev => patchPoster(e.id, { notes: ev.target.value })} placeholder="Design details, revisions…" style={F} />
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
 
           </>)}
 
@@ -2389,17 +2695,24 @@ export default function DailyUpdateForm({
                     </p>
                   </div>
                 </div>
-                <button onClick={isMediaTeam ? addMediaBreak : addNonMediaBreak}
-                  style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, border:"1.5px solid rgba(245,158,11,0.4)", background:"#FEF3C7", color:"#D97706", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                  <Plus size={13} /> Add Break
-                </button>
+                {(isMediaTeam ? mediaBreaks.length : nonMediaBreaks.length) > 0 && (
+                  <button onClick={isMediaTeam ? addMediaBreak : addNonMediaBreak}
+                    style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, border:"1.5px solid rgba(245,158,11,0.4)", background:"#FEF3C7", color:"#D97706", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                    <Plus size={13} /> Add Break
+                  </button>
+                )}
               </div>
 
               {/* Media breaks */}
               {isMediaTeam && (mediaBreaks.length === 0 ? (
-                <div onClick={addMediaBreak} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, padding:"24px 0", borderRadius:14, border:"2px dashed rgba(245,158,11,0.3)", background:"rgba(245,158,11,0.03)", cursor:"pointer" }}>
-                  <Coffee size={28} style={{ color:"#FCD34D" }} />
-                  <p style={{ fontSize:12, fontWeight:600, color:"#9CA3AF", margin:0 }}>No breaks logged — tap to add one</p>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 24px", border:"2px dashed rgba(245,158,11,0.3)", borderRadius:16, background:"#FFFBEB" }}>
+                  <span style={{ fontSize:36, marginBottom:12 }}>☕</span>
+                  <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No breaks logged yet</p>
+                  <p style={{ fontSize:12, color:"#9CA3AF", margin:"0 0 16px", textAlign:"center" }}>Click &quot;Add First Break&quot; to log a break.</p>
+                  <button onClick={addMediaBreak}
+                    style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 22px", borderRadius:12, border:"none", background:"#D97706", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                    <Plus size={13} /> Add First Break
+                  </button>
                 </div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -2414,23 +2727,15 @@ export default function DailyUpdateForm({
                       )}
                       <select value={b.label} onChange={e => patchMediaBreak(b.id, { label: e.target.value, customLabel: "" })}
                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
-                        <option value="Permission">🙋 Permission</option>
                         <option value="Tea">☕ Tea</option>
                         <option value="Lunch Break">🍱 Lunch Break</option>
                         <option value="Personal">🏠 Personal</option>
+                        <option value="Permission">🙏 Permission</option>
+                        <option value="Half Day Leave">🌓 Half Day Leave</option>
                         <option value="Short Break">🚶 Short Break</option>
                         <option value="Early Logoff">🌙 Early Logoff</option>
                         <option value="Late Login">⏰ Late Login</option>
-                        <option value="__other__">✏️ Other</option>
                       </select>
-                      {b.label === "__other__" && (
-                        <input
-                          value={b.customLabel ?? ""}
-                          onChange={e => patchMediaBreak(b.id, { customLabel: e.target.value })}
-                          placeholder="Type break name…"
-                          style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", outline:"none", width:130 }}
-                        />
-                      )}
                       <button onClick={() => removeMediaBreak(b.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
                         <Trash2 size={13} style={{ color:"#EF4444" }} />
                       </button>
@@ -2441,9 +2746,14 @@ export default function DailyUpdateForm({
 
               {/* Non-media breaks — own state, same pattern as media breaks */}
               {!isMediaTeam && (nonMediaBreaks.length === 0 ? (
-                <div onClick={addNonMediaBreak} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, padding:"24px 0", borderRadius:14, border:"2px dashed rgba(245,158,11,0.3)", background:"rgba(245,158,11,0.03)", cursor:"pointer" }}>
-                  <Coffee size={28} style={{ color:"#FCD34D" }} />
-                  <p style={{ fontSize:12, fontWeight:600, color:"#9CA3AF", margin:0 }}>No breaks logged — tap to add one</p>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 24px", border:"2px dashed rgba(245,158,11,0.3)", borderRadius:16, background:"#FFFBEB" }}>
+                  <span style={{ fontSize:36, marginBottom:12 }}>☕</span>
+                  <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No breaks logged yet</p>
+                  <p style={{ fontSize:12, color:"#9CA3AF", margin:"0 0 16px", textAlign:"center" }}>Click &quot;Add First Break&quot; to log a break.</p>
+                  <button onClick={addNonMediaBreak}
+                    style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 22px", borderRadius:12, border:"none", background:"#D97706", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                    <Plus size={13} /> Add First Break
+                  </button>
                 </div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -2458,23 +2768,15 @@ export default function DailyUpdateForm({
                       )}
                       <select value={b.label} onChange={e => patchNonMediaBreak(b.id, { label: e.target.value, customLabel: "" })}
                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
-                        <option value="Permission">🙋 Permission</option>
                         <option value="Tea">☕ Tea</option>
                         <option value="Lunch Break">🍱 Lunch Break</option>
                         <option value="Personal">🏠 Personal</option>
+                        <option value="Permission">🙏 Permission</option>
+                        <option value="Half Day Leave">🌓 Half Day Leave</option>
                         <option value="Short Break">🚶 Short Break</option>
                         <option value="Early Logoff">🌙 Early Logoff</option>
                         <option value="Late Login">⏰ Late Login</option>
-                        <option value="__other__">✏️ Other</option>
                       </select>
-                      {b.label === "__other__" && (
-                        <input
-                          value={b.customLabel ?? ""}
-                          onChange={e => patchNonMediaBreak(b.id, { customLabel: e.target.value })}
-                          placeholder="Type break name…"
-                          style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", outline:"none", width:130 }}
-                        />
-                      )}
                       <button onClick={() => removeNonMediaBreak(b.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
                         <Trash2 size={13} style={{ color:"#EF4444" }} />
                       </button>
@@ -2488,46 +2790,85 @@ export default function DailyUpdateForm({
           {/* ══ LEARNING ══════════════════════════════════════════════════════ */}
           {tab === "learning" && (
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-              <SectionHead icon={<BookOpen size={16} style={{ color:"#10B981" }} />} label="What did you learn today?" count={0} color="#10B981" />
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background:"rgba(16,185,129,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <BookOpen size={16} style={{ color:"#10B981" }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Learning Today</p>
+                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{learningDone ? `${learningHours}h logged` : "Skills & growth"}</p>
+                  </div>
+                </div>
+              </div>
+              {!learningStarted && !learningDone ? (
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 24px", border:"2px dashed #D1FAE5", borderRadius:16, background:"#F0FDF4" }}>
+                  <span style={{ fontSize:36, marginBottom:12 }}>📚</span>
+                  <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No learning logged yet</p>
+                  <p style={{ fontSize:12, color:"#9CA3AF", margin:"0 0 16px", textAlign:"center" }}>Click &quot;Add Learning&quot; to log what you learned today.</p>
+                  <button onClick={() => setLearningStarted(true)}
+                    style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 22px", borderRadius:12, border:"none", background:"#10B981", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                    <Plus size={13} /> Add Learning
+                  </button>
+                </div>
+              ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-                <div>
-                  <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>For Client *</label>
-                  <div style={{ display:"flex", gap:8 }}>
-                    {["GROFAST DIGITAL", "GROFAST AI"].map(c => (
-                      <button key={c} type="button" onClick={() => setLearningClient(c)}
-                        style={{ flex:1, padding:"9px 14px", borderRadius:10, fontSize:12, fontWeight:700, cursor:"pointer",
-                          border: learningClient === c ? "2px solid #10B981" : "1.5px solid #EBEDF2",
-                          background: learningClient === c ? "rgba(16,185,129,0.1)" : "#F9FAFB",
-                          color: learningClient === c ? "#059669" : "#6B7280" }}>
-                        {c}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Topic / Course *</label>
-                  <input value={learningTopic} onChange={e => setLearningTopic(e.target.value)} placeholder="e.g. DaVinci Resolve color grading, Adobe Premiere…" style={F} />
-                </div>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
-                  <div>
-                    <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>From *</label>
-                    <TimePicker value={learningFrom} onChange={setLearningFrom} allowEmpty style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
-                  </div>
-                  <div>
-                    <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>To *</label>
-                    <TimePicker value={learningTo} onChange={setLearningTo} allowEmpty style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
-                  </div>
-                  <div>
-                    <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Duration</label>
-                    <div style={{ ...F, background:"#F9FAFB", color: learningHours > 0 ? "#111827" : "#9CA3AF", fontWeight:700, display:"flex", alignItems:"center" }}>
-                      {learningHours > 0 ? `${learningHours}h` : "—"}
+                {learningBlocks.map((blk, idx) => (
+                  <div key={blk.id} style={{ border:"1.5px solid #EBEDF2", borderRadius:14, padding:"14px 16px", background:"#FCFEFD", display:"flex", flexDirection:"column", gap:12 }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                      <span style={{ fontSize:11, fontWeight:800, color:"#10B981", textTransform:"uppercase", letterSpacing:"0.08em" }}>📘 Learning #{idx + 1}</span>
+                      {learningBlocks.length > 1 && (
+                        <button type="button" onClick={() => removeLearningBlock(blk.id)} title="Remove this learning"
+                          style={{ width:26, height:26, borderRadius:8, border:"1.5px solid #FECACA", background:"#FEF2F2", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+                          <Trash2 size={13} style={{ color:"#EF4444" }} />
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>For Client *</label>
+                      <div style={{ display:"flex", gap:8 }}>
+                        {["GROFAST DIGITAL", "GROFAST AI"].map(c => (
+                          <button key={c} type="button" onClick={() => patchLearningBlock(blk.id, { client: c })}
+                            style={{ flex:1, padding:"9px 14px", borderRadius:10, fontSize:12, fontWeight:700, cursor:"pointer",
+                              border: blk.client === c ? "2px solid #10B981" : "1.5px solid #EBEDF2",
+                              background: blk.client === c ? "rgba(16,185,129,0.1)" : "#F9FAFB",
+                              color: blk.client === c ? "#059669" : "#6B7280" }}>
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Topic / Course *</label>
+                      <input value={blk.topic} onChange={e => patchLearningBlock(blk.id, { topic: e.target.value })} placeholder="e.g. DaVinci Resolve color grading, Adobe Premiere…" style={F} />
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
+                      <div>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>From *</label>
+                        <TimePicker value={blk.from} onChange={v => patchLearningBlock(blk.id, { from: v })} allowEmpty style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
+                      </div>
+                      <div>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>To *</label>
+                        <TimePicker value={blk.to} onChange={v => patchLearningBlock(blk.id, { to: v })} allowEmpty style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
+                      </div>
+                      <div>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Duration</label>
+                        <div style={{ ...F, background:"#F9FAFB", color: calcLearningHours(blk.from, blk.to) > 0 ? "#111827" : "#9CA3AF", fontWeight:700, display:"flex", alignItems:"center" }}>
+                          {calcLearningHours(blk.from, blk.to) > 0 ? `${calcLearningHours(blk.from, blk.to)}h` : "—"}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Notes</label>
+                      <input value={blk.notes} onChange={e => patchLearningBlock(blk.id, { notes: e.target.value })} placeholder="Key takeaways, resources used…" style={F} />
                     </div>
                   </div>
-                </div>
-                <div>
-                  <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Notes</label>
-                  <input value={learningNotes} onChange={e => setLearningNotes(e.target.value)} placeholder="Key takeaways, resources used…" style={F} />
-                </div>
+                ))}
+                {/* Add another learning block */}
+                <button type="button" onClick={addLearningBlock}
+                  style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, padding:"11px", borderRadius:12, border:"1.5px dashed #10B981", background:"rgba(16,185,129,0.06)", color:"#059669", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  <Plus size={14} /> Add Another Learning
+                </button>
                 {/* Learned With */}
                 {teamMembers.length > 0 && (
                   <div style={{ paddingTop:10, borderTop:"1px dashed #EBEDF2" }}>
@@ -2569,13 +2910,14 @@ export default function DailyUpdateForm({
                   </div>
                 )}
               </div>
+              )}
 
-              {/* Submit button for non-media team */}
-              {!isMediaTeam && (
-                <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+              {/* Submit button for non-media team — only when form is open */}
+              {!isMediaTeam && (learningStarted || learningDone) && (
+                <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
                   <div>
                     {learningError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{learningError}</p>}
-                    {!learningError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningTopic || "not set"} · {learningHours}h</p>}
+                    {!learningError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningSummaryTopic || "not set"}{filledLearningBlocks.length > 1 ? ` +${filledLearningBlocks.length - 1} more` : ""} · {learningHours}h</p>}
                   </div>
                   {learningDone ? (
                     <span style={{ fontSize:12, fontWeight:700, color:"#22C55E", display:"flex", alignItems:"center", gap:6 }}>
@@ -2590,8 +2932,8 @@ export default function DailyUpdateForm({
                   )}
                 </div>
               )}
-              {!isMediaTeam && (
-                <p style={{ fontSize:11, marginTop:6, color:"#9CA3AF" }}>
+              {!isMediaTeam && (learningStarted || learningDone) && (
+                <p style={{ fontSize:11, marginTop:16, color:"#9CA3AF", textAlign:"center" }}>
                   Saved entries appear in your{" "}
                   <a href="/member/history" style={{ color:"#6366F1", fontWeight:600 }}>History tab ↗</a>
                 </p>
@@ -2601,21 +2943,21 @@ export default function DailyUpdateForm({
 
           {/* ── Submit bar ─────────────────────────────────────────────────── */}
           {(isMediaTeam || tab === "break") && (
-            <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+            <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", flexWrap:"wrap" }}>
               <div>
                 {error && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{error}</p>}
                 {!error && tab === "media"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{shoots.length} shoot{shoots.length !== 1 ? "s" : ""} · {edits.length} edit{edits.length !== 1 ? "s" : ""} · {totalMediaHours}h total</p>}
-                {!error && tab === "learning"&& <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningTopic || "not set"} · {learningHours}h</p>}
+                {!error && tab === "learning"&& <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningSummaryTopic || "not set"}{filledLearningBlocks.length > 1 ? ` +${filledLearningBlocks.length - 1} more` : ""} · {learningHours}h</p>}
                 {!error && tab === "break"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>
                   {isMediaTeam ? `${mediaBreaks.length} break${mediaBreaks.length !== 1 ? "s" : ""} · ${mediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h` : `${nonMediaBreaks.length} break${nonMediaBreaks.length !== 1 ? "s" : ""} · ${nonMediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h`}
                 </p>}
               </div>
-              <button onClick={handleSubmit} disabled={isPending || submitted}
-                style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor: isPending || submitted ? "not-allowed" : "pointer", transition:"all 0.2s", opacity: isPending ? 0.7 : 1,
+              <button onClick={handleSubmit} disabled={isPending || submitted || breakSubmitting}
+                style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor: isPending || submitted || breakSubmitting ? "not-allowed" : "pointer", transition:"all 0.2s", opacity: isPending || breakSubmitting ? 0.7 : 1,
                   background: submitted ? "#22C55E" : "#DE1A1A",
                   color:"#fff", boxShadow: submitted ? "0 4px 14px rgba(34,197,94,0.4)" : "0 4px 14px rgba(222,26,26,0.4)" }}>
-                {isPending ? <Loader2 size={14} className="animate-spin" /> : submitted ? <CheckCircle2 size={14} /> : <SendHorizonal size={14} />}
-                {isPending ? "Submitting…" : submitted ? "Submitted! ✓" : "Submit Daily Update"}
+                {isPending || breakSubmitting ? <Loader2 size={14} className="animate-spin" /> : submitted ? <CheckCircle2 size={14} /> : <SendHorizonal size={14} />}
+                {isPending || breakSubmitting ? "Submitting…" : submitted ? "Submitted! ✓" : "Submit Daily Update"}
               </button>
             </div>
           )}
@@ -2719,7 +3061,7 @@ export default function DailyUpdateForm({
                       📚 Learning{src ? " ✓" : ""}
                     </p>
                     {([
-                      { label:"Topic", value: srcTopic || learningTopic || "Not set", color:"#10B981" },
+                      { label:"Topic", value: srcTopic || learningSummaryTopic || "Not set", color:"#10B981" },
                       { label:"Hours", value:`${srcHours ?? learningHours}h`,          color:"#6366F1" },
                     ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
                       <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
@@ -2776,7 +3118,7 @@ export default function DailyUpdateForm({
               {(isMediaTeam && tab === "learning") && (
                 <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
                   {([
-                    { label:"Topic",       value: learningTopic || "Not set", color:"#10B981" },
+                    { label:"Topic",       value: learningSummaryTopic || "Not set", color:"#10B981" },
                     { label:"Hours",       value:`${learningHours}h`,          color:"#6366F1" },
                   ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
                     <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>

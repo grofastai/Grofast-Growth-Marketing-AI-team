@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts"
 import { useRouter } from "next/navigation"
 import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning, addEntryToDate } from "@/lib/actions/daily-updates"
+import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
+import { confirmCollaboration, editCollaborationTime, rejectCollaboration, deleteCollaborationsByEntry } from "@/lib/actions/collaboration"
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 import Image from "next/image"
@@ -70,7 +72,8 @@ function stripShootNotes(notes: string): string {
 }
 
 function fmtTravel(h: number): string {
-  const hrs = Math.floor(h), mins = Math.round((h % 1) * 60)
+  let hrs = Math.floor(h); let mins = Math.round((h % 1) * 60)
+  if (mins === 60) { hrs += 1; mins = 0 }
   return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
 }
 
@@ -85,8 +88,10 @@ function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h *
 
 // Calculates net work hours by merging work intervals then subtracting any break
 // intervals that overlap — so a break taken inside a work window doesn't count as work.
-function calcNetWorkHours(entries: WorkEntry[]): number {
-  const workEntries  = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning")
+function calcNetWorkHours(entries: WorkEntry[], layout?: string): number {
+  const workEntries  = layout === "freelance_media"
+    ? entries.filter(e => e.task_type === "shoot" || e.task_type === "edit")
+    : entries.filter(e => e.task_type !== "break" && e.task_type !== "learning")
   const breakEntries = entries.filter(e => e.task_type === "break")
 
   // Build and merge work intervals
@@ -126,15 +131,11 @@ function calcNetWorkHours(entries: WorkEntry[]): number {
 
   const timedMins = merged.reduce((s, i) => s + (i.end - i.start), 0)
 
-  // Travel hours for shoots are always additive (travel happens outside shoot window)
-  const travelH = workEntries
-    .filter(e => e.task_type === "shoot")
-    .reduce((s, e) => s + (e._travel_hours ?? 0), 0)
-  // Entries with no time range — use their stored duration_hours directly
+  // NOTE: _travel_hours is NOT added — travel is already inside the shoot window the employee entered
   const untimedH = workEntries
     .filter(e => !e.start_time || !e.end_time)
     .reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-  return Math.round((timedMins / 60 + travelH + untimedH) * 10) / 10
+  return Math.round((timedMins / 60 + untimedH) * 10) / 10
 }
 
 function HTimePicker({ value, onChange, style: extra }: { value: string; onChange: (v: string) => void; style?: React.CSSProperties }) {
@@ -157,7 +158,8 @@ function fmt12(t: string) {
   return `${h % 12 || 12}:${String(m).padStart(2,"0")} ${h >= 12 ? "PM":"AM"}`
 }
 function fmtH(h: number) {
-  const hrs = Math.floor(h), mins = Math.round((h % 1) * 60)
+  let hrs = Math.floor(h); let mins = Math.round((h % 1) * 60)
+  if (mins === 60) { hrs += 1; mins = 0 }
   return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
 }
 
@@ -282,12 +284,31 @@ interface CompanyHoliday {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+type CollaborationConfirmation = {
+  id: string
+  date: string
+  status: 'pending' | 'confirmed' | 'edited_confirmed' | 'rejected'
+  submitter_id: string
+  entry_id: string
+  daily_update_id: string
+  original_start_time: string | null
+  original_end_time: string | null
+  original_duration_hours: number | null
+  confirmed_start_time: string | null
+  confirmed_end_time: string | null
+  confirmed_hours: number | null
+  rejection_reason: string | null
+  entry_snapshot: { title?: string; task_type?: string; client_name?: string } | null
+}
+
 export default function HistoryClient({
-  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [], companyLeaves = [], defaultDate = "",
+  updates, userName, userId = "", team = "", workLayout, clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [], companyLeaves = [], defaultDate = "", collaborationConfirmations = [],
 }: {
   updates: UpdateRow[]
   userName: string
   userId?: string
+  team?: string
+  workLayout?: 'media' | 'non_media' | 'freelance_media'
   clients?: string[]
   pastClients?: string[]
   participatedUpdates?: ParticipatedUpdate[]
@@ -296,7 +317,10 @@ export default function HistoryClient({
   approvedLeaves?: ApprovedLeave[]
   companyLeaves?: CompanyHoliday[]
   defaultDate?: string
+  collaborationConfirmations?: CollaborationConfirmation[]
 }) {
+  const isFreelancerMedia = workLayout ? workLayout === 'freelance_media' : team === "Freelance Media Production"
+  const isMedia = workLayout ? workLayout !== 'non_media' : (team === "Media Team" || team === "Media Production Team" || team === "Freelance Media Production")
 
   const months = useMemo(() => {
     const seen = new Set<string>(), result: string[] = []
@@ -325,10 +349,41 @@ export default function HistoryClient({
   const [deletingId, setDeletingId]       = useState<string | null>(null)
   const [infoDismissed, setInfoDismissed] = useState(false)
 
+  // Collaboration confirmation state
+  const [collabConfirms, setCollabConfirms] = useState<CollaborationConfirmation[]>(collaborationConfirmations)
+  useEffect(() => { setCollabConfirms(collaborationConfirmations) }, [collaborationConfirmations])
+  const [collabLoading, setCollabLoading] = useState<string | null>(null)
+  const [collabEditId, setCollabEditId] = useState<string | null>(null)
+  const [collabEditStart, setCollabEditStart] = useState("")
+  const [collabEditEnd, setCollabEditEnd] = useState("")
+  const [collabRejectId, setCollabRejectId] = useState<string | null>(null)
+  const [collabRejectReason, setCollabRejectReason] = useState("")
+
+  const confirmsByDate = useMemo(() => {
+    const m = new Map<string, CollaborationConfirmation[]>()
+    for (const c of collabConfirms) {
+      if (!m.has(c.date)) m.set(c.date, [])
+      m.get(c.date)!.push(c)
+    }
+    return m
+  }, [collabConfirms])
+
+  // Sum of confirmed collaboration hours per date (confirmed + edited_confirmed)
+  const collabHoursByDate = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const c of collabConfirms) {
+      if ((c.status === 'confirmed' || c.status === 'edited_confirmed') && c.confirmed_hours) {
+        m.set(c.date, (m.get(c.date) ?? 0) + c.confirmed_hours)
+      }
+    }
+    return m
+  }, [collabConfirms])
+
+  const pendingCount = useMemo(() => collabConfirms.filter(c => c.status === 'pending').length, [collabConfirms])
+
   // Per-entry edit state
   const [editingKey, setEditingKey]   = useState<string | null>(null) // "updateId:entryIdx"
   const [editDraft, setEditDraft]     = useState<Partial<WorkEntry>>({})
-  const [editEntryStatus, setEditEntryStatus] = useState<"completed" | "in_progress" | "not_started">("not_started")
   const [savingKey, setSavingKey]     = useState<string | null>(null)
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
 
@@ -369,10 +424,9 @@ export default function HistoryClient({
     setEditOrigDate(updateDate)
     setEditingKey(`${updateId}:${entryIdx}`)
     let notes = entry.notes ?? ""
-    let parsedStatus: "completed" | "in_progress" | "not_started" = "not_started"
     if (entry.task_type === "other") {
-      const m = notes.match(/^\[(completed|in_progress|not_started)\]$/)
-      if (m) { parsedStatus = m[1] as typeof parsedStatus; notes = "" }
+      // Strip any legacy [status] marker so it never shows in the notes field
+      if (notes.match(/^\[(completed|in_progress|not_started)\]$/)) notes = ""
     }
     // For shoot entries: parse _travel_hours and _location from old concatenated notes as fallback
     let parsedTravelHours = entry._travel_hours ?? 0
@@ -389,8 +443,7 @@ export default function HistoryClient({
       }
       notes = stripShootNotes(notes)
     }
-    setEditEntryStatus(parsedStatus)
-    const BREAK_LABELS = ["Lunch", "Lunch Break", "Tea", "Short Break", "Personal", "Permission", "Early Logoff", "Late Login"]
+    const BREAK_LABELS = ["Lunch Break", "Tea", "Short Break", "Personal", "Early Logoff", "Late Login"]
     const isCustomBreak = entry.task_type === "break" && !BREAK_LABELS.includes(entry.title)
     setEditDraft({
       task_type: entry.task_type,
@@ -404,7 +457,15 @@ export default function HistoryClient({
       video_link: entry.video_link ?? "",
       project_name: entry.project_name ?? "",
       is_multi_client: entry.is_multi_client ?? false,
-      client_names: entry.client_names ?? [],
+      client_names: (() => {
+        const allKnown = [...activeClientsForEdit, ...pastClients]
+        const normalize = (cn: string) => allKnown.find(a => a.toLowerCase() === cn.toLowerCase()) ?? cn
+        if (entry.is_multi_client && entry.client_names?.length) {
+          return entry.client_names.map(normalize)
+        }
+        // Seed from single client_name so chip grid shows it pre-selected
+        return entry.client_name ? [normalize(entry.client_name)] : []
+      })(),
       video_type: entry.video_type ?? "",
       video_duration: entry.video_duration ?? "",
       revisions: entry.revisions ?? 0,
@@ -423,17 +484,20 @@ export default function HistoryClient({
 
   async function saveEntry(updateId: string, allEntries: WorkEntry[], entryIdx: number) {
     const key = `${updateId}:${entryIdx}`
-    if (editDraft.task_type === "edit") {
+    if (editDraft.task_type === "edit" && isMedia) {
       if (!editDraft.date_given) { alert("Please set Date Given before saving."); return }
       if (!editDraft.date_finished) { alert("Please set Date Finished before saving."); return }
       if (!editDraft.start_time || !editDraft.end_time) { alert("Please set Edit Start & End Time before saving."); return }
       if (editDraft.start_time >= (editDraft.end_time ?? "")) { alert("Edit End Time must be after Start Time."); return }
       if (!editDraft.video_duration) { alert("Please select the video Duration before saving."); return }
+    } else if (editDraft.task_type === "edit" && !isMedia) {
+      if (!editDraft.start_time || !editDraft.end_time) { alert("Please set Start & End Time before saving."); return }
+      if (editDraft.start_time >= (editDraft.end_time ?? "")) { alert("End time must be after Start time."); return }
     }
     setSavingKey(key)
     let draftToSave: Partial<WorkEntry> = { ...editDraft }
     if (editDraft.task_type === "other") {
-      draftToSave = { ...editDraft, notes: `[${editEntryStatus}]` }
+      draftToSave = { ...editDraft, notes: "" }
     } else if (editDraft.task_type === "shoot") {
       const travelH = editDraft._travel_hours ?? 0
       const dur = calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0
@@ -443,10 +507,28 @@ export default function HistoryClient({
     } else if (editDraft.task_type === "edit") {
       draftToSave = { ...editDraft, duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
     } else if (editDraft.task_type === "break") {
-      const finalTitle = editDraft.title === "__other__" ? (editDraft._custom_label || "Break") : (editDraft.title || "Break")
+      const VALID_BREAKS = ["Lunch Break", "Tea", "Short Break", "Personal", "Early Logoff", "Late Login"]
+      const finalTitle = VALID_BREAKS.includes(editDraft.title || "") ? editDraft.title! : "Lunch Break"
       draftToSave = { ...editDraft, title: finalTitle, client_name: "Break", duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
+    } else if (editDraft.task_type === "voiceover" || editDraft.task_type === "poster") {
+      draftToSave = { ...editDraft, duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
     }
     const updatedEntry = { ...(allEntries[entryIdx] as unknown as Record<string, unknown>), ...draftToSave }
+
+    // Overlap check: new times must not overlap any other entry on same date by >3 min
+    const newStart = draftToSave.start_time as string | undefined
+    const newEnd   = draftToSave.end_time   as string | undefined
+    if (newStart && newEnd && toMins(newEnd) > toMins(newStart)) {
+      const others = (allEntries as unknown as Record<string,unknown>[]).filter((_, i) => i !== entryIdx).filter(e => e.start_time && e.end_time)
+      for (const other of others) {
+        const s1 = toMins(newStart), e1 = toMins(newEnd)
+        const s2 = toMins(other.start_time as string), e2 = toMins(other.end_time as string)
+        if (e2 > s2 && Math.min(e1, e2) - Math.max(s1, s2) > 3) {
+          alert(`Time ${newStart}–${newEnd} overlaps with "${other.title}" (${other.start_time}–${other.end_time}). Please fix the times.`)
+          setSavingKey(null); return
+        }
+      }
+    }
 
     if (editDraftDate && editDraftDate !== editOrigDate) {
       // Move entry to a different date
@@ -473,9 +555,19 @@ export default function HistoryClient({
     if (!confirm("Remove this entry? This cannot be undone.")) return
     const key = `${updateId}:${entryIdx}`
     setDeletingKey(key)
+    const deletedEntry = allEntries[entryIdx]
     const updated = (allEntries as unknown as Record<string, unknown>[]).filter((_, i) => i !== entryIdx)
     const result = await updatePastDailyUpdate(updateId, updated)
     if (result.success) {
+      // Remove collab confirmations for the deleted entry so hours update immediately
+      if ((deletedEntry?.participant_ids ?? []).length > 0) {
+        deleteCollaborationsByEntry(updateId, deletedEntry?.id).catch(console.error)
+        if (deletedEntry?.id) {
+          setCollabConfirms(prev => prev.filter(c => !(c.daily_update_id === updateId && c.entry_id === deletedEntry.id)))
+        } else {
+          setCollabConfirms(prev => prev.filter(c => c.daily_update_id !== updateId))
+        }
+      }
       router.refresh()
     } else {
       alert("Failed to delete entry: " + result.error)
@@ -558,34 +650,41 @@ export default function HistoryClient({
   const stats = useMemo(() => {
     let totalHours = 0, totalTasks = 0, presentDays = 0, totalLearning = 0, totalBreak = 0
     let shootH = 0, editH = 0, otherH = 0, shootCount = 0, editCount = 0
-    let isMedia = false
+    let travelH = 0, worklogCount = 0, voiceoverCount = 0, voiceoverH = 0, posterCount = 0, posterH = 0
+    // workLayout drives media/non-media formula; fall back to detecting from entries
+    const isMedia = workLayout
+      ? workLayout !== 'non_media'
+      : (isFreelancerMedia || monthFiltered.some(u => (u.work_entries ?? []).some((e: { task_type?: string }) => e.task_type === "shoot" || e.task_type === "edit")))
     const hoursPerDay: number[] = []
     const dailyData: { day: string; hours: number }[] = []
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      const workH = calcNetWorkHours(entries)
+      const workH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
       const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-      const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
+      const learnH = entries.length > 0 ? learnFromEntries : (u.learning_hours ?? 0)
       const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const h = workH + learnH
       totalHours += h
       totalLearning += learnH
       totalBreak += breakH
-      if (entries.some(e => e.task_type === "shoot" || e.task_type === "edit")) isMedia = true
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
       totalTasks += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
       for (const e of entries) {
-        if (e.task_type === "shoot") { shootH += (e.duration_hours ?? 0) + (e._travel_hours ?? 0); shootCount++ }
-        else if (e.task_type === "edit") { editH += e.duration_hours ?? 0; editCount++ }
-        else if (e.task_type !== "break" && e.task_type !== "learning") otherH += e.duration_hours ?? 0
+        if (e.task_type === "shoot") {
+          shootH += (e.duration_hours ?? 0); shootCount++
+          travelH += (e._travel_hours ?? 0)
+        } else if (e.task_type === "edit") { editH += e.duration_hours ?? 0; editCount++ }
+        else if (e.task_type === "other") { otherH += e.duration_hours ?? 0; worklogCount++ }
+        else if (e.task_type === "voiceover") { voiceoverH += e.duration_hours ?? 0; voiceoverCount++ }
+        else if (e.task_type === "poster") { posterH += e.duration_hours ?? 0; posterCount++ }
       }
     }
     // Also count clock-in dates in the selected month that have no daily_update record
     const updateDates = new Set(monthFiltered.map(u => u.date))
     const monthPrefix = selectedMonth
-      ? new Date(monthFiltered[0]?.date + "T12:00:00" || Date.now()).toISOString().slice(0, 7)
+      ? (monthFiltered[0]?.date ? new Date(monthFiltered[0].date + "T12:00:00").toISOString().slice(0, 7) : selectedMonth)
       : null
     for (const d of attendanceDates) {
       if (updateDates.has(d)) continue
@@ -593,21 +692,49 @@ export default function HistoryClient({
       presentDays++
     }
 
+    // Leave days: count full approved leave range (incl. future dates within an approved leave)
+    // WFH, shoot_day, permission are NOT leaves — they don't count against quota
+    let leaveDays = 0
+    for (const leave of approvedLeaves) {
+      if (leave.leave_type === "permission" || leave.leave_type === "wfh" || leave.leave_type === "shoot_day") continue
+      const start = new Date(leave.from_date + "T12:00:00")
+      const end = new Date(leave.to_date + "T12:00:00")
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const ds = d.toISOString().split("T")[0]
+        if (monthPrefix && !ds.startsWith(monthPrefix)) continue
+        leaveDays++
+      }
+    }
+
+    // Office holiday days in the selected month period (include future holidays in the month)
+    let holidayDays = 0
+    for (const h of companyLeaves) {
+      if (monthPrefix && !h.date.startsWith(monthPrefix)) continue
+      holidayDays++
+    }
+
     // Absent days: elapsed calendar days in period minus present days
-    const todayStr = new Date().toISOString().split("T")[0]
+    const todayStr = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().split("T")[0]
     const firstDate = monthFiltered.length > 0 ? monthFiltered[monthFiltered.length - 1].date : todayStr
     const elapsedDays = Math.floor((new Date(todayStr + "T12:00:00").getTime() - new Date(firstDate + "T12:00:00").getTime()) / 86400000) + 1
     const absentDays = Math.max(0, elapsedDays - presentDays)
 
-    // Overtime = total monthly hours above (8.5h × presentDays). Zero if avg < 8.5h.
-    const totalOT = Math.round(Math.max(0, totalHours - 8.5 * presentDays) * 10) / 10
-    const avgH = presentDays > 0 ? Math.round((totalHours / presentDays) * 10) / 10 : 0
+    // Overtime = total hours above fixed monthly target (25 days × 8.5h = 212.5h)
+    const totalOT = Math.round(Math.max(0, totalHours - 212.5) * 10) / 10
 
     const productivity = filtered.length > 0
       ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9.5)) * 40) : 0)))
       : 0
-    return { totalHours, totalOT, totalTasks, presentDays, absentDays, totalLearning, totalBreak, shootH, editH, otherH, shootCount, editCount, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
-  }, [filtered, attendanceDates, selectedMonth, monthFiltered])
+    // Media working = shoot + edit + learning (travel already inside shoot window)
+    const mediaWorkH = shootH + editH + totalLearning
+    // Non-media working = worklogs + voiceovers + posters + editing + learning
+    const nonMediaWorkH = otherH + voiceoverH + posterH + editH + totalLearning
+    const workForAvg = isMedia ? mediaWorkH : nonMediaWorkH
+    const daysSubmitted = monthFiltered.length
+    const avgDivisor = isFreelancerMedia ? daysSubmitted : presentDays
+    const avgH = avgDivisor > 0 ? Math.round((workForAvg / avgDivisor) * 10) / 10 : 0
+    return { totalHours, totalOT, totalTasks, presentDays, absentDays, leaveDays, holidayDays, totalLearning, totalBreak, travelH, shootH, editH, otherH, shootCount, editCount, worklogCount, voiceoverCount, voiceoverH, posterCount, posterH, mediaWorkH, nonMediaWorkH, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity, daysSubmitted }
+  }, [filtered, attendanceDates, selectedMonth, monthFiltered, approvedLeaves, companyLeaves])
 
   // Streak calculation
   const { streak, last7 } = useMemo(() => {
@@ -723,9 +850,9 @@ export default function HistoryClient({
   const greeting = now.getHours() < 12 ? "Good Morning" : now.getHours() < 17 ? "Good Afternoon" : "Good Evening"
   const fn = userName.split(" ")[0] || "there"
 
-  // Latest day stats — sum from work_entries only (not attendance-derived working_hours)
+  // Latest day stats — use stored working_hours (server interval-merge) with entry sum as fallback
   const latestEntries = Array.isArray(latest?.work_entries) ? latest!.work_entries! : []
-  const latestWorkH  = latestEntries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+  const latestWorkH  = Number(latest?.working_hours) || latestEntries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
   const latestLearnFromEntries = latestEntries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
   const latestLearnH = latestLearnFromEntries > 0 ? latestLearnFromEntries : (latest?.learning_hours ?? 0)
   const latestH  = latestWorkH + latestLearnH
@@ -774,6 +901,18 @@ export default function HistoryClient({
           </div>
         </div>
       </div>
+
+      {/* ── PENDING COLLABORATION BANNER ─────────────────────────────────── */}
+      {pendingCount > 0 && (
+        <div style={{ background:"rgba(99,102,241,0.08)", borderBottom:"1px solid rgba(99,102,241,0.15)", padding:"10px 20px", display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ width:28, height:28, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+            <span style={{ fontSize:12, fontWeight:900, color:"#fff" }}>{pendingCount}</span>
+          </div>
+          <span style={{ fontSize:13, fontWeight:700, color:"#4338CA" }}>
+            You have {pendingCount} collaboration {pendingCount === 1 ? "request" : "requests"} pending confirmation — scroll down to review
+          </span>
+        </div>
+      )}
 
       {/* ── MONTH PILLS ───────────────────────────────────────────────────── */}
       <div style={{ background:"#fff", borderBottom:"1px solid #EBEDF2" }} className="px-4 md:px-7 py-2.5">
@@ -831,7 +970,7 @@ export default function HistoryClient({
           <div className="order-2 lg:order-none" style={{ display:"flex", flexDirection:"column", gap:16 }}>
 
             {/* ── HERO BANNER ─────────────────────────────────────────────── */}
-            <div style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:22, overflow:"hidden", boxShadow:"0 8px 32px rgba(180,0,0,0.4)", position:"relative", minHeight:240 }}>
+            <div style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:22, overflow:"hidden", boxShadow:"0 8px 32px rgba(180,0,0,0.4)", position:"relative", minHeight:240, maxWidth:"100%" }}>
               {/* Decorative circles */}
               <div style={{ position:"absolute", top:-50, left:-50, width:220, height:220, borderRadius:"50%", background:"rgba(255,255,255,0.05)", pointerEvents:"none" }}/>
               <div style={{ position:"absolute", bottom:-30, right:200, width:150, height:150, borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }}/>
@@ -1033,11 +1172,104 @@ export default function HistoryClient({
                         </div>
                       </div>
                     </div>
+                    {/* Pending confirmations for collab-only day */}
+                    {(confirmsByDate.get(item.date) ?? []).filter(c => c.status === 'pending').map(conf => {
+                      const submitter = members.find(m => m.id === conf.submitter_id)
+                      const snap = conf.entry_snapshot
+                      const taskType = (snap?.task_type ?? 'other') as keyof typeof TASK_CFG
+                      const cfg = TASK_CFG[taskType] ?? TASK_CFG.other
+                      const { Icon } = cfg
+                      const isEditing = collabEditId === conf.id
+                      const isRejecting = collabRejectId === conf.id
+                      const loading = collabLoading === conf.id
+                      return (
+                        <div key={conf.id} style={{ borderTop: "2px solid rgba(99,102,241,0.2)", background: "rgba(99,102,241,0.04)", padding: "12px 18px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                            <span style={{ fontSize: 10, fontWeight: 800, color: "#6366F1", background: "rgba(99,102,241,0.12)", padding: "2px 8px", borderRadius: 99 }}>⏳ PENDING CONFIRMATION</span>
+                            <span style={{ fontSize: 11, color: "#9CA3AF" }}>· by <span style={{ fontWeight: 700, color: "#6366F1" }}>{submitter?.name ?? "Teammate"}</span></span>
+                          </div>
+                          <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                            <div style={{ width: 30, height: 30, borderRadius: 8, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <Icon size={13} style={{ color: cfg.color }}/>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 12, fontWeight: 800, color: "#111111", marginBottom: 2 }}>{snap?.title || cfg.label}</div>
+                              {snap?.client_name && <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 600, marginBottom: 3 }}>{snap.client_name}</div>}
+                              {conf.original_start_time && conf.original_end_time && (
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "#6366F1" }}>
+                                  🕐 {fmt12(conf.original_start_time)} – {fmt12(conf.original_end_time)}
+                                  {conf.original_duration_hours ? ` · ${fmtH(conf.original_duration_hours)}` : ""}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {isEditing ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "10px", background: "#fff", borderRadius: 10, border: "1px solid rgba(99,102,241,0.2)" }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: "#374151" }}>My actual time:</div>
+                              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                <div><div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 2 }}>Start</div>
+                                  <input type="time" value={collabEditStart} onChange={e => setCollabEditStart(e.target.value)} style={{ border: "1px solid #EBEDF2", borderRadius: 8, padding: "6px 8px", fontSize: 12, outline: "none" }}/></div>
+                                <div style={{ marginTop: 14, color: "#9CA3AF" }}>–</div>
+                                <div><div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 2 }}>End</div>
+                                  <input type="time" value={collabEditEnd} onChange={e => setCollabEditEnd(e.target.value)} style={{ border: "1px solid #EBEDF2", borderRadius: 8, padding: "6px 8px", fontSize: 12, outline: "none" }}/></div>
+                              </div>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button disabled={loading} onClick={async () => {
+                                  if (!collabEditStart || !collabEditEnd) return
+                                  setCollabLoading(conf.id)
+                                  const r = await editCollaborationTime(conf.id, collabEditStart, collabEditEnd)
+                                  if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'edited_confirmed', confirmed_start_time: collabEditStart, confirmed_end_time: collabEditEnd } : c))
+                                  setCollabLoading(null); setCollabEditId(null)
+                                }} style={{ flex: 1, padding: "7px", borderRadius: 8, background: "#6366F1", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                                  {loading ? "Saving…" : "Save My Time"}
+                                </button>
+                                <button onClick={() => setCollabEditId(null)} style={{ padding: "7px 12px", borderRadius: 8, background: "#F5F6FA", color: "#374151", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>Cancel</button>
+                              </div>
+                            </div>
+                          ) : isRejecting ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "10px", background: "#fff", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)" }}>
+                              <input value={collabRejectReason} onChange={e => setCollabRejectReason(e.target.value)} placeholder="I was not involved in this task"
+                                style={{ border: "1px solid #EBEDF2", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none" }}/>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button disabled={loading} onClick={async () => {
+                                  setCollabLoading(conf.id)
+                                  const r = await rejectCollaboration(conf.id, collabRejectReason)
+                                  if (r.success) setCollabConfirms(prev => prev.filter(c => c.id !== conf.id))
+                                  setCollabLoading(null); setCollabRejectId(null); setCollabRejectReason("")
+                                }} style={{ flex: 1, padding: "7px", borderRadius: 8, background: "#EF4444", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                                  {loading ? "Rejecting…" : "Reject"}
+                                </button>
+                                <button onClick={() => setCollabRejectId(null)} style={{ padding: "7px 12px", borderRadius: 8, background: "#F5F6FA", color: "#374151", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button disabled={loading} onClick={async () => {
+                                setCollabLoading(conf.id)
+                                const r = await confirmCollaboration(conf.id)
+                                if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'confirmed' } : c))
+                                setCollabLoading(null)
+                              }} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#22C55E", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                                {loading ? "…" : "✓ Confirm"}
+                              </button>
+                              <button disabled={loading} onClick={() => { setCollabEditId(conf.id); setCollabEditStart(conf.original_start_time ?? ""); setCollabEditEnd(conf.original_end_time ?? "") }}
+                                style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#6366F1", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                                ✏ Edit Time
+                              </button>
+                              <button disabled={loading} onClick={() => setCollabRejectId(conf.id)}
+                                style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#FEE2E2", color: "#DC2626", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                                ✗ Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                     {item.pus.map(pu => {
                       const submitter = members.find(m => m.id === pu.user_id)
                       const allEnt = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
-                      const perEntry = userId ? allEnt.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : allEnt
-                      const puEntries = perEntry.length > 0 ? perEntry : allEnt.filter(e => e.task_type !== "break" && e.task_type !== "learning")
+                      const puEntries = userId ? allEnt.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : []
+                      if (puEntries.length === 0) return null
                       return (
                         <div key={pu.id} style={{ padding:"12px 18px", borderTop:"1px dashed rgba(99,102,241,0.15)" }}>
                           <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom: puEntries.length > 0 ? 10 : 0 }}>
@@ -1050,7 +1282,15 @@ export default function HistoryClient({
                             const displayTitle = pe.title || cfg.label
                             const displayClient = (pe.is_multi_client && pe.client_names?.length) ? pe.client_names.join(" · ") : pe.client_name || ""
                             const tH = pe.task_type === "shoot" ? (pe._travel_hours ?? 0) : 0
-                            const dur = calcDurationFromTimes(pe.start_time, pe.end_time) ?? (pe.duration_hours ?? 0)
+                            // Overlay confirmed/edited time if user already confirmed this entry
+                            const entryConf = collabConfirms.find(c =>
+                              c.daily_update_id === pu.id &&
+                              (c.status === "confirmed" || c.status === "edited_confirmed") &&
+                              (pe.id ? c.entry_id === pe.id : true)
+                            )
+                            const showStart = entryConf?.confirmed_start_time ?? pe.start_time
+                            const showEnd   = entryConf?.confirmed_end_time   ?? pe.end_time
+                            const dur = entryConf?.confirmed_hours ?? (calcDurationFromTimes(showStart, showEnd) ?? (pe.duration_hours ?? 0))
                             return (
                               <div key={pi} style={{ display:"flex", gap:10, padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none", alignItems:"flex-start" }}>
                                 <div style={{ width:30, height:30, borderRadius:8, background:cfg.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -1060,11 +1300,13 @@ export default function HistoryClient({
                                   <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginBottom:2 }}>
                                     <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{displayTitle}</span>
                                     <span style={{ fontSize:9, fontWeight:700, color:cfg.color, background:cfg.bg, padding:"1px 6px", borderRadius:99 }}>{cfg.label}</span>
+                                    {entryConf?.status === "edited_confirmed" && <span style={{ fontSize:9, fontWeight:700, color:"#10B981", background:"rgba(16,185,129,0.1)", padding:"1px 6px", borderRadius:99 }}>✓ Your time</span>}
+                                    {entryConf?.status === "confirmed" && <span style={{ fontSize:9, fontWeight:700, color:"#10B981", background:"rgba(16,185,129,0.1)", padding:"1px 6px", borderRadius:99 }}>✓ Confirmed</span>}
                                   </div>
                                   {displayClient && <p style={{ fontSize:10, color:"#6B7280", margin:"0 0 2px", fontWeight:600 }}>{displayClient}</p>}
                                   <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                                     {dur + tH > 0 && <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:3 }}><Clock size={9} style={{ color:"#9CA3AF" }}/>{fmtH(dur + tH)}</span>}
-                                    {pe.start_time && pe.end_time && <span style={{ fontSize:10, color:"#9CA3AF" }}>{fmt12(pe.start_time)} – {fmt12(pe.end_time)}</span>}
+                                    {showStart && showEnd && <span style={{ fontSize:10, color:"#9CA3AF" }}>{fmt12(showStart)} – {fmt12(showEnd)}</span>}
                                     {tH > 0 && <span style={{ fontSize:10, color:"#F59E0B", fontWeight:700 }}>🚗 {fmtTravel(tH)}</span>}
                                   </div>
                                 </div>
@@ -1244,6 +1486,17 @@ export default function HistoryClient({
                 if (!tb) return -1
                 return ta.localeCompare(tb)
               })
+              const toMS = (t?: string | null) => { if (!t) return 99999; const p = t.split(':'); return parseInt(p[0]) * 60 + (parseInt(p[1] ?? '0') || 0) }
+              const collabForDate = (participatedByDate.get(u.date) ?? []).flatMap(pu => {
+                const submitter = members.find(m => m.id === pu.user_id)
+                const allEnts = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
+                const puEnts = userId ? allEnts.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : []
+                return puEnts.map(entry => ({ type: 'collab' as const, entry, submitter, puId: pu.id }))
+              })
+              const mergedTL = [
+                ...entries.map((e, idx) => ({ type: 'own' as const, entry: e, origIdx: idx })),
+                ...collabForDate
+              ].sort((a, b) => toMS(a.entry.start_time) - toMS(b.entry.start_time))
               const st = STATUS_STYLE[u.attendance_status] ?? STATUS_STYLE.present
               const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
               const holidayOnDay = holidayMap.get(u.date)
@@ -1257,8 +1510,8 @@ export default function HistoryClient({
                     </div>
                   )}
                   {/* Day header */}
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid #F5F6FA", flexWrap:"wrap", gap:8 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid #F5F6FA", gap:8, flexWrap:"nowrap", overflowX:"auto" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
                       <div style={{ width:38, height:38, borderRadius:10, background:"rgba(222,26,26,0.08)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                         <span style={{ fontSize:14, fontWeight:900, color:"#DE1A1A", lineHeight:1 }}>
                           {new Date(u.date + "T12:00:00").getDate()}
@@ -1267,9 +1520,9 @@ export default function HistoryClient({
                           {new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { month:"short" })}
                         </span>
                       </div>
-                      <div>
-                        <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{dateLabel}</p>
-                        <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
+                      <div style={{ minWidth:0 }}>
+                        <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0, whiteSpace:"nowrap" }}>{dateLabel}</p>
+                        <p style={{ fontSize:10, color:"#9CA3AF", margin:0, whiteSpace:"nowrap" }}>
                           {(() => {
                             const workCount  = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
                             const learnCount = entries.filter(e => e.task_type === "learning").length + (u.learning_topic && !entries.some(e => e.task_type === "learning") ? 1 : 0)
@@ -1283,29 +1536,43 @@ export default function HistoryClient({
                         </p>
                       </div>
                     </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"nowrap", flexShrink:0 }}>
                       {(() => {
-                        const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-                        const entryCalcH = calcNetWorkHours(entries) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
-                        const dayEntryH = entryCalcH > 0 ? entryCalcH : (u.working_hours ?? 0)
-                        const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+                        const workH   = calcNetWorkHours(entries, workLayout ?? undefined)
+                        const travelH = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + (e._travel_hours ?? 0), 0)
+                        const learnEntryH = entries.filter(e => e.task_type === "learning").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+                        const learnH  = learnEntryH > 0 ? learnEntryH : (u.learning_hours ?? 0)
+                        const breakH  = entries.filter(e => e.task_type === "break").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+                        const collabH = collabHoursByDate.get(u.date) ?? 0
+                        const displayH = workH + collabH || (u.working_hours ?? 0)
                         return (
                           <>
-                            {dayEntryH > 0 && (
-                              <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
+                            {displayH > 0 && (
+                              <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap" }}>
                                 <Clock size={11} style={{ color:"#9CA3AF" }}/>
-                                {fmtH(dayEntryH)}
+                                {fmtH(displayH)}
+                                {collabH > 0 && <span style={{ fontSize:9, fontWeight:600, color:"#6366F1", whiteSpace:"nowrap" }}>(+{fmtH(collabH)})</span>}
+                              </span>
+                            )}
+                            {travelH > 0 && (
+                              <span style={{ fontSize:10, fontWeight:700, color:"#D97706", display:"flex", alignItems:"center", gap:3, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:99, padding:"2px 7px", whiteSpace:"nowrap" }}>
+                                🚗 {fmtH(travelH)}
+                              </span>
+                            )}
+                            {learnH > 0 && (
+                              <span style={{ fontSize:10, fontWeight:700, color:"#6366F1", display:"flex", alignItems:"center", gap:3, background:"rgba(99,102,241,0.08)", border:"1px solid rgba(99,102,241,0.2)", borderRadius:99, padding:"2px 7px", whiteSpace:"nowrap" }}>
+                                📚 {fmtH(learnH)}
                               </span>
                             )}
                             {breakH > 0 && (
-                              <span style={{ fontSize:10, fontWeight:700, color:"#78716C", display:"flex", alignItems:"center", gap:3, background:"rgba(120,113,108,0.08)", border:"1px solid rgba(120,113,108,0.18)", borderRadius:99, padding:"2px 8px" }}>
-                                ☕ {fmtH(breakH)} break
+                              <span style={{ fontSize:10, fontWeight:700, color:"#78716C", display:"flex", alignItems:"center", gap:3, background:"rgba(120,113,108,0.08)", border:"1px solid rgba(120,113,108,0.18)", borderRadius:99, padding:"2px 7px", whiteSpace:"nowrap" }}>
+                                ☕ {fmtH(breakH)}
                               </span>
                             )}
                           </>
                         )
                       })()}
-                      <span style={{ fontSize:11, fontWeight:700, color:st.color, background:st.bg, padding:"3px 10px", borderRadius:99 }}>
+                      <span style={{ fontSize:11, fontWeight:700, color:st.color, background:st.bg, padding:"3px 10px", borderRadius:99, whiteSpace:"nowrap", flexShrink:0 }}>
                         {st.label}
                       </span>
                       <button
@@ -1421,11 +1688,40 @@ export default function HistoryClient({
                       </div>
                       <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>Approved</span>
                     </div>
-                  ) : entries.length === 0 ? (
-                    <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>
-                      {(u.attendance_status === "leave" || u.attendance_status === "absent") ? "You were on leave this day." : "No work entries logged"}
-                    </p>
-                  ) : (
+                  ) : entries.length === 0 ? (() => {
+                    const leaveForDay = (u.attendance_status === "leave" || u.attendance_status === "absent")
+                      ? approvedLeaves.find(l => u.date >= l.from_date && u.date <= l.to_date)
+                      : undefined
+                    if (leaveForDay?.leave_type === "full_day") {
+                      return (
+                        <div style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 18px", background:"linear-gradient(135deg,rgba(16,185,129,0.06) 0%,rgba(16,185,129,0.02) 100%)", borderTop:"1px solid rgba(16,185,129,0.12)" }}>
+                          <div style={{ fontSize:40, lineHeight:1 }}>🌴</div>
+                          <div>
+                            <p style={{ fontSize:14, fontWeight:900, color:"#059669", margin:"0 0 3px" }}>Full Day Leave</p>
+                            <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leaveForDay.reason ?? "Approved Leave"}</p>
+                          </div>
+                          <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>Approved</span>
+                        </div>
+                      )
+                    }
+                    if (leaveForDay?.leave_type === "half_day") {
+                      return (
+                        <div style={{ display:"flex", alignItems:"center", gap:16, padding:"18px 18px", background:"rgba(99,102,241,0.03)", borderTop:"1px solid rgba(99,102,241,0.1)" }}>
+                          <div style={{ fontSize:32, lineHeight:1 }}>🌗</div>
+                          <div>
+                            <p style={{ fontSize:14, fontWeight:900, color:"#6366F1", margin:"0 0 3px" }}>Half Day Leave</p>
+                            <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leaveForDay.reason ?? "Approved Leave"}</p>
+                          </div>
+                          <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(99,102,241,0.12)", color:"#6366F1" }}>Approved</span>
+                        </div>
+                      )
+                    }
+                    return (
+                      <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>
+                        {leaveForDay ? "You were on leave this day." : "No work entries logged"}
+                      </p>
+                    )
+                  })() : (
                     <div>
                       {u.learning_topic && (
                         <div style={{ borderBottom:"1px solid #F5F6FA", background:"rgba(245,158,11,0.03)" }}>
@@ -1513,13 +1809,82 @@ export default function HistoryClient({
                           )}
                         </div>
                       )}
-                      {entries.map((e, ei) => {
-                        const cfg = TASK_CFG[e.task_type] ?? TASK_CFG.other
+
+                      {mergedTL.map((item, itemIdx) => {
+                        const isLast = itemIdx === mergedTL.length - 1
+                        if (item.type === 'collab') {
+                          const { entry: pe, submitter, puId } = item
+                          const cfg = TASK_CFG[pe.task_type as keyof typeof TASK_CFG] ?? TASK_CFG.other
+                          const { Icon } = cfg
+                          const displayTitle = pe.title || cfg.label
+                          const displayClient = (pe.is_multi_client && pe.client_names && pe.client_names.length > 0) ? pe.client_names.join(" · ") : pe.client_name || ""
+                          const tH = pe.task_type === "shoot" ? (pe._travel_hours ?? 0) : 0
+                          const entryConf = collabConfirms.find(c => c.daily_update_id === puId && (c.status === "confirmed" || c.status === "edited_confirmed") && (pe.id ? c.entry_id === pe.id : true))
+                          const showStart = entryConf?.confirmed_start_time ?? pe.start_time
+                          const showEnd   = entryConf?.confirmed_end_time   ?? pe.end_time
+                          const dur = entryConf?.confirmed_hours ?? (calcDurationFromTimes(showStart, showEnd) ?? (pe.duration_hours ?? 0))
+                          const isEditingConf = entryConf && collabEditId === entryConf.id
+                          const loading = entryConf ? collabLoading === entryConf.id : false
+                          return (
+                            <div key={`cl-${puId}-${pe.id ?? itemIdx}`} style={{ borderBottom: isLast ? "none" : "1px solid #F5F6FA", background: "rgba(99,102,241,0.025)" }}>
+                              <div style={{ display: "flex", gap: 10, padding: "10px 18px", alignItems: "flex-start" }}>
+                                <div style={{ width: 30, height: 30, borderRadius: 8, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
+                                  <Icon size={13} style={{ color: cfg.color }}/>
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+                                    <span style={{ fontSize: 9, fontWeight: 800, color: "#6366F1", background: "rgba(99,102,241,0.1)", padding: "1px 6px", borderRadius: 99 }}>👥 {submitter?.name ?? "Teammate"}</span>
+                                  </div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 800, color: "#111111" }}>{displayTitle}</span>
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: "1px 6px", borderRadius: 99 }}>{cfg.label}</span>
+                                    {entryConf?.status === "edited_confirmed" && <span style={{ fontSize: 9, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.1)", padding: "1px 6px", borderRadius: 99 }}>✓ Your time</span>}
+                                    {entryConf?.status === "confirmed" && <span style={{ fontSize: 9, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.1)", padding: "1px 6px", borderRadius: 99 }}>✓ Confirmed</span>}
+                                  </div>
+                                  {displayClient && <p style={{ fontSize: 10, color: "#6B7280", margin: "0 0 2px", fontWeight: 600 }}>{displayClient}</p>}
+                                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                    {dur + tH > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 3 }}><Clock size={9} style={{ color: "#9CA3AF" }}/>{fmtH(dur + tH)}</span>}
+                                    {showStart && showEnd && <span style={{ fontSize: 10, color: "#9CA3AF" }}>{fmt12(showStart)} – {fmt12(showEnd)}</span>}
+                                    {tH > 0 && <span style={{ fontSize: 10, color: "#F59E0B", fontWeight: 700 }}>🚗 {fmtTravel(tH)}</span>}
+                                  </div>
+                                </div>
+                                {entryConf && (
+                                  <button title="Edit your collaboration time"
+                                    onClick={() => { if (isEditingConf) { setCollabEditId(null) } else { setCollabEditId(entryConf.id); setCollabEditStart(entryConf.confirmed_start_time ?? entryConf.original_start_time ?? ""); setCollabEditEnd(entryConf.confirmed_end_time ?? entryConf.original_end_time ?? "") } }}
+                                    style={{ width: 26, height: 26, borderRadius: 7, background: isEditingConf ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                                    <Pencil size={11} style={{ color: "#6366F1" }}/>
+                                  </button>
+                                )}
+                              </div>
+                              {isEditingConf && entryConf && (
+                                <div style={{ margin: "0 18px 12px", padding: "12px", borderRadius: 10, background: "rgba(99,102,241,0.06)", border: "1.5px solid rgba(99,102,241,0.2)" }}>
+                                  <p style={{ fontSize: 11, fontWeight: 700, color: "#6366F1", margin: "0 0 8px" }}>Edit Your Collaboration Time</p>
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                                    <div><label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 3 }}>Your Start Time</label><input type="time" value={collabEditStart} onChange={e => setCollabEditStart(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#111111", outline: "none", background: "#fff", boxSizing: "border-box" }} /></div>
+                                    <div><label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 3 }}>Your End Time</label><input type="time" value={collabEditEnd} onChange={e => setCollabEditEnd(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#111111", outline: "none", background: "#fff", boxSizing: "border-box" }} /></div>
+                                  </div>
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <button onClick={() => setCollabEditId(null)} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#F3F4F6", color: "#6B7280", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}>Cancel</button>
+                                    <button disabled={loading} onClick={async () => { setCollabLoading(entryConf.id); const r = await editCollaborationTime(entryConf.id, collabEditStart, collabEditEnd); if (r.success) setCollabConfirms(prev => prev.map(c => c.id === entryConf.id ? { ...c, status: 'edited_confirmed' as const, confirmed_start_time: collabEditStart, confirmed_end_time: collabEditEnd } : c)); setCollabLoading(null); setCollabEditId(null) }}
+                                      style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#6366F1", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
+                                      {loading ? "Saving…" : "Save My Time"}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        }
+                        const e = item.entry
+                        const ei = item.origIdx
+                        const cfg = (e.task_type === "edit" && !isMedia)
+                          ? { Icon: TASK_CFG.edit.Icon, color:"#0D9488", bg:"rgba(13,148,136,0.1)", label:"Editing" }
+                          : (TASK_CFG[e.task_type] ?? TASK_CFG.other)
                         const { Icon } = cfg
                         const eKey = `${u.id}:${ei}`
                         const isEditingEntry = editingKey === eKey
                         return (
-                          <div key={ei} style={{ borderBottom: ei < entries.length - 1 ? "1px solid #F5F6FA" : "none" }}>
+                          <div key={`own-${ei}`} style={{ borderBottom: isLast ? "none" : "1px solid #F5F6FA" }}>
                             {/* Entry row */}
                             <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
                               <div style={{ width:34, height:34, borderRadius:10, background:cfg.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -1551,7 +1916,8 @@ export default function HistoryClient({
                                           {realNotes && <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{realNotes}</p>}
                                         </>)
                                       }
-                                      const txt = e.notes || e.description
+                                      const rawTxt = e.notes || e.description
+                                      const txt = (rawTxt ?? "").replace(/^\[(completed|in_progress|not_started)\]$/, "").trim() || null
                                       return txt ? <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{txt}</p> : null
                                     })()}
                                   </>)
@@ -1619,18 +1985,15 @@ export default function HistoryClient({
                                       <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
                                       <HTimePicker value={editDraft.end_time??"13:30"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} />
                                       {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>{fmtTravel(dur)}</span>}
-                                      <select value={editDraft.title??"Lunch"} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value,_custom_label:""}))}
+                                      <select value={["Lunch Break","Tea","Short Break","Personal","Early Logoff","Late Login"].includes(editDraft.title||"") ? editDraft.title : "Lunch Break"} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value,_custom_label:""}))}
                                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
-                                        <option value="Permission">🙋 Permission</option>
                                         <option value="Tea">☕ Tea</option>
                                         <option value="Lunch Break">🍱 Lunch Break</option>
                                         <option value="Personal">🏠 Personal</option>
                                         <option value="Short Break">🚶 Short Break</option>
                                         <option value="Early Logoff">🌙 Early Logoff</option>
                                         <option value="Late Login">⏰ Late Login</option>
-                                        <option value="__other__">✏️ Other</option>
                                       </select>
-                                      {editDraft.title==="__other__" && <input value={editDraft._custom_label??""} onChange={ev=>setEditDraft(d=>({...d,_custom_label:ev.target.value}))} placeholder="Type break name…" style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", outline:"none", width:130 }} />}
                                     </div>
                                     <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                                       <button onClick={()=>{setEditingKey(null);setEditDraft({})}} style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
@@ -1801,24 +2164,15 @@ export default function HistoryClient({
                                         <div style={{ position:"relative" }}>
                                           <select value={editDraft.video_type??""} onChange={ev=>setEditDraft(d=>({...d,video_type:ev.target.value}))} style={{ ...HF, paddingRight:28, appearance:"none" }}>
                                             <option value="">Select type…</option>
-                                            {["Instagram Reels","Hook","Personal Branding","Ads and Hooks","Long Videos","Cinematic","YouTube Shorts"].map(t=><option key={t} value={t}>{t}</option>)}
+                                            {["ADVERTISEMENT","ADVERTISEMENT WITH HOOKS","LONG FORMAT VIDEO","CINEMATIC","PROMOTION VIDEOS","INSTAGRAM REELS","YOUTUBE SHORTS","GREEN SCREEN EDITING","PERSONAL BRANDING"].map(t=><option key={t} value={t}>{t}</option>)}
                                             <option value="__other__">✏️ Other</option>
                                           </select>
                                           <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                         </div>
                                       </div>
                                       <div>
-                                        <label style={HL}>Duration (mins)</label>
-                                        <div style={{ position:"relative" }}>
-                                          <select value={editDraft.video_duration??""} onChange={ev=>setEditDraft(d=>({...d,video_duration:ev.target.value}))} style={{ ...HF, paddingRight:28, appearance:"none" }}>
-                                            <option value="">Select…</option>
-                                            <option value="15 sec">15 sec</option>
-                                            <option value="30 sec">30 sec</option>
-                                            <option value="45 sec">45 sec</option>
-                                            {[1,1.5,2,2.5,3,3.5,4,4.5,5,10].map(m=><option key={m} value={`${m} min`}>{m} min</option>)}
-                                          </select>
-                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                        </div>
+                                        <label style={HL}>Duration</label>
+                                        <VideoDurationPicker value={editDraft.video_duration??""} onChange={v=>setEditDraft(d=>({...d,video_duration:v}))} inputStyle={{ background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"9px 10px", fontSize:13 }} />
                                       </div>
                                       <div><label style={HL}>Revisions</label><input type="number" min="0" max="99" value={editDraft.revisions??0} onChange={ev=>setEditDraft(d=>({...d,revisions:parseInt(ev.target.value)||0}))} placeholder="0" style={HF} /></div>
                                     </div>
@@ -1881,35 +2235,37 @@ export default function HistoryClient({
                                               <option value="GROFAST AI">GROFAST AI</option>
                                               <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
                                             </select>
-                                          : editDraft.is_multi_client
-                                          ? <p style={{ fontSize:11, fontWeight:700, color:"#374151", padding:"7px 0" }}>{(editDraft.client_names??[]).join(" · ")||"—"}</p>
-                                          : editClientShowPast
-                                          ? <div>
-                                              <button type="button" onClick={()=>setEditClientShowPast(false)} style={{ width:"100%", padding:"6px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#6366F1", fontWeight:700, background:"rgba(99,102,241,0.06)", cursor:"pointer", textAlign:"left", marginBottom:4 }}>← Back to Active Clients</button>
-                                              <select value="" onChange={ev=>{const v=ev.target.value;if(v){setEditDraft(d=>({...d,client_name:v}));setEditClientShowPast(false)}}} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                                <option value="">— Select past client —</option>
-                                                {pastClientsOnly.map(c=><option key={c} value={c}>{c}</option>)}
-                                              </select>
-                                            </div>
-                                          : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__"){setEditClientShowPast(true)}else if(v==="__custom__"){setEditDraft(d=>({...d,client_name:""}))}else{setEditDraft(d=>({...d,client_name:v}))}}} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                              <option value="">— Select client —</option>
-                                              {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
-                                              {editDraft.client_name && !activeClientsForEdit.includes(editDraft.client_name) && pastClientsOnly.includes(editDraft.client_name) && <option key={editDraft.client_name} value={editDraft.client_name}>{editDraft.client_name}</option>}
-                                              {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                              <option value="__custom__">✏️ Other (type manually)</option>
-                                            </select>
-                                        }
+                                          : null}
                                       </div>
                                     </div>
                                     {editDraft.task_type==="other" && (
                                       <div>
-                                        <label style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", fontSize:11, fontWeight:600, color:"#374151", marginBottom:6 }}>
-                                          <input type="checkbox" checked={editDraft.is_multi_client??false} onChange={ev=>setEditDraft(d=>({...d,is_multi_client:ev.target.checked,client_names:[]}))} style={{ accentColor:"#de1a1a" }} />
-                                          Split cost across multiple clients
+                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:6 }}>
+                                          Client {(editDraft.client_names??[]).length > 1 && <span style={{ color:"#de1a1a", fontWeight:700 }}>· Split cost ({(editDraft.client_names??[]).length} clients)</span>}
                                         </label>
-                                        {editDraft.is_multi_client && activeClientsForEdit.length>0 && (
-                                          <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                                            {activeClientsForEdit.map(name=>{const selected=(editDraft.client_names??[]).includes(name);return(<button key={name} type="button" onClick={()=>{const next=selected?(editDraft.client_names??[]).filter(n=>n!==name):[...(editDraft.client_names??[]),name];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name}))}} style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${selected?"#de1a1a":"#EBEDF2"}`, background:selected?"rgba(222,26,26,0.08)":"#F9FAFB", color:selected?"#de1a1a":"#6B7280" }}>{name}</button>)})}
+                                        <div style={{ position:"relative" }}>
+                                          {editClientShowPast ? (
+                                            <select value="" onChange={ev=>{const v=ev.target.value;if(!v)return;if(v==="__back__"){setEditClientShowPast(false);return}const cur=editDraft.client_names??[];if(!cur.some(n=>n.toLowerCase()===v.toLowerCase())){const next=[...cur,v];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name,is_multi_client:next.length>1}))}setEditClientShowPast(false)}} style={{ background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 28px 9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box", appearance:"none", fontWeight:600, cursor:"pointer" }}>
+                                              <option value="__back__">← Back to Active Clients</option>
+                                              {pastClientsOnly.filter(n=>!(editDraft.client_names??[]).some(c=>c.toLowerCase()===n.toLowerCase())).map(n=><option key={n} value={n}>{n}</option>)}
+                                            </select>
+                                          ) : (
+                                            <select value="" onChange={ev=>{const v=ev.target.value;if(!v)return;if(v==="__past_clients__"){setEditClientShowPast(true);return}const cur=editDraft.client_names??[];if(!cur.some(n=>n.toLowerCase()===v.toLowerCase())){const next=[...cur,v];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name,is_multi_client:next.length>1}))}}} style={{ background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 28px 9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box", appearance:"none", fontWeight:600, cursor:"pointer" }}>
+                                              <option value="">Add client / project…</option>
+                                              {activeClientsForEdit.filter(n=>!(editDraft.client_names??[]).some(c=>c.toLowerCase()===n.toLowerCase())).map(n=><option key={n} value={n}>{n}</option>)}
+                                              {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                            </select>
+                                          )}
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
+                                        {(editDraft.client_names??[]).length>0 && (
+                                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                            {(editDraft.client_names??[]).map(name=>(
+                                              <button key={name} type="button" onClick={()=>{const next=(editDraft.client_names??[]).filter(n=>n.toLowerCase()!==name.toLowerCase());setEditDraft(d=>({...d,client_names:next,client_name:next[0]||"",is_multi_client:next.length>1}))}} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(222,26,26,0.08)", border:"1.5px solid rgba(222,26,26,0.25)", cursor:"pointer" }}>
+                                                <span style={{ fontSize:10, fontWeight:700, color:"#de1a1a" }}>{name}</span>
+                                                <span style={{ fontSize:8, color:"#de1a1a" }}>✕</span>
+                                              </button>
+                                            ))}
                                           </div>
                                         )}
                                       </div>
@@ -1919,12 +2275,6 @@ export default function HistoryClient({
                                         <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Start Time</label><input type="time" value={editDraft.start_time??""} onChange={ev=>setEditDraft(d=>({...d,start_time:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} /></div>
                                         <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>End Time</label><input type="time" value={editDraft.end_time??""} onChange={ev=>setEditDraft(d=>({...d,end_time:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} /></div>
                                       </div>
-                                    )}
-                                    {editDraft.task_type==="other" && (
-                                      <>
-                                        <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Project / Task Name</label><input value={editDraft.project_name??""} onChange={ev=>setEditDraft(d=>({...d,project_name:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} /></div>
-                                        <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Status</label><select value={editEntryStatus} onChange={ev=>setEditEntryStatus(ev.target.value as typeof editEntryStatus)} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}><option value="not_started">Not Started</option><option value="in_progress">In Progress</option><option value="completed">Completed ✓</option></select></div>
-                                      </>
                                     )}
                                     {editDraft.task_type!=="other" && (
                                       <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }} /></div>
@@ -1953,6 +2303,237 @@ export default function HistoryClient({
                                   </div>
                                 )}
 
+                                {/* ── VOICEOVER ── */}
+                                {editDraft.task_type === "voiceover" && (()=>{
+                                  const HF: React.CSSProperties = { background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box" as const }
+                                  const HL: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                                  const dur = calcDur(editDraft.start_time, editDraft.end_time)
+                                  return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                                    <p style={{ fontSize:11, fontWeight:800, color:"#8B5CF6", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Voiceover</p>
+                                    <div>
+                                      <label style={HL}>Date</label>
+                                      <input type="date" value={editDraftDate} onChange={ev=>setEditDraftDate(ev.target.value)} style={{ ...HF, colorScheme:"light" }} />
+                                      {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                      <div>
+                                        <label style={HL}>Client *</label>
+                                        <div style={{ position:"relative" }}>
+                                          {editClientShowPast
+                                            ? <div>
+                                                <button type="button" onClick={()=>setEditClientShowPast(false)} style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>← Back</button>
+                                                <select value="" onChange={ev=>{if(ev.target.value){setEditDraft(d=>({...d,client_name:ev.target.value}));setEditClientShowPast(false)}}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                                  <option value="">— Select past client —</option>
+                                                  {pastClientsOnly.map(c=><option key={c} value={c}>{c}</option>)}
+                                                </select>
+                                              </div>
+                                            : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__")setEditClientShowPast(true);else setEditDraft(d=>({...d,client_name:v}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                                <option value="">Select client…</option>
+                                                {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
+                                                {editDraft.client_name && !activeClientsForEdit.includes(editDraft.client_name) && pastClientsOnly.includes(editDraft.client_name) && <option key={editDraft.client_name} value={editDraft.client_name}>{editDraft.client_name}</option>}
+                                                {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                              </select>
+                                          }
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
+                                      </div>
+                                      <div><label style={HL}>Title / Project</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="Script or project name" style={HF} /></div>
+                                    </div>
+                                    <div>
+                                      <label style={HL}>🎙 Recording Time</label>
+                                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                        <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
+                                        <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                        <HTimePicker value={editDraft.end_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} />
+                                        {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(139,92,246,0.1)", color:"#8B5CF6" }}>{fmtTravel(dur)}</span>}
+                                      </div>
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                      <div><label style={HL}>Drive / Audio Link</label><input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="https://drive.google.com/…" style={HF} /></div>
+                                      <div><label style={HL}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Script details, revisions…" style={{ ...HF, resize:"none" }} /></div>
+                                    </div>
+                                    <div style={{ display:"flex", gap:8, justifyContent:"flex-end", borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4 }}>
+                                      <button onClick={()=>{setEditingKey(null);setEditDraft({})}} style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
+                                      <button onClick={()=>saveEntry(u.id,entries,ei)} disabled={savingKey===eKey} style={{ display:"flex", alignItems:"center", gap:5, padding:"9px 20px", borderRadius:10, background:"#8B5CF6", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:savingKey===eKey?0.7:1, boxShadow:"0 4px 12px rgba(139,92,246,0.3)" }}><Check size={12}/> {savingKey===eKey?"Saving…":"Save Voiceover"}</button>
+                                    </div>
+                                  </div>)
+                                })()}
+
+                                {/* ── POSTER ── */}
+                                {editDraft.task_type === "poster" && (()=>{
+                                  const HF: React.CSSProperties = { background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box" as const }
+                                  const HL: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                                  const dur = calcDur(editDraft.start_time, editDraft.end_time)
+                                  return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                                    <p style={{ fontSize:11, fontWeight:800, color:"#EC4899", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Poster</p>
+                                    <div>
+                                      <label style={HL}>Date</label>
+                                      <input type="date" value={editDraftDate} onChange={ev=>setEditDraftDate(ev.target.value)} style={{ ...HF, colorScheme:"light" }} />
+                                      {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                      <div>
+                                        <label style={HL}>Client *</label>
+                                        <div style={{ position:"relative" }}>
+                                          {editClientShowPast
+                                            ? <div>
+                                                <button type="button" onClick={()=>setEditClientShowPast(false)} style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>← Back</button>
+                                                <select value="" onChange={ev=>{if(ev.target.value){setEditDraft(d=>({...d,client_name:ev.target.value}));setEditClientShowPast(false)}}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                                  <option value="">— Select past client —</option>
+                                                  {pastClientsOnly.map(c=><option key={c} value={c}>{c}</option>)}
+                                                </select>
+                                              </div>
+                                            : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__")setEditClientShowPast(true);else setEditDraft(d=>({...d,client_name:v}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                                <option value="">Select client…</option>
+                                                {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
+                                                {editDraft.client_name && !activeClientsForEdit.includes(editDraft.client_name) && pastClientsOnly.includes(editDraft.client_name) && <option key={editDraft.client_name} value={editDraft.client_name}>{editDraft.client_name}</option>}
+                                                {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                              </select>
+                                          }
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
+                                      </div>
+                                      <div><label style={HL}>Poster Name</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="Poster or design name" style={HF} /></div>
+                                    </div>
+                                    <div>
+                                      <label style={HL}>🎨 Design Time</label>
+                                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                        <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
+                                        <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                        <HTimePicker value={editDraft.end_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} />
+                                        {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(236,72,153,0.1)", color:"#EC4899" }}>{fmtTravel(dur)}</span>}
+                                      </div>
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                      <div><label style={HL}>Drive / File Link</label><input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="https://drive.google.com/…" style={HF} /></div>
+                                      <div><label style={HL}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Design details, revisions…" style={{ ...HF, resize:"none" }} /></div>
+                                    </div>
+                                    {members.length > 0 && (
+                                      <div>
+                                        <label style={HL}>👥 Worked With</label>
+                                        <div style={{ position:"relative" }}>
+                                          <select value="" onChange={ev=>{const id=ev.target.value;if(id&&!(editDraft.participant_ids??[]).includes(id))setEditDraft(d=>({...d,participant_ids:[...(d.participant_ids??[]),id]}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                            <option value="">Add teammate…</option>
+                                            {members.filter(m=>!(editDraft.participant_ids??[]).includes(m.id)).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+                                          </select>
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
+                                        {(editDraft.participant_ids??[]).length > 0 && (
+                                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                            {(editDraft.participant_ids??[]).map(pid=>{
+                                              const m=members.find(t=>t.id===pid); if(!m) return null
+                                              const initials=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase()
+                                              return (<button key={pid} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:(d.participant_ids??[]).filter(p=>p!==pid)}))}
+                                                style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(236,72,153,0.1)", border:"1.5px solid rgba(236,72,153,0.3)", cursor:"pointer" }}>
+                                                <div style={{ width:16, height:16, borderRadius:"50%", background:"#EC4899", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                                <span style={{ fontSize:10, fontWeight:700, color:"#BE185D" }}>{m.name.split(" ")[0]}</span>
+                                                <span style={{ fontSize:8, color:"#F472B6" }}>✕</span>
+                                              </button>)
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    <div style={{ display:"flex", gap:8, justifyContent:"flex-end", borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4 }}>
+                                      <button onClick={()=>{setEditingKey(null);setEditDraft({})}} style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
+                                      <button onClick={()=>saveEntry(u.id,entries,ei)} disabled={savingKey===eKey} style={{ display:"flex", alignItems:"center", gap:5, padding:"9px 20px", borderRadius:10, background:"#EC4899", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:savingKey===eKey?0.7:1, boxShadow:"0 4px 12px rgba(236,72,153,0.3)" }}><Check size={12}/> {savingKey===eKey?"Saving…":"Save Poster"}</button>
+                                    </div>
+                                  </div>)
+                                })()}
+
+                                {/* ── NON-MEDIA EDIT ── */}
+                                {editDraft.task_type === "edit" && !isMedia && (()=>{
+                                  const HF: React.CSSProperties = { background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box" as const }
+                                  const HL: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                                  const dur = calcDur(editDraft.start_time, editDraft.end_time)
+                                  return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                                    <p style={{ fontSize:11, fontWeight:800, color:"#0D9488", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Editing Entry</p>
+                                    <div>
+                                      <label style={HL}>Date</label>
+                                      <input type="date" value={editDraftDate} onChange={ev=>setEditDraftDate(ev.target.value)} style={{ ...HF, colorScheme:"light" }} />
+                                      {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                      <div>
+                                        <label style={HL}>Client *</label>
+                                        <div style={{ position:"relative" }}>
+                                          {editClientShowPast
+                                            ? <div>
+                                                <button type="button" onClick={()=>setEditClientShowPast(false)} style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>← Back</button>
+                                                <select value="" onChange={ev=>{if(ev.target.value){setEditDraft(d=>({...d,client_name:ev.target.value}));setEditClientShowPast(false)}}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                                  <option value="">— Select past client —</option>
+                                                  {pastClientsOnly.map(c=><option key={c} value={c}>{c}</option>)}
+                                                </select>
+                                              </div>
+                                            : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__")setEditClientShowPast(true);else setEditDraft(d=>({...d,client_name:v}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                                <option value="">Select client…</option>
+                                                {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
+                                                {editDraft.client_name && !activeClientsForEdit.includes(editDraft.client_name) && pastClientsOnly.includes(editDraft.client_name) && <option key={editDraft.client_name} value={editDraft.client_name}>{editDraft.client_name}</option>}
+                                                {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                              </select>
+                                          }
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
+                                      </div>
+                                      <div><label style={HL}>Video Name</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="Video or project name" style={HF} /></div>
+                                    </div>
+                                    <div>
+                                      <label style={HL}>Video Type</label>
+                                      <div style={{ position:"relative" }}>
+                                        <select value={editDraft.video_type??""} onChange={ev=>setEditDraft(d=>({...d,video_type:ev.target.value}))} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                          <option value="">Select type…</option>
+                                          <option value="AI GENERATED">AI Generated</option>
+                                          <option value="SIMPLE EDIT">Simple Edit</option>
+                                          <option value="EDIT + AI">Edit + AI</option>
+                                        </select>
+                                        <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label style={HL}>🎬 Edit Time</label>
+                                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                        <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
+                                        <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                        <HTimePicker value={editDraft.end_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} />
+                                        {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(13,148,136,0.1)", color:"#0D9488" }}>{fmtTravel(dur)}</span>}
+                                      </div>
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:10 }}>
+                                      <div><label style={HL}>Drive / File Link</label><input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="https://drive.google.com/…" style={HF} /></div>
+                                    </div>
+                                    {members.length > 0 && (
+                                      <div>
+                                        <label style={HL}>👥 Worked With</label>
+                                        <div style={{ position:"relative" }}>
+                                          <select value="" onChange={ev=>{const id=ev.target.value;if(id&&!(editDraft.participant_ids??[]).includes(id))setEditDraft(d=>({...d,participant_ids:[...(d.participant_ids??[]),id]}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                            <option value="">Add teammate…</option>
+                                            {members.filter(m=>!(editDraft.participant_ids??[]).includes(m.id)).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+                                          </select>
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
+                                        {(editDraft.participant_ids??[]).length > 0 && (
+                                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                            {(editDraft.participant_ids??[]).map(pid=>{
+                                              const m=members.find(t=>t.id===pid); if(!m) return null
+                                              const initials=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase()
+                                              return (<button key={pid} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:(d.participant_ids??[]).filter(p=>p!==pid)}))}
+                                                style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(13,148,136,0.1)", border:"1.5px solid rgba(13,148,136,0.3)", cursor:"pointer" }}>
+                                                <div style={{ width:16, height:16, borderRadius:"50%", background:"#0D9488", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                                <span style={{ fontSize:10, fontWeight:700, color:"#0F766E" }}>{m.name.split(" ")[0]}</span>
+                                                <span style={{ fontSize:8, color:"#5EEAD4" }}>✕</span>
+                                              </button>)
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    <div style={{ display:"flex", gap:8, justifyContent:"flex-end", borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4 }}>
+                                      <button onClick={()=>{setEditingKey(null);setEditDraft({})}} style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
+                                      <button onClick={()=>saveEntry(u.id,entries,ei)} disabled={savingKey===eKey} style={{ display:"flex", alignItems:"center", gap:5, padding:"9px 20px", borderRadius:10, background:"#0D9488", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:savingKey===eKey?0.7:1, boxShadow:"0 4px 12px rgba(13,148,136,0.3)" }}><Check size={12}/> {savingKey===eKey?"Saving…":"Save Edit"}</button>
+                                    </div>
+                                  </div>)
+                                })()}
+
                               </div>
                             )}
                           </div>
@@ -1961,72 +2542,108 @@ export default function HistoryClient({
                     </div>
                   )}
 
-                {/* ── Collaborated entries for this day ── */}
-                {(participatedByDate.get(u.date) ?? []).map(pu => {
-                  const submitter = members.find(m => m.id === pu.user_id)
-                  const allEntries = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
-                  const perEntryFiltered = userId
-                    ? allEntries.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId))
-                    : allEntries
-                  // If no entry-level tagging found, show all non-break work entries (update was already confirmed participated)
-                  const puEntries = perEntryFiltered.length > 0
-                    ? perEntryFiltered
-                    : allEntries.filter(e => e.task_type !== "break" && e.task_type !== "learning")
+                {/* ── Pending collaboration confirmations for this day ── */}
+                {(confirmsByDate.get(u.date) ?? []).filter(c => c.status === 'pending').map(conf => {
+                  const submitter = members.find(m => m.id === conf.submitter_id)
+                  const snap = conf.entry_snapshot
+                  const taskType = (snap?.task_type ?? 'other') as keyof typeof TASK_CFG
+                  const cfg = TASK_CFG[taskType] ?? TASK_CFG.other
+                  const { Icon } = cfg
+                  const isEditing = collabEditId === conf.id
+                  const isRejecting = collabRejectId === conf.id
+                  const loading = collabLoading === conf.id
                   return (
-                    <div key={pu.id} style={{ borderTop: "1px dashed #E5E7EB", padding: "10px 18px", background: "rgba(99,102,241,0.03)" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: puEntries.length > 0 ? 8 : 0 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "#6366F1" }}>👥 Collaborated</span>
-                        <span style={{ fontSize: 11, color: "#9CA3AF" }}>
-                          · by <span style={{ fontWeight: 700, color: "#6366F1" }}>{submitter?.name ?? "Teammate"}</span>
-                        </span>
-                        {(pu.working_hours ?? 0) > 0 && (
-                          <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#6366F1" }}>
-                            {fmtH(pu.working_hours!)}
-                          </span>
-                        )}
+                    <div key={conf.id} style={{ borderTop: "2px solid rgba(99,102,241,0.2)", background: "rgba(99,102,241,0.04)", padding: "12px 18px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: "#6366F1", background: "rgba(99,102,241,0.12)", padding: "2px 8px", borderRadius: 99 }}>⏳ PENDING CONFIRMATION</span>
+                        <span style={{ fontSize: 11, color: "#9CA3AF" }}>· by <span style={{ fontWeight: 700, color: "#6366F1" }}>{submitter?.name ?? "Teammate"}</span></span>
                       </div>
-                      {puEntries.length > 0 && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                          {puEntries.map((pe, pi) => {
-                            const cfg = TASK_CFG[pe.task_type] ?? TASK_CFG.other
-                            const { Icon } = cfg
-                            const displayTitle = pe.title || cfg.label
-                            const displayClient = (pe.is_multi_client && pe.client_names && pe.client_names.length > 0)
-                              ? pe.client_names.join(" · ")
-                              : pe.client_name || ""
-                            const tH = pe.task_type === "shoot" ? (pe._travel_hours ?? 0) : 0
-                            const dur = calcDurationFromTimes(pe.start_time, pe.end_time) ?? (pe.duration_hours ?? 0)
-                            return (
-                              <div key={pi} style={{ display: "flex", gap: 10, padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none", alignItems: "flex-start" }}>
-                                <div style={{ width: 30, height: 30, borderRadius: 8, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                  <Icon size={13} style={{ color: cfg.color }}/>
-                                </div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
-                                    <span style={{ fontSize: 12, fontWeight: 800, color: "#111111" }}>{displayTitle}</span>
-                                    <span style={{ fontSize: 9, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: "1px 6px", borderRadius: 99 }}>{cfg.label}</span>
-                                  </div>
-                                  {displayClient && <p style={{ fontSize: 10, color: "#6B7280", margin: "0 0 2px", fontWeight: 600 }}>{displayClient}</p>}
-                                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                                    {dur + tH > 0 && (
-                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 3 }}>
-                                        <Clock size={9} style={{ color: "#9CA3AF" }}/>{fmtH(dur + tH)}
-                                      </span>
-                                    )}
-                                    {pe.start_time && pe.end_time && (
-                                      <span style={{ fontSize: 10, color: "#9CA3AF" }}>{fmt12(pe.start_time)} – {fmt12(pe.end_time)}</span>
-                                    )}
-                                    {tH > 0 && <span style={{ fontSize: 10, color: "#F59E0B", fontWeight: 700 }}>🚗 {fmtTravel(tH)}</span>}
-                                  </div>
-                                </div>
-                              </div>
-                            )
-                          })}
+                      <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                        <div style={{ width: 30, height: 30, borderRadius: 8, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Icon size={13} style={{ color: cfg.color }}/>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: "#111111", marginBottom: 2 }}>{snap?.title || cfg.label}</div>
+                          {snap?.client_name && <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 600, marginBottom: 3 }}>{snap.client_name}</div>}
+                          {conf.original_start_time && conf.original_end_time && (
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#6366F1" }}>
+                              🕐 {fmt12(conf.original_start_time)} – {fmt12(conf.original_end_time)}
+                              {conf.original_duration_hours ? ` · ${fmtH(conf.original_duration_hours)}` : ""}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {isEditing ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "10px", background: "#fff", borderRadius: 10, border: "1px solid rgba(99,102,241,0.2)" }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#374151" }}>My actual time for this task:</div>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <div>
+                              <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 2 }}>Start</div>
+                              <input type="time" value={collabEditStart} onChange={e => setCollabEditStart(e.target.value)}
+                                style={{ border: "1px solid #EBEDF2", borderRadius: 8, padding: "6px 8px", fontSize: 12, outline: "none" }}/>
+                            </div>
+                            <div style={{ marginTop: 14, color: "#9CA3AF" }}>–</div>
+                            <div>
+                              <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 2 }}>End</div>
+                              <input type="time" value={collabEditEnd} onChange={e => setCollabEditEnd(e.target.value)}
+                                style={{ border: "1px solid #EBEDF2", borderRadius: 8, padding: "6px 8px", fontSize: 12, outline: "none" }}/>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button disabled={loading} onClick={async () => {
+                              if (!collabEditStart || !collabEditEnd) return
+                              setCollabLoading(conf.id)
+                              const r = await editCollaborationTime(conf.id, collabEditStart, collabEditEnd)
+                              if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'edited_confirmed', confirmed_start_time: collabEditStart, confirmed_end_time: collabEditEnd } : c))
+                              setCollabLoading(null); setCollabEditId(null)
+                            }} style={{ flex: 1, padding: "7px", borderRadius: 8, background: "#6366F1", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                              {loading ? "Saving…" : "Save My Time"}
+                            </button>
+                            <button onClick={() => setCollabEditId(null)} style={{ padding: "7px 12px", borderRadius: 8, background: "#F5F6FA", color: "#374151", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : isRejecting ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "10px", background: "#fff", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)" }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#374151" }}>Reason (optional):</div>
+                          <input value={collabRejectReason} onChange={e => setCollabRejectReason(e.target.value)} placeholder="I was not involved in this task"
+                            style={{ border: "1px solid #EBEDF2", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none" }}/>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button disabled={loading} onClick={async () => {
+                              setCollabLoading(conf.id)
+                              const r = await rejectCollaboration(conf.id, collabRejectReason)
+                              if (r.success) setCollabConfirms(prev => prev.filter(c => c.id !== conf.id))
+                              setCollabLoading(null); setCollabRejectId(null); setCollabRejectReason("")
+                            }} style={{ flex: 1, padding: "7px", borderRadius: 8, background: "#EF4444", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                              {loading ? "Rejecting…" : "Reject"}
+                            </button>
+                            <button onClick={() => setCollabRejectId(null)} style={{ padding: "7px 12px", borderRadius: 8, background: "#F5F6FA", color: "#374151", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button disabled={loading} onClick={async () => {
+                            setCollabLoading(conf.id)
+                            const r = await confirmCollaboration(conf.id)
+                            if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'confirmed', confirmed_start_time: c.original_start_time, confirmed_end_time: c.original_end_time, confirmed_hours: c.original_duration_hours } : c))
+                            setCollabLoading(null)
+                          }} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#22C55E", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                            {loading ? "…" : "✓ Confirm"}
+                          </button>
+                          <button disabled={loading} onClick={() => { setCollabEditId(conf.id); setCollabEditStart(conf.original_start_time ?? ""); setCollabEditEnd(conf.original_end_time ?? "") }}
+                            style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#6366F1", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                            ✏ Edit Time
+                          </button>
+                          <button disabled={loading} onClick={() => setCollabRejectId(conf.id)}
+                            style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#FEE2E2", color: "#DC2626", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                            ✗ Reject
+                          </button>
                         </div>
                       )}
                     </div>
                   )
                 })}
+
+                {/* placeholder – collaborated section moved above own entries */}
               </div>
             )
             })}
@@ -2061,44 +2678,54 @@ export default function HistoryClient({
 
               {/* Stats rows */}
               <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
-                {(stats.isMedia ? [
-                  { label:"Working Hours",   value: fmtH(stats.shootH + stats.editH),    color:"#22C55E", dot:"#22C55E" },
-                  { label:"Total Shoots",    value: String(stats.shootCount),             color:"#EF4444", dot:"#EF4444" },
-                  { label:"Videos Edited",   value: String(stats.editCount),              color:"#6366F1", dot:"#6366F1" },
-                  { label:"Break Hours",     value: fmtH(stats.totalBreak),              color:"#78716C", dot:"#78716C" },
-                  { label:"Present Days",    value: String(stats.presentDays),            color:"#059669", dot:"#059669" },
-                  { label:"Leave Days",      value: String(stats.absentDays),             color:"#EF4444", dot:"#EF4444" },
-                  { label:"Overtime",        value: fmtH(stats.totalOT),                 color:"#F59E0B", dot:"#F59E0B" },
+                {(isFreelancerMedia ? [
+                  { label:"Working Hours",    value: fmtH(stats.mediaWorkH),              dot:"#22C55E" },
+                  { label:"Avg Working Hrs",  value: fmtH(stats.avgH),                    dot: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", isAvg: true },
+                  { label:"Total Shoots",     value: String(stats.shootCount),             dot:"#EF4444" },
+                  { label:"Videos Edited",    value: String(stats.editCount),              dot:"#6366F1" },
+                  { label:"Learning Hours",   value: fmtH(stats.totalLearning),           dot:"#A78BFA" },
+                  { label:"Travel Hours",     value: fmtH(stats.travelH),                 dot:"#F59E0B" },
+                  { label:"Days Submitted",   value: String(stats.daysSubmitted),          dot:"#059669" },
+                ] : stats.isMedia ? [
+                  { label:"Working Hours",    value: fmtH(stats.mediaWorkH),              dot:"#22C55E" },
+                  { label:"Avg Working Hrs",  value: fmtH(stats.avgH),                    dot: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", isAvg: true },
+                  { label:"Total Shoots",     value: String(stats.shootCount),             dot:"#EF4444" },
+                  { label:"Videos Edited",    value: String(stats.editCount),              dot:"#6366F1" },
+                  { label:"Learning Hours",   value: fmtH(stats.totalLearning),           dot:"#A78BFA" },
+                  { label:"Travel Hours",     value: fmtH(stats.travelH),                 dot:"#F59E0B" },
+                  { label:"Break Hours",      value: fmtH(stats.totalBreak),              dot:"#78716C" },
+                  { label:"Present Days",     value: String(stats.presentDays),            dot:"#059669" },
+                  { label:"Leave Days",       value: String(stats.leaveDays),              dot:"#F97316" },
+                  { label:"Office Holidays",  value: String(stats.holidayDays),            dot:"#9CA3AF" },
+                  { label:"Overtime",         value: fmtH(stats.totalOT),                 dot:"#FACC15" },
                 ] : [
-                  { label:"Working Hours",   value: fmtH(stats.totalHours - stats.totalLearning), color:"#22C55E", dot:"#22C55E" },
-                  { label:"Learning Hours",  value: fmtH(stats.totalLearning),                    color:"#6366F1", dot:"#6366F1" },
-                  { label:"Break Hours",     value: fmtH(stats.totalBreak),                       color:"#78716C", dot:"#78716C" },
-                  { label:"Overtime",        value: fmtH(stats.totalOT),                          color:"#F59E0B", dot:"#F59E0B" },
-                  { label:"Present Days",    value: String(stats.presentDays),                     color:"#059669", dot:"#059669" },
-                  { label:"Absent Days",     value: String(stats.absentDays),                      color:"#EF4444", dot:"#EF4444" },
-                ]).map((r, i, arr) => (
+                  { label:"Working Hours",    value: fmtH(stats.nonMediaWorkH),                        dot:"#22C55E" },
+                  { label:"Avg Working Hrs",  value: fmtH(stats.avgH),                                 dot: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", isAvg: true },
+                  { label:"Work Logs",        value: String(stats.worklogCount),                        dot:"#3B82F6" },
+                  { label:"Posters",          value: String(stats.posterCount),                         dot:"#EC4899" },
+                  { label:"Voiceovers",       value: String(stats.voiceoverCount),                      dot:"#8B5CF6" },
+                  { label:"Learning Hours",   value: fmtH(stats.totalLearning),                         dot:"#6366F1" },
+                  { label:"Break Hours",      value: fmtH(stats.totalBreak),                            dot:"#78716C" },
+                  { label:"Present Days",     value: String(stats.presentDays),                          dot:"#059669" },
+                  { label:"Leave Days",       value: String(stats.leaveDays),                            dot:"#F97316" },
+                  { label:"Office Holidays",  value: String(stats.holidayDays),                          dot:"#9CA3AF" },
+                  { label:"Overtime",         value: fmtH(stats.totalOT),                                dot:"#FACC15" },
+                ] as { label: string; value: string; dot: string; isAvg?: boolean }[]).map((r, i, arr) => (
                   <div key={r.label} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"9px 0", borderBottom: i < arr.length - 1 ? "1px solid #F5F6FA" : "none" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:7 }}>
                       <div style={{ width:8, height:8, borderRadius:"50%", background:r.dot, flexShrink:0 }}/>
                       <span style={{ fontSize:11, color:"#6B7280" }}>{r.label}</span>
                     </div>
-                    <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{r.value}</span>
+                    {r.isAvg ? (
+                      <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                        <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{r.value}</span>
+                        <span style={{ fontSize:14, fontWeight:900, color: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444" }}>{stats.avgH >= 8.5 ? "↑" : "↓"}</span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{r.value}</span>
+                    )}
                   </div>
                 ))}
-
-                {/* Avg Working Hours with up/down indicator */}
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", paddingTop:9 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                    <div style={{ width:8, height:8, borderRadius:"50%", background: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", flexShrink:0 }}/>
-                    <span style={{ fontSize:11, color:"#6B7280" }}>Avg Working Hrs</span>
-                  </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{fmtH(stats.avgH)}</span>
-                    <span style={{ fontSize:14, fontWeight:900, color: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444" }}>
-                      {stats.avgH >= 8.5 ? "↑" : "↓"}
-                    </span>
-                  </div>
-                </div>
               </div>
             </div>
 

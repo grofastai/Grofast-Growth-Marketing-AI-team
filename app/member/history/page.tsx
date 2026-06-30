@@ -43,6 +43,23 @@ type ParticipatedUpdate = {
   work_entries: WorkEntry[] | null
 }
 
+type CollaborationConfirmation = {
+  id: string
+  date: string
+  status: 'pending' | 'confirmed' | 'edited_confirmed' | 'rejected'
+  submitter_id: string
+  entry_id: string
+  daily_update_id: string
+  original_start_time: string | null
+  original_end_time: string | null
+  original_duration_hours: number | null
+  confirmed_start_time: string | null
+  confirmed_end_time: string | null
+  confirmed_hours: number | null
+  rejection_reason: string | null
+  entry_snapshot: { title?: string; task_type?: string; client_name?: string } | null
+}
+
 type MemberInfo = { id: string; name: string }
 
 function adminSupabase() {
@@ -64,12 +81,16 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminSupabase()
+  // When impersonating, the RLS-bound `supabase` client is still authed as the
+  // admin, so member-scoped queries return zero rows. Read through the service-role
+  // client instead, scoped to effectiveUserId.
+  const db = impersonateId ? admin : supabase
 
   // Profile first — needed for company_id to query participated updates
   const profileResult = await admin
     .from("users")
-    .select("name, company_id")
-    .eq("id", user.id)
+    .select("name, company_id, team, work_layout")
+    .eq("id", effectiveUserId)
     .single()
 
   const companyId = profileResult.data?.company_id ?? ""
@@ -77,8 +98,8 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   // Full year — one entry/day max, so ~170 rows at most; matches annual leave cycle
   const fromDateStr = `${new Date().getFullYear()}-01-01`
 
-  const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult, leavesResult, companyLeavesResult] = await Promise.all([
-    supabase
+  const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult, leavesResult, companyLeavesResult, confirmationsResult] = await Promise.all([
+    db
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, learning_start_time, learning_end_time, shoot_count, editing_count, work_entries, created_at")
       .eq("user_id", effectiveUserId)
@@ -125,6 +146,16 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
     companyId
       ? admin.from("company_leaves").select("id, date, name").eq("company_id", companyId).gte("date", fromDateStr).order("date", { ascending: false })
       : Promise.resolve({ data: [] }),
+    companyId
+      ? admin
+          .from("collaboration_confirmations")
+          .select("id, date, status, submitter_id, entry_id, daily_update_id, original_start_time, original_end_time, original_duration_hours, confirmed_start_time, confirmed_end_time, confirmed_hours, rejection_reason, entry_snapshot")
+          .eq("collaborator_id", effectiveUserId)
+          .eq("company_id", companyId)
+          .neq("status", "rejected")
+          .gte("date", fromDateStr)
+          .order("date", { ascending: false })
+      : Promise.resolve({ data: [] as CollaborationConfirmation[] }),
   ])
 
   // Build a set of dates where the member actually clocked in
@@ -132,13 +163,30 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
     ((attLogsResult.data ?? []) as { date: string }[]).map(r => r.date)
   )
 
-  // Override attendance_status to 'present' for any day with a clock-in
+  // Build set of dates covered by an approved full_day leave (these win over clock-in)
+  const fullDayLeaveDates = new Set<string>()
+  for (const leave of (leavesResult.data ?? []) as { leave_type: string; from_date: string; to_date: string }[]) {
+    if (leave.leave_type === 'full_day') {
+      const from = new Date(leave.from_date)
+      const to   = new Date(leave.to_date)
+      for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+        fullDayLeaveDates.add(d.toISOString().split('T')[0])
+      }
+    }
+  }
+
+  // Override attendance_status to 'present' for any day with a clock-in,
+  // UNLESS that day has an approved full_day leave (leave takes priority)
   const rawUpdates = (updatesResult.data ?? []) as unknown as UpdateRow[]
   const updates = rawUpdates.map(u => ({
     ...u,
-    attendance_status: clockedInDates.has(u.date) ? "present" : u.attendance_status,
+    attendance_status: (clockedInDates.has(u.date) && !fullDayLeaveDates.has(u.date))
+      ? "present"
+      : u.attendance_status,
   }))
   const name = (profileResult.data?.name ?? "").split(" ")[0] || "there"
+  const team = profileResult.data?.team ?? ""
+  const workLayout = (profileResult.data as { work_layout?: string } | null)?.work_layout as 'media' | 'non_media' | 'freelance_media' | undefined
   const clients = ((clientsResult.data ?? []) as { name: string }[]).map(c => c.name)
   const pastClients = ((pastClientsResult.data ?? []) as { name: string }[]).map(c => c.name)
   const participatedUpdates = (participatedResult.data ?? []) as unknown as ParticipatedUpdate[]
@@ -153,12 +201,15 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   }
   const approvedLeaves = (leavesResult.data ?? []) as ApprovedLeave[]
   const companyLeaves  = (companyLeavesResult.data ?? []) as { id: string; date: string; name: string }[]
+  const collaborationConfirmations = (confirmationsResult.data ?? []) as CollaborationConfirmation[]
 
   return (
     <HistoryClient
       updates={updates}
       userName={name}
       userId={effectiveUserId}
+      team={team}
+      workLayout={workLayout}
       clients={clients}
       pastClients={pastClients}
       participatedUpdates={participatedUpdates}
@@ -167,6 +218,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
       approvedLeaves={approvedLeaves}
       companyLeaves={companyLeaves}
       defaultDate={defaultDate}
+      collaborationConfirmations={collaborationConfirmations}
     />
   )
 }

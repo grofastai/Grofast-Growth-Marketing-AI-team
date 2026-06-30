@@ -40,3 +40,6 @@ next-env.d.ts
 .superpowers/
 .vercel
 .env*
+
+# MCP config — contains PAT tokens
+.mcp.json

@@ -2,9 +2,11 @@
 
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertManyNotifications } from './notifications'
+import { calcNetWorkHours } from '@/lib/utils/work-hours'
 
 // 9:30 AM IST = 04:00 UTC. Returns true if clock-in is after 9:30 AM IST.
 function isLateArrival(isoUtc: string): boolean {
@@ -37,8 +39,23 @@ async function getUserContext(): Promise<{ userId: string; companyId: string } |
 
   // Try users table first (service-role query)
   const admin = adminSupabase()
-  const { data, error: dbError } = await admin.from('users').select('company_id').eq('id', user.id).single()
-  if (data?.company_id) return { userId: user.id, companyId: data.company_id as string }
+  const { data, error: dbError } = await admin.from('users').select('role, company_id').eq('id', user.id).single()
+  if (data?.company_id) {
+    // Admin impersonation — when an admin has an active impersonation cookie, act
+    // as the target member (reads + writes) so the member panel reflects their
+    // data. Only honored for ADMINs and same-company targets (the cookie is
+    // set server-side by startImpersonation, which already enforces this).
+    if (data.role === 'ADMIN') {
+      const impersonateId = (await cookies()).get('gf_impersonate')?.value
+      if (impersonateId && impersonateId !== user.id) {
+        const { data: target } = await admin.from('users').select('company_id').eq('id', impersonateId).single()
+        if (target?.company_id && target.company_id === data.company_id) {
+          return { userId: impersonateId, companyId: target.company_id as string }
+        }
+      }
+    }
+    return { userId: user.id, companyId: data.company_id as string }
+  }
 
   if (dbError && dbError.code !== 'PGRST116') {
     // PGRST116 = row not found; any other error means DB/key issue
@@ -458,58 +475,21 @@ export async function resumeAttendance(date: string): Promise<{ success: boolean
   return { success: true }
 }
 
-// Mirrors calcNetWorkHours in history-client — net work hours from work_entries
-function calcNetWorkHoursFromEntries(entries: { task_type: string; start_time?: string | null; end_time?: string | null; duration_hours?: number; _travel_hours?: number | null }[]): number {
-  function toMins(t: string) { const [h, m] = t.split(':').map(Number); return h * 60 + m }
-  const workEntries  = entries.filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
-  const breakEntries = entries.filter(e => e.task_type === 'break')
-  const workIntervals = workEntries
-    .filter(e => e.start_time && e.end_time)
-    .map(e => ({ start: toMins(e.start_time!), end: toMins(e.end_time!) }))
-    .filter(i => i.end > i.start)
-    .sort((a, b) => a.start - b.start)
-  let merged: { start: number; end: number }[] = []
-  if (workIntervals.length > 0) {
-    let cs = workIntervals[0].start, ce = workIntervals[0].end
-    for (let i = 1; i < workIntervals.length; i++) {
-      if (workIntervals[i].start < ce) { ce = Math.max(ce, workIntervals[i].end) }
-      else { merged.push({ start: cs, end: ce }); cs = workIntervals[i].start; ce = workIntervals[i].end }
-    }
-    merged.push({ start: cs, end: ce })
-  }
-  const breakIntervals = breakEntries
-    .filter(e => e.start_time && e.end_time)
-    .map(e => ({ start: toMins(e.start_time!), end: toMins(e.end_time!) }))
-    .filter(i => i.end > i.start)
-  for (const brk of breakIntervals) {
-    const next: { start: number; end: number }[] = []
-    for (const w of merged) {
-      if (brk.end <= w.start || brk.start >= w.end) { next.push(w) }
-      else {
-        if (brk.start > w.start) next.push({ start: w.start, end: brk.start })
-        if (brk.end < w.end)   next.push({ start: brk.end,  end: w.end   })
-      }
-    }
-    merged = next
-  }
-  const timedMins = merged.reduce((s, i) => s + (i.end - i.start), 0)
-  const travelH   = workEntries.filter(e => e.task_type === 'shoot').reduce((s, e) => s + (e._travel_hours ?? 0), 0)
-  const untimedH  = workEntries.filter(e => !e.start_time || !e.end_time).reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-  return Math.round((timedMins / 60 + travelH + untimedH) * 10) / 10
-}
 
 export async function getAttendanceRange(startDate: string, endDate: string): Promise<{
   success: boolean
   logs: Array<{ id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; break_in: string | null; break_out: string | null; work_type: string | null; status: string; learning_hours: number; worked_hours: number; entries_break_hours: number }>
   leaveDates: string[]
+  holidayDates: { date: string; name: string }[]
   error?: string
 }> {
   const ctxResult = await getUserContext()
-  if ('error' in ctxResult) return { success: false, logs: [], leaveDates: [], error: ctxResult.error }
+  if ('error' in ctxResult) return { success: false, logs: [], leaveDates: [], holidayDates: [], error: ctxResult.error }
+
   const ctx = ctxResult
 
   const admin = adminSupabase()
-  const [attResult, updatesResult, leavesResult] = await Promise.all([
+  const [attResult, updatesResult, leavesResult, holidaysResult] = await Promise.all([
     admin
       .from('attendance_logs')
       .select('id, date, clock_in, clock_out, break_total_mins, break_in, break_out, work_type, status')
@@ -533,9 +513,15 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
       .eq('status', 'approved')
       .lte('from_date', endDate)
       .gte('to_date', startDate),
+    admin
+      .from('company_leaves')
+      .select('date, name')
+      .eq('company_id', ctx.companyId)
+      .gte('date', startDate)
+      .lte('date', endDate),
   ])
 
-  if (attResult.error) return { success: false, logs: [], leaveDates: [], error: attResult.error.message }
+  if (attResult.error) return { success: false, logs: [], leaveDates: [], holidayDates: [], error: attResult.error.message }
 
   const workedByDate: Record<string, number> = {}
   const learnByDate: Record<string, number>  = {}
@@ -543,13 +529,15 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
 
   for (const r of (updatesResult.data ?? [])) {
     const entries = (Array.isArray(r.work_entries) ? r.work_entries : []) as { task_type: string; start_time?: string | null; end_time?: string | null; duration_hours?: number; _travel_hours?: number | null }[]
-    // Learning: prefer from learning entries, fallback to stored learning_hours
+    // Learning hours for display (badge only — NOT added to worked, calcNetWorkHours already includes it)
     const learnFromEntries = entries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-    const learnH = learnFromEntries > 0 ? learnFromEntries : (r.learning_hours ?? 0)
+    const learnH = entries.length > 0 ? learnFromEntries : (r.learning_hours ?? 0)
     learnByDate[r.date] = learnH
-    // Worked: net work from entries; fallback to stored working_hours when no entries
-    const netWorkH = entries.length > 0 ? calcNetWorkHoursFromEntries(entries) : (r.working_hours ?? 0)
-    workedByDate[r.date] = netWorkH + learnH
+    // Worked: calcNetWorkHours includes all non-break entries (work + learning).
+    // Only add learning separately when falling back to stored fields (no entries).
+    workedByDate[r.date] = entries.length > 0
+      ? calcNetWorkHours(entries)
+      : (r.working_hours ?? 0) + (r.learning_hours ?? 0)
     // Break: sum of break entries' duration_hours
     breakByDate[r.date] = entries.filter(e => e.task_type === 'break').reduce((s, e) => s + (e.duration_hours ?? 0), 0)
   }
@@ -575,7 +563,9 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
     }
   }
 
-  return { success: true, logs, leaveDates }
+  const holidayDates = (holidaysResult.data ?? []) as { date: string; name: string }[]
+
+  return { success: true, logs, leaveDates, holidayDates }
 }
 
 export async function getYesterdayGateStatus(): Promise<{
@@ -634,7 +624,7 @@ export async function getTodayCoverageReport(): Promise<{
   shiftMinutes: number
   totalWorkMinutes: number
   gapMinutes: number
-  entries: Array<{ task_type: string; title: string; client_name: string; duration_hours: number }>
+  entries: Array<{ task_type: string; start_time?: string | null; end_time?: string | null; duration_hours: number; _travel_hours?: number | null }>
 }> {
   const ctxResult = await getUserContext()
   const empty = { clockIn: null, clockOut: null, shiftMinutes: 0, totalWorkMinutes: 0, gapMinutes: 0, entries: [] }
@@ -665,10 +655,12 @@ export async function getTodayCoverageReport(): Promise<{
   const breakMs = (log.break_total_mins ?? 0) * 60 * 1000
   const shiftMinutes = Math.max(0, Math.round((shiftMs - breakMs) / 60000))
 
-  const rawEntries = Array.isArray(update?.work_entries) ? update!.work_entries as Array<{ task_type: string; title: string; client_name: string; duration_hours: number }> : []
-  const entries = rawEntries.filter((e) => e.task_type !== 'break')
-  const learnH = update?.learning_hours ?? 0
-  const totalWorkMinutes = Math.round(entries.reduce((s, e) => s + (e.duration_hours ?? 0), 0) * 60 + learnH * 60)
+  const rawEntries = Array.isArray(update?.work_entries) ? update!.work_entries as Array<{ task_type: string; start_time?: string | null; end_time?: string | null; duration_hours: number; _travel_hours?: number | null }> : []
+  // calcNetWorkHours includes learning (task_type !== 'break'). Use it directly to avoid double-counting.
+  const totalWorkH = rawEntries.length > 0
+    ? calcNetWorkHours(rawEntries)
+    : (update?.learning_hours ?? 0)
+  const totalWorkMinutes = Math.round(totalWorkH * 60)
   const gapMinutes = Math.max(0, shiftMinutes - totalWorkMinutes)
 
   return {

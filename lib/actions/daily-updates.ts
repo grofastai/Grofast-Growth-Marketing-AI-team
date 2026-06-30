@@ -2,9 +2,11 @@
 
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { dailyUpdateSchema, type DailyUpdateInput } from '@/lib/validations/daily-update'
 import { sendNotification } from '@/lib/notifications/send'
+import { calcNetWorkHours } from '@/lib/utils/work-hours'
 
 function adminSupabase() {
   return createClient(
@@ -12,6 +14,86 @@ function adminSupabase() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
+}
+
+async function getUserContext(): Promise<{ userId: string; companyId: string } | { error: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data } = await admin.from('users').select('role, company_id').eq('id', user.id).single()
+  if (!data?.company_id) return { error: 'Profile not found — re-login required' }
+
+  if (data.role === 'ADMIN') {
+    const impersonateId = (await cookies()).get('gf_impersonate')?.value
+    if (impersonateId && impersonateId !== user.id) {
+      const { data: target } = await admin.from('users').select('company_id').eq('id', impersonateId).single()
+      if (target?.company_id && target.company_id === data.company_id) {
+        return { userId: impersonateId, companyId: target.company_id as string }
+      }
+    }
+  }
+
+  return { userId: user.id, companyId: data.company_id as string }
+}
+
+// Always recompute duration_hours from start_time→end_time so manual edits never drift
+function fixEntryDurations<T extends Record<string, unknown>>(entries: T[]): T[] {
+  return entries.map(e => {
+    const start = e.start_time as string | null | undefined
+    const end   = e.end_time   as string | null | undefined
+    if (!start || !end) return e
+    const [sh, sm] = start.split(':').map(Number)
+    const [eh, em] = end.split(':').map(Number)
+    if ([sh, sm, eh, em].some(isNaN)) return e
+    const expectedH = (eh * 60 + em - (sh * 60 + sm)) / 60
+    if (expectedH <= 0 || expectedH > 15) return e
+    return { ...e, duration_hours: Math.round(expectedH * 100) / 100 }
+  })
+}
+
+async function syncCollaborationConfirmations(
+  admin: ReturnType<typeof adminSupabase>,
+  recordId: string,
+  submitterId: string,
+  companyId: string,
+  date: string,
+  entries: Record<string, unknown>[]
+) {
+  try {
+    const tagged = entries.filter(e => {
+      const pids = e.participant_ids as string[] | undefined
+      return Array.isArray(pids) && pids.some(pid => pid !== submitterId)
+    })
+    for (const e of tagged) {
+      const entryId = (e.id as string) || ''
+      if (!entryId) continue
+      const collaborators = ((e.participant_ids as string[]) || []).filter(pid => pid !== submitterId)
+      for (const collaboratorId of collaborators) {
+        await admin.from('collaboration_confirmations').upsert({
+          company_id:               companyId,
+          daily_update_id:          recordId,
+          entry_id:                 entryId,
+          submitter_id:             submitterId,
+          collaborator_id:          collaboratorId,
+          date,
+          status:                   'pending',
+          original_start_time:      (e.start_time as string) || null,
+          original_end_time:        (e.end_time as string) || null,
+          original_duration_hours:  (e.duration_hours as number) || null,
+          entry_snapshot:           {
+            title:       e.title,
+            task_type:   e.task_type,
+            client_name: e.client_name,
+          },
+        }, {
+          onConflict:       'daily_update_id,entry_id,collaborator_id',
+          ignoreDuplicates: true, // preserve existing confirmed/rejected status
+        })
+      }
+    }
+  } catch { /* non-blocking */ }
 }
 
 export async function submitDailyUpdate(
@@ -22,15 +104,15 @@ export async function submitDailyUpdate(
     return { success: false, error: parsed.error.issues[0].message }
   }
 
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  const ctx = await getUserContext()
+  if ('error' in ctx) return { success: false, error: ctx.error }
+  const { userId } = ctx
 
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users')
-    .select('company_id, name, employee_id, phone')
-    .eq('id', user.id)
+    .select('company_id, name, employee_id, phone, work_layout')
+    .eq('id', userId)
     .single()
 
   if (!profile?.company_id) return { success: false, error: 'Profile not found — re-login required' }
@@ -46,7 +128,7 @@ export async function submitDailyUpdate(
       .from('leaves')
       .select('id')
       .eq('company_id', profile.company_id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('status', 'approved')
       .eq('leave_type', 'full_day')
       .lte('from_date', today)
@@ -57,14 +139,8 @@ export async function submitDailyUpdate(
     }
   }
 
-  // Working hours excludes break and learning entries; shoot entries add travel time on top of shoot duration
-  const totalWorkHours = d.work_entries
-    .filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
-    .reduce((sum, e) => {
-      const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
-      return sum + e.duration_hours + travel
-    }, 0)
-  const roundedHours = Math.round(totalWorkHours * 10) / 10
+  const workLayout = (profile?.work_layout ?? undefined) as 'media' | 'non_media' | 'freelance_media' | undefined
+  const roundedHours = calcNetWorkHours(d.work_entries, workLayout)
   // Learning hours from entries (new approach — stored in work_entries)
   const newLearnHours = d.work_entries
     .filter(e => e.task_type === 'learning')
@@ -75,13 +151,13 @@ export async function submitDailyUpdate(
     admin
       .from('daily_updates')
       .select('id, work_entries, working_hours, shoot_count, editing_count, learning_hours')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('date', today)
       .maybeSingle(),
     admin
       .from('attendance_logs')
       .select('work_type')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('date', today)
       .maybeSingle(),
   ])
@@ -91,17 +167,23 @@ export async function submitDailyUpdate(
   let isFirstSubmission = false
 
   if (existingRecord) {
-    // Dedup by ID: new entries replace existing ones with same ID (prevents duplicates on re-save/re-submit)
     const prevEntries = Array.isArray(existingRecord.work_entries) ? existingRecord.work_entries as Array<Record<string, unknown>> : []
-    const newIds = new Set(d.work_entries.map(e => e.id).filter(Boolean))
-    const filteredPrev = prevEntries.filter(e => !newIds.has(e.id as string))
-    const combinedEntries = [...filteredPrev, ...d.work_entries]
 
+    let combinedEntries: Array<Record<string, unknown>>
+    if (isPastDate) {
+      // Past-date new entry = append to existing (History page handles editing/deleting old entries)
+      combinedEntries = [...prevEntries, ...d.work_entries]
+    } else {
+      // Today = merge/append: dedup by ID so new entries replace same-ID ones without losing unrelated entries
+      const newIds = new Set(d.work_entries.map(e => e.id).filter(Boolean))
+      const filteredPrev = prevEntries.filter(e => !newIds.has(e.id as string))
+      combinedEntries = [...filteredPrev, ...d.work_entries]
+    }
+
+    // Always sync duration_hours to time span before saving
+    combinedEntries = fixEntryDurations(combinedEntries)
     // Recalculate all aggregates from combined entries — never use incremental addition
-    const calcWorkHours  = Math.round(combinedEntries.filter(e => e.task_type !== 'break' && e.task_type !== 'learning').reduce((s, e) => {
-      const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
-      return s + (Number(e.duration_hours) || 0) + travel
-    }, 0) * 10) / 10
+    const calcWorkHours  = calcNetWorkHours(combinedEntries as Parameters<typeof calcNetWorkHours>[0], workLayout)
     const calcShootCount = combinedEntries.filter(e => e.task_type === 'shoot').length
     const calcEditCount  = combinedEntries.filter(e => e.task_type === 'edit').length
     const calcLearnHours = Math.round(combinedEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
@@ -134,21 +216,25 @@ export async function submitDailyUpdate(
       .eq('id', existingRecord.id)
 
     if (updateError) return { success: false, error: updateError.message }
+
+    // Sync collaboration confirmations for updated record
+    await syncCollaborationConfirmations(admin, existingRecord.id, userId, profile.company_id, today, d.work_entries as Record<string, unknown>[])
   } else {
     isFirstSubmission = true
-    const { error: insertError } = await admin
+    const fixedNewEntries = fixEntryDurations(d.work_entries as Record<string, unknown>[])
+    const { data: inserted, error: insertError } = await admin
       .from('daily_updates')
       .insert({
         company_id:          profile.company_id,
-        user_id:             user.id,
+        user_id:             userId,
         date:                today,
         attendance_status:   'present',
         work_type:           workType,
-        working_hours:       d.active_tab !== 'learning' ? roundedHours : null,
+        working_hours:       d.active_tab !== 'learning' ? calcNetWorkHours(fixedNewEntries as Parameters<typeof calcNetWorkHours>[0], workLayout) : null,
         learning_hours:      newLearnHours > 0 ? newLearnHours : d.learning_hours,
         shoot_count:         d.shoot_count,
         notes:               null,
-        work_entries:        d.work_entries,
+        work_entries:        fixedNewEntries,
         learning_topic:      d.learning_topic ?? null,
         learning_notes:      d.learning_notes ?? null,
         learning_start_time: d.learning_start_time ?? null,
@@ -159,8 +245,15 @@ export async function submitDailyUpdate(
         editing_time_hours:  d.editing_time_hours ?? null,
         participant_ids:     [...new Set([...(d.participant_ids ?? []), ...d.work_entries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)])],
       })
+      .select('id')
+      .single()
 
     if (insertError) return { success: false, error: insertError.message }
+
+    // Sync collaboration confirmations for newly inserted record
+    if (inserted?.id) {
+      await syncCollaborationConfirmations(admin, inserted.id, userId, profile.company_id, today, d.work_entries as Record<string, unknown>[])
+    }
   }
 
   // Sync break entries to attendance_logs — dedup by ID same as main entries
@@ -183,7 +276,7 @@ export async function submitDailyUpdate(
     await admin
       .from('attendance_logs')
       .update({ break_sessions: breakSessions, break_total_mins: totalBreakMins })
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('date', today)
       .eq('company_id', profile.company_id)
   }
@@ -239,23 +332,23 @@ export async function submitDailyUpdate(
 }
 
 export async function deleteDailyUpdate(id: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  const ctx = await getUserContext()
+  if ('error' in ctx) return { success: false, error: ctx.error }
+  const { userId } = ctx
 
   const admin = adminSupabase()
   const { data: record } = await admin
     .from('daily_updates')
     .select('date, company_id')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
 
   const { error } = await admin
     .from('daily_updates')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
 
   if (error) return { success: false, error: error.message }
 
@@ -264,7 +357,7 @@ export async function deleteDailyUpdate(id: string): Promise<{ success: boolean;
     await admin
       .from('attendance_logs')
       .update({ break_total_mins: 0, break_sessions: [] })
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('date', record.date)
       .eq('company_id', record.company_id)
   }
@@ -279,41 +372,38 @@ export async function updatePastDailyUpdate(
   id: string,
   entries: Record<string, unknown>[]
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  const ctx = await getUserContext()
+  if ('error' in ctx) return { success: false, error: ctx.error }
+  const { userId } = ctx
 
   const admin = adminSupabase()
-  const { data: record } = await admin
-    .from('daily_updates')
-    .select('date, company_id, work_entries')
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .single()
+  const [{ data: record }, { data: uProfile }] = await Promise.all([
+    admin.from('daily_updates').select('date, company_id, work_entries').eq('id', id).eq('user_id', userId).single(),
+    admin.from('users').select('work_layout').eq('id', userId).single(),
+  ])
+  const updateLayout = (uProfile?.work_layout ?? undefined) as 'media' | 'non_media' | 'freelance_media' | undefined
 
   // Always preserve auto-inserted leave entries (_is_leave: true) — member cannot delete them
   const existingLeaveEntries = (Array.isArray(record?.work_entries) ? record.work_entries as Record<string, unknown>[] : [])
     .filter(e => e._is_leave === true)
   const entriesWithoutLeave = entries.filter(e => !e._is_leave)
-  const finalEntries = [...entriesWithoutLeave, ...existingLeaveEntries]
+  const finalEntries = fixEntryDurations([...entriesWithoutLeave, ...existingLeaveEntries])
 
-  const totalHours = finalEntries
-    .filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
-    .reduce((s, e) => {
-      const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
-      return s + ((e.duration_hours as number) ?? 0) + travel
-    }, 0)
+  const finalLearnHours = Math.round(
+    finalEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10
+  ) / 10
 
   const { error } = await admin
     .from('daily_updates')
     .update({
-      work_entries: finalEntries,
-      working_hours: Math.round(totalHours * 10) / 10 || null,
-      shoot_count: finalEntries.filter(e => e.task_type === 'shoot').length,
-      editing_count: finalEntries.filter(e => e.task_type === 'edit').length,
+      work_entries:   finalEntries,
+      working_hours:  calcNetWorkHours(finalEntries as Parameters<typeof calcNetWorkHours>[0], updateLayout) || null,
+      shoot_count:    finalEntries.filter(e => e.task_type === 'shoot').length,
+      editing_count:  finalEntries.filter(e => e.task_type === 'edit').length,
+      learning_hours: finalLearnHours,
     })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
 
   if (error) return { success: false, error: error.message }
 
@@ -331,7 +421,7 @@ export async function updatePastDailyUpdate(
     await admin
       .from('attendance_logs')
       .update({ break_sessions: breakSessions, break_total_mins: totalBreakMins })
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('date', record.date)
       .eq('company_id', record.company_id)
   }
@@ -348,9 +438,9 @@ export async function updateDailyUpdateLearning(
   id: string,
   data: { learning_hours: number | null; learning_topic: string | null; learning_notes: string | null; learning_start_time?: string | null; learning_end_time?: string | null }
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  const ctx = await getUserContext()
+  if ('error' in ctx) return { success: false, error: ctx.error }
+  const { userId } = ctx
 
   const admin = adminSupabase()
   const { error } = await admin
@@ -363,7 +453,7 @@ export async function updateDailyUpdateLearning(
       learning_end_time:   data.learning_end_time   ?? null,
     })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
 
   if (error) return { success: false, error: error.message }
 
@@ -376,22 +466,23 @@ export async function addEntryToDate(
   newDate: string,
   entry: Record<string, unknown>
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  const ctx = await getUserContext()
+  if ('error' in ctx) return { success: false, error: ctx.error }
+  const { userId } = ctx
 
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users')
-    .select('company_id')
-    .eq('id', user.id)
+    .select('company_id, work_layout')
+    .eq('id', userId)
     .single()
   if (!profile) return { success: false, error: 'Profile not found' }
+  const addLayout = (profile.work_layout ?? undefined) as 'media' | 'non_media' | 'freelance_media' | undefined
 
   const { data: existing } = await admin
     .from('daily_updates')
     .select('id, work_entries')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .eq('date', newDate)
     .eq('company_id', profile.company_id)
     .maybeSingle()
@@ -402,16 +493,9 @@ export async function addEntryToDate(
     entry,
   ]
 
-  // Recalculate all aggregates (same logic as updatePastDailyUpdate)
-  const totalHours = allEntries
-    .filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
-    .reduce((s, e) => {
-      const travel = e.task_type === 'shoot' ? (Number(e._travel_hours) || 0) : 0
-      return s + ((e.duration_hours as number) ?? 0) + travel
-    }, 0)
   const aggregates = {
     work_entries: allEntries,
-    working_hours: Math.round(totalHours * 10) / 10 || null,
+    working_hours: calcNetWorkHours(allEntries as Parameters<typeof calcNetWorkHours>[0], addLayout) || null,
     shoot_count: allEntries.filter(e => e.task_type === 'shoot').length,
     editing_count: allEntries.filter(e => e.task_type === 'edit').length,
   }
@@ -426,7 +510,7 @@ export async function addEntryToDate(
     const { error } = await admin
       .from('daily_updates')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         company_id: profile.company_id,
         date: newDate,
         attendance_status: 'present',
@@ -449,7 +533,7 @@ export async function addEntryToDate(
   await admin
     .from('attendance_logs')
     .update({ break_sessions: breakSessions, break_total_mins: totalBreakMins })
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .eq('date', newDate)
     .eq('company_id', profile.company_id)
 
@@ -461,16 +545,48 @@ export async function addEntryToDate(
   return { success: true }
 }
 
-export async function getTodayUpdate() {
+export async function updateWorkEntryPrice(
+  dailyUpdateId: string,
+  entryId: string,
+  price: number | null
+): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  if (!user) return { success: false, error: 'Not authenticated' }
 
+  const admin = adminSupabase()
+  const { data: record } = await admin
+    .from('daily_updates')
+    .select('work_entries')
+    .eq('id', dailyUpdateId)
+    .single()
+
+  if (!record) return { success: false, error: 'Record not found' }
+
+  const entries = (Array.isArray(record.work_entries) ? record.work_entries : []) as Record<string, unknown>[]
+  const updated = entries.map(e => e.id === entryId ? { ...e, price } : e)
+
+  const { error } = await admin
+    .from('daily_updates')
+    .update({ work_entries: updated })
+    .eq('id', dailyUpdateId)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/admin/freelancers')
+  return { success: true }
+}
+
+export async function getTodayUpdate() {
+  const ctx = await getUserContext()
+  if ('error' in ctx) return null
+  const { userId } = ctx
+
+  const admin = adminSupabase()
   const today = new Date().toISOString().split('T')[0]
-  const { data } = await supabase
+  const { data } = await admin
     .from('daily_updates')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .eq('date', today)
     .single()
 

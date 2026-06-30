@@ -14,12 +14,14 @@ import {
 type PayrollRow = {
   id: string; name: string; employee_id: string; team: string | null
   employment_type: string
-  presentDays: number; absentDays: number; paidLeaveDays: number; deductibleAbsent: number
-  totalHours: number; otHours: number
+  presentDays: number; halfDays: number; absentDays: number; leaveDays: number
+  missingUpdates: number; deductibleDays: number
+  totalHours: number; otHours: number; collabHours: number
   basePay: number; deduction: number; otPay: number; netPay: number
   bonus: number; advance: number; incentive: number; finalNetPay: number
   isPaid: boolean; paidAt: string | null
   monthly_salary: number | null; hourly_rate: number | null
+  effectiveWorkDays: number
 }
 
 function fmt(n: number) {
@@ -109,14 +111,14 @@ function MiniSparkline({ color, idx }: { color: string; idx: number }) {
 
 // ── Mini Attendance Calendar ────────────────────────────────────────────────
 function MiniCalendar({
-  year, mon, presentDays, absentDays, paidLeaveDays,
-}: { year: number; mon: number; presentDays: number; absentDays: number; paidLeaveDays: number }) {
+  year, mon, presentDays, halfDays, absentDays, leaveDays,
+}: { year: number; mon: number; presentDays: number; halfDays: number; absentDays: number; leaveDays: number }) {
   const daysInMonth = new Date(year, mon, 0).getDate()
   const firstDayOfWeek = new Date(year, mon - 1, 1).getDay()
   const startOffset = (firstDayOfWeek + 6) % 7
 
   let workCount = 0
-  const dayList: { num: number; status: "present" | "absent" | "leave" | "weekend" }[] = []
+  const dayList: { num: number; status: "present" | "half" | "absent" | "leave" | "weekend" }[] = []
   for (let d = 1; d <= daysInMonth; d++) {
     const dow = new Date(year, mon - 1, d).getDay()
     const isWknd = dow === 0 || dow === 6
@@ -125,12 +127,13 @@ function MiniCalendar({
     } else {
       workCount++
       if (workCount <= presentDays) dayList.push({ num: d, status: "present" })
-      else if (workCount <= presentDays + paidLeaveDays) dayList.push({ num: d, status: "leave" })
+      else if (workCount <= presentDays + halfDays) dayList.push({ num: d, status: "half" })
+      else if (workCount <= presentDays + halfDays + leaveDays) dayList.push({ num: d, status: "leave" })
       else dayList.push({ num: d, status: "absent" })
     }
   }
 
-  const cells: ({ num: number; status: "present" | "absent" | "leave" | "weekend" } | null)[] = [
+  const cells: ({ num: number; status: "present" | "half" | "absent" | "leave" | "weekend" } | null)[] = [
     ...Array(startOffset).fill(null),
     ...dayList,
   ]
@@ -141,8 +144,9 @@ function MiniCalendar({
   const DAYS = ["M", "T", "W", "T", "F", "S", "S"]
   const clr = {
     present: { bg: "#DCFCE7", color: "#15803D" },
+    half:    { bg: "#FEF9C3", color: "#CA8A04" },
     absent:  { bg: "#FEE2E2", color: "#DC2626" },
-    leave:   { bg: "#FEF3C7", color: "#D97706" },
+    leave:   { bg: "#E0F2FE", color: "#0369A1" },
     weekend: { bg: "#F3F4F6", color: "#9CA3AF" },
   }
 
@@ -168,10 +172,10 @@ function MiniCalendar({
       ))}
       <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
         {[
-          { color: "#15803D", label: `Present ${presentDays}` },
-          { color: "#DC2626", label: `Leave ${absentDays}` },
-          { color: "#D97706", label: `Paid Leave ${paidLeaveDays}` },
-          { color: "#9CA3AF", label: "Weekly Off 4" },
+          { color: "#15803D", label: `Full ${presentDays}d` },
+          { color: "#CA8A04", label: `Half ${halfDays}d` },
+          { color: "#DC2626", label: `Absent ${absentDays}d` },
+          { color: "#0369A1", label: `Leave ${leaveDays}d` },
         ].map((item) => (
           <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: item.color, display: "inline-block" }} />
@@ -185,12 +189,24 @@ function MiniCalendar({
 
 // ── Team badge colours ──────────────────────────────────────────────────────
 const TEAM_CLR: Record<string, { bg: string; color: string }> = {
-  "Design Team":      { bg: "#EFF6FF", color: "#3B82F6" },
-  "Marketing Team":   { bg: "#F0FDF4", color: "#16A34A" },
-  "Sales Team":       { bg: "#FFF7ED", color: "#EA580C" },
-  "Tech Team":        { bg: "#FAF5FF", color: "#9333EA" },
-  "Technology & Operation": { bg: "#FAF5FF", color: "#9333EA" },
-  "Operations Team":  { bg: "#FFF1F2", color: "#E11D48" },
+  "Media Production Team":             { bg: "#FFF1F2", color: "#EC4899" },
+  "Creative Studio":                   { bg: "#FFFBEB", color: "#F59E0B" },
+  "AI Development & Automation":       { bg: "#EEF2FF", color: "#6366F1" },
+  "Performance Marketing & Operations":{ bg: "#F0FDF4", color: "#10B981" },
+  "AI Development & Media":            { bg: "#F5F3FF", color: "#8B5CF6" },
+  "Freelance Media Production":        { bg: "#FFF1F2", color: "#EC4899" },
+  "Freelance Video Editing":           { bg: "#EEF2FF", color: "#6366F1" },
+  "Freelance Videography":             { bg: "#FFF1F2", color: "#EF4444" },
+  "Freelance RJ Voiceover":            { bg: "#F5F3FF", color: "#A855F7" },
+  "Freelance Graphics Designer":       { bg: "#FFF7ED", color: "#F97316" },
+  "Freelance Content Writer":          { bg: "#F0FDFA", color: "#14B8A6" },
+  "Freelance Development & Automation":{ bg: "#EEF2FF", color: "#6366F1" },
+  "Freelance Marketing & Operations":  { bg: "#F0FDF4", color: "#10B981" },
+  "Freelance IT Technology & Media":   { bg: "#F5F3FF", color: "#8B5CF6" },
+  "Media Team":                        { bg: "#FFF1F2", color: "#EC4899" },
+  "Media & Technology Team":           { bg: "#F5F3FF", color: "#8B5CF6" },
+  "Technology & Operation Team":       { bg: "#F0FDF4", color: "#10B981" },
+  "Creative Team":                     { bg: "#FFFBEB", color: "#F59E0B" },
 }
 const DEF_TEAM = { bg: "#F3F4F6", color: "#6B7280" }
 
@@ -208,7 +224,10 @@ function EmployeeCard({
   const [incentive, setIncentive] = useState(r.incentive)
 
   const localFinalNetPay = Math.round((r.netPay + bonus + incentive - advance) * 100) / 100
-  const attendPct = workDays > 0 ? Math.round((r.presentDays / workDays) * 100) : 0
+  const effectiveDays = r.effectiveWorkDays > 0 ? r.effectiveWorkDays : workDays
+  const attendPct = effectiveDays > 0
+    ? Math.round(((r.presentDays + r.halfDays * 0.5 + r.leaveDays) / effectiveDays) * 100)
+    : 0
   const tClr = TEAM_CLR[r.team ?? ""] ?? DEF_TEAM
 
   function handleTogglePaid() {
@@ -288,6 +307,12 @@ function EmployeeCard({
                 <Clock size={9} /> Pending
               </span>
             )}
+            {/* Missing work update warning */}
+            {r.missingUpdates > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "#FEF9C3", color: "#92400E", display: "flex", alignItems: "center", gap: 3 }}>
+                ⚠ {r.missingUpdates} Missing Update{r.missingUpdates > 1 ? "s" : ""}
+              </span>
+            )}
           </div>
         </div>
 
@@ -300,10 +325,11 @@ function EmployeeCard({
         {/* Salary chips */}
         <div style={{ flex: 1, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
           {[
-            { label: "Base Salary", value: r.basePay > 0 ? fmt(r.basePay) : "—", color: "#111" },
-            { label: "Deductions", value: r.deduction > 0 ? `-${fmt(r.deduction)}` : "—", color: "#DC2626" },
-            { label: "OT Hours", value: `${r.otHours}h`, color: "#F97316" },
-            { label: "Net Pay", value: localFinalNetPay > 0 ? fmt(localFinalNetPay) : "—", color: "#16A34A" },
+            { label: "Base Salary",    value: r.basePay > 0 ? fmt(r.basePay) : "—",                  color: "#111" },
+            { label: "Deductions",     value: r.deduction > 0 ? `-${fmt(r.deduction)}` : "—",         color: "#DC2626" },
+            { label: "Half Days",      value: r.halfDays > 0 ? `${r.halfDays}d` : "—",                color: "#CA8A04" },
+            { label: "OT Pay",         value: r.otPay > 0 ? fmt(r.otPay) : "—",                       color: "#F97316" },
+            { label: "Net Pay",        value: localFinalNetPay > 0 ? fmt(localFinalNetPay) : "—",      color: "#16A34A" },
           ].map((chip) => (
             <div key={chip.label} style={{
               textAlign: "center", padding: "8px 14px", borderRadius: 12,
@@ -362,11 +388,11 @@ function EmployeeCard({
               Payroll Breakdown
             </div>
             {[
-              { label: "Base Salary", amount: r.basePay,    pct: 100,  color: "#16A34A" },
-              { label: "OT Earnings", amount: r.otPay,      pct: r.basePay > 0 ? Math.min((r.otPay / r.basePay) * 100, 100) : 0, color: "#F97316" },
-              { label: "Bonus",       amount: bonus,         pct: r.basePay > 0 ? Math.min((bonus / r.basePay) * 100, 100) : 0, color: "#A855F7" },
-              { label: "Advance",     amount: -advance,      pct: r.basePay > 0 ? Math.min((advance / r.basePay) * 100, 100) : 0, color: "#F43F5E" },
-              { label: "Deductions",  amount: -r.deduction,  pct: r.basePay > 0 ? Math.min((r.deduction / r.basePay) * 100, 100) : 0, color: "#DC2626" },
+              { label: "Base Salary",    amount: r.basePay,    pct: 100,  color: "#16A34A" },
+              { label: "OT Earnings",    amount: r.otPay,      pct: r.basePay > 0 ? Math.min((r.otPay / r.basePay) * 100, 100) : 0, color: "#F97316" },
+              { label: "Bonus",          amount: bonus,         pct: r.basePay > 0 ? Math.min((bonus / r.basePay) * 100, 100) : 0, color: "#A855F7" },
+              { label: "Advance",        amount: -advance,      pct: r.basePay > 0 ? Math.min((advance / r.basePay) * 100, 100) : 0, color: "#F43F5E" },
+              { label: `Absent Deduction (${r.absentDays}d full + ${r.halfDays}d half)`, amount: -r.deduction, pct: r.basePay > 0 ? Math.min((r.deduction / r.basePay) * 100, 100) : 0, color: "#DC2626" },
             ].map((item) => (
               <div key={item.label} style={{ marginBottom: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
@@ -394,8 +420,9 @@ function EmployeeCard({
             <MiniCalendar
               year={year} mon={mon}
               presentDays={r.presentDays}
+              halfDays={r.halfDays}
               absentDays={r.absentDays}
-              paidLeaveDays={r.paidLeaveDays}
+              leaveDays={r.leaveDays}
             />
           </div>
 
@@ -504,10 +531,14 @@ function EmployeeCard({
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function PayrollClient({
   rows, month, workDays,
+  pendingCollabCount, pendingLeaveCount, pendingUpdateCount,
 }: {
   rows: PayrollRow[]
   month: string
   workDays: number
+  pendingCollabCount: number
+  pendingLeaveCount: number
+  pendingUpdateCount: number
 }) {
   const router   = useRouter()
   const pathname = usePathname()
@@ -567,8 +598,44 @@ export default function PayrollClient({
     { label: "Team Members",     value: `${rows.length}`, sub: `${monthName}`,                            color: "#3B82F6", bg: "#EFF6FF", idx: 3 },
   ]
 
+  const hasPreCheckIssues = pendingCollabCount > 0 || pendingLeaveCount > 0 || pendingUpdateCount > 0
+
   return (
     <div style={{ padding: "20px 24px", maxWidth: 1400, margin: "0 auto" }}>
+
+      {/* ── Pre-Payroll Checklist Banner ── */}
+      {hasPreCheckIssues && (
+        <div style={{
+          marginBottom: 16, padding: "14px 20px",
+          borderRadius: 16, background: "#FFFBEB",
+          border: "1.5px solid #FDE68A",
+          display: "flex", alignItems: "flex-start", gap: 14,
+        }}>
+          <span style={{ fontSize: 22, flexShrink: 0 }}>⚠️</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#92400E", marginBottom: 6 }}>
+              Pre-Payroll Checklist — Resolve before running payroll
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {pendingCollabCount > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 20, background: "#FEF3C7", color: "#92400E" }}>
+                  🤝 {pendingCollabCount} collab confirmation{pendingCollabCount > 1 ? "s" : ""} pending
+                </span>
+              )}
+              {pendingLeaveCount > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 20, background: "#FEF3C7", color: "#92400E" }}>
+                  🏖 {pendingLeaveCount} leave request{pendingLeaveCount > 1 ? "s" : ""} pending
+                </span>
+              )}
+              {pendingUpdateCount > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 20, background: "#FEF3C7", color: "#92400E" }}>
+                  📝 {pendingUpdateCount} member{pendingUpdateCount > 1 ? "s" : ""} with missing work updates
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Confirm Run Payroll Modal ── */}
       {showConfirm && (

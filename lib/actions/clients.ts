@@ -122,6 +122,25 @@ export async function syncSheetClientsToSupabase(
       onConflict: 'company_id,name',
       ignoreDuplicates: false,
     })
+
+    // Deactivate any DB-active clients that are no longer in the active sheet
+    const activeNameSet = new Set(activeClients.map(c => c.name))
+    const { data: dbActive } = await admin
+      .from('clients')
+      .select('name')
+      .eq('company_id', companyId)
+      .eq('status', 'active')
+    const toDeactivate = (dbActive ?? [])
+      .map((r: { name: string }) => r.name)
+      .filter(n => !activeNameSet.has(n))
+    if (toDeactivate.length > 0) {
+      await admin
+        .from('clients')
+        .update({ status: 'past', updated_at: new Date().toISOString() })
+        .eq('company_id', companyId)
+        .in('name', toDeactivate)
+    }
+
     revalidatePath('/member/update')
     revalidatePath('/member/clients')
     revalidatePath('/admin/clients')

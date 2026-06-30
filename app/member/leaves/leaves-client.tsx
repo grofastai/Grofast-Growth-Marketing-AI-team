@@ -13,9 +13,9 @@ import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest } from "@/li
 
 interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
-  created_at: string; leave_type?: string; permission_hours?: number | null; permission_time?: string | null; half_day_period?: string | null
+  created_at: string; leave_type?: string; permission_hours?: number | null; permission_time?: string | null; half_day_period?: string | null; half_day_from_time?: string | null
 }
-type LeaveType = "full_day" | "half_day" | "permission"
+type LeaveType = "full_day" | "half_day" | "permission" | "wfh" | "shoot_day"
 
 interface CompanyLeave {
   id: string
@@ -35,10 +35,44 @@ const TYPE_ILLUSTRATION: Record<string, { emoji: string; bg: string }> = {
   full_day:   { emoji: "🌴", bg: "rgba(16,185,129,0.12)"   },
   permission: { emoji: "⏰", bg: "rgba(99,102,241,0.12)"   },
   absent:     { emoji: "🏠", bg: "rgba(107,114,128,0.1)"   },
+  wfh:        { emoji: "🏠", bg: "rgba(99,102,241,0.12)"   },
+  shoot_day:  { emoji: "📷", bg: "rgba(245,158,11,0.12)"   },
 }
 
 function daysBetween(from: string, to: string) {
   return Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / 86400000) + 1
+}
+
+function canWithdraw(leave: Leave): boolean {
+  // Get current IST time: UTC + 5:30 (always fixed offset, never use getTimezoneOffset)
+  const istNow = new Date(Date.now() + 5.5 * 3600000)
+  const istTodayStr = `${istNow.getUTCFullYear()}-${String(istNow.getUTCMonth()+1).padStart(2,'0')}-${String(istNow.getUTCDate()).padStart(2,'0')}`
+  const istMins = istNow.getUTCHours() * 60 + istNow.getUTCMinutes()
+
+  // Past leave (ended before today) — never allow withdraw
+  if (leave.to_date < istTodayStr) return false
+
+  // Future leave (starts after today) — always allow withdraw
+  if (leave.from_date > istTodayStr) return true
+
+  // Leave starts today — time-based cutoff
+  if (leave.from_date === istTodayStr) {
+    if (leave.leave_type === "permission" && leave.permission_time) {
+      const [h, m] = leave.permission_time.split(":").map(Number)
+      return istMins < (h * 60 + m - 5)
+    }
+    if (leave.leave_type === "half_day") {
+      const fromTime = leave.half_day_from_time ?? leave.permission_time ?? "09:30"
+      const [h, m] = fromTime.split(":").map(Number)
+      return istMins < (h * 60 + m - 5)
+    }
+    if (leave.leave_type === "full_day") {
+      return istMins < (9 * 60 + 25)
+    }
+  }
+
+  // Multi-day full_day leave already started (from_date < today) — no withdraw
+  return false
 }
 function fmtShort(d: string) {
   return new Date(d).toLocaleDateString("en-US", { day: "numeric", month: "short" })
@@ -134,7 +168,7 @@ function BalanceRing({ pct }: { pct: number }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function MemberLeavesClient({ leaves: initialLeaves, userName, paidLeaveDays = 0, usedLeaveDays = 0, absentDays = [], companyLeaves = [] }: { leaves: Leave[]; userName: string; paidLeaveDays?: number; usedLeaveDays?: number; absentDays?: { id: string; date: string }[]; companyLeaves?: CompanyLeave[] }) {
+export default function MemberLeavesClient({ leaves: initialLeaves, userName, paidLeaveDays = 0, usedLeaveDays = 0, absentDays = [], companyLeaves = [], isMedia = false }: { leaves: Leave[]; userName: string; paidLeaveDays?: number; usedLeaveDays?: number; absentDays?: { id: string; date: string }[]; companyLeaves?: CompanyLeave[]; isMedia?: boolean }) {
   const router = useRouter()
   const [leaves, setLeaves]         = useState(initialLeaves)
   useEffect(() => { setLeaves(initialLeaves) }, [initialLeaves])
@@ -157,6 +191,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [halfPeriod, setHalfPeriod]     = useState<"morning" | "afternoon">("morning")
   const [permFrom, setPermFrom]         = useState("")
   const [permTo, setPermTo]             = useState("")
+  const [showHalfDayPrompt, setShowHalfDayPrompt] = useState(false)
+  const [showFullDayPrompt, setShowFullDayPrompt] = useState(false)
+  const [existingHalfDayPeriod, setExistingHalfDayPeriod] = useState<string>("morning")
+  const [halfDaySelectedDate, setHalfDaySelectedDate] = useState("")
   const [halfFrom, setHalfFrom]         = useState("")
   const [halfTo, setHalfTo]             = useState("")
   const [filterStatus, setFilter]   = useState("all")
@@ -168,6 +206,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [deleting, startDelete]     = useTransition()
   const [editing, startEdit]        = useTransition()
   const [editError, setEditError]   = useState<string | null>(null)
+  const [isExceptional, setIsExceptional] = useState(false)
   const [newFormError, setNewFormError] = useState<string | null>(null)
   const [dateError, setDateError]       = useState<string | null>(null)
   const [state, action, pending]    = useActionState(submitLeaveRequest, null)
@@ -246,17 +285,23 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
   const MONTHLY_LIMIT = 5
   const currentMonth  = today.slice(0, 7) // "YYYY-MM"
-  const monthlyUsed   = approved
-    .filter(l => l.from_date.startsWith(currentMonth))
-    .reduce((s, l) => {
-      const type = l.leave_type ?? "full_day"
-      if (type === "full_day") return s + daysBetween(l.from_date, l.to_date)
-      if (type === "half_day") return s + 0.5
-      return s
-    }, 0)
+  function calcMonthlyDays(entries: Leave[]) {
+    return entries
+      .filter(l => l.from_date.startsWith(currentMonth) && (l.status === "approved" || l.status === "pending"))
+      .reduce((s, l) => {
+        const type = l.leave_type ?? "full_day"
+        if (type === "full_day") return s + daysBetween(l.from_date, l.to_date)
+        if (type === "half_day") return s + 0.5
+        return s
+      }, 0)
+  }
+  const monthlyUsed     = calcMonthlyDays(leaves)
+  const monthlyLimitHit = monthlyUsed >= MONTHLY_LIMIT
   const monthlyBalance  = Math.max(0, MONTHLY_LIMIT - monthlyUsed)
+  const wfhThisMonth    = allEntries.filter(l => l.leave_type === "wfh" && l.status === "approved" && l.from_date.startsWith(currentMonth)).length
   const balancePct      = Math.round((monthlyBalance / MONTHLY_LIMIT) * 100)
   const nextHoliday = companyLeaves.find(h => h.date >= today) ?? null
+  const thisMonthHolidays = companyLeaves.filter(h => h.date.startsWith(currentMonth))
   const wlbScore    = Math.min(100, Math.max(30, Math.round(72 - pendingL.length * 3 + approved.length * 2)))
 
   function handleDelete(id: string) {
@@ -313,15 +358,15 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
             </p>
           </div>
 
-          {/* Center: large illustration — anchored bottom */}
+          {/* Center: large illustration — anchored bottom, visible on all screens */}
           <div style={{ position: "absolute", left: "50%", transform: "translateX(-46%)", bottom: 0, zIndex: 1 }}>
             <Image src="/brand/leave-hero.png" alt="" width={500} height={260}
-              style={{ objectFit: "contain", objectPosition: "bottom center", display: "block" }} priority />
+              style={{ objectFit: "contain", objectPosition: "bottom center", display: "block", maxHeight: "clamp(120px,30vw,260px)" }} priority />
           </div>
 
           {/* Apply Leave CTA — desktop only (top-right corner) */}
           <div className="hidden md:flex" style={{ position: "absolute", right: 28, top: 20, zIndex: 3, flexDirection: "column", alignItems: "flex-end", gap: 18 }}>
-            <button onClick={() => setShowForm(true)}
+            <button onClick={() => { setIsExceptional(false); setShowForm(true) }}
               style={{ display: "flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 14, background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)", color: "#FFFFFF", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 6px 24px rgba(222,26,26,0.35)", whiteSpace: "nowrap" }}>
               <Plus size={16} strokeWidth={2.5} /> Apply Leave
             </button>
@@ -330,7 +375,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
         {/* Mobile Apply Leave button — shown only on mobile, below hero */}
         <div className="md:hidden px-4 pt-4 pb-2">
-          <button onClick={() => setShowForm(true)}
+          <button onClick={() => { setIsExceptional(false); setShowForm(true) }}
             style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "14px", borderRadius: 14, background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)", color: "#FFFFFF", fontSize: 15, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(222,26,26,0.35)" }}>
             <Plus size={18} strokeWidth={2.5} /> Apply Leave
           </button>
@@ -341,12 +386,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
           {/* ── Stats Cards ──────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
             {[
-              { label: "Total Leaves\nThis Year",       val: allEntries.length,  color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: "up"   as const, sub: "↑ 10% from last year",   subColor: "#10B981" },
-              { label: "Pending\nRequests",             val: pendingL.length, color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "⏳", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
-              { label: "Approved\nLeaves",              val: approved.length, color: "#10B981", bg: "rgba(16,185,129,0.1)",  icon: "✅", trend: "up"   as const, sub: "↑ 22% from last week",   subColor: "#10B981" },
-              { label: "Leave\nDays",                    val: absentCount,     color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "🏠", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
-              { label: "Annual Leave\nRemaining",          val: Math.max(0, paidLeaveDays - usedLeaveDays), color: "#0EA5E9", bg: "rgba(14,165,233,0.1)", icon: "🏖️", trend: null, sub: null, subColor: "" },
-              { label: "Upcoming\nHolidays",            val: companyLeaves.filter(h => h.date >= today).length, color: "#EC4899", bg: "rgba(236,72,153,0.1)", icon: "🎁", trend: null, sub: null, subColor: "" },
+              { label: "Total Leaves\nThis Year",        val: allEntries.filter(l => (l.status === "approved" || l.status === "absent") && l.leave_type !== "wfh" && l.leave_type !== "shoot_day" && l.leave_type !== "permission").length, color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: null, sub: null, subColor: "" },
+              { label: "Leave Taken\nThis Month",       val: monthlyUsed,     color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "📅", trend: null, sub: `of ${MONTHLY_LIMIT} days allowed`, subColor: "#9CA3AF" },
+              { label: "WFH Days\nThis Month",          val: wfhThisMonth,    color: "#6366F1", bg: "rgba(99,102,241,0.1)",  icon: "🏠", trend: null, sub: wfhThisMonth > 0 ? `${wfhThisMonth} approved WFH` : "No WFH this month", subColor: "#6366F1" },
+              { label: "Leave Left\nThis Month",        val: monthlyBalance,  color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "🗓️", trend: null, sub: `${monthlyUsed} of ${MONTHLY_LIMIT} used`, subColor: "#9CA3AF" },
+              { label: "Annual Leave\nRemaining",       val: Math.max(0, 60 - usedLeaveDays), color: "#0EA5E9", bg: "rgba(14,165,233,0.1)", icon: "🏖️", trend: null, sub: null, subColor: "" },
+              { label: "This Month's\nHolidays",        val: thisMonthHolidays.length, color: "#EC4899", bg: "rgba(236,72,153,0.1)", icon: "🎉", trend: null, sub: thisMonthHolidays.length > 0 ? thisMonthHolidays[0].name : "No holidays", subColor: "#EC4899" },
             ].map((s, i) => (
               <div key={i} style={{ background: "#fff", borderRadius: 18, padding: "18px 16px 14px", border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", gap: 0, position: "relative", overflow: "hidden" }}>
                 {/* Icon badge */}
@@ -367,10 +412,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 ) : s.label.includes("Annual Leave") ? (
                   <div>
                     <div style={{ height: 4, borderRadius: 99, background: "#EEF0F5", marginBottom: 8, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: paidLeaveDays > 0 ? `${Math.min(100, Math.round((usedLeaveDays / paidLeaveDays) * 100))}%` : "0%", background: "#0EA5E9", borderRadius: 99 }} />
+                      <div style={{ height: "100%", width: `${Math.min(100, Math.round((usedLeaveDays / 60) * 100))}%`, background: "#0EA5E9", borderRadius: 99 }} />
                     </div>
-                    <p style={{ fontSize: 10, color: "#0EA5E9", fontWeight: 700 }}>{usedLeaveDays} of {paidLeaveDays} days used</p>
+                    <p style={{ fontSize: 10, color: "#0EA5E9", fontWeight: 700 }}>{usedLeaveDays} of 60 days used</p>
                   </div>
+                ) : s.sub ? (
+                  <p style={{ fontSize: 9, color: s.subColor || "#9CA3AF", fontWeight: 600, marginTop: "auto" }}>{s.sub}</p>
                 ) : null}
               </div>
             ))}
@@ -380,43 +427,25 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
           <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.04)", padding: "24px", marginBottom: 20 }}>
 
             {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, gap: 12, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(222,26,26,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <CalendarDays size={16} style={{ color: "#DE1A1A" }} />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: 15, fontWeight: 900, color: "#0A0A0B", margin: 0 }}>Your Leave Timeline</h2>
+                  <h2 style={{ fontSize: 15, fontWeight: 900, color: "#0A0A0B", margin: 0 }}>Leave Timeline</h2>
                   <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>{filteredLeaves.length} request{filteredLeaves.length !== 1 ? "s" : ""}</p>
                 </div>
               </div>
 
-              {/* Filters */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {/* Dropdown */}
-                <div style={{ position: "relative" }}>
-                  <button onClick={() => setFilterOpen(o => !o)}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#374151", cursor: "pointer" }}>
-                    {filterStatus === "all" ? "All Status" : filterStatus}
-                    <ChevronDown size={13} style={{ transform: filterOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+              {/* Filters — horizontal scroll on mobile */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", flexShrink: 0 }}>
+                {["all", "pending", "approved", "rejected"].map(s => (
+                  <button key={s} onClick={() => setFilter(s)}
+                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "7px 12px", borderRadius: 10, background: filterStatus === s ? "rgba(222,26,26,0.08)" : "#F5F6FA", border: filterStatus === s ? "1.5px solid rgba(222,26,26,0.3)" : "1px solid #EBEDF2", fontSize: 11, fontWeight: 700, color: filterStatus === s ? "#DE1A1A" : "#374151", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, textTransform: "capitalize" as const }}>
+                    {s === "all" ? "All" : s}
                   </button>
-                  {filterOpen && (
-                    <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", borderRadius: 12, border: "1px solid #EBEDF2", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 20, minWidth: 140, overflow: "hidden" }}>
-                      {["all", "pending", "approved", "rejected", "absent"].map(s => ( // "absent" = system-marked leave days
-                        <button key={s} onClick={() => { setFilter(s); setFilterOpen(false) }}
-                          style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 12, fontWeight: 600, color: filterStatus === s ? "#DE1A1A" : "#374151", background: filterStatus === s ? "rgba(222,26,26,0.05)" : "none", border: "none", cursor: "pointer", textTransform: "capitalize" }}>
-                          {s === "all" ? "All Status" : s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <button style={{ width: 36, height: 36, borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                  <SlidersHorizontal size={14} style={{ color: "#6B7280" }} />
-                </button>
-                <button style={{ width: 36, height: 36, borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                  <Calendar size={14} style={{ color: "#6B7280" }} />
-                </button>
+                ))}
               </div>
             </div>
 
@@ -446,10 +475,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     const yr      = dateObj.getFullYear()
                     const wd      = dateObj.toLocaleDateString("en-US", { weekday: "short" })
                     const StatusIcon = sc.icon
-                    const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : type === "permission" ? "Permission" : type === "absent" ? "On Leave" : "Full Day Leave"
-                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}` : type === "permission" ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : type === "absent" ? "Leave" : "Full Day"
-                    const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : type === "absent" ? "rgba(107,114,128,0.12)" : "rgba(245,158,11,0.12)"
-                    const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : type === "absent" ? "#6B7280" : "#F59E0B"
+                    const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : type === "permission" ? "Permission" : type === "absent" ? "On Leave" : type === "wfh" ? "Work From Home" : type === "shoot_day" ? "Shoot Day" : "Full Day Leave"
+                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}` : type === "permission" ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : type === "absent" ? "Leave" : type === "wfh" ? "WFH" : type === "shoot_day" ? "Shoot Day" : "Full Day"
+                    const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : type === "absent" ? "rgba(107,114,128,0.12)" : type === "wfh" ? "rgba(99,102,241,0.12)" : type === "shoot_day" ? "rgba(245,158,11,0.12)" : "rgba(245,158,11,0.12)"
+                    const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : type === "absent" ? "#6B7280" : type === "wfh" ? "#6366F1" : type === "shoot_day" ? "#F59E0B" : "#F59E0B"
                     const duration  = isPerm ? `${leave.permission_hours}h session` : isHalf ? "1 Session" : `${days} Day${days && days > 1 ? "s" : ""}`
 
                     return (
@@ -468,7 +497,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                         </div>
 
                         {/* Card */}
-                        <div style={{ flex: 1, background: "#FAFBFC", borderRadius: 16, border: "1px solid #EBEDF2", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                        <div style={{ flex: 1, background: "#FAFBFC", borderRadius: 16, border: "1px solid #EBEDF2", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", flexWrap: "wrap", minWidth: 0 }}>
                           {/* Left info */}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>
@@ -530,7 +559,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                                   <X size={11} /> Cancel
                                 </button>
                               </div>
-                            ) : leave.status === "approved" ? (
+                            ) : leave.status === "approved" && canWithdraw(leave) ? (
                               <button onClick={() => setDeleteId(leave.id)}
                                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 8, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", fontSize: 11, fontWeight: 700, color: "#EF4444", cursor: "pointer" }}>
                                 <X size={11} /> Withdraw
@@ -556,40 +585,83 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
             )}
           </div>
 
-          {/* ── Company Holidays ─────────────────────────────────────────── */}
+          {/* ── This Month's Holidays + Collapsible All Holidays ─────────── */}
           {companyLeaves.length > 0 && (
-            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-              <div style={{ padding:"16px 20px", borderBottom:"1px solid #F0F1F5", background:"linear-gradient(135deg,rgba(30,64,175,0.06) 0%,rgba(30,64,175,0.02) 100%)", display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:34, height:34, borderRadius:10, background:"rgba(30,64,175,0.1)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>🏢</div>
-                <div>
-                  <p style={{ fontSize:13, fontWeight:800, color:"#111827", margin:0 }}>Company Holidays 2026</p>
-                  <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{companyLeaves.length} holidays this year</p>
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)", marginBottom:16 }}>
+              <div style={{ padding:"16px 20px", borderBottom:"1px solid #F0F1F5", background:"linear-gradient(135deg,rgba(236,72,153,0.06) 0%,rgba(236,72,153,0.02) 100%)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background:"rgba(236,72,153,0.1)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>🎉</div>
+                  <div>
+                    <p style={{ fontSize:13, fontWeight:800, color:"#111827", margin:0 }}>
+                      {thisMonthHolidays.length > 0 ? `Holidays in ${new Date(today + "T12:00:00").toLocaleDateString("en-IN",{month:"long",year:"numeric"})}` : "Company Holidays"}
+                    </p>
+                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
+                      {thisMonthHolidays.length > 0 ? `${thisMonthHolidays.length} holiday${thisMonthHolidays.length !== 1 ? "s" : ""} this month` : "No holidays this month"}
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div style={{ display:"flex", flexDirection:"column" }}>
-                {companyLeaves.map((h, i) => {
-                  const d = new Date(h.date + "T12:00:00")
-                  const dayName   = d.toLocaleDateString("en-IN", { weekday:"short" })
-                  const dateFmt   = d.toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })
-                  const isPast    = h.date < today
-                  const isToday2  = h.date === today
-                  return (
-                    <div key={h.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 20px", borderBottom: i < companyLeaves.length - 1 ? "1px solid #F5F6FA" : "none", opacity: isPast ? 0.5 : 1 }}>
-                      <div style={{ width:40, height:40, borderRadius:10, background: isToday2 ? "rgba(30,64,175,0.15)" : isPast ? "#F3F4F6" : "rgba(30,64,175,0.08)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                        <span style={{ fontSize:13, fontWeight:900, color: isPast ? "#9CA3AF" : "#1E40AF", lineHeight:1 }}>{d.getDate()}</span>
-                        <span style={{ fontSize:7, fontWeight:700, color: isPast ? "#9CA3AF" : "#1E40AF", textTransform:"uppercase" }}>{d.toLocaleDateString("en-IN",{month:"short"})}</span>
+              {/* This month's holidays */}
+              {thisMonthHolidays.length > 0 ? (
+                <div style={{ display:"flex", flexDirection:"column" }}>
+                  {thisMonthHolidays.map((h, i) => {
+                    const d = new Date(h.date + "T12:00:00")
+                    const dayName = d.toLocaleDateString("en-IN", { weekday:"short" })
+                    const dateFmt = d.toLocaleDateString("en-IN", { day:"numeric", month:"short" })
+                    const isPast  = h.date < today
+                    const isToday2 = h.date === today
+                    return (
+                      <div key={h.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 20px", borderBottom: i < thisMonthHolidays.length - 1 ? "1px solid #F5F6FA" : "none", opacity: isPast ? 0.6 : 1 }}>
+                        <div style={{ width:40, height:40, borderRadius:10, background: isToday2 ? "rgba(236,72,153,0.15)" : isPast ? "#F3F4F6" : "rgba(236,72,153,0.08)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <span style={{ fontSize:13, fontWeight:900, color: isPast ? "#9CA3AF" : "#EC4899", lineHeight:1 }}>{d.getDate()}</span>
+                          <span style={{ fontSize:7, fontWeight:700, color: isPast ? "#9CA3AF" : "#EC4899", textTransform:"uppercase" }}>{d.toLocaleDateString("en-IN",{month:"short"})}</span>
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <p style={{ fontSize:12, fontWeight:700, color:"#111827", margin:0 }}>{h.name}</p>
+                          <p style={{ fontSize:10, color:"#9CA3AF", margin:"2px 0 0" }}>{dayName} · {dateFmt}</p>
+                        </div>
+                        {isToday2 && <span style={{ fontSize:10, fontWeight:700, color:"#EC4899", background:"rgba(236,72,153,0.1)", padding:"2px 8px", borderRadius:99, flexShrink:0 }}>Today</span>}
+                        {!isPast && !isToday2 && <span style={{ fontSize:10, fontWeight:700, color:"#6B7280", background:"#F3F4F6", padding:"2px 8px", borderRadius:99, flexShrink:0 }}>Upcoming</span>}
+                        {isPast && <span style={{ fontSize:10, color:"#9CA3AF", flexShrink:0 }}>Done</span>}
                       </div>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <p style={{ fontSize:12, fontWeight:700, color:"#111827", margin:0 }}>{h.name}</p>
-                        <p style={{ fontSize:10, color:"#9CA3AF", margin:"2px 0 0" }}>{dayName} · {dateFmt}</p>
-                      </div>
-                      {isToday2 && <span style={{ fontSize:10, fontWeight:700, color:"#1E40AF", background:"rgba(30,64,175,0.1)", padding:"2px 8px", borderRadius:99, flexShrink:0 }}>Today</span>}
-                      {!isPast && !isToday2 && <span style={{ fontSize:10, fontWeight:700, color:"#6B7280", background:"#F3F4F6", padding:"2px 8px", borderRadius:99, flexShrink:0 }}>Upcoming</span>}
-                      {isPast && <span style={{ fontSize:10, color:"#9CA3AF", flexShrink:0 }}>Done</span>}
-                    </div>
-                  )
-                })}
-              </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p style={{ padding:"16px 20px", fontSize:12, color:"#9CA3AF", margin:0 }}>No holidays this month.</p>
+              )}
+              {/* Collapsible All Holidays */}
+              {companyLeaves.length > thisMonthHolidays.length && (
+                <details style={{ borderTop:"1px solid #F0F1F5" }}>
+                  <summary style={{ padding:"10px 20px", fontSize:11, fontWeight:700, color:"#6B7280", cursor:"pointer", listStyle:"none", display:"flex", alignItems:"center", gap:6, userSelect:"none" }}>
+                    <span>▶</span> View all {companyLeaves.length} holidays this year
+                  </summary>
+                  <div style={{ display:"flex", flexDirection:"column" }}>
+                    {companyLeaves.filter(h => !h.date.startsWith(currentMonth)).map((h, i, arr) => {
+                      const d = new Date(h.date + "T12:00:00")
+                      const dayName  = d.toLocaleDateString("en-IN", { weekday:"short" })
+                      const dateFmt  = d.toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })
+                      const isPast   = h.date < today
+                      const isToday2 = h.date === today
+                      return (
+                        <div key={h.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 20px", borderBottom: i < arr.length - 1 ? "1px solid #F9FAFB" : "none", opacity: isPast ? 0.45 : 1 }}>
+                          <div style={{ width:36, height:36, borderRadius:9, background: isPast ? "#F3F4F6" : "rgba(30,64,175,0.08)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <span style={{ fontSize:11, fontWeight:900, color: isPast ? "#9CA3AF" : "#1E40AF", lineHeight:1 }}>{d.getDate()}</span>
+                            <span style={{ fontSize:6, fontWeight:700, color: isPast ? "#9CA3AF" : "#1E40AF", textTransform:"uppercase" }}>{d.toLocaleDateString("en-IN",{month:"short"})}</span>
+                          </div>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <p style={{ fontSize:12, fontWeight:700, color:"#111827", margin:0 }}>{h.name}</p>
+                            <p style={{ fontSize:10, color:"#9CA3AF", margin:"2px 0 0" }}>{dayName} · {dateFmt}</p>
+                          </div>
+                          {isToday2 && <span style={{ fontSize:10, fontWeight:700, color:"#1E40AF", background:"rgba(30,64,175,0.1)", padding:"2px 8px", borderRadius:99, flexShrink:0 }}>Today</span>}
+                          {!isPast && !isToday2 && <span style={{ fontSize:10, fontWeight:700, color:"#6B7280", background:"#F3F4F6", padding:"2px 8px", borderRadius:99, flexShrink:0 }}>Upcoming</span>}
+                          {isPast && <span style={{ fontSize:10, color:"#9CA3AF", flexShrink:0 }}>Done</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </details>
+              )}
             </div>
           )}
 
@@ -700,13 +772,63 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: "0 0 2px" }}>{editingLeave ? "Edit Leave Request" : "Apply for Leave"}</p>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Fill in the details below</p>
               </div>
-              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null) }}
+              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null); setIsExceptional(false) }}
                 style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <X size={16} color="#fff" />
               </button>
             </div>
 
-            <div style={{ padding: 24 }}>
+            {/* ── Monthly limit block (only for full_day / half_day) ── */}
+            {!editingLeave && monthlyLimitHit && !isExceptional && (leaveType === "full_day" || leaveType === "half_day") && (
+              <div style={{ padding: "24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center" }}>
+                <div style={{ width: 56, height: 56, borderRadius: 16, background: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🚫</div>
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 900, color: "#111111", margin: "0 0 8px" }}>Monthly Leave Limit Reached</p>
+                  <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.6, margin: 0 }}>
+                    You have used <strong>{monthlyUsed}/{MONTHLY_LIMIT} days</strong> this month.<br />Full Day &amp; Half Day leaves are blocked.
+                  </p>
+                </div>
+
+                {/* Bypass types — no limit applies */}
+                <div style={{ width: "100%", background: "#F0FDF4", borderRadius: 12, padding: "14px 16px", border: "1px solid #BBF7D0" }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "#166534", margin: "0 0 10px" }}>Still available this month:</p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {([
+                      { type: "permission" as LeaveType, emoji: "⏰", label: "Permission" },
+                      { type: "wfh"        as LeaveType, emoji: "🏠", label: "WFH"        },
+                      ...(isMedia ? [{ type: "shoot_day" as LeaveType, emoji: "📷", label: "Shoot Day" }] : []),
+                    ]).map(({ type, emoji, label }) => (
+                      <button key={type} type="button"
+                        onClick={() => setLeaveType(type)}
+                        style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 12, fontWeight: 700, background: "#fff", color: "#166534", border: "1.5px solid #86EFAC", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                        <span style={{ fontSize: 18 }}>{emoji}</span>{label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Exceptional leave for full/half day */}
+                <div style={{ width: "100%", background: "#F5F6FA", borderRadius: 12, padding: "14px 16px", border: "1px solid #EBEDF2" }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "#374151", margin: "0 0 4px" }}>Need Full Day / Half Day urgently?</p>
+                  <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 12px", lineHeight: 1.5 }}>Apply as Exceptional Leave — admin will review and decide.</p>
+                  <button type="button" onClick={() => setIsExceptional(true)}
+                    style={{ width: "100%", padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#F59E0B,#D97706)", color: "#fff", border: "none", cursor: "pointer", boxShadow: "0 4px 12px rgba(245,158,11,0.3)" }}>
+                    Apply as Exceptional Leave
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ padding: 24, display: (!editingLeave && monthlyLimitHit && !isExceptional && (leaveType === "full_day" || leaveType === "half_day")) ? "none" : undefined }}>
+              {isExceptional && !editingLeave && (
+                <div style={{ background: "rgba(245,158,11,0.08)", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 12, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>⚠️</span>
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#92400E", margin: 0 }}>Exceptional Leave Request</p>
+                    <p style={{ fontSize: 11, color: "#B45309", margin: 0 }}>Monthly limit exceeded. Admin approval required.</p>
+                  </div>
+                </div>
+              )}
               <form
                 action={editingLeave ? undefined : action}
                 onSubmit={editingLeave ? (e) => {
@@ -746,9 +868,11 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Leave Type *</label>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                     {([
-                      { key: "full_day", label: "Full Day", emoji: "☀️" },
-                      { key: "half_day", label: "Half Day", emoji: "🌤️" },
+                      { key: "full_day",   label: "Full Day",   emoji: "☀️" },
+                      { key: "half_day",   label: "Half Day",   emoji: "🌤️" },
                       { key: "permission", label: "Permission", emoji: "⏰" },
+                      { key: "wfh",        label: "Work From Home", emoji: "🏠" },
+                      ...(isMedia ? [{ key: "shoot_day", label: "Shoot Day", emoji: "📷" }] : []),
                     ] as { key: LeaveType; label: string; emoji: string }[]).map(({ key, label, emoji }) => (
                       <button key={key} type="button" onClick={() => setLeaveType(key)}
                         style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 0", borderRadius: 14, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", ...(leaveType === key ? { background: "#DE1A1A", color: "#fff", boxShadow: "0 4px 12px rgba(222,26,26,0.35)" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
@@ -771,7 +895,15 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                   <>
                     <input type="hidden" name="half_day_from_time" value={halfFrom} />
                     <input type="hidden" name="half_day_to_time" value={halfTo} />
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={() => setDateError(null)} />
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={e => {
+                      setDateError(null)
+                      const d = e.target.value
+                      setHalfDaySelectedDate(d)
+                      if (d) {
+                        const existing = leaves.find(l => l.leave_type === "half_day" && l.from_date === d && (l.status === "pending" || l.status === "approved") && (!editingLeave || l.id !== editingLeave.id))
+                        if (existing) { setExistingHalfDayPeriod(existing.half_day_period ?? "morning"); setShowFullDayPrompt(true) }
+                      }
+                    }} />
                     {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}</div>
                     <div>
                       <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Time Period *</label>
@@ -796,6 +928,30 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     </div>
                   </>
                 )}
+                {leaveType === "wfh" && (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div>
+                        <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>From *</label>
+                        <input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
+                      </div>
+                      <div>
+                        <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>To *</label>
+                        <input name="to_date" type="date" required style={FIELD} defaultValue={editingLeave?.to_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
+                      </div>
+                    </div>
+                    {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}
+                    <p style={{ fontSize: 11, color: "#6366F1", margin: "6px 0 0", fontWeight: 600 }}>🏠 Admin approval required before login</p>
+                  </>
+                )}
+                {leaveType === "shoot_day" && (
+                  <div>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label>
+                    <input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
+                    {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}
+                    <p style={{ fontSize: 11, color: "#6366F1", margin: "6px 0 0", fontWeight: 600 }}>📷 Admin approval required for shoot day login</p>
+                  </div>
+                )}
                 {leaveType === "permission" && (
                   <>
                     <input type="hidden" name="permission_time" value={permFrom} />
@@ -808,7 +964,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                         return diff > 0 ? String(Math.round((diff / 60) * 10) / 10) : "1"
                       })() : "1"
                     } />
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
                     {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}</div>
                     <div>
                       <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Permission Time *</label>
@@ -819,7 +975,15 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                         </div>
                         <div>
                           <label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Return By</label>
-                          <input type="time" required style={FIELD} value={permTo} onChange={e => setPermTo(e.target.value)} />
+                          <input type="time" required style={FIELD} value={permTo} onChange={e => {
+                            setPermTo(e.target.value)
+                            if (permFrom && e.target.value) {
+                              const [fh, fm] = permFrom.split(":").map(Number)
+                              const [th, tm] = e.target.value.split(":").map(Number)
+                              const diff = (th * 60 + tm) - (fh * 60 + fm)
+                              if (diff > 240) setShowHalfDayPrompt(true)
+                            }
+                          }} />
                         </div>
                       </div>
                       {permFrom && permTo && (() => {
@@ -833,6 +997,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     </div>
                   </>
                 )}
+                {isExceptional && <input type="hidden" name="is_exceptional" value="true" />}
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Reason *</label>
                   <textarea name="reason" required rows={3} placeholder="Explain the reason…" className="resize-none" style={FIELD} defaultValue={editingLeave?.reason ?? ""} />
@@ -849,7 +1014,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 )}
 
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null) }}
+                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null); setIsExceptional(false) }}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
                   <button type="submit" disabled={pending || editing}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: (pending || editing) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>
@@ -858,6 +1023,52 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 </div>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Full-day prompt popup (2 half days = 1 full day) ────────────── */}
+      {showFullDayPrompt && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#fff", borderRadius:20, padding:"28px 24px", maxWidth:360, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.2)", position:"relative" }}>
+            <button onClick={() => setShowFullDayPrompt(false)} style={{ position:"absolute", top:14, right:14, width:28, height:28, borderRadius:8, border:"1px solid #EBEDF2", background:"#F6F7FA", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, color:"#6B7280", lineHeight:1 }}>✕</button>
+            <div style={{ width:52, height:52, borderRadius:14, background:"rgba(16,185,129,0.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
+              <span style={{ fontSize:26 }}>🌴</span>
+            </div>
+            <p style={{ fontSize:16, fontWeight:800, color:"#111111", margin:"0 0 8px", textAlign:"center" }}>2 Half Days = 1 Full Day</p>
+            <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 22px", textAlign:"center", lineHeight:1.6 }}>
+              You already have a <strong>{existingHalfDayPeriod === "morning" ? "Morning" : "Afternoon"} Half Day</strong> applied for this date. Two half days count as <strong>1 Full Day</strong> leave. Switch to Full Day instead?
+            </p>
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              <button onClick={() => { setLeaveType("full_day"); setHalfFrom(""); setHalfTo(""); setShowFullDayPrompt(false) }}
+                style={{ padding:"12px 0", borderRadius:12, fontSize:13, fontWeight:700, background:"linear-gradient(135deg,#10B981,#059669)", color:"#fff", border:"none", cursor:"pointer", boxShadow:"0 4px 12px rgba(16,185,129,0.3)" }}>
+                Switch to Full Day
+              </button>
+              <button onClick={() => setShowFullDayPrompt(false)}
+                style={{ padding:"12px 0", borderRadius:12, fontSize:13, fontWeight:600, background:"#F6F7FA", color:"#6B7280", border:"1px solid #EBEDF2", cursor:"pointer" }}>
+                Keep as Half Day
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Half-day prompt popup ─────────────────────────────────────── */}
+      {showHalfDayPrompt && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#fff", borderRadius:20, padding:"28px 24px", maxWidth:360, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.2)", position:"relative" }}>
+            <button onClick={() => setShowHalfDayPrompt(false)} style={{ position:"absolute", top:14, right:14, width:28, height:28, borderRadius:8, border:"1px solid #EBEDF2", background:"#F6F7FA", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, color:"#6B7280", lineHeight:1 }}>✕</button>
+            <div style={{ width:52, height:52, borderRadius:14, background:"rgba(245,158,11,0.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
+              <span style={{ fontSize:26 }}>⚠️</span>
+            </div>
+            <p style={{ fontSize:16, fontWeight:800, color:"#111111", margin:"0 0 8px", textAlign:"center" }}>More than 4 Hours</p>
+            <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 22px", textAlign:"center", lineHeight:1.6 }}>
+              Permission cannot exceed <strong>4 hours</strong>. Please apply as <strong>Half Day</strong> instead.
+            </p>
+            <button onClick={() => { setLeaveType("half_day"); setPermFrom(""); setPermTo(""); setShowHalfDayPrompt(false) }}
+              style={{ width:"100%", padding:"12px 0", borderRadius:12, fontSize:13, fontWeight:700, background:"linear-gradient(135deg,#DE1A1A,#991B1B)", color:"#fff", border:"none", cursor:"pointer", boxShadow:"0 4px 12px rgba(222,26,26,0.3)" }}>
+              Switch to Half Day
+            </button>
           </div>
         </div>
       )}

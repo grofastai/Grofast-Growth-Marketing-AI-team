@@ -36,6 +36,10 @@ interface LeavesClientProps {
   approvedCount: number
   rejectedCount: number
   companyLeaves: CompanyLeave[]
+  fullDayCount: number
+  wfhCount: number
+  shootCount: number
+  halfDayCount: number
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -80,19 +84,23 @@ function getVacationTitle(reason: string, type: string) {
 }
 
 const LEAVE_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  "Vacation Leave": { bg: "#FEF9EC", color: "#D97706", border: "#FDE68A" },
-  "Sick Leave":     { bg: "#FFF0F0", color: "#EF4444", border: "#FECACA" },
-  "Casual Leave":   { bg: "#EFF6FF", color: "#3B82F6", border: "#BFDBFE" },
-  "Work From Home": { bg: "#F0FDF4", color: "#10B981", border: "#A7F3D0" },
-  "Permission":     { bg: "#F5F3FF", color: "#7C3AED", border: "#DDD6FE" },
+  "Vacation Leave":  { bg: "#FEF9EC", color: "#D97706", border: "#FDE68A" },
+  "Sick Leave":      { bg: "#FFF0F0", color: "#EF4444", border: "#FECACA" },
+  "Casual Leave":    { bg: "#EFF6FF", color: "#3B82F6", border: "#BFDBFE" },
+  "Work From Home":  { bg: "#F0FDF4", color: "#10B981", border: "#A7F3D0" },
+  "Shoot Day":       { bg: "#FEF9EC", color: "#D97706", border: "#FDE68A" },
+  "Permission":      { bg: "#F5F3FF", color: "#7C3AED", border: "#DDD6FE" },
+  "Half Day Leave":  { bg: "rgba(99,102,241,0.10)", color: "#6366F1", border: "#C7D2FE" },
 }
 
 const LEAVE_EMOJIS: Record<string, string> = {
-  "Vacation Leave": "🏖️",
-  "Sick Leave":     "🏥",
-  "Casual Leave":   "💼",
-  "Work From Home": "🏠",
-  "Permission":     "⏰",
+  "Vacation Leave":  "🏖️",
+  "Sick Leave":      "🏥",
+  "Casual Leave":    "💼",
+  "Work From Home":  "🏠",
+  "Shoot Day":       "📷",
+  "Permission":      "⏰",
+  "Half Day Leave":  "🌤️",
 }
 
 const AVATAR_COLORS = ["#DE1A1A","#F59E0B","#10B981","#3B82F6","#8B5CF6","#F97316","#EC4899"]
@@ -152,8 +160,15 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 }) {
   const user = Array.isArray(leave.users) ? leave.users[0] : leave.users
   const name = user?.name ?? "Unknown"
-  const isPerm = leave.leave_type === "permission"
-  const leaveType = isPerm ? "Permission" : getLeaveType(leave.reason)
+  const isPerm       = leave.leave_type === "permission"
+  const isHalfDay    = leave.leave_type === "half_day"
+  const isExceptional = leave.reason?.startsWith("[EXCEPTIONAL]")
+  const displayReason = isExceptional ? leave.reason.replace(/^\[EXCEPTIONAL\]\s*/, "") : leave.reason
+  const leaveType = isPerm ? "Permission"
+    : isHalfDay ? "Half Day Leave"
+    : leave.leave_type === "wfh" ? "Work From Home"
+    : leave.leave_type === "shoot_day" ? "Shoot Day"
+    : getLeaveType(leave.reason)
   const typeStyle = LEAVE_STYLES[leaveType] ?? LEAVE_STYLES["Casual Leave"]
   const isLoading = actionId?.startsWith(leave.id)
   const days = daysBetween(leave.from_date, leave.to_date)
@@ -188,6 +203,17 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
       {/* Divider */}
       <div style={{ height: 1, background: "#F3F4F6" }} />
 
+      {/* Exceptional leave banner */}
+      {isExceptional && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(245,158,11,0.1)", border: "1.5px solid rgba(245,158,11,0.35)", borderRadius: 10, padding: "8px 12px" }}>
+          <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#92400E", margin: 0 }}>Exceptional Leave</p>
+            <p style={{ fontSize: 10, color: "#B45309", margin: 0 }}>Monthly limit exceeded — needs special approval</p>
+          </div>
+        </div>
+      )}
+
       {/* Leave type + duration */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{
@@ -197,7 +223,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
           {LEAVE_EMOJIS[leaveType] ?? "📋"} {leaveType}
         </span>
         <span style={{ fontSize: 11, fontWeight: 700, color: "#374151", background: "#F9FAFB", padding: "3px 10px", borderRadius: 8 }}>
-          {isPerm ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : `${days} day${days !== 1 ? "s" : ""}`}
+          {isPerm ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : isHalfDay ? "Half Day" : `${days} day${days !== 1 ? "s" : ""}`}
         </span>
       </div>
 
@@ -214,7 +240,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
           fontSize: 12, color: "#6B7280", margin: 0, lineHeight: 1.45,
           display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
         } as React.CSSProperties}>
-          {leave.reason}
+          {displayReason}
         </p>
       </div>
 
@@ -255,6 +281,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 export default function LeavesClient({
   leaves, statusFilter, upcomingLeaves, availabilityPct, onLeaveToday,
   pendingCount, approvedCount, rejectedCount, companyLeaves,
+  fullDayCount, wfhCount, shootCount, halfDayCount,
 }: LeavesClientProps) {
   const router   = useRouter()
   const pathname = usePathname()
@@ -343,32 +370,33 @@ export default function LeavesClient({
       )}
 
       {/* ── Header Banner ─────────────────────────────────────────────────── */}
-      <div style={{
-        background: gradBg, borderRadius: 22, padding: "24px 28px", marginBottom: 22,
-        boxShadow: "0 10px 40px rgba(180,0,0,0.38)", position: "relative", overflow: "hidden",
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{
+        background: gradBg, borderRadius: 22, padding: "20px 20px", marginBottom: 22,
+        boxShadow: "0 10px 40px rgba(180,0,0,0.38)", position: "relative", overflow: "hidden", gap: 16,
       }}>
         <div style={{ position: "absolute", top: -50, right: 80, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -40, left: -20, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
         <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 20, padding: "5px 14px", marginBottom: 12 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 20, padding: "5px 14px", marginBottom: 10 }}>
             <span style={{ fontSize: 13 }}>⭐</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#FFF" }}>Leave Management</span>
           </div>
-          <h1 style={{ fontSize: 26, fontWeight: 900, color: "#FFFFFF", fontFamily: "var(--font-jakarta)", margin: "0 0 4px" }}>Leave Requests</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 900, color: "#FFFFFF", fontFamily: "var(--font-jakarta)", margin: "0 0 4px" }}>Leave Requests</h1>
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: 0 }}>Review and manage team leave applications</p>
         </div>
-        {/* Stat pills in header */}
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", position: "relative", zIndex: 1 }}>
+        {/* 6 KPI boxes in 3×2 grid */}
+        <div className="grid grid-cols-3 lg:grid-cols-6 w-full lg:w-auto" style={{ gap: 8, position: "relative", zIndex: 1 }}>
           {[
-            { label: "Pending",  value: pendingCount,        color: "#FACC15" },
-            { label: "Approved", value: approvedCount,       color: "#6EE7B7" },
-            { label: "Rejected", value: rejectedCount,       color: "#FCA5A5" },
-            { label: "On Leave", value: onLeaveToday.length, color: "#C4B5FD" },
+            { label: "Full Day",  value: fullDayCount,  color: "#FCA5A5" },
+            { label: "WFH",       value: wfhCount,       color: "#6EE7B7" },
+            { label: "Shoot",     value: shootCount,     color: "#93C5FD" },
+            { label: "Half Day",  value: halfDayCount,   color: "#FDE68A" },
+            { label: "Approved",  value: approvedCount,  color: "#6EE7B7" },
+            { label: "Rejected",  value: rejectedCount,  color: "#FCA5A5" },
           ].map(s => (
-            <div key={s.label} style={{ textAlign: "center", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: "10px 18px", minWidth: 72 }}>
-              <div style={{ fontSize: 24, fontWeight: 900, color: s.color, fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>{s.value}</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.72)", fontWeight: 600, marginTop: 3 }}>{s.label}</div>
+            <div key={s.label} style={{ textAlign: "center", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, padding: "8px 10px" }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: s.color, fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.72)", fontWeight: 600, marginTop: 3, whiteSpace: "nowrap" }}>{s.label}</div>
             </div>
           ))}
         </div>

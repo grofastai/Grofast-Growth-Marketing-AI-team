@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { revalidatePath } from "next/cache"
 import { logFreelancerActivity } from "./freelancer-activity"
+import { normalizePhone } from "@/lib/utils/phone"
 
 function adminClient() {
   return createClient(
@@ -49,6 +50,11 @@ export type FreelancerInput = {
   upi_id?: string
   gender?: string
   title?: string
+  team?: string
+  position?: string
+  email?: string
+  date_of_birth?: string | null
+  joined_at?: string | null
   availability_notes?: string
   rating?: number
   status?: "active" | "inactive"
@@ -108,10 +114,28 @@ export async function createFreelancer(input: FreelancerInput): Promise<{ succes
   const { companyId, userId } = ctx
 
   const admin = adminClient()
+
+  // Block duplicate phone numbers within the same company
+  const target = normalizePhone(input.phone)
+  if (target.length >= 10) {
+    const { data: existing } = await admin
+      .from("freelancers")
+      .select("id, name, phone")
+      .eq("company_id", companyId)
+      .not("phone", "is", null)
+    const dup = (existing ?? []).find(f => normalizePhone(f.phone) === target)
+    if (dup) return { success: false, error: `This phone number is already used by "${dup.name}".` }
+  }
+
   const { data, error } = await admin.from("freelancers").insert({
     company_id: companyId,
     name: input.name,
     type: input.type,
+    team: input.team || null,
+    position: input.position || null,
+    email: input.email || null,
+    date_of_birth: input.date_of_birth || null,
+    joined_at: input.joined_at || null,
     phone: input.phone || null,
     upi_id: input.upi_id || null,
     gender: input.gender || null,
@@ -146,9 +170,23 @@ export async function updateFreelancer(id: string, input: FreelancerInput): Prom
   if (!companyId) return { success: false, error: "Not authenticated" }
 
   const admin = adminClient()
+
+  // Block duplicate phone numbers within the same company (excluding this record)
+  const target = normalizePhone(input.phone)
+  if (target.length >= 10) {
+    const { data: existing } = await admin
+      .from("freelancers")
+      .select("id, name, phone")
+      .eq("company_id", companyId)
+      .not("phone", "is", null)
+    const dup = (existing ?? []).find(f => f.id !== id && normalizePhone(f.phone) === target)
+    if (dup) return { success: false, error: `This phone number is already used by "${dup.name}".` }
+  }
+
   const { error } = await admin.from("freelancers").update({
     name: input.name,
     type: input.type,
+    team: input.team || null,
     phone: input.phone || null,
     upi_id: input.upi_id || null,
     gender: input.gender || null,
@@ -205,6 +243,22 @@ export async function assignAllFreelancersToMembers(
   }
   revalidatePath("/admin/freelancers")
   revalidatePath("/admin/team")
+  return { success: true }
+}
+
+export async function toggleFreelancerStatus(
+  id: string,
+  status: 'active' | 'inactive'
+): Promise<{ success: boolean; error?: string }> {
+  const companyId = await getCompanyId()
+  if (!companyId) return { success: false, error: 'Not authenticated' }
+  const admin = adminClient()
+  const { error } = await admin.from('freelancers')
+    .update({ status })
+    .eq('id', id).eq('company_id', companyId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/admin/team')
+  revalidatePath('/member/freelancers')
   return { success: true }
 }
 

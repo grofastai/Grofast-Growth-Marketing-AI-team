@@ -64,18 +64,35 @@ const moreNavItems = [
 const DIVIDER = "rgba(255,255,255,0.08)"
 const MOBILE_BG = "linear-gradient(90deg, #0a0a0a 0%, #1a0000 60%, #de1a1a 100%)"
 
-export default function MemberSidebar({ name, employeeId, unreadCount = 0, photoUrl = null, canManageFreelancers = false }: { name: string; employeeId: string; unreadCount?: number; photoUrl?: string | null; canManageFreelancers?: boolean }) {
+// Freelancer-media login (team = "Freelance Media Production") gets a trimmed
+// portal — no Attendance, Content Calendar, or Leaves.
+const FL_MEDIA_HIDDEN = new Set([
+  "/member/attendance",
+  "/member/content-calendar",
+  "/member/leaves",
+])
+
+export default function MemberSidebar({ name, employeeId, unreadCount = 0, photoUrl = null, canManageFreelancers = false, isFreelancerMedia = false }: { name: string; employeeId: string; unreadCount?: number; photoUrl?: string | null; canManageFreelancers?: boolean; isFreelancerMedia?: boolean }) {
   const pathname = usePathname()
   const initials = name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
   const [showMore, setShowMore] = useState(false)
 
-  const activeNavItems = canManageFreelancers
+  const baseNavItems = canManageFreelancers
     ? [...navItems.slice(0, 6), { label: "Freelancers", href: "/member/freelancers", icon: Users2 }, ...navItems.slice(6)]
     : navItems
+  const activeNavItems = isFreelancerMedia
+    ? baseNavItems.filter(i => !FL_MEDIA_HIDDEN.has(i.href))
+    : baseNavItems
 
-  const activeMoreNavItems = canManageFreelancers
+  const baseMoreNavItems = canManageFreelancers
     ? [{ label: "Freelancers", href: "/member/freelancers", icon: Users2 }, ...moreNavItems]
     : moreNavItems
+  const activeMoreNavItems = isFreelancerMedia
+    ? baseMoreNavItems.filter(i => !FL_MEDIA_HIDDEN.has(i.href))
+    : baseMoreNavItems
+  const activeBottomNav = isFreelancerMedia
+    ? mainBottomNav.filter(i => !FL_MEDIA_HIDDEN.has(i.href))
+    : mainBottomNav
   const [bellOpen, setBellOpen] = useState(false)
   const [panelNotifs, setPanelNotifs] = useState<NotificationRow[]>([])
   const [localUnread, setLocalUnread] = useState(unreadCount)
@@ -102,7 +119,7 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
     <>
       {/* ── Desktop Sidebar (lg+) ─────────────────────────── */}
       <aside
-        className="hidden lg:flex fixed left-0 top-0 h-screen w-[240px] flex-col z-50 select-none overflow-hidden"
+        className="hidden lg:flex fixed left-0 top-0 h-screen w-[240px] flex-col z-[60] select-none overflow-hidden"
         style={{ background: "#080808", borderRight: "1px solid rgba(255,255,255,0.06)" }}
       >
         {/* ── Red wave background art ── */}
@@ -294,7 +311,7 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
 
       {/* ── Tablet Sidebar (md–lg) ────────────────────────── */}
       <aside
-        className="hidden md:flex lg:hidden fixed left-0 top-0 h-screen w-[64px] flex-col z-50 select-none overflow-hidden"
+        className="hidden md:flex lg:hidden fixed left-0 top-0 h-screen w-[64px] flex-col z-[60] select-none overflow-hidden"
         style={{ background: "#080808", borderRight: "1px solid rgba(255,255,255,0.06)" }}
       >
         {/* wave bg */}
@@ -363,7 +380,7 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
 
       {/* ── Mobile Top Bar ────────────────────────────────── */}
       <header
-        className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
+        className="md:hidden fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 h-14"
         style={{ background: MOBILE_BG, borderBottom: `1px solid ${DIVIDER}` }}
       >
         <div className="flex items-center gap-2.5">
@@ -397,7 +414,7 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
 
       {/* ── Mobile Bottom Nav ─────────────────────────────── */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-[60] flex items-center justify-around px-2"
         style={{
           background: "#0a0a0a",
           borderTop: `1px solid ${DIVIDER}`,
@@ -405,7 +422,7 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
-        {mainBottomNav.map(({ label, href, icon: Icon }) => {
+        {activeBottomNav.map(({ label, href, icon: Icon }) => {
           const active = isActive(href)
           return (
             <Link

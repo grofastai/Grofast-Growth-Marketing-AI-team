@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import MemberLeavesClient from "./leaves-client"
+import { blockFreelancerMedia } from "@/lib/utils/freelancer-guard"
 
 function adminSupabase() {
   return createClient(
@@ -15,6 +16,7 @@ function adminSupabase() {
 }
 
 export default async function MemberLeavesPage() {
+  await blockFreelancerMedia()
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
@@ -23,19 +25,23 @@ export default async function MemberLeavesPage() {
   const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminSupabase()
+  // When impersonating, the RLS-bound `supabase` client is still authed as the
+  // admin, so member-scoped queries return zero rows. Read through the service-role
+  // client instead, scoped to effectiveUserId.
+  const db = impersonateId ? admin : supabase
 
   const yearStart = `${new Date().getFullYear()}-01-01`
 
   const { data: profileData } = await admin
     .from("users")
-    .select("name, paid_leave_days, company_id")
+    .select("name, paid_leave_days, company_id, team")
     .eq("id", effectiveUserId)
     .single()
 
   const companyId = profileData?.company_id ?? ""
 
   const [leavesResult, usedResult, absentResult, companyLeavesResult] = await Promise.all([
-    supabase
+    db
       .from("leaves")
       .select("*")
       .eq("user_id", effectiveUserId)
@@ -62,12 +68,13 @@ export default async function MemberLeavesPage() {
   const leaves        = leavesResult.data ?? []
   const name          = (profileData?.name ?? "").split(" ")[0] || "there"
   const paidLeaveDays = profileData?.paid_leave_days ?? 0
+  const isMedia       = (profileData as { team?: string | null } | null)?.team === "Media Team" || (profileData as { team?: string | null } | null)?.team === "Media Production Team"
   const absentDays    = (absentResult.data ?? []) as { id: string; date: string }[]
   const companyLeaves = (companyLeavesResult.data ?? []) as { id: string; date: string; name: string }[]
 
-  // Calculate used days: full_day = exact days, half_day = 0.5, permission = 0, absent = 1
+  // Calculate used days: full_day = exact days, half_day = 0.5, permission/wfh/shoot_day = 0, absent = 1
   const leaveUsedDays = (usedResult.data ?? []).reduce((sum, l) => {
-    if (l.leave_type === "permission") return sum
+    if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") return sum
     if (l.leave_type === "half_day") return sum + 0.5
     const days = Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
     return sum + days
@@ -82,6 +89,7 @@ export default async function MemberLeavesPage() {
       usedLeaveDays={usedDays}
       absentDays={absentDays}
       companyLeaves={companyLeaves}
+      isMedia={isMedia}
     />
   )
 }

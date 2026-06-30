@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import MemberContentCalendarClient from "./content-calendar-client"
+import { blockFreelancerMedia } from "@/lib/utils/freelancer-guard"
 
 function adminSupabase() {
   return createClient(
@@ -14,7 +15,8 @@ function adminSupabase() {
   )
 }
 
-export default async function MemberContentCalendarPage() {
+export default async function MemberContentCalendarPage({ searchParams }: { searchParams: Promise<{ year?: string; month?: string }> }) {
+  await blockFreelancerMedia()
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
@@ -24,13 +26,16 @@ export default async function MemberContentCalendarPage() {
 
   const admin = adminSupabase()
   const { data: profile } = await admin
-    .from("users").select("company_id, name").eq("id", effectiveUserId).single()
+    .from("users").select("company_id, name, role").eq("id", effectiveUserId).single()
   if (!profile) redirect("/login")
 
   const cid = profile.company_id
   const now = new Date()
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
-  const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString().split("T")[0]
+  const sp = await searchParams
+  const year  = sp.year  ? parseInt(sp.year)  : now.getFullYear()
+  const month = sp.month ? parseInt(sp.month) : now.getMonth() // 0-based
+  const monthStart = `${year}-${String(month + 1).padStart(2, "0")}-01`
+  const monthEnd   = new Date(year, month + 2, 0).toISOString().split("T")[0]
 
   const [
     { data: posts },
@@ -42,13 +47,13 @@ export default async function MemberContentCalendarPage() {
     { data: pastClients },
   ] = await Promise.all([
     admin.from("content_posts")
-      .select("*, assignee:users!assigned_to(name)")
+      .select("*, assignee:users!assigned_to(name), creator:users!created_by(name)")
       .eq("company_id", cid)
       .gte("scheduled_date", monthStart)
       .lte("scheduled_date", monthEnd)
       .order("scheduled_date"),
     admin.from("shoots")
-      .select("id, title, start_time, client, status")
+      .select("id, title, start_time, client, status, creator:users!created_by(name)")
       .eq("company_id", cid)
       .gte("start_time", monthStart)
       .lte("start_time", monthEnd + "T23:59:59"),
@@ -63,6 +68,7 @@ export default async function MemberContentCalendarPage() {
       .select("id, name")
       .eq("company_id", cid)
       .eq("status", "active")
+      .eq("role", "MEMBER")
       .order("name"),
     admin.from("projects")
       .select("business_name")
@@ -88,14 +94,15 @@ export default async function MemberContentCalendarPage() {
   return (
     <MemberContentCalendarClient
       posts={posts ?? []}
-      shoots={shoots ?? []}
+      shoots={(shoots ?? []).map(s => ({ ...s, creator: Array.isArray(s.creator) ? (s.creator[0] ?? null) : s.creator }))}
       tasks={tasks ?? []}
       members={members ?? []}
       clientNames={allActiveNames}
       pastClientNames={(pastClients ?? []).map(c => c.name).filter(Boolean) as string[]}
       userId={effectiveUserId}
-      initialYear={now.getFullYear()}
-      initialMonth={now.getMonth()}
+      role={profile.role ?? "MEMBER"}
+      initialYear={year}
+      initialMonth={month}
     />
   )
 }

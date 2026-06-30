@@ -1,7 +1,15 @@
 export type NotificationEvent =
   | 'leave.submitted'
+  | 'wfh.submitted'
+  | 'shoot.submitted'
   | 'leave.approved'
   | 'leave.rejected'
+  | 'half_day.approved'
+  | 'half_day.rejected'
+  | 'wfh.approved'
+  | 'wfh.rejected'
+  | 'shoot.approved'
+  | 'shoot.rejected'
   | 'daily_update.submitted'
   | 'daily_update.missing'
   | 'hours.underperformance'
@@ -10,7 +18,7 @@ export type NotificationEvent =
   | 'attendance.late'
 
 export interface LeaveSubmittedPayload {
-  event: 'leave.submitted'
+  event: 'leave.submitted' | 'wfh.submitted' | 'shoot.submitted'
   leave_id: string
   employee_name: string
   employee_id: string
@@ -21,7 +29,7 @@ export interface LeaveSubmittedPayload {
 }
 
 export interface LeaveStatusPayload {
-  event: 'leave.approved' | 'leave.rejected'
+  event: 'leave.approved' | 'leave.rejected' | 'half_day.approved' | 'half_day.rejected' | 'wfh.approved' | 'wfh.rejected' | 'shoot.approved' | 'shoot.rejected'
   employee_name: string
   employee_phone: string
   from_date: string

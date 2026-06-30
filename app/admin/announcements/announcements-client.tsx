@@ -3,7 +3,7 @@
 import { useActionState, useTransition, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { Loader2, Plus, X, Bell, Pin, Trash2, Search, Megaphone } from "lucide-react"
+import { Loader2, Plus, X, Bell, Pin, Trash2, Search, Megaphone, Sparkles, Users } from "lucide-react"
 import { createAnnouncement, deleteAnnouncement, togglePin } from "@/lib/actions/announcements"
 import { sendPushNotification } from "@/lib/actions/push"
 
@@ -155,16 +155,42 @@ export default function AnnouncementsClient({
 
   return (
     <div style={{ padding: "24px 28px", maxWidth: 1400, margin: "0 auto" }}>
-      {/* ── Header ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-            Announcements
-          </h1>
-          <p style={{ fontSize: 13, color: "#6B7280", margin: "4px 0 0" }}>
-            Manage and send team communications
-          </p>
+      {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
+      <div style={{ borderRadius: 24, marginBottom: 22, overflow: "hidden", background: "linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)", boxShadow: "0 8px 32px rgba(222,26,26,0.35)", position: "relative" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
+        <div style={{ position: "absolute", bottom: -30, right: 200, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
+        <div style={{ position: "absolute", top: 10, right: 360, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
+        <div style={{ padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, position: "relative", zIndex: 1 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
+                <Sparkles size={16} style={{ color: "#FFD700" }} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
+            </div>
+            <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", margin: "0 0 6px", fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>Announcements</h1>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", margin: 0 }}>Manage and broadcast team communications</p>
+            <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
+              {[
+                { icon: <Megaphone size={12} />, label: `${announcements.length} Total` },
+                { icon: <Pin size={12} />, label: `${pinnedCount} Pinned` },
+                { icon: <Users size={12} />, label: `${memberCount} Recipients` },
+              ].map(s => (
+                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 12px" }}>
+                  <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF" }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ width: 44, height: 44, borderRadius: 14, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Megaphone size={20} style={{ color: "#FFFFFF" }} />
+          </div>
         </div>
+      </div>
+
+      {/* ── Action Bar ── */}
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div className="flex flex-wrap gap-3 items-center">
           <button
             onClick={() => setShowPush(true)}
@@ -186,9 +212,9 @@ export default function AnnouncementsClient({
         {/* ─────────── LEFT: Main Content ─────────── */}
         <div>
           {/* Hero Banner — split card: left image | right CTA */}
-          <div style={{ display: "flex", borderRadius: 20, overflow: "hidden", border: "1.5px solid #E5E7EB", background: "#fff", marginBottom: 20, minHeight: 220 }}>
+          <div className="flex flex-col sm:flex-row" style={{ borderRadius: 20, overflow: "hidden", border: "1.5px solid #E5E7EB", background: "#fff", marginBottom: 20, minHeight: 180 }}>
             {/* Left: team illustration */}
-            <div style={{ position: "relative", flex: "0 0 62%", background: "linear-gradient(135deg, #FFF8F0 0%, #FFF3E8 50%, #FDEBD0 100%)" }}>
+            <div className="hidden sm:block" style={{ position: "relative", flex: "0 0 55%", background: "linear-gradient(135deg, #FFF8F0 0%, #FFF3E8 50%, #FDEBD0 100%)" }}>
               <Image
                 src="/brand/announcement/hero-team.png"
                 alt="Team announcements"
@@ -197,7 +223,7 @@ export default function AnnouncementsClient({
               />
             </div>
             {/* Right: content panel */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "28px 24px", textAlign: "center", gap: 12 }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px", textAlign: "center", gap: 12 }}>
               {/* Megaphone icon in pink circle */}
               <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#FFF0F0", display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid #FFD6D6" }}>
                 <Megaphone size={24} style={{ color: "#E53935" }} />

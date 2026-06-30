@@ -29,14 +29,21 @@ export default async function UpdatePage() {
 
   const { data: profile } = await admin
     .from("users")
-    .select("company_id, team, name")
+    .select("company_id, team, name, work_layout, is_management")
     .eq("id", effectiveUserId)
     .single()
 
-  const companyId = profile?.company_id ?? ""
+  const companyId      = profile?.company_id ?? ""
+  const isManagement   = (profile as { is_management?: boolean | null } | null)?.is_management === true
+  const isFreelancer   = (profile as { work_layout?: string | null } | null)?.work_layout === "freelance_media"
 
   const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0]
+
+  // Yesterday date (IST)
+  const yesterdayIST = new Date()
+  yesterdayIST.setDate(yesterdayIST.getDate() - 1)
+  const yesterdayStr = yesterdayIST.toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
 
   const [
     { data: projectsRaw },
@@ -46,6 +53,10 @@ export default async function UpdatePage() {
     { data: pastUpdates },
     { data: teamMembersRaw },
     { data: approvedLeavesRaw },
+    { data: todayClockLog },
+    { data: yesterdayUpdate },
+    { data: yesterdayLeave },
+    { data: yesterdayHoliday },
   ] = await Promise.all([
     admin
       .from("projects")
@@ -80,7 +91,7 @@ export default async function UpdatePage() {
       .limit(30),
     admin
       .from("users")
-      .select("id, name, employee_id, role")
+      .select("id, name, employee_id, role, team")
       .eq("company_id", companyId)
       .eq("status", "active")
       .eq("role", "MEMBER")
@@ -92,10 +103,39 @@ export default async function UpdatePage() {
       .eq("user_id", effectiveUserId)
       .eq("status", "approved")
       .gte("to_date", thirtyDaysAgoStr),
+    // 4A: did the member clock in today?
+    admin
+      .from("attendance_logs")
+      .select("clock_in")
+      .eq("user_id", effectiveUserId)
+      .eq("date", today)
+      .maybeSingle(),
+    // 4B: did yesterday have a submitted update?
+    admin
+      .from("daily_updates")
+      .select("id")
+      .eq("user_id", effectiveUserId)
+      .eq("date", yesterdayStr)
+      .maybeSingle(),
+    // 4B: was yesterday a leave or holiday? (skip auto-select if so)
+    admin
+      .from("leaves")
+      .select("id")
+      .eq("user_id", effectiveUserId)
+      .lte("from_date", yesterdayStr)
+      .gte("to_date", yesterdayStr)
+      .in("status", ["approved"])
+      .maybeSingle(),
+    admin
+      .from("company_leaves")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("date", yesterdayStr)
+      .maybeSingle(),
   ])
 
   type Project = { id: string; business_name: string }
-  type TeamMember = { id: string; name: string; employee_id: string; role: string }
+  type TeamMember = { id: string; name: string; employee_id: string; role: string; team: string | null }
   const projects = (projectsRaw ?? []) as unknown as Project[]
   const supabaseClientNames = (supabaseClientsRaw ?? []).map((c: { name: string }) => c.name)
   const teamMembers = (teamMembersRaw ?? []) as TeamMember[]
@@ -115,6 +155,14 @@ export default async function UpdatePage() {
     }
   }
 
+  // 4A: requires today clock-in (skip for management and freelancer and when impersonating)
+  const todayClockedIn = !!(todayClockLog as { clock_in: string | null } | null)?.clock_in
+  const requiresClockIn = !isManagement && !isFreelancer && !impersonateId
+
+  // 4B: auto-select yesterday if: no update for yesterday, not on leave/holiday, and not management/freelancer
+  const yesterdayMissing = !yesterdayUpdate && !yesterdayLeave && !yesterdayHoliday
+  const defaultDate = (!isManagement && !isFreelancer && yesterdayMissing) ? yesterdayStr : undefined
+
   const fallback = (
     <div className="flex items-center justify-center py-16">
       <Loader2 size={20} className="animate-spin" style={{ color: "#de1a1a" }} />
@@ -129,11 +177,15 @@ export default async function UpdatePage() {
         sheetClientNames={clientNames}
         pastClientNames={pastClientNames}
         team={profile?.team ?? null}
+        workLayout={(profile as { work_layout?: string } | null)?.work_layout as 'media' | 'non_media' | 'freelance_media' | undefined}
         userName={userName}
         existingUpdate={existingUpdate ?? null}
         pastUpdates={pastUpdates ?? []}
         teamMembers={teamMembers}
         approvedLeaveDates={approvedLeaveDates}
+        todayClockedIn={todayClockedIn}
+        requiresClockIn={requiresClockIn}
+        defaultDate={defaultDate}
       />
     </Suspense>
   )

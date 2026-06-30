@@ -65,7 +65,8 @@ export default async function AttendancePage({
 
   const [{ data: members }, { data: logs }, { data: lateLogs }, { data: weeklyRaw }, { data: dayPermissions }, { data: fullDayLeaves }] = await Promise.all([
     admin.from("users").select("id, name, employee_id")
-      .eq("company_id", cid).eq("role", "MEMBER").eq("status", "active").order("name"),
+      .eq("company_id", cid).eq("role", "MEMBER").eq("status", "active")
+      .eq("is_management", false).eq("is_freelancer_login", false).order("name"),
     admin.from("attendance_logs")
       .select("user_id, clock_in, clock_out, status, break_total_mins")
       .eq("company_id", cid).eq("date", selectedDate),
@@ -85,7 +86,7 @@ export default async function AttendancePage({
     admin.from("leaves")
       .select("user_id")
       .eq("company_id", cid)
-      .eq("leave_type", "full_day")
+      .neq("leave_type", "permission")
       .eq("status", "approved")
       .lte("from_date", selectedDate)
       .gte("to_date", selectedDate),
@@ -120,7 +121,12 @@ export default async function AttendancePage({
   const lateEntries  = (lateLogs ?? [] as LateLog[]).map(l => ({ ...l, member: memberMap.get(l.user_id) })).filter(l => l.member)
   const totalMembers = (members ?? []).length
   const presentCount = (members ?? []).filter(m => { const l = logMap.get(m.id); return l?.clock_in || l?.status === "present" }).length
-  const absentCount  = (members ?? []).filter(m => { const s = logMap.get(m.id)?.status; return (s === "leave" || s === "absent") && !logMap.get(m.id)?.clock_in }).length
+  const absentCount  = (members ?? []).filter(m => {
+    const log = logMap.get(m.id)
+    const hasLeaveLog = (log?.status === "leave" || log?.status === "absent") && !log?.clock_in
+    const hasApprovedLeave = !log && onLeaveSet.has(m.id)
+    return hasLeaveLog || hasApprovedLeave
+  }).length
   const notLogged    = (members ?? []).filter(m => !logMap.has(m.id)).length
 
   const weekCountMap: Record<string, number> = {}
@@ -192,41 +198,41 @@ export default async function AttendancePage({
         <div style={{ position: "absolute", bottom: -30, right: 200, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", top: 10, right: 360, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
 
-        <div style={{ padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, position: "relative", zIndex: 1 }}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{ padding: "20px 20px 22px", gap: 16, position: "relative", zIndex: 1 }}>
           {/* Left */}
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
               <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
                 <Sparkles size={16} style={{ color: "#FFD700" }} />
               </div>
               <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
             </div>
-            <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", margin: "0 0 6px", fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>
+            <h1 style={{ fontSize: 32, fontWeight: 900, color: "#FFFFFF", margin: "0 0 4px", fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>
               Attendance
             </h1>
-            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", margin: 0 }}>{displayDate}</p>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", margin: 0 }}>{displayDate}</p>
             {/* Mini stat chips */}
-            <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
+            <div style={{ display: "flex", gap: 8, marginTop: 14, overflowX: "auto", flexWrap: "nowrap" }}>
               {[
                 { icon: <CheckCircle2 size={12} />, label: `${presentCount} Present` },
                 { icon: <Clock size={12} />, label: `${lateEntries.length} Late` },
                 { icon: <Users size={12} />, label: `${totalMembers} Total` },
               ].map(s => (
-                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 12px" }}>
+                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 10px", flexShrink: 0 }}>
                   <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF" }}>{s.label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", whiteSpace: "nowrap" }}>{s.label}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Right: date nav + avatar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+          <div className="flex items-center gap-3 mt-3 sm:mt-0" style={{ flexShrink: 0 }}>
             <div style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: "4px 6px" }}>
               <AttendanceDateNav selectedDate={selectedDate} today={today} />
             </div>
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <span style={{ fontSize: 16, fontWeight: 900, color: "#FFFFFF" }}>{(adminName[0] ?? "A").toUpperCase()}</span>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ fontSize: 15, fontWeight: 900, color: "#FFFFFF" }}>{(adminName[0] ?? "A").toUpperCase()}</span>
             </div>
           </div>
         </div>
@@ -238,14 +244,14 @@ export default async function AttendancePage({
           <div key={s.label} style={{
             background: "#FFFFFF", borderRadius: 20,
             border: `1px solid ${s.accent}22`,
-            padding: "20px 20px 14px",
+            padding: "clamp(12px,3vw,20px) clamp(12px,3vw,20px) 14px",
             boxShadow: `0 4px 20px ${s.accent}18`,
             position: "relative", overflow: "hidden",
           }}>
             {/* Soft bg circle */}
             <div style={{ position: "absolute", top: -20, right: -20, width: 90, height: 90, borderRadius: "50%", background: s.accentBg }} />
             {/* Character image */}
-            <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 130, pointerEvents: "none" }}>
+            <div className="hidden sm:block" style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 130, pointerEvents: "none" }}>
               <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right center" }} />
             </div>
             <div style={{ position: "relative" }}>
@@ -255,7 +261,7 @@ export default async function AttendancePage({
                 </div>
                 <p style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.07em" }}>{s.label}</p>
               </div>
-              <p style={{ fontSize: 52, fontWeight: 900, color: s.numColor, margin: "0 0 2px", lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
+              <p style={{ fontSize: "clamp(32px,7vw,52px)", fontWeight: 900, color: s.numColor, margin: "0 0 2px", lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
             </div>
             {/* Progress bar */}
             <div style={{ marginTop: 20, height: 4, background: "#F3F4F6", borderRadius: 4, overflow: "hidden", position: "relative" }}>
@@ -318,7 +324,7 @@ export default async function AttendancePage({
 
                     const isOnLeave = !log && onLeaveSet.has(m.id)
                     let statusLabel = "Not Logged"; let statusColor = "#9CA3AF"; let statusBg = "#F3F4F6"; let statusDot = "#D1D5DB"
-                    if (isAbsent)  { statusLabel = "On Leave"; statusColor = "#DE1A1A"; statusBg = "rgba(222,26,26,0.08)"; statusDot = "#DE1A1A" }
+                    if (isAbsent || isOnLeave) { statusLabel = "On Leave"; statusColor = "#DE1A1A"; statusBg = "rgba(222,26,26,0.08)"; statusDot = "#DE1A1A" }
                     if (isWorking) { statusLabel = "Working"; statusColor = "#10B981"; statusBg = "rgba(16,185,129,0.09)"; statusDot = "#10B981" }
                     if (isDone)    { statusLabel = "Done";    statusColor = "#6366F1"; statusBg = "rgba(99,102,241,0.09)"; statusDot = "#6366F1" }
 

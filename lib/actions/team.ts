@@ -3,6 +3,8 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { getOrCreateMemberFolder } from '@/lib/google/drive'
+import { normalizePhone } from '@/lib/utils/phone'
 
 function adminSupabase() {
   return createClient(
@@ -109,6 +111,8 @@ export async function createMember(input: {
   date_of_birth?: string | null
   joined_at?: string | null
   gender?: 'male' | 'female'
+  work_layout?: 'media' | 'non_media' | 'freelance_media'
+  is_management?: boolean
 }): Promise<{ success: boolean; error?: string; whatsappSent?: boolean; whatsappSkipped?: boolean; whatsappError?: string }> {
   // Admin-level roles use real email login (not employee_id-based internal email)
   const isAdmin = input.role === 'ADMIN' || input.role === 'FOUNDER' || input.role === 'CEO'
@@ -132,6 +136,16 @@ export async function createMember(input: {
     .single()
   if (!adminProfile?.company_id) return { success: false, error: 'Admin profile not found — contact support' }
   const company_id = adminProfile.company_id
+
+  // Block duplicate phone numbers within the company
+  const phoneTarget = normalizePhone(input.phone)
+  if (phoneTarget.length >= 10) {
+    const { data: phoneRows } = await admin
+      .from('users').select('id, name, phone')
+      .eq('company_id', company_id).not('phone', 'is', null)
+    const dup = (phoneRows ?? []).find((u: { phone: string | null }) => normalizePhone(u.phone) === phoneTarget)
+    if (dup) return { success: false, error: `This phone number is already used by "${dup.name}".` }
+  }
 
   // Auto-generate employee ID for admin-level accounts
   let finalEmployeeId = input.employee_id
@@ -225,6 +239,8 @@ export async function createMember(input: {
     date_of_birth: input.date_of_birth ?? null,
     joined_at: input.joined_at ?? null,
     gender: input.gender ?? 'male',
+    work_layout: input.work_layout ?? 'non_media',
+    is_management: input.is_management ?? false,
   })
 
   if (insertError) {
@@ -271,6 +287,11 @@ export async function createMember(input: {
     whatsappSent = notifyResult.sent
     whatsappError = notifyResult.errorDetail
   }
+
+  // Create Drive folder for this member (non-blocking — don't fail if Drive is down)
+  getOrCreateMemberFolder(input.name).then(folderId => {
+    admin.from('users').update({ drive_folder_id: folderId }).eq('id', authUserId).then(() => {})
+  }).catch(() => {})
 
   revalidatePath('/admin/team')
   return { success: true, whatsappSent, whatsappSkipped: skipNotification, whatsappError }
@@ -327,12 +348,41 @@ export async function updateMember(input: {
   date_of_birth?: string | null
   joined_at?: string | null
   gender?: 'male' | 'female'
+  work_layout?: 'media' | 'non_media' | 'freelance_media'
+  is_management?: boolean
 }): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
+
+  // Block duplicate phone numbers within the company (excluding this member)
+  const { data: editorProfile } = await admin.from('users').select('company_id').eq('id', user.id).single()
+  const phoneTarget = normalizePhone(input.phone)
+  if (editorProfile?.company_id && phoneTarget.length >= 10) {
+    const { data: phoneRows } = await admin
+      .from('users').select('id, name, phone')
+      .eq('company_id', editorProfile.company_id).not('phone', 'is', null)
+    const dup = (phoneRows ?? []).find((u: { id: string; phone: string | null }) => u.id !== input.id && normalizePhone(u.phone) === phoneTarget)
+    if (dup) return { success: false, error: `This phone number is already used by "${dup.name}".` }
+  }
+
+  // If salary is changing, log to salary_history before updating
+  if (input.monthly_salary != null && editorProfile?.company_id) {
+    const { data: currentUser } = await admin
+      .from('users').select('monthly_salary').eq('id', input.id).single()
+    const oldSalary = (currentUser as { monthly_salary?: number | null } | null)?.monthly_salary
+    if (oldSalary != null && oldSalary !== input.monthly_salary) {
+      await admin.from('salary_history').insert({
+        company_id:     editorProfile.company_id,
+        user_id:        input.id,
+        monthly_salary: input.monthly_salary,
+        effective_from: new Date().toISOString().split('T')[0],
+      })
+    }
+  }
+
   const { error } = await admin
     .from('users')
     .update({
@@ -349,6 +399,8 @@ export async function updateMember(input: {
       date_of_birth: input.date_of_birth ?? null,
       joined_at: input.joined_at ?? null,
       gender: input.gender ?? 'male',
+      ...(input.work_layout ? { work_layout: input.work_layout } : {}),
+      is_management: input.is_management ?? false,
     })
     .eq('id', input.id)
 
@@ -357,6 +409,7 @@ export async function updateMember(input: {
   revalidatePath('/admin/team')
   revalidatePath('/admin/expenses')
   revalidatePath('/admin/payroll')
+  revalidatePath('/admin/insights')
   return { success: true }
 }
 
@@ -511,6 +564,20 @@ export async function updateOwnProfile(input: {
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
+
+  // Block duplicate phone numbers within the company (excluding self)
+  const phoneTarget = normalizePhone(input.phone)
+  if (phoneTarget.length >= 10) {
+    const { data: me } = await admin.from('users').select('company_id').eq('id', user.id).single()
+    if (me?.company_id) {
+      const { data: phoneRows } = await admin
+        .from('users').select('id, name, phone')
+        .eq('company_id', me.company_id).not('phone', 'is', null)
+      const dup = (phoneRows ?? []).find((u: { id: string; phone: string | null }) => u.id !== user.id && normalizePhone(u.phone) === phoneTarget)
+      if (dup) return { success: false, error: `This phone number is already used by "${dup.name}".` }
+    }
+  }
+
   const { error } = await admin
     .from('users')
     .update({ name: input.name.trim(), phone: input.phone.trim() || null })
@@ -553,21 +620,22 @@ export async function toggleMemberStatus(
   const admin = adminSupabase()
 
   if (status === 'inactive') {
-    // Deactivating = move to Past Members (soft-delete) + revoke login
+    // Deactivating — soft-delete only, ban auth so they can't log in but account is preserved
     const { error } = await admin
       .from('users')
       .update({ status: 'inactive', deleted_at: new Date().toISOString() })
       .eq('id', id)
     if (error) return { success: false, error: error.message }
-    // Revoke login access
-    await admin.auth.admin.deleteUser(id)
+    // Ban instead of delete — keeps auth account so reactivation restores login immediately
+    await admin.auth.admin.updateUserById(id, { ban_duration: '876600h' })
   } else {
-    // Reactivating — clear deleted_at so they appear in active list again
+    // Reactivating — restore to active + unban so they can log in again with same password
     const { error } = await admin
       .from('users')
       .update({ status: 'active', deleted_at: null })
       .eq('id', id)
     if (error) return { success: false, error: error.message }
+    await admin.auth.admin.updateUserById(id, { ban_duration: 'none' })
   }
 
   revalidatePath('/admin/team')

@@ -107,6 +107,38 @@ export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
     },
   },
 
+  'wfh.submitted': {
+    name: 'grofast_wfh_request',
+    resolvePhone: (p) => (p as LeaveSubmittedPayload).admin_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveSubmittedPayload
+      return [lp.employee_name, lp.from_date, lp.to_date, lp.reason]
+    },
+    buildButtons: (p) => {
+      const lp = p as LeaveSubmittedPayload
+      return [
+        { index: 0, payload: `approve:${lp.leave_id}` },
+        { index: 1, payload: `reject:${lp.leave_id}` },
+      ]
+    },
+  },
+
+  'shoot.submitted': {
+    name: 'grofast_shoot_request',
+    resolvePhone: (p) => (p as LeaveSubmittedPayload).admin_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveSubmittedPayload
+      return [lp.employee_name, lp.from_date, lp.to_date, lp.reason]
+    },
+    buildButtons: (p) => {
+      const lp = p as LeaveSubmittedPayload
+      return [
+        { index: 0, payload: `approve:${lp.leave_id}` },
+        { index: 1, payload: `reject:${lp.leave_id}` },
+      ]
+    },
+  },
+
   'leave.approved': {
     name: 'grofast_leave_approved',
     resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
@@ -118,6 +150,60 @@ export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
 
   'leave.rejected': {
     name: 'grofast_leave_rejected',
+    resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveStatusPayload
+      return [lp.employee_name, lp.from_date, lp.to_date]
+    },
+  },
+
+  'half_day.approved': {
+    name: 'grofast_half_day_approved',
+    resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveStatusPayload
+      return [lp.employee_name, lp.from_date]
+    },
+  },
+
+  'half_day.rejected': {
+    name: 'grofast_half_day_rejected',
+    resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveStatusPayload
+      return [lp.employee_name, lp.from_date]
+    },
+  },
+
+  'wfh.approved': {
+    name: 'grofast_wfh_approved',
+    resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveStatusPayload
+      return [lp.employee_name, lp.from_date, lp.to_date]
+    },
+  },
+
+  'wfh.rejected': {
+    name: 'grofast_wfh_rejected',
+    resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveStatusPayload
+      return [lp.employee_name, lp.from_date, lp.to_date]
+    },
+  },
+
+  'shoot.approved': {
+    name: 'grofast_shoot_approved',
+    resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveStatusPayload
+      return [lp.employee_name, lp.from_date, lp.to_date]
+    },
+  },
+
+  'shoot.rejected': {
+    name: 'grofast_shoot_rejected',
     resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
     buildParams: (p) => {
       const lp = p as LeaveStatusPayload

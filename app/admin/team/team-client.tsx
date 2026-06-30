@@ -8,33 +8,70 @@ import {
   Search, Plus, Shield, UserCheck,
   MoreVertical, Phone, CalendarDays, X, Pencil,
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
-  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight,
+  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy,
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
-import { createFreelancer, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
+import { setSupportHandler } from "@/lib/actions/support"
+import { createFreelancer, updateFreelancer, toggleFreelancerStatus, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
 import { addManagerToAllFreelancers, removeManagerFromAllFreelancers } from "@/lib/actions/freelancer-manager"
 
 type FreelancerBasic = {
-  id: string; name: string; type: string; phone: string | null; upi_id: string | null
+  id: string; name: string; type: string; team: string | null; phone: string | null; upi_id: string | null
   rating: number; status: "active" | "inactive"
   cost_per_minute: number | null; cost_per_video: number | null; cost_per_hour: number | null
   voice_type: string | null; editing_software: string[]; gender: string | null; title: string | null
   created_at: string
 }
 
-const FL_TYPE_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  voice_over:    { label: "Voice Over",    color: "#8b5cf6", bg: "rgba(139,92,246,0.08)" },
-  video_editor:  { label: "Video Editor",  color: "#0ea5e9", bg: "rgba(14,165,233,0.08)" },
-  video_shooter: { label: "Video Shooter", color: "#10b981", bg: "rgba(16,185,129,0.08)" },
-  other:         { label: "Other",         color: "#6b7280", bg: "rgba(107,114,128,0.08)" },
+const FL_TYPE_CFG: Record<string, { label: string; color: string; bg: string; emoji: string }> = {
+  // New 9-team system (team column)
+  rj_voiceover:      { label: "RJ Voiceover",    color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🎙️" },
+  video_editor:      { label: "Video Editor",    color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",  emoji: "🎬" },
+  video_shooter:     { label: "Video Shooter",   color: "#10B981", bg: "rgba(16,185,129,0.08)",  emoji: "📹" },
+  graphics_designer: { label: "Graphics Design", color: "#F97316", bg: "rgba(249,115,22,0.08)",  emoji: "🎨" },
+  content_writer:    { label: "Content Writer",  color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  emoji: "✍️" },
+  dev_automation:    { label: "Dev & Automation",color: "#6366F1", bg: "rgba(99,102,241,0.08)",  emoji: "💻" },
+  nkts_reels:        { label: "NKTS Reels",      color: "#EF4444", bg: "rgba(239,68,68,0.08)",   emoji: "🎞️" },
+  voiceover_poster:  { label: "VO & Poster",     color: "#F59E0B", bg: "rgba(245,158,11,0.08)",  emoji: "🖼️" },
+  marketing_ops:     { label: "Marketing & Ops", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  emoji: "📊" },
+  // Legacy type column fallbacks
+  voice_over:        { label: "Voice Over",      color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🎙️" },
+  video_shoot:       { label: "Video Shooter",   color: "#10B981", bg: "rgba(16,185,129,0.08)",  emoji: "📹" },
+  other:             { label: "Other",            color: "#6b7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" },
+  // Old "Freelance X" format stored in availability_notes / team column
+  "Freelance RJ Voiceover":             { label: "RJ Voiceover",    color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🎙️" },
+  "Freelance Video Editor":             { label: "Video Editor",    color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",  emoji: "🎬" },
+  "Freelance Video Shooter":            { label: "Video Shooter",   color: "#10B981", bg: "rgba(16,185,129,0.08)",  emoji: "📹" },
+  "Freelance Graphics Designer":        { label: "Graphics Design", color: "#F97316", bg: "rgba(249,115,22,0.08)",  emoji: "🎨" },
+  "Freelance Content Writer":           { label: "Content Writer",  color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  emoji: "✍️" },
+  "Freelance Development & Automation": { label: "Dev & Automation",color: "#6366F1", bg: "rgba(99,102,241,0.08)",  emoji: "💻" },
+  "Freelance Marketing & Operations":   { label: "Marketing & Ops", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  emoji: "📊" },
+  "Freelance IT Technology & Media":    { label: "IT & Media",      color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🖥️" },
 }
 
-const TEAMS = [
-  "Media & Technology Team",
-  "Media Team",
-  "Technology & Operation Team",
-  "Creative Team",
+function getFreelancerTeamKey(f: FreelancerBasic): string {
+  return f.team || f.type || "other"
+}
+
+const FULL_TIME_TEAMS = [
+  "Media Production Team",
+  "Creative Studio",
+  "AI Development & Automation",
+  "Performance Marketing & Operations",
+  "AI Development & Media",
+] as const
+
+const FREELANCER_TEAMS = [
+  "Freelance Media Production",
+  "Freelance Video Editing",
+  "Freelance Videography",
+  "Freelance RJ Voiceover",
+  "Freelance Graphics Designer",
+  "Freelance Content Writer",
+  "Freelance Development & Automation",
+  "Freelance Marketing & Operations",
+  "Freelance IT Technology & Media",
 ] as const
 
 interface Member {
@@ -48,7 +85,7 @@ interface Member {
   team: string | null
   position: string | null
   created_at: string
-  employment_type: "regular" | "part_time" | "freelancer" | null
+  employment_type: "regular" | "freelancer" | null
   monthly_salary: number | null
   hourly_rate: number | null
   paid_leave_days: number | null
@@ -57,6 +94,11 @@ interface Member {
   joined_at?: string | null
   gender?: "male" | "female" | null
   passport_photo_url?: string | null
+  drive_folder_id?: string | null
+  is_support_handler?: boolean | null
+  work_layout?: 'media' | 'non_media' | 'freelance_media' | null
+  is_management?: boolean | null
+  is_freelancer_login?: boolean | null
 }
 
 function getInitials(name: string) {
@@ -64,11 +106,14 @@ function getInitials(name: string) {
 }
 
 function computeNextEmployeeId(members: Member[]): string {
-  const nums = members
-    .map(m => { const match = m.employee_id.match(/^GF(\d+)$/i); return match ? parseInt(match[1]) : 0 })
-    .filter(n => n > 0)
-  const max = nums.length > 0 ? Math.max(...nums) : 0
-  return `GF${String(max + 1).padStart(3, "0")}`
+  const used = new Set(
+    members
+      .map(m => { const match = m.employee_id.match(/^GF(\d+)$/i); return match ? parseInt(match[1]) : 0 })
+      .filter(n => n > 0)
+  )
+  let next = 1
+  while (used.has(next)) next++
+  return `GF${String(next).padStart(3, "0")}`
 }
 
 function formatDate(s: string) {
@@ -91,22 +136,37 @@ const FIELD: React.CSSProperties = {
   fontFamily: "inherit",
 }
 
-// team color per department
 function teamColor(team: string | null): { bg: string; color: string } {
   if (!team) return { bg: "#F3F4F6", color: "#6B7280" }
-  if (team.includes("Media & Tech")) return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
-  if (team.includes("Media")) return { bg: "rgba(236,72,153,0.1)", color: "#EC4899" }
-  if (team.includes("Tech")) return { bg: "rgba(16,185,129,0.1)", color: "#10B981" }
-  if (team.includes("Creative")) return { bg: "rgba(245,158,11,0.1)", color: "#F59E0B" }
+  if (team === "Media Production Team" || team === "Freelance Media Production" || team === "Media Team" || team === "Media") return { bg: "rgba(236,72,153,0.1)", color: "#EC4899" }
+  if (team === "Creative Studio" || team === "Creative Team" || team === "Creative") return { bg: "rgba(245,158,11,0.1)", color: "#F59E0B" }
+  if (team === "AI Development & Automation" || team === "Freelance Development & Automation") return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
+  if (team === "Performance Marketing & Operations" || team === "Freelance Marketing & Operations" || team === "Technology & Operation Team" || team.includes("Tech & Ops")) return { bg: "rgba(16,185,129,0.1)", color: "#10B981" }
+  if (team === "AI Development & Media" || team === "Freelance IT Technology & Media" || team.includes("Media & Tech")) return { bg: "rgba(139,92,246,0.1)", color: "#8B5CF6" }
+  if (team === "Freelance Video Editing") return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
+  if (team === "Freelance Videography") return { bg: "rgba(239,68,68,0.1)", color: "#EF4444" }
+  if (team === "Freelance RJ Voiceover") return { bg: "rgba(168,85,247,0.1)", color: "#A855F7" }
+  if (team === "Freelance Graphics Designer") return { bg: "rgba(249,115,22,0.1)", color: "#F97316" }
+  if (team === "Freelance Content Writer") return { bg: "rgba(20,184,166,0.1)", color: "#14B8A6" }
   return { bg: "#F3F4F6", color: "#6B7280" }
 }
 
 function teamShort(team: string | null) {
   if (!team) return "—"
-  if (team.includes("Media & Tech")) return "Media & Tech"
-  if (team.includes("Media")) return "Media"
-  if (team.includes("Tech")) return "Tech & Ops"
-  if (team.includes("Creative")) return "Creative"
+  if (team === "Media Production Team" || team === "Media Team" || team === "Media") return "Media Production"
+  if (team === "Creative Studio" || team === "Creative Team" || team === "Creative") return "Creative Studio"
+  if (team === "AI Development & Automation") return "AI Dev & Auto"
+  if (team === "Performance Marketing & Operations" || team.includes("Tech & Ops") || team === "Technology & Operation Team") return "Perf. Marketing"
+  if (team === "AI Development & Media" || team.includes("Media & Tech")) return "AI Dev & Media"
+  if (team === "Freelance Media Production") return "FL Media"
+  if (team === "Freelance Video Editing") return "FL Editing"
+  if (team === "Freelance Videography") return "FL Videography"
+  if (team === "Freelance RJ Voiceover") return "FL Voiceover"
+  if (team === "Freelance Graphics Designer") return "FL Graphics"
+  if (team === "Freelance Content Writer") return "FL Content"
+  if (team === "Freelance Development & Automation") return "FL Dev & Auto"
+  if (team === "Freelance Marketing & Operations") return "FL Marketing"
+  if (team === "Freelance IT Technology & Media") return "FL IT & Media"
   return team
 }
 
@@ -118,14 +178,13 @@ interface SheetProps {
   member?: Member | null
   nextId?: string
   initialRole?: "ADMIN" | "MEMBER" | "FREELANCER_MGR"
-  onSelectFreelancer?: () => void
 }
 
 const ACCOUNT_TYPES = [
   {
     role: "MEMBER" as const,
     label: "Team Member",
-    desc: "Logs daily updates, tasks, attendance",
+    desc: "Full-time or freelance — logs daily updates, tasks, attendance",
     icon: User,
     color: "#DE1A1A",
     bg: "rgba(222,26,26,0.06)",
@@ -140,18 +199,20 @@ const ACCOUNT_TYPES = [
     bg: "rgba(124,58,237,0.06)",
     border: "rgba(124,58,237,0.2)",
   },
-  {
-    role: "FREELANCER" as const,
-    label: "Freelancer",
-    desc: "Voice artist, video editor, shooter or other",
-    icon: Clapperboard,
-    color: "#F97316",
-    bg: "rgba(249,115,22,0.06)",
-    border: "rgba(249,115,22,0.2)",
-  },
 ]
 
-function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreelancer }: SheetProps) {
+const NO_LOGIN_TEAMS = new Set([
+  "Freelance Video Editing",
+  "Freelance Videography",
+  "Freelance RJ Voiceover",
+  "Freelance Graphics Designer",
+  "Freelance Content Writer",
+  "Freelance Development & Automation",
+  "Freelance Marketing & Operations",
+  "Freelance IT Technology & Media",
+])
+
+function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps) {
   const isEdit = !!member
   const [step, setStep] = useState<"type" | "details">(isEdit || initialRole ? "details" : "type")
   const [form, setForm] = useState({
@@ -163,13 +224,15 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
     team: member?.team ?? "",
     position: member?.position ?? "",
     password: "",
-    employment_type: (member?.employment_type ?? "regular") as "regular" | "part_time" | "freelancer",
+    employment_type: ((member?.employment_type === "regular" || member?.employment_type === "freelancer") ? member.employment_type : "regular") as "regular" | "freelancer",
     monthly_salary: member?.monthly_salary?.toString() ?? "",
     hourly_rate: member?.hourly_rate?.toString() ?? "",
     paid_leave_days: member?.paid_leave_days?.toString() ?? "5",
     date_of_birth: member?.date_of_birth ?? "",
     joined_at: member?.joined_at ?? new Date().toISOString().split("T")[0],
     gender: (member?.gender ?? "male") as "male" | "female",
+    work_layout: (member?.work_layout ?? "non_media") as "media" | "non_media" | "freelance_media",
+    is_management: member?.is_management ?? false,
   })
   const [error, setError] = useState("")
   const [whatsappWarning, setWhatsappWarning] = useState("")
@@ -192,6 +255,26 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
   function handleSubmit() {
     setError("")
     startTransition(async () => {
+      // No-login freelancer — save to freelancers table, no user account
+      if (isNoLoginTeam) {
+        if (!form.name.trim()) { setError("Name is required"); return }
+        const result = await createFreelancer({
+          name: form.name.trim(),
+          type: "other",
+          team: form.team,
+          phone: form.phone || undefined,
+          gender: form.gender || undefined,
+          position: form.position || undefined,
+          email: form.email || undefined,
+          date_of_birth: form.date_of_birth || null,
+          joined_at: form.joined_at || null,
+          rating: 0,
+        })
+        if (result.success) { router.refresh(); onClose() }
+        else setError(result.error ?? "Something went wrong")
+        return
+      }
+
       const salaryFields = {
         employment_type: form.employment_type,
         monthly_salary: form.employment_type === "regular" && form.monthly_salary ? parseFloat(form.monthly_salary) : null,
@@ -213,13 +296,13 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
       }
 
       if (isEdit) {
-        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, ...salaryFields, ...dateFields })
+        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, ...salaryFields, ...dateFields })
         if (result.success) { router.refresh(); onClose() }
         else setError(result.error ?? "Something went wrong")
       } else {
         const isAdminCreate = form.role === "ADMIN" || form.role === "FOUNDER" || form.role === "CEO" || form.role === "FREELANCER_MGR"
         const nameForCreate = form.name.trim() || (isAdminCreate ? form.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) : "")
-        const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, ...salaryFields, ...dateFields })
+        const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, ...salaryFields, ...dateFields })
         if (result.success) {
           if (form.phone && result.whatsappSent === false && !result.whatsappSkipped) {
             setWhatsappWarning(result.whatsappError ?? "Member created, but WhatsApp notification failed. Check the phone number or Meta template status.")
@@ -237,9 +320,10 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
 
   if (!open) return null
 
-  const selectedType = ACCOUNT_TYPES.find(t => t.role === form.role)!
+  const selectedType = ACCOUNT_TYPES.find(t => t.role === form.role) ?? ACCOUNT_TYPES[0]
   const isFreelancerMgr = form.role === "FREELANCER_MGR"
   const isAdmin = form.role === "ADMIN" || form.role === "FOUNDER" || form.role === "CEO"
+  const isNoLoginTeam = !isEdit && NO_LOGIN_TEAMS.has(form.team)
 
   return (
     <>
@@ -285,13 +369,8 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
                 return (
                   <button key={type.role} type="button"
                     onClick={() => {
-                      if (type.role === "FREELANCER") {
-                        onClose()
-                        onSelectFreelancer?.()
-                      } else {
-                        setForm(p => ({ ...p, role: type.role as "ADMIN" | "MEMBER" | "FREELANCER_MGR" }))
-                        setStep("details")
-                      }
+                      setForm(p => ({ ...p, role: type.role as "ADMIN" | "MEMBER" | "FREELANCER_MGR" }))
+                      setStep("details")
                     }}
                     className="w-full flex items-center gap-4 rounded-2xl transition-all text-left"
                     style={{ padding: "18px 20px", background: type.bg, border: `1.5px solid ${type.border}` }}
@@ -382,11 +461,101 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
               ) : (
                 /* Member / Admin edit — full fields */
                 <>
+                  {/* Employment Type toggle — Full Time / Part Time */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Employment Type *</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { value: "regular",    label: "Full Time" },
+                        { value: "freelancer", label: "Part Time" },
+                      ] as const).map(({ value, label }) => (
+                        <button key={value} type="button"
+                          onClick={() => setForm(prev => ({ ...prev, employment_type: value, team: "", monthly_salary: "", hourly_rate: "", paid_leave_days: value === "regular" ? "5" : "0" }))}
+                          className="py-2.5 rounded-xl text-[13px] font-semibold transition-all"
+                          style={form.employment_type === value
+                            ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
+                            : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Team — filtered by employment type */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Team *</label>
+                    <div className="relative">
+                      <select className="sheet-input" value={form.team}
+                        onChange={e => {
+                          const t = e.target.value
+                          const autoLayout: "media" | "non_media" | "freelance_media" =
+                            t === "Media Production Team" || t === "Media Team" ? "media"
+                            : t === "Freelance Media Production" ? "freelance_media"
+                            : "non_media"
+                          setForm(prev => ({ ...prev, team: t, work_layout: autoLayout }))
+                        }}
+                        style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}>
+                        <option value="">Select a team…</option>
+                        {form.employment_type === "regular" ? (
+                          FULL_TIME_TEAMS.map(t => <option key={t} value={t}>{t}</option>)
+                        ) : (
+                          <>
+                            <optgroup label="── Login (has app access)">
+                              {(["Freelance Media Production"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                            </optgroup>
+                            <optgroup label="── No Login (manager enters work)">
+                              {(["Freelance Video Editing","Freelance Videography","Freelance RJ Voiceover","Freelance Graphics Designer","Freelance Content Writer","Freelance Development & Automation","Freelance Marketing & Operations","Freelance IT Technology & Media"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                            </optgroup>
+                          </>
+                        )}
+                      </select>
+                      <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#6B7280" }} />
+                    </div>
+                    {isNoLoginTeam && (
+                      <p className="text-[11px] mt-1.5 font-semibold" style={{ color: "#F97316" }}>
+                        No-login — only name &amp; phone needed.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Work Layout — shown for members with login */}
+                  {!isNoLoginTeam && form.team && (() => {
+                    const isFreelanceTeam = form.team === "Freelance Media Production"
+                    const layoutOptions = isFreelanceTeam
+                      ? [{ value: "freelance_media" as const, label: "FREELANCE MEDIA" }]
+                      : [
+                          { value: "media"    as const, label: "MEDIA" },
+                          { value: "non_media" as const, label: "NON MEDIA" },
+                        ]
+                    return (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Layout *</label>
+                      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${layoutOptions.length}, 1fr)` }}>
+                        {layoutOptions.map(({ value, label }) => (
+                          <button key={value} type="button"
+                            onClick={() => setForm(prev => ({ ...prev, work_layout: value }))}
+                            style={{
+                              padding: "10px 8px", borderRadius: 10, fontSize: 12, fontWeight: 800,
+                              border: "1.5px solid", cursor: "pointer", transition: "all 0.15s", textAlign: "center",
+                              background: form.work_layout === value ? "rgba(222,26,26,0.08)" : "rgba(0,0,0,0.03)",
+                              borderColor: form.work_layout === value ? "#DE1A1A" : "#E5E7EB",
+                              color: form.work_layout === value ? "#DE1A1A" : "#6B7280",
+                            }}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    )
+                  })()}
+
+                  {/* Full Name — always shown */}
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Full Name *</label>
                     <input className="sheet-input" value={form.name} onChange={set("name")} placeholder="e.g. Priya Sharma" style={FIELD} />
                   </div>
 
+                  {/* Gender — always shown */}
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Gender *</label>
                     <div style={{ display: "flex", gap: 10 }}>
@@ -403,7 +572,21 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
                     </div>
                   </div>
 
-                  {!isEdit && (
+                  {/* Phone — always shown */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>WhatsApp Number</label>
+                    <input className="sheet-input" value={form.phone} onChange={set("phone")} placeholder="e.g. 919876543210" style={FIELD} />
+                    {!isNoLoginTeam && <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Credentials will be sent here after account creation.</p>}
+                  </div>
+
+                  {/* Position — shown for all (full time + login + no-login) */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Position / Designation</label>
+                    <input className="sheet-input" value={form.position} onChange={set("position")} placeholder="e.g. Voice Artist, Video Editor…" style={FIELD} />
+                  </div>
+
+                  {/* Employee ID — full time + login freelancers only */}
+                  {!isNoLoginTeam && !isEdit && (
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
                         Employee ID * <span style={{ color: "#22C55E", fontWeight: 700, textTransform: "none", letterSpacing: 0 }}>· Auto-generated</span>
@@ -413,55 +596,16 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
                     </div>
                   )}
 
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Email Address *</label>
-                    <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com" style={FIELD} />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>WhatsApp Number</label>
-                    <input className="sheet-input" value={form.phone} onChange={set("phone")} placeholder="e.g. 919876543210" style={FIELD} />
-                    <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Credentials will be sent here after account creation.</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Team *</label>
-                    <div className="relative">
-                      <select className="sheet-input" value={form.team} onChange={set("team")} style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}>
-                        <option value="">Select a team…</option>
-                        {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                      <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#6B7280" }} />
+                  {/* Email — hidden for no-login teams */}
+                  {!isNoLoginTeam && (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Email Address *</label>
+                      <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com" style={FIELD} />
                     </div>
-                  </div>
+                  )}
 
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Position / Designation</label>
-                    <input className="sheet-input" value={form.position} onChange={set("position")} placeholder="e.g. Social Media Executive, Videographer…" style={FIELD} />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Employment Type *</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {([
-                        { value: "regular", label: "Regular" },
-                        { value: "part_time", label: "Part Time" },
-                        { value: "freelancer", label: "Freelancer" },
-                      ] as const).map(({ value, label }) => (
-                        <button key={value} type="button"
-                          onClick={() => setForm((prev) => ({ ...prev, employment_type: value, monthly_salary: "", hourly_rate: "", paid_leave_days: value === "regular" ? "5" : "0" }))}
-                          className="py-2.5 rounded-xl text-[13px] font-semibold transition-all"
-                          style={form.employment_type === value
-                            ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
-                            : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }
-                          }>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {form.employment_type === "regular" ? (
+                  {/* Salary fields — Full Time only */}
+                  {!isNoLoginTeam && form.employment_type === "regular" && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Monthly Salary (₹)</label>
@@ -476,27 +620,24 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
                           onChange={(e) => setForm((prev) => ({ ...prev, paid_leave_days: e.target.value }))} />
                       </div>
                     </div>
-                  ) : (
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Hourly Rate (₹)</label>
-                      <input type="number" min="0" step="10" className="sheet-input" style={FIELD}
-                        placeholder="e.g. 150" value={form.hourly_rate}
-                        onChange={(e) => setForm((prev) => ({ ...prev, hourly_rate: e.target.value }))} />
-                    </div>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Date of Birth</label>
-                      <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }} value={form.date_of_birth} onChange={set("date_of_birth")} />
-                    </div>
+                  {/* DOB — hidden for no-login teams; Work Start — always shown */}
+                  <div className={isNoLoginTeam ? "" : "grid grid-cols-1 md:grid-cols-2 gap-3"}>
+                    {!isNoLoginTeam && (
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Date of Birth</label>
+                        <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }} value={form.date_of_birth} onChange={set("date_of_birth")} />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Work Start Date</label>
                       <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }} value={form.joined_at} onChange={set("joined_at")} max={new Date().toISOString().split("T")[0]} />
                     </div>
                   </div>
 
-                  {!isEdit && (
+                  {/* Password — login accounts only */}
+                  {!isNoLoginTeam && !isEdit && (
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
                         {isAdmin ? "Password *" : "Temporary Password *"}
@@ -506,6 +647,39 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
                     </div>
                   )}
                 </>
+              )}
+
+              {/* Management Member toggle — shown for regular team members only */}
+              {!isNoLoginTeam && form.role === "MEMBER" && (
+                <div
+                  onClick={() => setForm(p => ({ ...p, is_management: !p.is_management }))}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "12px 14px", borderRadius: 12, cursor: "pointer",
+                    background: form.is_management ? "rgba(99,102,241,0.06)" : "rgba(0,0,0,0.02)",
+                    border: `1.5px solid ${form.is_management ? "rgba(99,102,241,0.3)" : "#E5E7EB"}`,
+                    transition: "all 0.15s",
+                  }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: form.is_management ? "#6366F1" : "#374151", margin: 0 }}>
+                      Management Member
+                    </p>
+                    <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>
+                      No attendance or daily update required
+                    </p>
+                  </div>
+                  <div style={{
+                    width: 36, height: 20, borderRadius: 10, position: "relative", flexShrink: 0,
+                    background: form.is_management ? "#6366F1" : "#D1D5DB",
+                    transition: "background 0.2s",
+                  }}>
+                    <div style={{
+                      position: "absolute", top: 2, left: form.is_management ? 18 : 2,
+                      width: 16, height: 16, borderRadius: "50%", background: "#FFFFFF",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 0.2s",
+                    }} />
+                  </div>
+                </div>
               )}
 
               {whatsappWarning && (
@@ -682,48 +856,53 @@ function AssignTaskModal({ member, onClose }: AssignTaskModalProps) {
 // ── Freelancer Quick-Create Sheet ─────────────────────────────────────────────
 
 const FL_TYPES = [
-  { key: "voice_over",    label: "Voice Artist",   color: "#8b5cf6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.3)", rateLabel: "Base Price / Min (₹)", ratePlaceholder: "e.g. 150" },
-  { key: "video_editor",  label: "Video Editor",   color: "#0ea5e9", bg: "rgba(14,165,233,0.08)",  border: "rgba(14,165,233,0.3)",  rateLabel: "Base Pay / Video (₹)", ratePlaceholder: "e.g. 2000" },
-  { key: "video_shooter", label: "Video Shooter",  color: "#10b981", bg: "rgba(16,185,129,0.08)",  border: "rgba(16,185,129,0.3)",  rateLabel: "Base Pay / Hour (₹)",  ratePlaceholder: "e.g. 800" },
-  { key: "other",         label: "Other Service",  color: "#f97316", bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.3)",  rateLabel: "Base Pay (₹)",         ratePlaceholder: "e.g. 5000" },
+  { key: "rj_voiceover",      label: "RJ Voiceover",    emoji: "🎙️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.3)" },
+  { key: "video_editor",      label: "Video Editor",    emoji: "🎬", color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",  border: "rgba(14,165,233,0.3)" },
+  { key: "video_shooter",     label: "Video Shooter",   emoji: "📹", color: "#10B981", bg: "rgba(16,185,129,0.08)",  border: "rgba(16,185,129,0.3)" },
+  { key: "graphics_designer", label: "Graphics Design", emoji: "🎨", color: "#F97316", bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.3)" },
+  { key: "content_writer",    label: "Content Writer",  emoji: "✍️", color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  border: "rgba(20,184,166,0.3)" },
+  { key: "dev_automation",    label: "Dev & Automation",emoji: "💻", color: "#6366F1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.3)" },
+  { key: "nkts_reels",        label: "NKTS Reels",      emoji: "🎞️", color: "#EF4444", bg: "rgba(239,68,68,0.08)",   border: "rgba(239,68,68,0.3)" },
+  { key: "voiceover_poster",  label: "VO & Poster",     emoji: "🖼️", color: "#F59E0B", bg: "rgba(245,158,11,0.08)",  border: "rgba(245,158,11,0.3)" },
+  { key: "marketing_ops",     label: "Marketing & Ops", emoji: "📊", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  border: "rgba(236,72,153,0.3)" },
+]
+
+// No-login freelancers — keys match NO_LOGIN_TEAMS and FREELANCER_TEAMS exactly
+const NO_LOGIN_FL_TYPES = [
+  { key: "Freelance Video Editing",            label: "Video Editing",   emoji: "🎬", color: "#6366F1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.3)" },
+  { key: "Freelance Videography",              label: "Videography",     emoji: "📹", color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",   border: "rgba(14,165,233,0.3)" },
+  { key: "Freelance RJ Voiceover",             label: "RJ Voiceover",    emoji: "🎙️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.3)" },
+  { key: "Freelance Graphics Designer",        label: "Graphics Design", emoji: "🎨", color: "#F97316", bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.3)" },
+  { key: "Freelance Content Writer",           label: "Content Writer",  emoji: "✍️", color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  border: "rgba(20,184,166,0.3)" },
+  { key: "Freelance Development & Automation", label: "Dev & Auto",      emoji: "💻", color: "#6366F1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.3)" },
+  { key: "Freelance Marketing & Operations",   label: "Marketing & Ops", emoji: "📊", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  border: "rgba(236,72,153,0.3)" },
+  { key: "Freelance IT Technology & Media",    label: "IT & Media",      emoji: "🖥️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  border: "rgba(139,92,246,0.3)" },
 ]
 
 function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
   const [step, setStep] = useState<"type" | "details">("type")
   const [type, setType] = useState("")
   const [name, setName] = useState("")
-  const [title, setTitle] = useState("")
   const [phone, setPhone] = useState("")
-  const [upi, setUpi] = useState("")
-  const [rate, setRate] = useState("")
   const [gender, setGender] = useState("")
-  const [voiceTone, setVoiceTone] = useState("")
-  const [availability, setAvailability] = useState("")
-  const [rating, setRating] = useState(0)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
   const [success, setSuccess] = useState(false)
 
   function reset() {
-    setStep("type"); setType(""); setName(""); setTitle(""); setPhone(""); setUpi(""); setRate(""); setGender(""); setVoiceTone(""); setAvailability(""); setRating(0); setSaving(false); setErr(""); setSuccess(false)
+    setStep("type"); setType(""); setName(""); setPhone(""); setGender(""); setSaving(false); setErr(""); setSuccess(false)
   }
   function close() { reset(); onClose() }
 
-  const cfg = FL_TYPES.find(t => t.key === type)
+  const cfg = NO_LOGIN_FL_TYPES.find(t => t.key === type)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) { setErr("Name is required"); return }
     setSaving(true); setErr("")
-    const rateNum = rate ? parseFloat(rate) : null
     const res = await createFreelancer({
-      name: name.trim(), type: type as "voice_over" | "video_editor" | "video_shooter" | "other",
-      phone: phone || undefined, upi_id: upi || undefined, gender: gender || undefined,
-      title: title || undefined, voice_type: voiceTone || undefined,
-      availability_notes: availability || undefined, rating,
-      cost_per_minute:  type === "voice_over"    ? rateNum : null,
-      cost_per_video:   type === "video_editor" || type === "other" ? rateNum : null,
-      cost_per_hour:    type === "video_shooter"  ? rateNum : null,
+      name: name.trim(), type: "other", team: type,
+      phone: phone || undefined, gender: gender || undefined,
     })
     if (!res.success) { setErr(res.error ?? "Failed to create"); setSaving(false); return }
     setSuccess(true); setSaving(false)
@@ -739,8 +918,8 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h2 className="text-[16px] font-bold text-gray-900">Add Freelancer</h2>
-            {cfg && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block" style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>}
+            <h2 className="text-[16px] font-bold text-gray-900">Add No-Login Freelancer</h2>
+            {cfg && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block" style={{ background: cfg.bg, color: cfg.color }}>{cfg.emoji} {cfg.label}</span>}
           </div>
           <button onClick={close} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
             <X size={16} />
@@ -754,32 +933,22 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
                 <CheckCircle2 size={32} style={{ color: "#10b981" }} />
               </div>
               <p className="text-[16px] font-bold text-gray-900">Freelancer Added!</p>
-              <p className="text-[13px] text-gray-500">{name} has been added successfully.</p>
-              <div className="flex gap-3 mt-2">
-                <button onClick={reset}
-                  className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white"
-                  style={{ background: "#F97316" }}>
-                  Add Another
-                </button>
-                <Link href="/admin/freelancers" onClick={close}
-                  className="px-4 py-2.5 rounded-xl text-[13px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
-                  View All
-                </Link>
-              </div>
+              <p className="text-[13px] text-gray-500">{name} has been added. Manager can now enter their work.</p>
+              <button onClick={reset} className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white" style={{ background: "#F97316" }}>
+                Add Another
+              </button>
             </div>
           ) : step === "type" ? (
             <div className="flex flex-col gap-4">
               <p className="text-[13px] text-gray-500">Select freelancer type to continue</p>
               <div className="grid grid-cols-2 gap-3">
-                {FL_TYPES.map(t => (
+                {NO_LOGIN_FL_TYPES.map(t => (
                   <button key={t.key} type="button"
                     onClick={() => { setType(t.key); setStep("details") }}
                     className="flex flex-col items-center gap-3 p-5 rounded-2xl text-center transition-all hover:scale-[1.02] active:scale-[0.98]"
                     style={{ border: `2px solid ${t.border}`, background: t.bg }}>
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.color }}>
-                      <Clapperboard size={20} strokeWidth={2} style={{ color: "#fff" }} />
-                    </div>
-                    <span className="text-[13px] font-bold text-gray-800 leading-tight">{t.label}</span>
+                    <span style={{ fontSize: 28 }}>{t.emoji}</span>
+                    <span className="text-[12px] font-bold text-gray-800 leading-tight">{t.label}</span>
                   </button>
                 ))}
               </div>
@@ -797,11 +966,6 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Title</label>
-                <input className={FIELD_CLS} placeholder="e.g. Voice Artist, Narrator" value={title} onChange={e => setTitle(e.target.value)} />
-              </div>
-
-              <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Gender</label>
                 <div className="flex gap-2">
                   {["male","female"].map(g => (
@@ -815,52 +979,10 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
                 </div>
               </div>
 
-              {type === "voice_over" && (
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Voice Tone</label>
-                  <select className={SELECT_CLS} value={voiceTone} onChange={e => setVoiceTone(e.target.value)}>
-                    <option value="">Select voice tone</option>
-                    {FL_VOICE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Phone</label>
-                  <input className={FIELD_CLS} inputMode="numeric" placeholder="9876543210" value={phone}
-                    onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 15))} />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">UPI ID</label>
-                  <input className={FIELD_CLS} placeholder="name@upi" value={upi} onChange={e => setUpi(e.target.value)} />
-                </div>
-              </div>
-
-              {cfg && (
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">{cfg.rateLabel}</label>
-                  <input className={FIELD_CLS} type="number" min="0" step="0.5" placeholder={cfg.ratePlaceholder} value={rate} onChange={e => setRate(e.target.value)} />
-                </div>
-              )}
-
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Free Time / Availability</label>
-                <input className={FIELD_CLS} placeholder="e.g. Weekdays 10am–6pm" value={availability} onChange={e => setAvailability(e.target.value)} />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Rating</label>
-                <div className="flex gap-1">
-                  {[1,2,3,4,5].map(n => (
-                    <button key={n} type="button" onClick={() => setRating(rating === n ? 0 : n)}
-                      className="p-1 transition-all">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill={n <= rating ? "#f59e0b" : "none"} stroke={n <= rating ? "#f59e0b" : "#d1d5db"} strokeWidth="1.5">
-                        <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-                      </svg>
-                    </button>
-                  ))}
-                </div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Phone</label>
+                <input className={FIELD_CLS} inputMode="numeric" placeholder="9876543210" value={phone}
+                  onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 15))} />
               </div>
 
               {err && (
@@ -880,6 +1002,127 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
             </button>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Freelancer Edit Sheet ────────────────────────────────────────────────────
+
+function FreelancerEditSheet({ freelancer, open, onClose, onSaved }: {
+  freelancer: FreelancerBasic | null; open: boolean
+  onClose: () => void; onSaved: (updated: FreelancerBasic) => void
+}) {
+  const [team, setTeam] = useState(freelancer?.team ?? "")
+  const [name, setName] = useState(freelancer?.name ?? "")
+  const [phone, setPhone] = useState(freelancer?.phone ?? "")
+  const [gender, setGender] = useState(freelancer?.gender ?? "")
+  const [status, setStatus] = useState<"active" | "inactive">(freelancer?.status ?? "active")
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState("")
+
+  useEffect(() => {
+    if (freelancer) {
+      setTeam(freelancer.team ?? ""); setName(freelancer.name); setPhone(freelancer.phone ?? "")
+      setGender(freelancer.gender ?? ""); setStatus(freelancer.status); setErr("")
+    }
+  }, [freelancer])
+
+  if (!open || !freelancer) return null
+  const cfg = NO_LOGIN_FL_TYPES.find(t => t.key === team)
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim()) { setErr("Name is required"); return }
+    if (!team) { setErr("Team is required"); return }
+    setSaving(true); setErr("")
+    const res = await updateFreelancer(freelancer!.id, {
+      name: name.trim(), type: "other", team, phone: phone || undefined,
+      gender: gender || undefined, status,
+    })
+    if (!res.success) { setErr(res.error ?? "Failed to save"); setSaving(false); return }
+    onSaved({ ...freelancer!, name: name.trim(), team, phone: phone || null, gender: gender || null, status })
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative ml-auto h-full w-full max-w-[420px] bg-white shadow-2xl flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-[16px] font-bold text-gray-900">Edit Freelancer</h2>
+            {cfg && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block" style={{ background: cfg.bg, color: cfg.color }}>{cfg.emoji} {cfg.label}</span>}
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+            <X size={16} />
+          </button>
+        </div>
+        <form id="fl-edit-form" onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+          {/* Team picker */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Team *</label>
+            <div className="grid grid-cols-3 gap-2">
+              {NO_LOGIN_FL_TYPES.map(t => (
+                <button key={t.key} type="button" onClick={() => setTeam(t.key)}
+                  className="flex flex-col items-center gap-1.5 p-3 rounded-xl text-center transition-all"
+                  style={team === t.key ? { background: t.color, border: `2px solid ${t.color}` } : { background: t.bg, border: `2px solid ${t.border}` }}>
+                  <span style={{ fontSize: 20 }}>{t.emoji}</span>
+                  <span className="text-[10px] font-bold leading-tight" style={{ color: team === t.key ? "#fff" : "#374151" }}>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Name */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Full Name *</label>
+            <input className={FIELD_CLS} placeholder="e.g. Ravi Kumar" value={name} onChange={e => setName(e.target.value)} />
+          </div>
+          {/* Gender */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Gender</label>
+            <div className="flex gap-2">
+              {["male", "female"].map(g => (
+                <button key={g} type="button" onClick={() => setGender(gender === g ? "" : g)}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold capitalize transition-all"
+                  style={gender === g ? { background: "#F97316", color: "#fff", border: "2px solid #F97316" } : { background: "#F9FAFB", color: "#6B7280", border: "2px solid #E5E7EB" }}>
+                  {g === "male" ? "Male" : "Female"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Phone */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Phone</label>
+            <input className={FIELD_CLS} inputMode="numeric" placeholder="9876543210" value={phone}
+              onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 15))} />
+          </div>
+          {/* Status */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Status</label>
+            <div className="flex gap-2">
+              {(["active", "inactive"] as const).map(s => (
+                <button key={s} type="button" onClick={() => setStatus(s)}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold capitalize transition-all"
+                  style={status === s
+                    ? { background: s === "active" ? "#16A34A" : "#6B7280", color: "#fff", border: `2px solid ${s === "active" ? "#16A34A" : "#6B7280"}` }
+                    : { background: "#F9FAFB", color: "#6B7280", border: "2px solid #E5E7EB" }}>
+                  {s === "active" ? "Active" : "Inactive"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {err && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-xl">{err}</p>}
+        </form>
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all">Cancel</button>
+          <button type="submit" form="fl-edit-form" disabled={saving}
+            className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all"
+            style={{ background: saving ? "#fdba74" : "#F97316" }}>
+            {saving ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -1077,20 +1320,23 @@ function AssignManagerSheet({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function TeamClient({ members, pastMembers, freelancers: initFreelancers = [], initialSearch = "", assignedManagerIds = [] }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; initialSearch?: string; assignedManagerIds?: string[] }) {
+export default function TeamClient({ members, pastMembers, freelancers: initFreelancers = [], pastFreelancers: initPastFreelancers = [], initialSearch = "", assignedManagerIds = [] }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; pastFreelancers?: FreelancerBasic[]; initialSearch?: string; assignedManagerIds?: string[] }) {
   const router = useRouter()
   const nextId = useMemo(() => computeNextEmployeeId(members), [members])
   const [search, setSearch] = useState(initialSearch)
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
   const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER" | "FREELANCER">("ALL")
   const [freelancers, setFreelancers] = useState(initFreelancers)
-  const [flTypeFilter, setFlTypeFilter] = useState<"all" | "voice_over" | "video_editor" | "video_shooter" | "other">("all")
-  const [flSheetOpen, setFlSheetOpen] = useState(false)
+  const [pastFreelancers, setPastFreelancers] = useState(initPastFreelancers)
+  const [showPastFreelancers, setShowPastFreelancers] = useState(false)
+  const [flTypeFilter, setFlTypeFilter] = useState<string>("all")
+  const [editingFreelancer, setEditingFreelancer] = useState<FreelancerBasic | null>(null)
   const [assignSheetOpen, setAssignSheetOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [dropdownAnchor, setDropdownAnchor] = useState<{ top: number; right: number } | null>(null)
   const [showPast, setShowPast] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Member | null>(null)
   const [deleteError, setDeleteError] = useState("")
@@ -1103,10 +1349,13 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
   const [resendWAResult, setResendWAResult] = useState<{ id: string; ok: boolean; msg: string } | null>(null)
   const [isPending, startTransition] = useTransition()
 
+  const loginFreelancerMembers = useMemo(() => members.filter(m => m.is_freelancer_login === true), [members])
+  const regularMembers = useMemo(() => members.filter(m => !m.is_freelancer_login), [members])
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     const idNum = (id: string) => { const m = id.match(/\d+/); return m ? parseInt(m[0]) : 99999 }
-    return members.filter((m) => {
+    return regularMembers.filter((m) => {
       const matchSearch = !q || m.name.toLowerCase().includes(q) || m.employee_id.toLowerCase().includes(q) || (m.team ?? "").toLowerCase().includes(q)
       const matchStatus = tabFilter === "ALL" || m.status === tabFilter
       const matchRole = roleFilter === "ALL"
@@ -1114,27 +1363,16 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
         || (roleFilter === "MEMBER" && m.role === "MEMBER")
       return matchSearch && matchStatus && matchRole
     }).sort((a, b) => idNum(a.employee_id) - idNum(b.employee_id))
-  }, [search, tabFilter, roleFilter, members])
+  }, [search, tabFilter, roleFilter, regularMembers])
 
   const stats = {
-    total: members.length,
-    admins: members.filter((m) => ["ADMIN","FOUNDER","CEO"].includes(m.role)).length,
-    teamMembers: members.filter((m) => m.role === "MEMBER").length,
-    freelancers: freelancers.length,
+    total: regularMembers.length,
+    admins: regularMembers.filter((m) => ["ADMIN","FOUNDER","CEO"].includes(m.role)).length,
+    teamMembers: regularMembers.filter((m) => m.role === "MEMBER").length,
+    freelancers: freelancers.length + loginFreelancerMembers.length,
   }
 
-  const filteredFreelancers = useMemo(() =>
-    flTypeFilter === "all" ? freelancers : freelancers.filter(f => f.type === flTypeFilter),
-    [freelancers, flTypeFilter]
-  )
-
-  const flTypeCounts = useMemo(() => ({
-    all: freelancers.length,
-    voice_over: freelancers.filter(f => f.type === "voice_over").length,
-    video_editor: freelancers.filter(f => f.type === "video_editor").length,
-    video_shooter: freelancers.filter(f => f.type === "video_shooter").length,
-    other: freelancers.filter(f => f.type === "other").length,
-  }), [freelancers])
+  const filteredFreelancers = freelancers
 
   async function handleDeleteFreelancer(id: string, name: string) {
     if (!confirm(`Delete freelancer "${name}"? This cannot be undone.`)) return
@@ -1142,6 +1380,23 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
     if (res.success) {
       setFreelancers(prev => prev.filter(f => f.id !== id))
       startTransition(() => router.refresh())
+    }
+  }
+
+  async function handleDeactivateFreelancer(f: FreelancerBasic) {
+    if (!confirm(`Move "${f.name}" to Past Freelancers? All their data stays safe. You can reactivate anytime.`)) return
+    const res = await toggleFreelancerStatus(f.id, 'inactive')
+    if (res.success) {
+      setFreelancers(prev => prev.filter(x => x.id !== f.id))
+      setPastFreelancers(prev => [{ ...f, status: 'inactive' }, ...prev])
+    }
+  }
+
+  async function handleReactivateFreelancer(f: FreelancerBasic) {
+    const res = await toggleFreelancerStatus(f.id, 'active')
+    if (res.success) {
+      setPastFreelancers(prev => prev.filter(x => x.id !== f.id))
+      setFreelancers(prev => [...prev, { ...f, status: 'active' }])
     }
   }
 
@@ -1165,6 +1420,11 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
     setOpenDropdown(null)
     const newStatus = member.status === "active" ? "inactive" : "active"
     startTransition(async () => { await toggleMemberStatus(member.id, newStatus) })
+  }
+
+  function handleToggleSupportHandler(member: Member) {
+    setOpenDropdown(null)
+    startTransition(async () => { await setSupportHandler(member.id, !member.is_support_handler) })
   }
 
   function handleDeleteConfirm() {
@@ -1309,7 +1569,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
               <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
                 <div>
                   <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Freelancers</h3>
-                  <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{filteredFreelancers.length} of {freelancers.length} freelancer{freelancers.length !== 1 ? "s" : ""}</p>
+                  <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{freelancers.length + loginFreelancerMembers.length} freelancer{freelancers.length + loginFreelancerMembers.length !== 1 ? "s" : ""}</p>
                 </div>
                 <button
                   onClick={() => setAssignSheetOpen(true)}
@@ -1318,56 +1578,152 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                   <UserCheck size={13} /> Assign Manager
                 </button>
               </div>
-              {/* Type filter tabs */}
-              <div className="flex items-center gap-1 px-5 py-3 overflow-x-auto" style={{ borderBottom: "1px solid #F3F4F6" }}>
-                {([
-                  { key: "all",          label: `All (${flTypeCounts.all})` },
-                  { key: "voice_over",   label: `Voice Over (${flTypeCounts.voice_over})` },
-                  { key: "video_editor", label: `Video Editor (${flTypeCounts.video_editor})` },
-                  { key: "video_shooter",label: `Video Shooter (${flTypeCounts.video_shooter})` },
-                  { key: "other",        label: `Other (${flTypeCounts.other})` },
-                ] as const).map(({ key, label }) => (
-                  <button key={key} onClick={() => setFlTypeFilter(key)}
-                    className="whitespace-nowrap px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all flex-shrink-0"
-                    style={flTypeFilter === key
-                      ? { background: "#F97316", color: "#fff" }
-                      : { background: "#F3F4F6", color: "#6B7280" }
-                    }>
-                    {label}
-                  </button>
-                ))}
-              </div>
+              {/* Login Freelancer Members (e.g. ARUN) */}
+              {loginFreelancerMembers.length > 0 && (
+                <div style={{ borderBottom: "1px solid #F3F4F6" }}>
+                  <div className="px-5 py-2.5" style={{ background: "#FFFBF5" }}>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: "#F97316" }}>Login Members</p>
+                  </div>
+                  <div style={{ overflowX: "auto" }}>
+                  <table className="w-full" style={{ minWidth: 560 }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid #F9FAFB", background: "#FAFAFA" }}>
+                        {["Member", "Team", "Phone", "Status", "Actions"].map(h => (
+                          <th key={h} className="text-left px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#9CA3AF" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loginFreelancerMembers.map((m, i) => {
+                        const initials = m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
+                        return (
+                          <tr key={m.id} style={{ borderBottom: i < loginFreelancerMembers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-3">
+                                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(249,115,22,0.1)", border: "1.5px solid rgba(249,115,22,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: "#F97316" }}>{initials}</span>
+                                </div>
+                                <div>
+                                  <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{m.name}</p>
+                                  <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{m.employee_id}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3 text-[12px]" style={{ color: "#6B7280", whiteSpace: "nowrap" }}>{m.team ?? "—"}</td>
+                            <td className="px-5 py-3 text-[13px]" style={{ color: "#374151" }}>{m.phone ?? "—"}</td>
+                            <td className="px-5 py-3">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                                style={m.status === "active" ? { background: "rgba(34,197,94,0.1)", color: "#16A34A" } : { background: "rgba(107,114,128,0.1)", color: "#6B7280" }}>
+                                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: m.status === "active" ? "#16A34A" : "#9CA3AF" }} />
+                                {m.status === "active" ? "Active" : "Inactive"}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-1.5 relative">
+                                <button
+                                  onClick={() => { setEditMember(m); setSheetOpen(true) }}
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+                                  style={{ color: "#9CA3AF" }}
+                                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F3F4F6"}
+                                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                  <Pencil size={12} />
+                                </button>
+                                <button onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); if (openDropdown === m.id) { setOpenDropdown(null); setDropdownAnchor(null) } else { setOpenDropdown(m.id); setDropdownAnchor({ top: r.bottom + 4, right: window.innerWidth - r.right }) } }}
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+                                  style={{ color: "#9CA3AF" }}
+                                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F3F4F6"}
+                                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                  <MoreVertical size={12} />
+                                </button>
+                                {openDropdown === m.id && dropdownAnchor && (
+                                  <div className="w-44 rounded-xl shadow-2xl overflow-hidden py-1"
+                                    style={{ position: "fixed", top: dropdownAnchor.top, right: dropdownAnchor.right, background: "#FFFFFF", border: "1px solid #E5E7EB", zIndex: 9999 }}>
+                                    {m.status === "active" && (
+                                      <>
+                                        <button onClick={() => { setOpenDropdown(null); startImpersonation(m.id) }}
+                                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                          style={{ color: "#6366F1" }}
+                                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"}
+                                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                          <LogIn size={12} /> Login as {m.name.split(" ")[0]}
+                                        </button>
+                                        <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
+                                      </>
+                                    )}
+                                    <button onClick={() => { handleToggleStatus(m); setOpenDropdown(null) }} disabled={isPending}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
+                                      style={{ color: m.status === "active" ? "#F59E0B" : "#22C55E" }}
+                                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F9FAFB"}
+                                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                      {m.status === "active" ? <><Ban size={12} /> Deactivate</> : <><RotateCcw size={12} /> Reactivate</>}
+                                    </button>
+                                    <button onClick={() => { setResetTarget(m); setResetPassword(""); setResetError(""); setResetSuccess(false); setOpenDropdown(null) }}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
+                                      style={{ color: "#6366F1" }}
+                                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F9FAFB"}
+                                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                      <KeyRound size={12} /> Reset Password
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-header for no-login freelancers */}
+              {loginFreelancerMembers.length > 0 && freelancers.length > 0 && (
+                <div className="px-5 py-2.5" style={{ background: "#FAFAFA", borderBottom: "1px solid #F3F4F6" }}>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: "#9CA3AF" }}>No-Login Freelancers</p>
+                </div>
+              )}
+
               <div style={{ overflowX: "auto" }}>
                 <table className="w-full" style={{ minWidth: 560 }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
-                      {["Name", "Type", "Phone", "Rate", "Status", "Actions"].map(h => (
+                      {["Freelancer", "Team", "Phone", "Status", "Added", "Actions"].map(h => (
                         <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#9CA3AF" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredFreelancers.length === 0 ? (
+                    {freelancers.length === 0 ? (
                       <tr><td colSpan={6} className="px-5 py-10 text-center text-[13px]" style={{ color: "#9CA3AF" }}>
-                        {freelancers.length === 0 ? "No freelancers added yet" : "No freelancers match this filter"}
+                        No freelancers added yet
                       </td></tr>
-                    ) : filteredFreelancers.map((f, i) => {
-                      const typeCfg = FL_TYPE_CFG[f.type] ?? { label: f.type, color: "#6B7280", bg: "rgba(107,114,128,0.08)" }
-                      const rate = f.cost_per_minute ? `₹${f.cost_per_minute}/min`
-                        : f.cost_per_video ? `₹${f.cost_per_video}/video`
-                        : f.cost_per_hour ? `₹${f.cost_per_hour}/hr`
+                    ) : freelancers.map((f, i) => {
+                      const teamKey = getFreelancerTeamKey(f)
+                      const teamCfg = FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
+                      const added = f.created_at
+                        ? new Date(f.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
                         : "—"
+                      const initials = f.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
                       return (
-                        <tr key={f.id} style={{ borderBottom: i < filteredFreelancers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
+                        <tr key={f.id} style={{ borderBottom: i < freelancers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
                           <td className="px-5 py-3.5">
-                            <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{f.name}</p>
-                            {f.gender && <p className="text-[11px] capitalize" style={{ color: "#9CA3AF" }}>{f.gender}</p>}
+                            <div className="flex items-center gap-3">
+                              <div style={{ width: 34, height: 34, borderRadius: 10, background: teamCfg.bg, border: `1.5px solid ${teamCfg.color}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <span style={{ fontSize: 11, fontWeight: 800, color: teamCfg.color }}>{initials}</span>
+                              </div>
+                              <div>
+                                <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{f.name}</p>
+                                {f.gender && <p className="text-[11px] capitalize" style={{ color: "#9CA3AF" }}>{f.gender}</p>}
+                              </div>
+                            </div>
                           </td>
-                          <td className="px-5 py-3.5">
-                            <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold" style={{ background: typeCfg.bg, color: typeCfg.color }}>{typeCfg.label}</span>
+                          <td className="px-5 py-3.5" style={{ whiteSpace: "nowrap" }}>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold" style={{ background: teamCfg.bg, color: teamCfg.color }}>
+                              {teamCfg.emoji} {teamCfg.label}
+                            </span>
                           </td>
                           <td className="px-5 py-3.5 text-[13px]" style={{ color: "#374151" }}>{f.phone ?? "—"}</td>
-                          <td className="px-5 py-3.5 text-[13px] font-semibold" style={{ color: "#374151" }}>{rate}</td>
                           <td className="px-5 py-3.5">
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
                               style={f.status === "active" ? { background: "rgba(34,197,94,0.1)", color: "#16A34A" } : { background: "rgba(107,114,128,0.1)", color: "#6B7280" }}>
@@ -1375,15 +1731,25 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                               {f.status === "active" ? "Active" : "Inactive"}
                             </span>
                           </td>
+                          <td className="px-5 py-3.5 text-[12px]" style={{ color: "#9CA3AF" }}>{added}</td>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-2">
-                              <Link href={`/admin/freelancers/${f.id}`}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                                style={{ background: "rgba(249,115,22,0.08)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
-                                View <ArrowRight size={10} />
-                              </Link>
+                              <button
+                                onClick={() => setEditingFreelancer(f)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                                style={{ background: "rgba(99,102,241,0.07)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.2)" }}>
+                                <Pencil size={11} />
+                              </button>
+                              <button
+                                onClick={() => handleDeactivateFreelancer(f)}
+                                title="Deactivate"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                                style={{ background: "rgba(245,158,11,0.07)", color: "#D97706", border: "1px solid rgba(245,158,11,0.2)" }}>
+                                <Ban size={11} />
+                              </button>
                               <button
                                 onClick={() => handleDeleteFreelancer(f.id, f.name)}
+                                title="Delete permanently"
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
                                 style={{ background: "rgba(222,26,26,0.07)", color: "#DE1A1A", border: "1px solid rgba(222,26,26,0.18)" }}>
                                 <Trash2 size={11} />
@@ -1403,7 +1769,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
           <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
             <div>
               <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Employee Directory</h3>
-              <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{filtered.length} of {members.length} members</p>
+              <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{filtered.length} of {regularMembers.length} members</p>
             </div>
             <div className="flex items-center gap-2">
             {/* Tab filters */}
@@ -1539,15 +1905,6 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                             <Pencil size={11} /> Edit
                           </button>
 
-                          <button onClick={() => setAssignTarget(member)}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                            title="Assign Task"
-                            style={{ color: "#6366F1" }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.1)"}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
-                            <ClipboardList size={14} />
-                          </button>
-
                           <button onClick={() => { setConfirmDelete(member); setOpenDropdown(null) }}
                             className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
                             title="Delete member"
@@ -1557,7 +1914,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                             <Trash2 size={14} />
                           </button>
 
-                          <button onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
+                          <button onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); if (openDropdown === member.id) { setOpenDropdown(null); setDropdownAnchor(null) } else { setOpenDropdown(member.id); setDropdownAnchor({ top: r.bottom + 4, right: window.innerWidth - r.right }) } }}
                             className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
                             style={{ color: "#9CA3AF" }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F3F4F6"}
@@ -1565,9 +1922,9 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                             <MoreVertical size={14} />
                           </button>
 
-                          {openDropdown === member.id && (
-                            <div className="absolute right-0 top-9 w-44 rounded-xl shadow-2xl z-50 overflow-hidden py-1"
-                              style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+                          {openDropdown === member.id && dropdownAnchor && (
+                            <div className="w-44 rounded-xl shadow-2xl overflow-hidden py-1"
+                              style={{ position: "fixed", top: dropdownAnchor.top, right: dropdownAnchor.right, background: "#FFFFFF", border: "1px solid #E5E7EB", zIndex: 9999 }}>
                               {member.status === "active" && member.role === "MEMBER" && (
                                 <>
                                   <button
@@ -1578,6 +1935,31 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                                     <LogIn size={12} /> Login as {member.name.split(" ")[0]}
                                   </button>
+                                  <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
+                                </>
+                              )}
+                              {member.status === "active" && member.role !== "ADMIN" && (
+                                <>
+                                  <button onClick={() => handleToggleSupportHandler(member)} disabled={isPending}
+                                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                    style={{ color: member.is_support_handler ? "#DE1A1A" : "#0EA5E9" }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F9FAFB"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                    <LifeBuoy size={12} /> {member.is_support_handler ? "Remove support role" : "Make support handler"}
+                                  </button>
+                                  <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
+                                </>
+                              )}
+                              {member.drive_folder_id && (
+                                <>
+                                  <a href={`https://drive.google.com/drive/folders/${member.drive_folder_id}`} target="_blank" rel="noopener noreferrer"
+                                    onClick={() => setOpenDropdown(null)}
+                                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                    style={{ color: "#16A34A", textDecoration: "none", display: "flex" }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(22,163,74,0.06)"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                    <FolderOpen size={12} /> Open Drive Folder
+                                  </a>
                                   <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
                                 </>
                               )}
@@ -1743,7 +2125,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
               <table className="w-full">
                 <thead>
                   <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
-                    {["Employee", "ID", "Team", "Role", "Left On"].map((h) => (
+                    {["Employee", "ID", "Team", "Role", "Left On", ""].map((h) => (
                       <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]"
                         style={{ color: "#D1D5DB" }}>{h}</th>
                     ))}
@@ -1768,8 +2150,83 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                       <td className="px-5 py-3"><span className="text-[12px]" style={{ color: "#D1D5DB" }}>{m.team ?? "—"}</span></td>
                       <td className="px-5 py-3"><span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#F3F4F6", color: "#9CA3AF" }}>{m.role}</span></td>
                       <td className="px-5 py-3"><span className="text-[12px]" style={{ color: "#D1D5DB" }}>{m.deleted_at ? formatDate(m.deleted_at) : "—"}</span></td>
+                      <td className="px-5 py-3">
+                        <button onClick={() => handleToggleStatus(m)} disabled={isPending}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-50"
+                          style={{ background: "rgba(34,197,94,0.08)", color: "#16A34A", border: "1px solid rgba(34,197,94,0.2)" }}>
+                          <RotateCcw size={10} /> Reactivate
+                        </button>
+                      </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Past Freelancers ── */}
+      {pastFreelancers.length > 0 && (
+        <div>
+          <button onClick={() => setShowPastFreelancers(v => !v)}
+            className="flex items-center gap-2 text-[13px] font-semibold mb-3"
+            style={{ color: "#6B7280" }}>
+            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px]" style={{ background: "#F3F4F6" }}>
+              {showPastFreelancers ? "▲" : "▼"}
+            </span>
+            Past Freelancers
+            <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#F3F4F6", color: "#9CA3AF" }}>
+              {pastFreelancers.length}
+            </span>
+          </button>
+          {showPastFreelancers && (
+            <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
+              <table className="w-full">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
+                    {["Freelancer", "Team", "Phone", "Deactivated", ""].map(h => (
+                      <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#D1D5DB" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pastFreelancers.map((f, i) => {
+                    const teamKey = getFreelancerTeamKey(f)
+                    const teamCfg = FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6b7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
+                    const initials = f.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
+                    return (
+                      <tr key={f.id} style={{ borderBottom: i < pastFreelancers.length - 1 ? "1px solid #F9FAFB" : "none", opacity: 0.65 }}>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3">
+                            <div style={{ width: 32, height: 32, borderRadius: 9, background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <span style={{ fontSize: 11, fontWeight: 800, color: "#9CA3AF" }}>{initials}</span>
+                            </div>
+                            <div>
+                              <p className="text-[13px] font-semibold" style={{ color: "#6B7280" }}>{f.name}</p>
+                              {f.gender && <p className="text-[11px] capitalize" style={{ color: "#D1D5DB" }}>{f.gender}</p>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold" style={{ background: "#F3F4F6", color: "#9CA3AF" }}>
+                            {teamCfg.emoji} {teamCfg.label}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-[12px]" style={{ color: "#D1D5DB" }}>{f.phone ?? "—"}</td>
+                        <td className="px-5 py-3 text-[12px]" style={{ color: "#D1D5DB" }}>
+                          {f.created_at ? new Date(f.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                        </td>
+                        <td className="px-5 py-3">
+                          <button onClick={() => handleReactivateFreelancer(f)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                            style={{ background: "rgba(34,197,94,0.08)", color: "#16A34A", border: "1px solid rgba(34,197,94,0.2)" }}>
+                            <RotateCcw size={10} /> Reactivate
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1822,7 +2279,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
         </div>
       </div>
 
-      {openDropdown && <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />}
+      {openDropdown && <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenDropdown(null); setDropdownAnchor(null) }} />}
 
       {/* ── Delete confirmation modal ── */}
       {confirmDelete && (
@@ -1932,19 +2389,23 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
 
       {assignTarget && <AssignTaskModal member={assignTarget} onClose={() => setAssignTarget(null)} />}
 
-      <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} nextId={nextId} onSelectFreelancer={() => { setSheetOpen(false); setFlSheetOpen(true) }} />
-
-      <FreelancerQuickSheet
-        open={flSheetOpen}
-        onClose={() => setFlSheetOpen(false)}
-        onCreated={() => startTransition(() => router.refresh())}
-      />
+      <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} nextId={nextId} />
 
       <AssignManagerSheet
         open={assignSheetOpen}
         onClose={() => setAssignSheetOpen(false)}
         members={members}
         assignedManagerIds={assignedManagerIds}
+      />
+
+      <FreelancerEditSheet
+        freelancer={editingFreelancer}
+        open={editingFreelancer !== null}
+        onClose={() => setEditingFreelancer(null)}
+        onSaved={updated => {
+          setFreelancers(prev => prev.map(f => f.id === updated.id ? updated : f))
+          setEditingFreelancer(null)
+        }}
       />
     </div>
   )

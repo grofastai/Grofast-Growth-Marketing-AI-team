@@ -3,8 +3,8 @@
 import { useState, useEffect, useTransition, useCallback, Fragment } from "react"
 import Image from "next/image"
 import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch, RotateCcw } from "lucide-react"
-import { clockIn, clockOut, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes, markAbsent } from "@/lib/actions/attendance"
-import { submitLeaveRequest } from "@/lib/actions/leaves"
+import { clockIn, clockOut, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes } from "@/lib/actions/attendance"
+import { submitWfhAttendanceRequest } from "@/lib/actions/leaves"
 import { useRouter } from "next/navigation"
 
 const OFFICE_LAT     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LAT     ?? "12.415145713024462")
@@ -28,7 +28,7 @@ type RangeLog = { id: string; date: string; clock_in: string | null; clock_out: 
 type RangeMode = "date" | "last7" | "thisMonth" | "lastMonth"
 
 interface MonthlyPerf {
-  presentDays: number; absentDays: number; officeDays: number; wfhDays: number
+  presentDays: number; absentDays: number; officeDays: number; wfhDays: number; shootDays?: number
   leaveDays: number; pendingLeaves: number; totalHours: number; avgHours: number
   loginHours?: number; avgLoginHours?: number
 }
@@ -36,7 +36,13 @@ interface MonthlyPerf {
 interface Props {
   todayLog: AttLog | null; weekLogs: AttLog[]; todayUpdate: DailyUpdate | null; today: string; weekStart: string
   todayPermissionHours?: number; permHoursByDate?: Record<string, number>
+  weekUpdatesByDate?: Record<string, number>
   monthlyPerf?: MonthlyPerf
+  todayApprovedLeave?: { leave_type: string; reason: string | null } | null
+  todayWfhLeave?: { leave_type: string; status: string; created_at: string } | null
+  isMedia?: boolean
+  yesterdayStatus?: 'ok' | 'no_login' | 'no_logout'
+  yesterdayStr?: string
 }
 
 const SHIFT_HOURS = 8.5
@@ -61,7 +67,8 @@ function fmtDuration(s: number) {
   return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
 }
 function fmtHoursShort(h: number) {
-  const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60)
+  let hrs = Math.floor(h); let mins = Math.round((h - hrs) * 60)
+  if (mins === 60) { hrs += 1; mins = 0 }
   return mins === 0 ? `${hrs}h` : `${hrs}h ${mins}m`
 }
 function fmtTimeFromIso(iso: string | null) {
@@ -118,13 +125,21 @@ function SegmentBar({ hoursWorked }: { hoursWorked: number }) {
   )
 }
 
-export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, monthlyPerf }: Props) {
+export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf, todayApprovedLeave, todayWfhLeave, isMedia = false, yesterdayStatus = 'ok', yesterdayStr = '' }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">("office")
-  const [confirmAbsent, setConfirmAbsent] = useState(false)
+  const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">(
+    todayWfhLeave?.status === "approved" ? (todayWfhLeave.leave_type === "shoot_day" ? "shoot" : "wfh") : "office"
+  )
   const [error, setError] = useState<string | null>(null)
   const [geoLoading, setGeoLoading] = useState(false)
+  // Yesterday block state
+  const [yesLogoutTime, setYesLogoutTime] = useState("")
+  const [yesLogoutSaving, setYesLogoutSaving] = useState(false)
+  const [yesLogoutSaved, setYesLogoutSaved] = useState(false)
+  const [yesLogoutError, setYesLogoutError] = useState<string | null>(null)
+  // Clock-out 12h confirmation
+  const [showClockOutConfirm, setShowClockOutConfirm] = useState(false)
   const [historyDate, setHistoryDate] = useState("")
   const [historyLog, setHistoryLog] = useState<{
     clock_in: string | null; clock_out: string | null; work_type: string | null; status: string
@@ -136,19 +151,12 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [rangeMode, setRangeMode]       = useState<RangeMode>("date")
   const [rangeLogs, setRangeLogs]       = useState<RangeLog[] | null>(null)
   const [rangeLeaveDates, setRangeLeaveDates] = useState<string[]>([])
+  const [rangeHolidayDates, setRangeHolidayDates] = useState<{ date: string; name: string }[]>([])
   const [rangeLoading, setRangeLoading] = useState(false)
   const [customFrom, setCustomFrom]     = useState("")
   const [customTo, setCustomTo]         = useState("")
   const [rangeFrom, setRangeFrom]       = useState("")
   const [rangeTo, setRangeTo]           = useState("")
-  const [markingAbsent, setMarkingAbsent] = useState<string | null>(null)
-  // Absent reason states
-  const [absentReason, setAbsentReason]       = useState("")
-  const [absentSubmitting, setAbsentSubmitting] = useState(false)
-  const [absentDone, setAbsentDone]           = useState(false)
-  const [pastAbsentDialog, setPastAbsentDialog] = useState<string | null>(null)
-  const [pastAbsentReason, setPastAbsentReason] = useState("")
-  const [pastAbsentSubmitting, setPastAbsentSubmitting] = useState(false)
   // Login/logout edit
   const [editingDate, setEditingDate]   = useState<string | null>(null)
   const [editCIn, setEditCIn]           = useState("")
@@ -162,6 +170,28 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [weekOff, setWeekOff]           = useState(0)
   const [navLogs, setNavLogs]           = useState<AttLog[] | null>(null)
   const [navLoading, setNavLoading]     = useState(false)
+  // WFH / Shoot popup (same-day request from attendance page)
+  const [wfhPopup, setWfhPopup]         = useState<"wfh" | "shoot_day" | null>(null)
+  const [wfhReason, setWfhReason]       = useState("")
+  const [wfhSubmitting, setWfhSubmitting] = useState(false)
+  const [wfhPendingAt, setWfhPendingAt] = useState<string | null>(todayWfhLeave?.status === "pending" ? todayWfhLeave.created_at : null)
+
+  // True only when the WFH/Shoot request was submitted TODAY (attendance-page button flow).
+  // Pre-planned leaves (applied in advance via Leaves page) should not block manual clock-in.
+  const isSameDayWfhRequest = todayWfhLeave
+    ? new Date(todayWfhLeave.created_at).toLocaleString("en-CA", { timeZone: "Asia/Kolkata" }).split(",")[0] === today
+    : false
+
+  // Poll while same-day WFH is pending (15s) or approved-but-no-clock-in yet (3s race window)
+  useEffect(() => {
+    if (!isSameDayWfhRequest) return
+    const isPending = wfhPendingAt !== null || todayWfhLeave?.status === "pending"
+    const isApprovedTransition = todayWfhLeave?.status === "approved" && !todayLog?.clock_in
+    if (!isPending && !isApprovedTransition) return
+    const interval = isApprovedTransition ? 3000 : 15000
+    const id = setInterval(() => router.refresh(), interval)
+    return () => clearInterval(id)
+  }, [isSameDayWfhRequest, wfhPendingAt, todayWfhLeave?.status, todayLog?.clock_in, router])
 
   const handleLogIn = useCallback(() => {
     setError(null)
@@ -256,13 +286,13 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     setRangeLoading(true)
     setRangeFrom(from); setRangeTo(to)
     const res = await getAttendanceRange(from, to)
-    if (res.success) { setRangeLogs(res.logs); setRangeLeaveDates(res.leaveDates ?? []) }
+    if (res.success) { setRangeLogs(res.logs); setRangeLeaveDates(res.leaveDates ?? []); setRangeHolidayDates(res.holidayDates ?? []) }
     setRangeLoading(false)
   }
 
   async function handleRangeFilter(mode: RangeMode) {
     setRangeMode(mode); setHistoryDate(""); setHistoryLog(null)
-    if (mode === "date") { setRangeLogs(null); setRangeLeaveDates([]); setCustomFrom(""); setCustomTo(""); setRangeFrom(""); setRangeTo(""); return }
+    if (mode === "date") { setRangeLogs(null); setRangeLeaveDates([]); setRangeHolidayDates([]); setCustomFrom(""); setCustomTo(""); setRangeFrom(""); setRangeTo(""); return }
     setRangeLoading(true)
     const now = new Date(), todayStr = now.toISOString().split("T")[0]
     let start = "", end = todayStr
@@ -276,28 +306,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     }
     setRangeFrom(start); setRangeTo(end)
     const res = await getAttendanceRange(start, end)
-    if (res.success) { setRangeLogs(res.logs); setRangeLeaveDates(res.leaveDates ?? []) }
+    if (res.success) { setRangeLogs(res.logs); setRangeLeaveDates(res.leaveDates ?? []); setRangeHolidayDates(res.holidayDates ?? []) }
     setRangeLoading(false)
-  }
-
-  function handleMarkPastAbsent(date: string) {
-    setPastAbsentReason("")
-    setPastAbsentDialog(date)
-  }
-
-  async function submitPastAbsent() {
-    if (!pastAbsentDialog || !pastAbsentReason.trim()) return
-    setPastAbsentSubmitting(true)
-    const fd = new FormData()
-    fd.set("leave_type", "full_day")
-    fd.set("from_date", pastAbsentDialog)
-    fd.set("to_date", pastAbsentDialog)
-    fd.set("reason", pastAbsentReason.trim())
-    await submitLeaveRequest(null, fd)
-    setPastAbsentDialog(null)
-    setPastAbsentReason("")
-    setPastAbsentSubmitting(false)
-    router.refresh()
   }
 
   async function handleWeekNav(offset: number) {
@@ -337,6 +347,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const isIn      = !!todayLog?.clock_in && !todayLog?.clock_out && todayLog?.status === "present"
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
   const notLogged = !todayLog
+  // WFH approved but auto-clock-in not yet reflected — only for same-day requests (pre-planned leaves skip auto clock-in)
+  const isWfhApprovedNoClockIn = isSameDayWfhRequest && todayWfhLeave?.status === "approved" && !todayLog?.clock_in
   const breakTotalMins  = todayLog?.break_total_mins ?? 0
   const spanMinsToday   = (todayLog?.clock_in && todayLog?.clock_out)
     ? Math.floor((new Date(todayLog.clock_out).getTime() - new Date(todayLog.clock_in).getTime()) / 60000)
@@ -424,80 +436,184 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               {/* NOT LOGGED IN */}
               {notLogged && (
                 <div className="space-y-4">
-                  {absentDone ? (
-                    <div className="rounded-2xl p-4" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}>
-                      <p className="text-[14px] font-bold" style={{ color: "#059669" }}>Leave request submitted!</p>
-                      <p className="text-[12px] mt-1" style={{ color: "#6B7280" }}>Waiting for admin approval. It will appear in your Leaves page.</p>
+                  {/* ── Yesterday absent block (2A) ── */}
+                  {yesterdayStatus === 'no_login' && (
+                    <div className="rounded-2xl p-5 text-center" style={{ background: "rgba(239,68,68,0.06)", border: "1.5px solid rgba(239,68,68,0.25)" }}>
+                      <AlertTriangle size={28} style={{ color: "#DC2626", margin: "0 auto 8px" }} />
+                      <p className="text-[14px] font-black mb-1" style={{ color: "#DC2626" }}>Yesterday No Login Recorded</p>
+                      <p className="text-[12px]" style={{ color: "#6B7280" }}>
+                        You did not clock in on {new Date(yesterdayStr + "T12:00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })}.
+                        Please contact admin to mark your attendance before logging in today.
+                      </p>
                     </div>
-                  ) : !confirmAbsent ? (
-                    <>
-                      <div>
-                        <p className="text-[12px] font-semibold mb-2" style={{ color: "#9CA3AF" }}>Select Work Mode</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {(["office", "wfh", "shoot"] as const).map((mode) => {
-                            const Icon = mode === "wfh" ? Home : mode === "shoot" ? Camera : Building2
-                            const label = mode === "wfh" ? "Work From Home" : mode === "shoot" ? "Shoot" : "Office"
-                            const active = selectedMode === mode
-                            return (
-                              <button key={mode} onClick={() => setSelectedMode(mode)} disabled={isPending}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
-                                style={{ background: active ? "#de1a1a" : "#F9FAFB", color: active ? "#FFFFFF" : "#6B7280", border: active ? "none" : "1px solid #E5E7EB" }}>
-                                <Icon size={14} />{label}
-                              </button>
-                            )
-                          })}
-                        </div>
+                  )}
+                  {/* ── Yesterday no logout block (2B) ── */}
+                  {yesterdayStatus === 'no_logout' && !yesLogoutSaved && (
+                    <div className="rounded-2xl p-5 space-y-3" style={{ background: "rgba(245,158,11,0.06)", border: "1.5px solid rgba(245,158,11,0.3)" }}>
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle size={16} style={{ color: "#D97706" }} />
+                        <p className="text-[13px] font-black" style={{ color: "#D97706" }}>
+                          Yesterday Logout Missing — {new Date(yesterdayStr + "T12:00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })}
+                        </p>
                       </div>
+                      <p className="text-[12px]" style={{ color: "#6B7280" }}>You were logged in but never logged out. Enter your actual logout time to continue.</p>
                       <div className="flex items-center gap-3">
-                        <button onClick={handleLogIn} disabled={isPending || geoLoading}
-                          className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
-                          style={{ background: "#de1a1a", color: "#FFFFFF" }}>
-                          {geoLoading ? <><MapPin size={14} className="animate-pulse" />Verifying…</> : isPending ? <Loader2 size={14} className="animate-spin" /> : <><LogIn size={14} />Log In</>}
-                        </button>
-                        <button onClick={() => setConfirmAbsent(true)} disabled={isPending}
-                          className="text-[12px] font-medium underline underline-offset-2" style={{ color: "#EF4444" }}>
-                          Mark as Leave
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="rounded-2xl p-4" style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)" }}>
-                      <p className="text-[14px] font-bold mb-1" style={{ color: "#111111" }}>Apply for today&apos;s leave?</p>
-                      <p className="text-[12px] mb-3" style={{ color: "#6B7280" }}>Give a reason — admin will approve it.</p>
-                      <textarea
-                        value={absentReason}
-                        onChange={e => setAbsentReason(e.target.value)}
-                        placeholder="Reason for absence..."
-                        rows={2}
-                        className="w-full text-[13px] rounded-xl p-3 mb-3 resize-none outline-none"
-                        style={{ border: "1px solid #E5E7EB", color: "#111111", background: "#fff" }}
-                      />
-                      <div className="flex gap-3">
+                        <input
+                          type="time"
+                          value={yesLogoutTime}
+                          onChange={e => { setYesLogoutTime(e.target.value); setYesLogoutError(null) }}
+                          className="rounded-xl px-3 py-2 text-[13px] font-semibold outline-none"
+                          style={{ border: "1px solid #E5E7EB", background: "#fff", color: "#111" }}
+                        />
                         <button
-                          disabled={!absentReason.trim() || absentSubmitting}
+                          disabled={!yesLogoutTime || yesLogoutSaving}
                           onClick={async () => {
-                            setAbsentSubmitting(true)
-                            const fd = new FormData()
-                            fd.set("leave_type", "full_day")
-                            fd.set("from_date", today)
-                            fd.set("to_date", today)
-                            fd.set("reason", absentReason.trim())
-                            await submitLeaveRequest(null, fd)
-                            await markAbsent()
-                            setAbsentSubmitting(false)
-                            setAbsentReason("")
-                            setAbsentDone(true)
-                            router.refresh()
+                            if (!yesLogoutTime) return
+                            setYesLogoutSaving(true); setYesLogoutError(null)
+                            const res = await manualClockOut(yesterdayStr, yesLogoutTime)
+                            setYesLogoutSaving(false)
+                            if (!res.success) { setYesLogoutError(res.error ?? "Failed to save"); return }
+                            setYesLogoutSaved(true)
                           }}
-                          className="px-5 py-2 rounded-xl text-[13px] font-bold disabled:opacity-50"
-                          style={{ background: "#EF4444", color: "#FFFFFF" }}>
-                          {absentSubmitting ? <Loader2 size={13} className="animate-spin" /> : "Submit Leave Request"}
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold disabled:opacity-50"
+                          style={{ background: "#D97706", color: "#fff" }}>
+                          {yesLogoutSaving ? <Loader2 size={13} className="animate-spin" /> : "Save & Continue"}
                         </button>
-                        <button onClick={() => { setConfirmAbsent(false); setAbsentReason("") }}
-                          className="px-5 py-2 rounded-xl text-[13px] font-bold"
-                          style={{ background: "#F3F4F6", color: "#374151" }}>Cancel</button>
                       </div>
+                      {yesLogoutError && <p className="text-[12px]" style={{ color: "#EF4444" }}>{yesLogoutError}</p>}
                     </div>
+                  )}
+                  {yesterdayStatus === 'no_logout' && yesLogoutSaved && (
+                    <div className="rounded-xl p-3 flex items-center gap-2" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)" }}>
+                      <CheckCircle2 size={14} style={{ color: "#16A34A" }} />
+                      <p className="text-[12px] font-semibold" style={{ color: "#16A34A" }}>Yesterday logout saved. You can now clock in.</p>
+                    </div>
+                  )}
+                  {/* Block clock-in entirely if yesterday has no login (2A) */}
+                  {yesterdayStatus === 'no_login' ? null : todayApprovedLeave ? (
+                    <div className="rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(239,68,68,0.02) 100%)", border: "1.5px solid rgba(239,68,68,0.2)" }}>
+                      <div className="text-3xl mb-2">🏖️</div>
+                      <p className="text-[15px] font-black mb-2" style={{ color: "#DC2626" }}>
+                        {todayApprovedLeave.leave_type === "half_day" ? "Half Day Leave" : "Full Day Leave"} Approved
+                      </p>
+                      <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: "#9CA3AF" }}>NO LOGIN REQUIRED.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* WFH/Shoot pending or just-approved-setting-up — only for same-day requests */}
+                      {(() => {
+                        const isApprovedTransition = isWfhApprovedNoClockIn
+                        const showPendingBlock = isSameDayWfhRequest && (wfhPendingAt || todayWfhLeave?.status === "pending" || isApprovedTransition)
+                        if (!showPendingBlock) return null
+                        return (
+                          <div className="rounded-2xl p-4 space-y-2" style={{ background: isApprovedTransition ? "rgba(16,185,129,0.06)" : "rgba(99,102,241,0.06)", border: `1.5px solid ${isApprovedTransition ? "rgba(16,185,129,0.2)" : "rgba(99,102,241,0.2)"}` }}>
+                            <div className="flex items-center gap-2">
+                              {todayWfhLeave?.leave_type === "shoot_day" ? <Camera size={15} style={{ color: isApprovedTransition ? "#059669" : "#6366F1" }} /> : <Home size={15} style={{ color: isApprovedTransition ? "#059669" : "#6366F1" }} />}
+                              <p className="text-[13px] font-bold" style={{ color: isApprovedTransition ? "#059669" : "#6366F1" }}>
+                                {isApprovedTransition
+                                  ? `${todayWfhLeave?.leave_type === "shoot_day" ? "Shoot Day" : "WFH"} Approved — Logging you in...`
+                                  : `${todayWfhLeave?.leave_type === "shoot_day" ? "Shoot Day" : "WFH"} — Waiting for Approval`}
+                              </p>
+                            </div>
+                            {!isApprovedTransition && (
+                              <>
+                                <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
+                                  Applied at {fmtTimeFromIso(wfhPendingAt ?? todayWfhLeave?.created_at ?? null)}
+                                </p>
+                                <p className="text-[11px] font-semibold" style={{ color: "#6B7280" }}>Working for</p>
+                                <LiveTimer clockInIso={wfhPendingAt ?? todayWfhLeave!.created_at} pausedSeconds={0} breakTotalMins={0} />
+                                <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Clock-in will be set to your applied time once admin approves.</p>
+                                <a href="/member/leaves" className="inline-block text-[11px] font-semibold underline underline-offset-2" style={{ color: "#6366F1" }}>View in Leaves →</a>
+                              </>
+                            )}
+                            {isApprovedTransition && (
+                              <p className="text-[11px]" style={{ color: "#6B7280" }}>Setting up your session, please wait a moment...</p>
+                            )}
+                          </div>
+                        )
+                      })()}
+                      {!(isSameDayWfhRequest && (wfhPendingAt || todayWfhLeave?.status === "pending" || isWfhApprovedNoClockIn)) && (wfhPopup ? (
+                        /* WFH/Shoot reason popup */
+                        <div className="rounded-2xl p-4 space-y-3" style={{ background: "rgba(99,102,241,0.05)", border: "1.5px solid rgba(99,102,241,0.2)" }}>
+                          <div className="flex items-center gap-2">
+                            {wfhPopup === "shoot_day" ? <Camera size={15} style={{ color: "#6366F1" }} /> : <Home size={15} style={{ color: "#6366F1" }} />}
+                            <p className="text-[13px] font-bold" style={{ color: "#6366F1" }}>
+                              {wfhPopup === "shoot_day" ? "Request Shoot Day" : "Request Work From Home"}
+                            </p>
+                          </div>
+                          <textarea
+                            value={wfhReason}
+                            onChange={e => setWfhReason(e.target.value)}
+                            placeholder="Reason (optional)"
+                            rows={2}
+                            className="w-full text-[13px] rounded-xl p-3 resize-none outline-none"
+                            style={{ border: "1px solid #E5E7EB", color: "#111", background: "#fff" }}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              disabled={wfhSubmitting}
+                              onClick={async () => {
+                                setWfhSubmitting(true)
+                                const res = await submitWfhAttendanceRequest(wfhPopup, wfhReason.trim())
+                                setWfhSubmitting(false)
+                                if (!res.success) { setError(res.error ?? "Failed"); return }
+                                setWfhPendingAt(res.created_at ?? null)
+                                setWfhPopup(null)
+                                setWfhReason("")
+                                router.refresh()
+                              }}
+                              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold"
+                              style={{ background: "#6366F1", color: "#fff" }}>
+                              {wfhSubmitting ? <Loader2 size={13} className="animate-spin" /> : "Submit Request"}
+                            </button>
+                            <button onClick={() => { setWfhPopup(null); setWfhReason("") }}
+                              className="px-4 py-2.5 rounded-xl text-[13px] font-semibold"
+                              style={{ background: "#F3F4F6", color: "#6B7280" }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div>
+                            <p className="text-[12px] font-semibold mb-3" style={{ color: "#9CA3AF" }}>Select Work Mode</p>
+                            <div className="flex gap-2 flex-wrap">
+                              {(isMedia ? ["office", "wfh", "shoot"] as const : ["office", "wfh"] as const).map((mode) => {
+                                const Icon = mode === "wfh" ? Home : mode === "shoot" ? Camera : Building2
+                                const label = mode === "wfh" ? "Work From Home" : mode === "shoot" ? "Shoot" : "Office"
+                                const isWfhMode = mode === "wfh" || mode === "shoot"
+                                const wfhApproved = todayWfhLeave?.status === "approved"
+                                const wfhApprovedType = todayWfhLeave?.leave_type
+                                const active = selectedMode === mode
+                                const clickHandler = () => {
+                                  if (mode === "office") { setSelectedMode("office"); return }
+                                  // WFH/Shoot: if pre-approved for this type, just select it
+                                  if (isWfhMode && wfhApproved && ((mode === "wfh" && wfhApprovedType !== "shoot_day") || (mode === "shoot" && wfhApprovedType === "shoot_day"))) {
+                                    setSelectedMode(mode); return
+                                  }
+                                  // Otherwise open popup for same-day request
+                                  if (isWfhMode) setWfhPopup(mode === "shoot" ? "shoot_day" : "wfh")
+                                }
+                                return (
+                                  <button key={mode} onClick={clickHandler} disabled={isPending}
+                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
+                                    style={{ background: active ? "#de1a1a" : "#F9FAFB", color: active ? "#FFFFFF" : "#6B7280", border: active ? "none" : "1px solid #E5E7EB" }}>
+                                    <Icon size={14} />{label}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 mt-2">
+                            <button onClick={handleLogIn} disabled={isPending || geoLoading || (selectedMode !== "office" && todayWfhLeave?.status !== "approved") || (yesterdayStatus === 'no_logout' && !yesLogoutSaved)}
+                              className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
+                              style={{ background: "#de1a1a", color: "#FFFFFF" }}>
+                              {geoLoading ? <><MapPin size={14} className="animate-pulse" />Verifying…</> : isPending ? <Loader2 size={14} className="animate-spin" /> : <><LogIn size={14} />Log In</>}
+                            </button>
+                          </div>
+                        </>
+                      ))}
+                    </>
                   )}
                   {error && <p className="text-[12px] font-medium" style={{ color: "#EF4444" }}>{error}</p>}
                 </div>
@@ -537,12 +653,49 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                         −{todayPermissionHours}h permission deducted
                       </p>
                     )}
-                    <button onClick={() => handle(clockOut)} disabled={isPending}
+                    <button
+                      onClick={() => {
+                        if (todayLog?.clock_in && calcHours(todayLog.clock_in, null) > 12) {
+                          setShowClockOutConfirm(true)
+                        } else {
+                          handle(clockOut)
+                        }
+                      }}
+                      disabled={isPending}
                       className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
                       style={{ background: "#de1a1a", color: "#FFFFFF" }}>
                       {isPending ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
                       Log Out
                     </button>
+                    {/* 12h overtime confirmation modal */}
+                    {showClockOutConfirm && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.45)" }}>
+                        <div className="rounded-2xl p-6 max-w-[340px] w-full mx-4 space-y-4" style={{ background: "#fff", boxShadow: "0 8px 48px rgba(0,0,0,0.18)" }}>
+                          <div className="flex items-center gap-3">
+                            <AlertTriangle size={22} style={{ color: "#D97706", flexShrink: 0 }} />
+                            <p className="text-[15px] font-black" style={{ color: "#111" }}>Login Hours Exceed 12h</p>
+                          </div>
+                          <p className="text-[13px]" style={{ color: "#6B7280" }}>
+                            Your login span is over 12 hours. Are you still working, or is your login time wrong?
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { setShowClockOutConfirm(false); handle(clockOut) }}
+                              disabled={isPending}
+                              className="flex-1 py-2.5 rounded-xl text-[13px] font-bold"
+                              style={{ background: "#de1a1a", color: "#fff" }}>
+                              Yes, Log Out Now
+                            </button>
+                            <button
+                              onClick={() => setShowClockOutConfirm(false)}
+                              className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
+                              style={{ background: "#F3F4F6", color: "#6B7280" }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
                   </div>
                   {/* Large alarm clock illustration */}
@@ -608,23 +761,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
             </div>{/* inner timer card */}
 
-            {/* Monthly Total Hrs + Monthly Avg Hrs — below day status card */}
-            {monthlyPerf && (
-              <div className="flex gap-3 mt-4">
-                <div className="flex-1 rounded-2xl px-4 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Monthly Login Hrs</p>
-                  <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-                    {(monthlyPerf.loginHours ?? 0) > 0 ? fmtHoursShort(monthlyPerf.loginHours ?? 0) : "0h"}
-                  </p>
-                </div>
-                <div className="flex-1 rounded-2xl px-4 py-3" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Avg Login Hrs</p>
-                  <p className="text-[22px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                    {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgLoginHours ?? 0) : "0h"}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>{/* px-5 pb-5 */}
         </div>{/* outer card */}
 
@@ -653,39 +789,41 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               ))}
               {/* Time breakdown */}
               {todayLog?.clock_in && (() => {
-                const spanH      = calcHours(todayLog.clock_in, todayLog.clock_out)
+                const spanH      = Math.max(0, calcHours(todayLog.clock_in, todayLog.clock_out))
                 const totalBreakMins = breakTotalMins
                 const breakH     = totalBreakMins / 60
                 return (
                   <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12, marginTop: 4 }}>
                     {/* Visual equation: span − break = worked */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", alignItems: "center", gap: 4, marginBottom: 10 }}>
-                      {/* Span */}
-                      <div style={{ textAlign: "center", background: "rgba(99,102,241,0.07)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(99,102,241,0.15)" }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px" }}>Logged</p>
-                        <p style={{ fontSize: 15, fontWeight: 900, color: "#6366F1", margin: 0, fontFamily: "var(--font-jakarta)" }}>{fmtHoursShort(spanH)}</p>
-                      </div>
-                      <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>−</span>
-                      {/* Break */}
-                      <div style={{ textAlign: "center", background: "rgba(245,158,11,0.06)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(245,158,11,0.15)" }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: "#D97706", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px" }}>Break</p>
-                        <p style={{ fontSize: 15, fontWeight: 900, color: "#D97706", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-                          {totalBreakMins > 0 ? fmtHoursShort(breakH) : "0h"}
-                        </p>
-                      </div>
-                      <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>=</span>
-                      {/* Worked */}
-                      <div style={{ textAlign: "center", background: "rgba(34,197,94,0.08)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(34,197,94,0.2)" }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px" }}>Worked</p>
-                        <p style={{ fontSize: 15, fontWeight: 900, color: "#16A34A", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-                          {hoursWorked > 0 ? fmtHoursShort(hoursWorked) : "—"}
-                        </p>
+                    <div style={{ overflowX: "auto" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", alignItems: "center", gap: 4, marginBottom: 10, minWidth: 260 }}>
+                        {/* Span */}
+                        <div style={{ textAlign: "center", background: "rgba(99,102,241,0.07)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(99,102,241,0.15)" }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px", whiteSpace: "nowrap" }}>Logged</p>
+                          <p style={{ fontSize: 15, fontWeight: 900, color: "#6366F1", margin: 0, fontFamily: "var(--font-jakarta)" }}>{fmtHoursShort(spanH)}</p>
+                        </div>
+                        <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>−</span>
+                        {/* Break */}
+                        <div style={{ textAlign: "center", background: "rgba(245,158,11,0.06)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(245,158,11,0.15)" }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: "#D97706", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px", whiteSpace: "nowrap" }}>Break</p>
+                          <p style={{ fontSize: 15, fontWeight: 900, color: "#D97706", margin: 0, fontFamily: "var(--font-jakarta)" }}>
+                            {totalBreakMins > 0 ? fmtHoursShort(breakH) : "0h"}
+                          </p>
+                        </div>
+                        <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>=</span>
+                        {/* Worked */}
+                        <div style={{ textAlign: "center", background: "rgba(34,197,94,0.08)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(34,197,94,0.2)" }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px", whiteSpace: "nowrap" }}>Worked</p>
+                          <p style={{ fontSize: 15, fontWeight: 900, color: "#16A34A", margin: 0, fontFamily: "var(--font-jakarta)" }}>
+                            {hoursWorked > 0 ? fmtHoursShort(hoursWorked) : "—"}
+                          </p>
+                        </div>
                       </div>
                     </div>
                     {/* Target bar */}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 11, color: "#9CA3AF" }}>Target: {fmtHoursShort(SHIFT_HOURS)} shift</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: hoursWorked >= SHIFT_HOURS ? "#16A34A" : "#de1a1a" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "nowrap", gap: 4 }}>
+                      <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap" }}>Target: {fmtHoursShort(SHIFT_HOURS)}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: hoursWorked >= SHIFT_HOURS ? "#16A34A" : "#de1a1a", whiteSpace: "nowrap" }}>
                         {hoursWorked >= SHIFT_HOURS ? "Target reached ✓" : `${fmtHoursShort(Math.max(0, SHIFT_HOURS - hoursWorked))} remaining`}
                       </span>
                     </div>
@@ -739,11 +877,16 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 const isToday    = date === today
                 const present    = log?.status === "present"
                 const absent     = log?.status === "leave" || log?.status === "absent"
-                // Net hours = (clock_out - clock_in) minus breaks and permission deductions
+                // Prefer daily_updates.working_hours (accurate entry-based calc) for past days;
+                // fall back to clock_in/clock_out span minus breaks for today or when no update
+                const navWorkedH = weekOff !== 0 ? (log as unknown as { worked_hours?: number })?.worked_hours : undefined
+                const updateH = !isToday ? (navWorkedH ?? weekUpdatesByDate[date]) : undefined
                 const rawH = log?.clock_in
                   ? (log.clock_out ? calcHours(log.clock_in, log.clock_out) : (isToday ? calcHours(log.clock_in, null) : 0))
                   : 0
-                const h = Math.max(0, rawH - (log?.break_total_mins ?? 0) / 60 - (permHoursByDate[date] ?? 0))
+                const h = (updateH != null && updateH > 0)
+                  ? updateH
+                  : Math.max(0, rawH - (log?.break_total_mins ?? 0) / 60 - (permHoursByDate[date] ?? 0))
 
                 let dot = "#D1D5DB"; let label = "No record"; let color = "#9CA3AF"
                 if (isFuture)    { dot = "#E5E7EB"; label = "—"; color = "rgba(0,0,0,0.1)" }
@@ -806,7 +949,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { label: "Office",  value: monthlyPerf?.officeDays   ?? 0, color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
-                      { label: "WFH",     value: monthlyPerf?.wfhDays      ?? 0, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+                      { label: isMedia ? "Shoot" : "WFH", value: isMedia ? (monthlyPerf?.shootDays ?? 0) : (monthlyPerf?.wfhDays ?? 0), color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
                       { label: "Leave",   value: (monthlyPerf?.absentDays ?? 0) + (monthlyPerf?.leaveDays ?? 0), color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
                     ].map(stat => (
                       <div key={stat.label} className="rounded-2xl p-3 text-center" style={{ background: stat.bg }}>
@@ -823,85 +966,99 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
           </div>
 
-          {/* Work Hours Summary — separate card */}
-          {monthlyPerf && (
-            <div className="rounded-3xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
-                  <Clock size={16} style={{ color: "#6366F1" }} />
-                </div>
-                <div>
-                  <h3 className="text-[15px] font-bold leading-none" style={{ color: "#111111" }}>Work Hours Summary</h3>
-                  <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>{new Date().toLocaleString("en-US", { month: "long", year: "numeric" })}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)" }}>
-                  <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
-                    {monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
-                  </p>
-                  <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#6366F1" }}>Total</p>
-                </div>
-                <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.15)" }}>
-                  <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
-                  <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#D97706" }}>Daily Target</p>
-                </div>
-              </div>
-              <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                  {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgHours) : "0h"}
-                </p>
-                <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#16A34A" }}>Avg / Day</p>
-              </div>
-            </div>
-          )}
-
         </div>{/* end third col */}
 
       </div>
 
-      {/* ── Daily Insight + Summary ── */}
-      <div className="rounded-3xl p-5 relative overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-        {/* Target illustration */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 w-24 h-24 opacity-90 pointer-events-none">
-          <Image src="/brand/tasks-complete.png" alt="" fill style={{ objectFit: "contain" }} />
+      {/* ── Daily Insight — 2 separate boxes in one line ── */}
+      <div className="rounded-3xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
+            <TrendingUp size={16} style={{ color: "#6366F1" }} />
+          </div>
+          <div>
+            <p className="text-[14px] font-bold" style={{ color: "#111111" }}>Daily Insight</p>
+            <p className="text-[12px]" style={{ color: "#9CA3AF" }}>
+              {hoursWorked >= SHIFT_HOURS ? "Great work! Target reached 🔥" : hoursWorked > 0 ? "Keep going! You're doing great." : "Log in to start your day."}
+            </p>
+          </div>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center gap-6 pr-28">
-          {/* Daily Insight label */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
-              <TrendingUp size={16} style={{ color: "#6366F1" }} />
-            </div>
-            <div>
-              <p className="text-[14px] font-bold" style={{ color: "#111111" }}>Daily Insight</p>
-              <p className="text-[12px]" style={{ color: "#9CA3AF" }}>
-                {hoursWorked >= SHIFT_HOURS ? "Great work! Target reached 🔥" : hoursWorked > 0 ? "Keep going! You're doing great." : "Log in to start your day."}
-              </p>
-            </div>
-          </div>
+        {/* Two boxes side by side */}
+        <div className="flex flex-col md:flex-row gap-3">
 
-          {/* Stats */}
-          <div className="flex gap-4 flex-wrap">
-            <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#6366F1" }}>Login Hrs</p>
-              <p className="text-[22px] font-black leading-none" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
-                {todayLog?.clock_in ? fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out)) : "0h"}
-              </p>
-            </div>
-            <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Target</p>
-              <p className="text-[22px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>
-                9h 30m
-              </p>
-            </div>
-            <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Remaining</p>
-              <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-                {todayLog?.clock_in ? fmtHoursShort(Math.max(0, 9.5 - calcHours(todayLog.clock_in, todayLog.clock_out))) : "9h 30m"}
-              </p>
-            </div>
-          </div>
+          {/* LOGIN box */}
+          {(() => {
+            const loginHrs = todayLog?.clock_in ? calcHours(todayLog.clock_in, todayLog.clock_out) : 0
+            const loginAchieved = loginHrs >= 9.5
+            return (
+              <div className="flex-1 rounded-2xl p-4" style={{
+                background: loginAchieved ? "rgba(22,163,74,0.05)" : "rgba(99,102,241,0.04)",
+                border: `1.5px solid ${loginAchieved ? "rgba(22,163,74,0.3)" : "rgba(99,102,241,0.15)"}`,
+              }}>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: loginAchieved ? "#16A34A" : "#6366F1" }}>Login</p>
+                  {loginAchieved && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A" }}>✓ Achieved</span>}
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: "rgba(99,102,241,0.08)", minWidth: 0 }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1 whitespace-nowrap" style={{ color: "#6366F1" }}>Login Hrs</p>
+                    <p className="text-[16px] font-black leading-none" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
+                      {loginHrs > 0 ? fmtHoursShort(loginHrs) : "0h"}
+                    </p>
+                  </div>
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: "rgba(245,158,11,0.08)", minWidth: 0 }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1 whitespace-nowrap" style={{ color: "#D97706" }}>Target</p>
+                    <p className="text-[16px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>9h 30m</p>
+                  </div>
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: loginAchieved ? "rgba(22,163,74,0.08)" : "rgba(222,26,26,0.06)", minWidth: 0 }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1 whitespace-nowrap" style={{ color: loginAchieved ? "#16A34A" : "#de1a1a" }}>Remaining</p>
+                    <p className="text-[16px] font-black leading-none" style={{ color: loginAchieved ? "#16A34A" : "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+                      {loginAchieved ? "0h" : loginHrs > 0 ? fmtHoursShort(Math.max(0, 9.5 - loginHrs)) : "9h 30m"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* WORKING box */}
+          {(() => {
+            const todayWorkHrs = todayUpdate?.working_hours ?? 0
+            const workAchieved = todayWorkHrs >= 8.5
+            return (
+              <div className="flex-1 rounded-2xl p-4" style={{
+                background: workAchieved ? "rgba(22,163,74,0.05)" : "rgba(99,102,241,0.04)",
+                border: `1.5px solid ${workAchieved ? "rgba(22,163,74,0.3)" : "rgba(99,102,241,0.15)"}`,
+              }}>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: workAchieved ? "#16A34A" : "#6366F1" }}>Working</p>
+                  {workAchieved && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A" }}>✓ Achieved</span>}
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: "rgba(34,197,94,0.08)", minWidth: 0 }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1 whitespace-nowrap" style={{ color: "#16A34A" }}>Working Hrs</p>
+                    <p className="text-[16px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
+                      {todayWorkHrs > 0 ? fmtHoursShort(todayWorkHrs) : "0h"}
+                    </p>
+                  </div>
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: "rgba(245,158,11,0.08)", minWidth: 0 }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1 whitespace-nowrap" style={{ color: "#D97706" }}>Target</p>
+                    <p className="text-[16px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
+                  </div>
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: workAchieved ? "rgba(22,163,74,0.08)" : "rgba(222,26,26,0.06)", minWidth: 0 }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1 whitespace-nowrap" style={{ color: workAchieved ? "#16A34A" : "#de1a1a" }}>Remaining</p>
+                    <p className="text-[16px] font-black leading-none" style={{ color: workAchieved ? "#16A34A" : "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+                      {workAchieved ? "0h" : todayWorkHrs > 0 ? fmtHoursShort(Math.max(0, 8.5 - todayWorkHrs)) : "8h 30m"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
         </div>
       </div>
 
@@ -918,7 +1075,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         </div>
 
         {/* Quick filter pills */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 mb-4">
           {([
             { mode: "date" as RangeMode,      label: "📅 Custom Range" },
             { mode: "last7" as RangeMode,     label: "Last 7 Days" },
@@ -992,27 +1149,24 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"})
                               // Gap row — no attendance record exists
                               if (!l) {
-                                const isLeaveDay = rangeLeaveDates.includes(date)
+                                const isLeaveDay   = rangeLeaveDates.includes(date)
+                                const holidayInfo  = rangeHolidayDates.find(h => h.date === date)
+                                const isHoliday    = !!holidayInfo
                                 return (
-                                  <tr key={date} style={{ borderBottom:"1px solid #F5F6FA", background: isLeaveDay ? "rgba(239,68,68,0.02)" : undefined }}>
+                                  <tr key={date} style={{ borderBottom:"1px solid #F5F6FA", background: isLeaveDay ? "rgba(239,68,68,0.02)" : isHoliday ? "rgba(99,102,241,0.02)" : undefined }}>
                                     <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111", whiteSpace:"nowrap" }}>{dateLabel}</td>
                                     <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
                                     <td style={{ padding:"9px 10px" }}>
                                       {isLeaveDay
                                         ? <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(239,68,68,0.1)", color:"#EF4444" }}>On Leave</span>
+                                        : isHoliday
+                                        ? <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>Holiday</span>
                                         : <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(0,0,0,0.04)", color:"#9CA3AF" }}>No Record</span>
                                       }
                                     </td>
-                                    <td colSpan={3} style={{ padding:"9px 10px", color:"#D1D5DB" }}>—</td>
+                                    <td colSpan={3} style={{ padding:"9px 10px", color: isHoliday ? "#6366F1" : "#D1D5DB", fontSize: isHoliday ? 11 : undefined, fontWeight: isHoliday ? 600 : undefined }}>{isHoliday ? holidayInfo!.name : "—"}</td>
                                     <td style={{ padding:"9px 10px" }} />
-                                    <td style={{ padding:"9px 10px" }}>
-                                      {date < today && !isLeaveDay && (
-                                        <button onClick={() => handleMarkPastAbsent(date)} disabled={markingAbsent === date}
-                                          style={{ fontSize:10, fontWeight:700, padding:"3px 10px", borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", color:"#EF4444", cursor:"pointer", opacity: markingAbsent === date ? 0.6 : 1 }}>
-                                          {markingAbsent === date ? "..." : "Mark Absent"}
-                                        </button>
-                                      )}
-                                    </td>
+                                    <td style={{ padding:"9px 10px" }} />
                                   </tr>
                                 )
                               }
@@ -1025,7 +1179,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                                     <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
                                     <td style={{ padding:"9px 10px" }}>
                                       <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background: l.status==="present" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: l.status==="present" ? "#16A34A" : "#EF4444" }}>
-                                        {l.status === "present" ? "Present" : "Absent"}
+                                        {l.status === "present" ? "Present" : "On Leave"}
                                       </span>
                                     </td>
                                     <td style={{ padding:"9px 10px", color:"#6B7280", textTransform:"capitalize" }}>{l.work_type ?? "—"}</td>
@@ -1106,27 +1260,24 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                         const dayLabel  = new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"})
                         const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"})
                         if (!l) {
-                          const isLeaveDay = rangeLeaveDates.includes(date)
+                          const isLeaveDay  = rangeLeaveDates.includes(date)
+                          const holidayInfo = rangeHolidayDates.find(h => h.date === date)
+                          const isHoliday   = !!holidayInfo
                           return (
-                          <tr key={date} style={{ borderBottom:"1px solid #F5F6FA", background: isLeaveDay ? "rgba(239,68,68,0.02)" : undefined }}>
+                          <tr key={date} style={{ borderBottom:"1px solid #F5F6FA", background: isLeaveDay ? "rgba(239,68,68,0.02)" : isHoliday ? "rgba(99,102,241,0.02)" : undefined }}>
                             <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111", whiteSpace:"nowrap" }}>{dateLabel}</td>
                             <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
                             <td style={{ padding:"9px 10px" }}>
                               {isLeaveDay
                                 ? <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(239,68,68,0.1)", color:"#EF4444" }}>On Leave</span>
+                                : isHoliday
+                                ? <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>Holiday</span>
                                 : <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(0,0,0,0.04)", color:"#9CA3AF" }}>No Record</span>
                               }
                             </td>
-                            <td colSpan={5} style={{ padding:"9px 10px", color:"#D1D5DB" }}>—</td>
+                            <td colSpan={5} style={{ padding:"9px 10px", color: isHoliday ? "#6366F1" : "#D1D5DB", fontSize: isHoliday ? 11 : undefined, fontWeight: isHoliday ? 600 : undefined }}>{isHoliday ? holidayInfo!.name : "—"}</td>
                             <td style={{ padding:"9px 10px" }} />
-                            <td style={{ padding:"9px 10px" }}>
-                              {date < today && !isLeaveDay && (
-                                <button onClick={() => handleMarkPastAbsent(date)} disabled={markingAbsent === date}
-                                  style={{ fontSize:10, fontWeight:700, padding:"3px 10px", borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", color:"#EF4444", cursor:"pointer", opacity: markingAbsent === date ? 0.6 : 1 }}>
-                                  {markingAbsent === date ? "..." : "Mark Absent"}
-                                </button>
-                              )}
-                            </td>
+                            <td style={{ padding:"9px 10px" }} />
                           </tr>
                         )}
                         const isToday   = l.date === today
@@ -1149,7 +1300,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
                               <td style={{ padding:"9px 10px" }}>
                                 <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background: l.status==="present" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: l.status==="present" ? "#16A34A" : "#EF4444" }}>
-                                  {l.status === "present" ? "Present" : "Absent"}
+                                  {l.status === "present" ? "Present" : "On Leave"}
                                 </span>
                               </td>
                               <td style={{ padding:"9px 10px", color:"#6B7280", textTransform:"capitalize" }}>{l.work_type ?? "—"}</td>
@@ -1208,35 +1359,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
     </div>
 
-    {/* Past-date absent reason modal */}
-    {pastAbsentDialog && (
-      <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-        <div style={{ background:"#fff", borderRadius:20, padding:24, width:"100%", maxWidth:380, boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
-          <p style={{ fontSize:15, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>Apply Leave for {new Date(pastAbsentDialog + "T12:00:00").toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" })}</p>
-          <p style={{ fontSize:12, color:"#6B7280", margin:"0 0 14px" }}>Give a reason — admin will approve it.</p>
-          <textarea
-            value={pastAbsentReason}
-            onChange={e => setPastAbsentReason(e.target.value)}
-            placeholder="Reason for absence..."
-            rows={3}
-            style={{ width:"100%", fontSize:13, border:"1px solid #E5E7EB", borderRadius:12, padding:"10px 12px", outline:"none", resize:"none", boxSizing:"border-box", color:"#111111" }}
-          />
-          <div style={{ display:"flex", gap:10, marginTop:14 }}>
-            <button
-              disabled={!pastAbsentReason.trim() || pastAbsentSubmitting}
-              onClick={submitPastAbsent}
-              style={{ flex:1, padding:"10px 0", borderRadius:12, background:"#EF4444", color:"#fff", fontSize:13, fontWeight:700, border:"none", cursor:"pointer", opacity: (!pastAbsentReason.trim() || pastAbsentSubmitting) ? 0.5 : 1 }}>
-              {pastAbsentSubmitting ? "Submitting…" : "Submit Leave Request"}
-            </button>
-            <button
-              onClick={() => { setPastAbsentDialog(null); setPastAbsentReason("") }}
-              style={{ padding:"10px 16px", borderRadius:12, background:"#F3F4F6", color:"#374151", fontSize:13, fontWeight:700, border:"none", cursor:"pointer" }}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
     </>
   )
 }

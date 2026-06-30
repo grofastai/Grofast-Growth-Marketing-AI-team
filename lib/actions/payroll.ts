@@ -120,6 +120,56 @@ export async function runPayroll(month: string, userIds: string[], netPayMap: Re
   revalidatePath("/admin/payroll")
 }
 
+// Snapshot current salaries for a month — only inserts, never overwrites existing records
+export async function snapshotSalariesForMonth(month: string) {
+  const { companyId } = await getAdminContext()
+  const admin = adminSupabase()
+
+  // Get all full-time active members with a salary set
+  const { data: members } = await admin
+    .from("users")
+    .select("id, monthly_salary, employment_type")
+    .eq("company_id", companyId)
+    .eq("employment_type", "regular")
+    .eq("status", "active")
+    .not("monthly_salary", "is", null)
+
+  if (!members || members.length === 0) return { success: true }
+
+  // Only insert — ON CONFLICT DO NOTHING ensures existing records are never overwritten
+  const rows = members
+    .filter(m => m.monthly_salary && m.monthly_salary > 0)
+    .map(m => ({
+      company_id: companyId,
+      user_id: m.id,
+      month,
+      amount: m.monthly_salary as number,
+    }))
+
+  if (rows.length === 0) return { success: true }
+
+  const { error } = await admin
+    .from("monthly_salary_records")
+    .upsert(rows, { onConflict: "user_id,month", ignoreDuplicates: true })
+
+  if (error) return { success: false, error: error.message }
+  return { success: true }
+}
+
+// Get salary for a specific user+month — from snapshot if exists, else current salary
+export async function getSalaryForMonth(userId: string, month: string, fallbackSalary: number | null): Promise<number | null> {
+  const admin = adminSupabase()
+  const { data } = await admin
+    .from("monthly_salary_records")
+    .select("amount")
+    .eq("user_id", userId)
+    .eq("month", month)
+    .single()
+
+  if (data?.amount != null) return data.amount
+  return fallbackSalary
+}
+
 export async function saveBonusAdvance(
   userId: string,
   month: string,

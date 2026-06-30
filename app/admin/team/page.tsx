@@ -33,25 +33,33 @@ export default async function TeamPage({
     { data: members, error: membersError },
     { data: pastMembers },
     { data: freelancersData },
+    { data: pastFreelancersData },
     { data: assignmentRows },
   ] = await Promise.all([
     admin
       .from('users')
-      .select('id, name, employee_id, role, email, phone, status, team, position, created_at, employment_type, monthly_salary, hourly_rate, paid_leave_days, deleted_at, date_of_birth, joined_at, gender, passport_photo_url')
+      .select('id, name, employee_id, role, email, phone, status, team, position, created_at, employment_type, monthly_salary, hourly_rate, paid_leave_days, deleted_at, date_of_birth, joined_at, gender, passport_photo_url, drive_folder_id, is_support_handler, work_layout, is_management, is_freelancer_login')
       .eq('company_id', profile.company_id)
       .neq('role', 'FREELANCER')
       .is('deleted_at', null)
       .order('created_at', { ascending: true }),
     admin
       .from('users')
-      .select('id, name, employee_id, role, email, phone, status, team, position, created_at, employment_type, monthly_salary, hourly_rate, paid_leave_days, deleted_at, date_of_birth, joined_at, gender, passport_photo_url')
+      .select('id, name, employee_id, role, email, phone, status, team, position, created_at, employment_type, monthly_salary, hourly_rate, paid_leave_days, deleted_at, date_of_birth, joined_at, gender, passport_photo_url, drive_folder_id')
       .eq('company_id', profile.company_id)
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false }),
     admin
       .from('freelancers')
-      .select('id, name, type, phone, upi_id, rating, status, cost_per_minute, cost_per_video, cost_per_hour, voice_type, editing_software, created_at, gender, title')
+      .select('id, name, type, team, phone, upi_id, rating, status, cost_per_minute, cost_per_video, cost_per_hour, voice_type, editing_software, created_at, gender, title')
       .eq('company_id', profile.company_id)
+      .eq('status', 'active')
+      .order('name'),
+    admin
+      .from('freelancers')
+      .select('id, name, type, team, phone, upi_id, rating, status, cost_per_minute, cost_per_video, cost_per_hour, voice_type, editing_software, created_at, gender, title')
+      .eq('company_id', profile.company_id)
+      .eq('status', 'inactive')
       .order('name'),
     admin
       .from('freelancer_assignments')
@@ -72,6 +80,7 @@ export default async function TeamPage({
       members={members ?? []}
       pastMembers={pastMembers ?? []}
       freelancers={freelancersData ?? []}
+      pastFreelancers={pastFreelancersData ?? []}
       initialSearch={initialSearch ?? ""}
       assignedManagerIds={assignedManagerIds}
     />

@@ -20,6 +20,7 @@ interface Post {
   content_pillar?: string | null; priority?: string | null
   notes?: string | null; scheduled_time?: string | null
   assignee?: { name: string } | null
+  shoot_team?: string[] | null
 }
 interface Shoot  { id: string; title: string; start_time: string; client: string; status: string }
 interface Task   { id: string; title: string; due_date: string; status: string }
@@ -64,7 +65,7 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> =
   pending:     { label: "Scheduled",   color: "#FFA53A", bg: "rgba(255,165,58,0.1)"  },
   in_progress: { label: "In Progress", color: "#4D8CFF", bg: "rgba(77,140,255,0.1)"  },
   ready:       { label: "Ready",       color: "#9B6BFF", bg: "rgba(155,107,255,0.1)"  },
-  posted:      { label: "Posted ✓",    color: "#32D27A", bg: "rgba(50,210,122,0.1)"  },
+  posted:      { label: "Uploaded ✓",  color: "#32D27A", bg: "rgba(50,210,122,0.1)"  },
   cancelled:   { label: "Cancelled",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"   },
   missed:      { label: "Missed",      color: "#EF4444", bg: "rgba(239,68,68,0.08)"  },
 }
@@ -82,6 +83,7 @@ function formatTime(t: string | null | undefined): string | null {
   const hr = h % 12 || 12
   return `${hr}:${String(m).padStart(2, "0")} ${period}`
 }
+function isShootPost(p: Post) { return (p.shoot_team?.length ?? 0) > 0 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 function Sparkline({ color }: { color: string }) {
@@ -168,6 +170,8 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   const [year,  setYear]      = useState(initialYear)
   const [month, setMonth]     = useState(initialMonth)
   const [view,  setView]        = useState<"calendar" | "list">("calendar")
+  const [contentMode, setContentMode] = useState<"post" | "shoot">("post")
+  const [memberFilter, setMemberFilter] = useState<string>("all")
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0])
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
@@ -191,6 +195,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   const [clientBrand,   setClientBrand]   = useState("")
   const [clientCustom,  setClientCustom]  = useState("")
   const [assignedTo,    setAssignedTo]    = useState("")
+  const [shootTeam,     setShootTeam]     = useState<string[]>([])
   const [instructions,  setInstructions]  = useState("")
   const [contentPillar, setContentPillar] = useState("")
   const [priority,      setPriority]      = useState("medium")
@@ -208,8 +213,18 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   const cells     = Array.from({ length: firstDay + daysCount }, (_, i) => i < firstDay ? null : i - firstDay + 1)
   while (cells.length % 7 !== 0) cells.push(null)
 
-  function prevMonth() { if (month === 0) { setYear(y => y - 1); setMonth(11) } else setMonth(m => m - 1) }
-  function nextMonth() { if (month === 11) { setYear(y => y + 1); setMonth(0) }  else setMonth(m => m + 1) }
+  function prevMonth() {
+    const newYear = month === 0 ? year - 1 : year
+    const newMonth = month === 0 ? 11 : month - 1
+    setYear(newYear); setMonth(newMonth)
+    router.push(`/admin/content-calendar?year=${newYear}&month=${newMonth}`)
+  }
+  function nextMonth() {
+    const newYear = month === 11 ? year + 1 : year
+    const newMonth = month === 11 ? 0 : month + 1
+    setYear(newYear); setMonth(newMonth)
+    router.push(`/admin/content-calendar?year=${newYear}&month=${newMonth}`)
+  }
   function dateStr(d: number) { return `${year}-${String(month + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}` }
 
   const clientOptions = useMemo(() => {
@@ -218,18 +233,25 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     return [...INTERNAL_BRANDS, ...others]
   }, [posts])
 
-  const filteredPosts = useMemo(() =>
-    clientFilter === "all" ? posts : posts.filter(p => p.client_name === clientFilter),
-    [posts, clientFilter]
-  )
+  const filteredPosts = useMemo(() => {
+    let p = clientFilter === "all" ? posts : posts.filter(p => p.client_name === clientFilter)
+    if (memberFilter !== "all") p = p.filter(p => p.assigned_to === memberFilter || (p.shoot_team ?? []).includes(memberFilter))
+    if (contentMode === "shoot") p = p.filter(p => p.platform === "other")
+    else p = p.filter(p => p.platform !== "other")
+    return p
+  }, [posts, clientFilter, memberFilter, contentMode])
 
   function postsOnDay(d: number)  { const ds = dateStr(d); return filteredPosts.filter(p => p.scheduled_date === ds) }
-  function shootsOnDay(d: number) { const ds = dateStr(d); return shoots.filter(s => s.start_time.split("T")[0] === ds) }
+  function shootsOnDay(d: number) {
+    if (contentMode !== "shoot") return []
+    const ds = dateStr(d)
+    return shoots.filter(s => s.start_time.split("T")[0] === ds)
+  }
   function tasksOnDay(d: number)  { const ds = dateStr(d); return tasks.filter(t => t.due_date === ds) }
 
   function resetForm() {
     setTitle(""); setPlatform("instagram"); setContentType("post")
-    setClientId(""); setClientName(""); setAssignedTo("")
+    setClientId(""); setClientName(""); setAssignedTo(""); setShootTeam([])
     setInstructions(""); setContentPillar(""); setPriority("medium")
     setSchedTime(""); setSchedDates([]); setSchedDateInput("")
     setFormError(""); setFormSuccess(false); setSchedType("")
@@ -237,14 +259,21 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     setClientBrand(""); setClientCustom("")
   }
 
-  function openAdd(d: number) { resetForm(); setSchedDates([dateStr(d)]); setModalMode("add") }
+  function openAdd(d: number) {
+    resetForm()
+    setSchedDates([dateStr(d)])
+    if (contentMode === "shoot") { setSchedType("shoot"); setContentType("video"); setPlatform("other") }
+    else { setSchedType("post"); setPlatform("instagram") }
+    setModalMode("add")
+  }
 
   function openEdit(post: Post) {
     setEditingPost(post)
     setTitle(post.title); setPlatform(post.platform); setContentType(post.content_type)
     const cl = clients.find(c => c.name === post.client_name)
     setClientId(cl?.id ?? ""); setClientName(post.client_name)
-    setAssignedTo(post.assigned_to ?? ""); setInstructions(post.notes ?? "")
+    setAssignedTo(post.assigned_to ?? ""); setShootTeam((post as Post & { shoot_team?: string[] }).shoot_team ?? [])
+    setInstructions(post.notes ?? "")
     setContentPillar(post.content_pillar ?? ""); setPriority(post.priority ?? "medium")
     setSchedDates([post.scheduled_date]); setSchedDateInput("")
     setSchedTime(post.scheduled_time ?? "")
@@ -266,8 +295,10 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         createContentPost({
           title, platform, content_type: contentType,
           client_id: clientId || null, client_name: resolvedName,
-          scheduled_date: date, scheduled_time: schedTime || null,
-          assigned_to: assignedTo || null,
+          scheduled_date: date,
+          scheduled_time: schedType !== "shoot" ? (schedTime || null) : null,
+          assigned_to: schedType === "shoot" ? (shootTeam[0] || null) : (assignedTo || null),
+          shoot_team: schedType === "shoot" ? shootTeam : [],
           notes: (instructions + shootMeta).trim() || undefined,
           content_pillar: contentPillar || null,
           priority: priority || "medium",
@@ -292,7 +323,9 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         title, platform, content_type: contentType,
         client_id: clientId || null, client_name: resolvedName,
         scheduled_date: schedDates[0], scheduled_time: schedTime || null,
-        assigned_to: assignedTo || null, notes: instructions || undefined,
+        assigned_to: (contentType === "shoot" ? (shootTeam[0] || null) : (assignedTo || null)),
+        shoot_team: contentType === "shoot" ? shootTeam : [],
+        notes: instructions || undefined,
         content_pillar: contentPillar || null, priority: priority || "medium",
       })
       if (!res.success) { setFormError(res.error ?? "Something went wrong") }
@@ -318,8 +351,13 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
   function handleDelete(postId: string) {
     start(async () => {
-      await deleteContentPost(postId)
-      setPosts(prev => prev.filter(p => p.id !== postId))
+      const res = await deleteContentPost(postId)
+      if (res?.success) {
+        setPosts(prev => prev.filter(p => p.id !== postId))
+        router.refresh()
+      } else {
+        alert(res?.error ?? "Failed to delete. Please try again.")
+      }
     })
   }
 
@@ -434,9 +472,45 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           </div>
           {/* Posted card */}
           <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 90 }}>
-            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>POSTED</p>
+            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>UPLOADED</p>
             <p style={{ fontSize: 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{postedCount}</p>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Done ✓</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Mode Tabs + Member Filter ── */}
+      <div style={{ display: "flex", gap: 12, marginBottom: isMobile ? 14 : 20, flexWrap: "wrap", alignItems: "stretch" }}>
+        {/* Post / Shoot tabs */}
+        <div style={{ flex: 1, minWidth: 260, display: "flex", gap: 4, background: "#FFFFFF", borderRadius: 18, padding: 4, border: "1px solid #E5E7EB", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+          {([
+            { mode: "post"  as const, icon: "📄", label: "Post Schedule",  desc: "Reels, posters, stories", grad: "linear-gradient(135deg, #C41230 0%, #8B0000 100%)", shadow: "rgba(139,0,0,0.35)" },
+            { mode: "shoot" as const, icon: "📹", label: "Shoot Schedule", desc: "Video shoots & locations",  grad: "linear-gradient(135deg, #1D4ED8 0%, #4D8CFF 100%)", shadow: "rgba(29,78,216,0.35)" },
+          ]).map(({ mode, icon, label, desc, grad, shadow }) => (
+            <button key={mode} onClick={() => setContentMode(mode)} style={{
+              flex: 1, padding: isMobile ? "12px 14px" : "16px 20px", borderRadius: 14, border: "none", cursor: "pointer",
+              background: contentMode === mode ? grad : "transparent",
+              color: contentMode === mode ? "#FFF" : "#6B7280",
+              textAlign: "left", transition: "all 0.18s",
+              boxShadow: contentMode === mode ? `0 4px 20px ${shadow}` : "none",
+            }}>
+              <p style={{ fontSize: isMobile ? 13 : 14, fontWeight: 800, margin: "0 0 2px", display: "flex", alignItems: "center", gap: 6 }}>
+                <span>{icon}</span> {label}
+              </p>
+              <p style={{ fontSize: isMobile ? 10 : 11, opacity: contentMode === mode ? 0.75 : 0.6, margin: 0, fontWeight: 500 }}>{desc}</p>
+            </button>
+          ))}
+        </div>
+        {/* Member filter */}
+        <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "14px 18px", border: "1px solid #E5E7EB", boxShadow: "0 2px 16px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 200 }}>
+          <p style={{ fontSize: 10, fontWeight: 800, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px" }}>View Schedule Of</p>
+          <div style={{ position: "relative" }}>
+            <select value={memberFilter} onChange={e => setMemberFilter(e.target.value)}
+              style={{ width: "100%", padding: "8px 30px 8px 12px", borderRadius: 10, border: `1.5px solid ${memberFilter === "all" ? "#E5E7EB" : "#DE1A1A"}`, background: memberFilter === "all" ? "#FAFAFA" : "rgba(222,26,26,0.04)", fontSize: 13, fontWeight: 700, color: memberFilter === "all" ? "#6B7280" : "#DE1A1A", cursor: "pointer", outline: "none", appearance: "none" }}>
+              <option value="all">👥 All Team Members</option>
+              {members.map(m => <option key={m.id} value={m.id}>👤 {m.name}</option>)}
+            </select>
+            <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
           </div>
         </div>
       </div>
@@ -447,7 +521,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           { label: "Total Content", value: totalContent, sub: "All time",   icon: "📄", headerBg: "linear-gradient(135deg,#8B0000 0%,#C41230 100%)", accent: "#DE1A1A", shadow: "rgba(139,0,0,0.22)" },
           { label: "Ready To Post", value: readyCount,   sub: "Scheduled",  icon: "📤", headerBg: "linear-gradient(135deg,#1E3A8A 0%,#3B82F6 100%)", accent: "#3B82F6", shadow: "rgba(37,99,235,0.2)"  },
           { label: "In Progress",   value: inProgCount,  sub: "Creating",   icon: "⏳", headerBg: "linear-gradient(135deg,#92400E 0%,#F59E0B 100%)", accent: "#F59E0B", shadow: "rgba(146,64,14,0.2)"  },
-          { label: "Posted",        value: postedCount,  sub: "Published",  icon: "✅", headerBg: "linear-gradient(135deg,#14532D 0%,#22C55E 100%)", accent: "#22C55E", shadow: "rgba(20,83,45,0.2)"   },
+          { label: "Uploaded",      value: postedCount,  sub: "Uploaded ✓", icon: "✅", headerBg: "linear-gradient(135deg,#14532D 0%,#22C55E 100%)", accent: "#22C55E", shadow: "rgba(20,83,45,0.2)"   },
         ].map(s => (
           <div key={s.label} style={{
             background: "#FFFFFF", borderRadius: 22, overflow: "hidden",
@@ -544,7 +618,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     const isToday    = ds === today
                     const isSelected = ds === selectedDate
                     const total      = dayPosts.length + dayShoots.length + dayTasks.length
-                    const visible    = [...dayShoots.map(s => ({ type: "shoot" as const, id: s.id, color: "#9B6BFF", label: s.title || s.client })), ...dayTasks.map(t => ({ type: "task" as const, id: t.id, color: "#FFA53A", label: t.title })), ...dayPosts.map(p => ({ type: "post" as const, id: p.id, color: platformColor(p.platform), label: p.title }))]
+                    const visible    = [...dayShoots.map(s => ({ type: "shoot" as const, id: s.id, color: "#9B6BFF", label: s.title || s.client })), ...dayTasks.map(t => ({ type: "task" as const, id: t.id, color: "#FFA53A", label: t.title })), ...dayPosts.map(p => ({ type: isShootPost(p) ? "shoot" as const : "post" as const, id: p.id, color: isShootPost(p) ? "#9B6BFF" : platformColor(p.platform), label: p.title }))]
                     const shown      = visible.slice(0, 2)
                     const more       = total - shown.length
                     return (
@@ -597,8 +671,15 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               </>
             ) : (
               <div>
-                <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6" }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>All Scheduled Content — {MONTHS[month]} {year}</h3>
+                <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>
+                    {contentMode === "shoot" ? "📹 Shoot Schedule" : "📄 Post Schedule"} — {memberFilter !== "all" ? (members.find(m => m.id === memberFilter)?.name ?? "Team Member") : "All Members"} · {MONTHS[month]} {year}
+                  </h3>
+                  {memberFilter !== "all" && (
+                    <button onClick={() => setMemberFilter("all")} style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, border: "1.5px solid #E5E7EB", background: "#F3F4F6", color: "#6B7280", cursor: "pointer" }}>
+                      Show All ×
+                    </button>
+                  )}
                 </div>
                 {filteredPosts.length === 0 ? (
                   <div style={{ padding: "60px 24px", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>No content scheduled this month.</div>
@@ -619,7 +700,12 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                               {p.content_pillar && <span style={{ marginLeft: 6, padding: "1px 7px", borderRadius: 10, background: "rgba(155,107,255,0.1)", color: "#9B6BFF", fontWeight: 600 }}>{p.content_pillar}</span>}
                             </p>
                           </div>
-                          <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap" }}>{p.scheduled_date}{formatTime(p.scheduled_time) ? ` · ${formatTime(p.scheduled_time)}` : ""}</span>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, flexShrink: 0 }}>
+                            <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap" }}>{p.scheduled_date}</span>
+                            {formatTime(p.scheduled_time) && (
+                              <span style={{ fontSize: 11, fontWeight: 800, color: "#DE1A1A", whiteSpace: "nowrap", background: "rgba(222,26,26,0.08)", padding: "2px 8px", borderRadius: 6 }}>🕐 {formatTime(p.scheduled_time)}</span>
+                            )}
+                          </div>
                           <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap" }}>{priCfg.label}</span>
                           <select value={p.status} onChange={e => handleStatusChange(p.id, e.target.value)}
                             style={{ fontSize: 11, fontWeight: 700, padding: "4px 8px", borderRadius: 8, border: `1.5px solid ${cfg.color}`, background: cfg.bg, color: cfg.color, cursor: "pointer", outline: "none" }}>
@@ -687,8 +773,8 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               {(() => {
                 const ds        = selectedDate
                 const dayPosts  = filteredPosts.filter(p => p.scheduled_date === ds)
-                const dayShoots = shoots.filter(s => s.start_time.split("T")[0] === ds)
-                const dayTasks  = tasks.filter(t => t.due_date === ds)
+                const dayShoots = contentMode === "shoot" ? shoots.filter(s => s.start_time.split("T")[0] === ds) : []
+                const dayTasks  = contentMode === "post" ? tasks.filter(t => t.due_date === ds) : []
                 const total     = dayPosts.length + dayShoots.length + dayTasks.length
                 if (total === 0) return (
                   <div style={{ padding: "28px 20px", textAlign: "center" }}>
@@ -722,7 +808,8 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                       </div>
                     ))}
                     {dayPosts.map(p => {
-                      const pColor = platformColor(p.platform)
+                      const shoot  = isShootPost(p)
+                      const pColor = shoot ? "#9B6BFF" : platformColor(p.platform)
                       const cfg    = STATUS_CFG[p.status] ?? STATUS_CFG.pending
                       const time   = formatTime(p.scheduled_time)
                       return (
@@ -730,12 +817,12 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                           {/* Top: icon + info + status */}
                           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                             <div style={{ width: 36, height: 36, borderRadius: 10, background: `${pColor}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
-                              {platformEmoji(p.platform)}
+                              {shoot ? <Camera size={16} color="#9B6BFF" /> : platformEmoji(p.platform)}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {platformLabel(p.platform)}{p.client_name ? ` · ${p.client_name}` : ""}{time ? ` · ${time}` : ""}
+                              <p style={{ fontSize: 11, color: shoot ? "#9B6BFF" : "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: shoot ? 600 : 400 }}>
+                                {shoot ? "📹 Video Shoot" : platformLabel(p.platform)}{p.client_name ? ` · ${p.client_name}` : ""}{time ? ` · ${time}` : ""}
                               </p>
                             </div>
                             <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{cfg.label}</span>
@@ -770,15 +857,16 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               ) : (
                 <div>
                   {upcomingPosts.slice(0, 5).map(p => {
-                    const pColor = platformColor(p.platform)
+                    const shoot  = isShootPost(p)
+                    const pColor = shoot ? "#9B6BFF" : platformColor(p.platform)
                     return (
                       <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", borderBottom: "1px solid #F9FAFB", cursor: "pointer" }} onClick={() => openEdit(p)}>
                         <div style={{ width: 30, height: 30, borderRadius: 8, background: `${pColor}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
-                          {platformEmoji(p.platform)}
+                          {shoot ? <Camera size={13} color="#9B6BFF" /> : platformEmoji(p.platform)}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: 12, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                          <p style={{ fontSize: 10, color: "#9CA3AF", margin: "1px 0 0" }}>{p.scheduled_date === today ? "Today" : p.scheduled_date.slice(5)}</p>
+                          <p style={{ fontSize: 10, color: shoot ? "#9B6BFF" : "#9CA3AF", margin: "1px 0 0", fontWeight: shoot ? 600 : 400 }}>{shoot ? "📹 Shoot · " : ""}{p.scheduled_date === today ? "Today" : p.scheduled_date.slice(5)}</p>
                         </div>
                         <span style={{ width: 7, height: 7, borderRadius: "50%", background: pColor, flexShrink: 0 }} />
                       </div>
@@ -859,7 +947,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                   <div>
                     <label style={LABEL}>Platform</label>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {PLATFORMS.map(p => (
+                      {PLATFORMS.filter(p => p.id !== "other").map(p => (
                         <button key={p.id} type="button" onClick={() => setPlatform(p.id)}
                           style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${platform === p.id ? p.color : "#E2E8F0"}`, background: platform === p.id ? `${p.color}18` : "#FAFAFA", color: platform === p.id ? p.color : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                           {p.label}
@@ -924,11 +1012,30 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {(isEdit ? contentType !== "shoot" : schedType !== "shoot") && (
                 <div>
                   <label style={LABEL}>Post Time <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
                   <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={FIELD} />
                 </div>
+              )}
+
+              {(isEdit ? contentType === "shoot" : schedType === "shoot") ? (
+                <div>
+                  <label style={LABEL}>Assign To <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(select all crew members)</span></label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                    {members.map(m => {
+                      const sel = shootTeam.includes(m.id)
+                      return (
+                        <button key={m.id} type="button"
+                          onClick={() => setShootTeam(prev => sel ? prev.filter(id => id !== m.id) : [...prev, m.id])}
+                          style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${sel ? "#DE1A1A" : "#E2E8F0"}`, background: sel ? "rgba(222,26,26,0.08)" : "#FAFAFA", color: sel ? "#DE1A1A" : "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                          {sel ? "✓ " : ""}{m.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
                 <div>
                   <label style={LABEL}>Assign To</label>
                   <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={{ ...FIELD, appearance: "none" }}>
@@ -936,7 +1043,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 </div>
-              </div>
+              )}
 
               <ClientSelector
                 clientOptions={[...INTERNAL_BRANDS, ...clients.map(c => c.name).filter(n => !INTERNAL_BRANDS.includes(n))]}

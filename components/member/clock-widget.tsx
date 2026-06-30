@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { LogIn, LogOut, Loader2, Home, Building2, XCircle, CheckCircle2 } from "lucide-react"
-import { clockIn, clockOut, markAbsent } from "@/lib/actions/attendance"
+import { clockIn, clockOut } from "@/lib/actions/attendance"
 
 interface Props {
   clockInTime: string | null
@@ -45,14 +45,6 @@ export default function ClockWidget({ clockInTime, clockOutTime, workType, atten
     setError(null)
     startTransition(async () => {
       const res = await clockOut()
-      if (!res.success) setError(res.error ?? 'Failed')
-    })
-  }
-
-  function handleAbsent() {
-    setError(null)
-    startTransition(async () => {
-      const res = await markAbsent()
       if (!res.success) setError(res.error ?? 'Failed')
     })
   }
@@ -216,15 +208,6 @@ export default function ClockWidget({ clockInTime, clockOutTime, workType, atten
           Clock In
         </button>
 
-        {/* Mark Absent */}
-        <button
-          onClick={handleAbsent}
-          disabled={isPending}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-[12px] font-bold disabled:opacity-50 transition-all"
-          style={{ background: "transparent", border: "1px solid rgba(255,100,100,0.2)", color: "rgba(255,100,100,0.6)" }}>
-          {isPending ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
-          Mark Absent
-        </button>
       </div>
 
       {error && (

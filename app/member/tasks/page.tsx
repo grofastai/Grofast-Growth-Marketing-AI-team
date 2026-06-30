@@ -28,6 +28,10 @@ export default async function MemberTasksPage() {
   type DayUpd  = { working_hours: number | null }
 
   const admin = adminSupabase()
+  // When impersonating, the RLS-bound `supabase` client is still authed as the
+  // admin, so member-scoped queries return zero rows. Read through the service-role
+  // client instead, scoped to effectiveUserId.
+  const db = impersonateId ? admin : supabase
 
   const { data: currentUserProfile } = await admin
     .from('users')
@@ -48,15 +52,15 @@ export default async function MemberTasksPage() {
     admin
       .from("tasks")
       .select("id, title, description, status, priority, due_date, completed_at, created_by, assigned_to, category, manager_note, checklist, attachments, expected_time, expected_deliverable, approval_required, recurring_task, projects(id, business_name, client_name), assignedBy:users!tasks_created_by_fkey(id, name), assignedToUser:users!tasks_assigned_to_fkey(id, name)")
-      .or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`)
+      .or(`assigned_to.eq.${effectiveUserId},created_by.eq.${effectiveUserId}`)
       .order("due_date", { ascending: true, nullsFirst: false }),
-    supabase
+    db
       .from("attendance_logs")
       .select("clock_in, clock_out")
       .eq("user_id", effectiveUserId)
       .eq("date", today)
       .maybeSingle(),
-    supabase
+    db
       .from("daily_updates")
       .select("working_hours")
       .eq("user_id", effectiveUserId)

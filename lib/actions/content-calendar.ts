@@ -22,6 +22,7 @@ export interface ContentPostInput {
   scheduled_date: string
   scheduled_time?: string | null
   assigned_to?: string | null
+  shoot_team?: string[]
   drive_link?: string
   caption?: string
   notes?: string
@@ -39,6 +40,10 @@ export async function createContentPost(input: ContentPostInput) {
     .from('users').select('company_id, role, name').eq('id', user.id).single()
   if (!profile) return { success: false, error: 'Profile not found' }
 
+  // Any member can assign to others; if no assignee selected, default to self
+  const effectiveAssignedTo = input.assigned_to || user.id
+  const effectiveShootTeam  = input.shoot_team ?? []
+
   const { data: post, error } = await admin.from('content_posts').insert({
     company_id:     profile.company_id,
     user_id:        user.id,
@@ -51,7 +56,8 @@ export async function createContentPost(input: ContentPostInput) {
     date:           input.scheduled_date,
     scheduled_date: input.scheduled_date,
     post_type:      input.content_type,
-    assigned_to:    input.assigned_to || null,
+    assigned_to:    effectiveAssignedTo,
+    shoot_team:     effectiveShootTeam,
     drive_link:     input.drive_link || null,
     caption:        input.caption || null,
     notes:          input.notes || null,
@@ -62,17 +68,30 @@ export async function createContentPost(input: ContentPostInput) {
 
   if (error) return { success: false, error: error.message }
 
-  // WhatsApp notification to assigned member
-  if (input.assigned_to) {
-    const { data: assignee } = await admin
-      .from('users').select('name, phone').eq('id', input.assigned_to).single()
-    if (assignee?.phone) {
-      const dateLabel = new Date(input.scheduled_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
-      sendWhatsAppTemplate(
-        formatPhone(assignee.phone),
-        'grofast_content_assigned',
-        [assignee.name, input.title, input.platform, dateLabel]
-      ).catch(console.error)
+  // WhatsApp notification — shoot_team members or single assignee
+  const notifyIds = (effectiveShootTeam.length > 0)
+    ? effectiveShootTeam
+    : effectiveAssignedTo ? [effectiveAssignedTo] : []
+  if (notifyIds.length > 0) {
+    const { data: assignees } = await admin
+      .from('users').select('name, phone').in('id', notifyIds)
+    const dateLabel = new Date(input.scheduled_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    let timeLabel = ''
+    if (input.scheduled_time) {
+      const [h, m] = (input.scheduled_time as string).split(':').map(Number)
+      const ampm = h >= 12 ? 'PM' : 'AM'
+      const hour12 = h % 12 || 12
+      timeLabel = ` at ${hour12}:${String(m).padStart(2, '0')} ${ampm}`
+    }
+    const dateTimeLabel = dateLabel + timeLabel
+    for (const assignee of (assignees ?? [])) {
+      if (assignee?.phone) {
+        sendWhatsAppTemplate(
+          formatPhone(assignee.phone),
+          'grofast_content_assigned',
+          [assignee.name, input.title, input.platform, dateTimeLabel]
+        ).catch(console.error)
+      }
     }
   }
 
@@ -140,9 +159,22 @@ export async function updateContentPost(
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users').select('company_id, role').eq('id', user.id).single()
-  if (!profile || profile.role !== 'ADMIN') return { success: false, error: 'Admin only' }
+  if (!profile) return { success: false, error: 'Profile not found' }
 
-  const { error } = await admin.from('content_posts').update({
+  const isAdmin = profile.role === 'ADMIN'
+
+  // Allow edit if: admin OR the original creator of the post
+  const { data: existing } = await admin
+    .from('content_posts')
+    .select('id, created_by, assigned_to, shoot_team')
+    .eq('id', postId).eq('company_id', profile.company_id)
+    .single()
+  if (!existing) return { success: false, error: 'Post not found' }
+
+  const isCreator = existing.created_by === user.id
+  if (!isAdmin && !isCreator) return { success: false, error: 'Permission denied' }
+
+  const updateFields: Record<string, unknown> = {
     ...(input.title          !== undefined && { title: input.title }),
     ...(input.platform       !== undefined && { platform: input.platform }),
     ...(input.content_type   !== undefined && { content_type: input.content_type, post_type: input.content_type }),
@@ -150,11 +182,16 @@ export async function updateContentPost(
     ...(input.client_name    !== undefined && { client_name: input.client_name }),
     ...(input.scheduled_date !== undefined && { scheduled_date: input.scheduled_date, date: input.scheduled_date }),
     ...(input.scheduled_time !== undefined && { scheduled_time: input.scheduled_time || null, reminder_sent: false }),
-    ...(input.assigned_to    !== undefined && { assigned_to: input.assigned_to || null }),
     ...(input.notes          !== undefined && { notes: input.notes || null }),
     ...(input.content_pillar !== undefined && { content_pillar: input.content_pillar || null }),
     ...(input.priority       !== undefined && { priority: input.priority || 'medium' }),
-  }).eq('id', postId).eq('company_id', profile.company_id)
+    // Assignment — allowed for creator and admin
+    ...(input.assigned_to !== undefined && { assigned_to: input.assigned_to || null }),
+    ...(input.shoot_team  !== undefined && { shoot_team: input.shoot_team }),
+  }
+
+  const { error } = await admin.from('content_posts').update(updateFields)
+    .eq('id', postId).eq('company_id', profile.company_id)
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/content-calendar')
@@ -170,10 +207,13 @@ export async function deleteContentPost(postId: string) {
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users').select('company_id, role').eq('id', user.id).single()
-  if (!profile || profile.role !== 'ADMIN') return { success: false, error: 'Admin only' }
+  if (!profile) return { success: false, error: 'Profile not found' }
 
-  const { error } = await admin.from('content_posts')
-    .delete().eq('id', postId).eq('company_id', profile.company_id)
+  // Admins can delete any post; others can delete only posts they created
+  const query = admin.from('content_posts').delete().eq('id', postId).eq('company_id', profile.company_id)
+  const { error } = profile.role === 'ADMIN'
+    ? await query
+    : await query.eq('created_by', user.id)
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/content-calendar')

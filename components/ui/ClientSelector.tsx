@@ -69,6 +69,9 @@ export default function ClientSelector({
           >
             <option value="">Select client…</option>
             {clientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+            {value && !clientOptions.includes(value) && pastClientOptions.includes(value) && (
+              <option key={value} value={value}>{value}</option>
+            )}
             {pastClientOptions.length > 0 && <option value="__past__">📁 Past Clients →</option>}
             <option value="__custom__">✏️ Other (type manually)</option>
           </select>

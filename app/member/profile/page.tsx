@@ -1,10 +1,19 @@
 export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import ProfileClient from "./profile-client"
 import { getMyPayslipHistory } from "@/lib/actions/profile"
+
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export default async function ProfilePage() {
   const supabase = await createServerClient()
@@ -42,6 +51,7 @@ export default async function ProfilePage() {
     address: string | null
     emergency_contact_name: string | null
     emergency_contact_phone: string | null
+    company_id: string
   }
   type KYCRow = {
     bank_name: string | null; bank_account: string | null; bank_ifsc: string | null
@@ -53,34 +63,51 @@ export default async function ProfilePage() {
   type UpdateRow  = { date: string; working_hours: number | null; shoot_count: number | null }
 
   // ── Parallel queries ──────────────────────────────────────────
+  const admin = adminClient()
+  // When impersonating, the RLS-bound `supabase` client is still authenticated as
+  // the admin, so member-scoped queries return zero rows (showing the wrong/empty
+  // profile). Read through the service-role client instead, scoped to effectiveUserId.
+  const db = impersonateId ? admin : supabase
+
   const [
     { data: profileRaw },
     { data: allUpdatesRaw },
     { count: totalCompleted },
-    { count: totalLeaves },
+    { count: weekCompleted },
+    { count: weekLeaves },
     { data: kycRaw },
   ] = await Promise.all([
-    supabase
+    db
       .from("users")
-      .select("name, employee_id, role, email, phone, status, created_at, photo_url, passport_photo_url, position, blood_group, address, emergency_contact_name, emergency_contact_phone")
+      .select("name, employee_id, role, email, phone, status, created_at, photo_url, passport_photo_url, position, blood_group, address, emergency_contact_name, emergency_contact_phone, company_id")
       .eq("id", effectiveUserId)
       .single(),
-    supabase
+    db
       .from("daily_updates")
       .select("date, working_hours, shoot_count")
       .eq("user_id", effectiveUserId)
       .gte("date", sevenDaysAgo)
       .order("date", { ascending: true }),
-    supabase
+    // All-time completed tasks (for the lifetime "Tasks completed" card)
+    db
       .from("tasks")
       .select("*", { count: "exact", head: true })
       .eq("assigned_to", effectiveUserId)
       .eq("status", "completed"),
-    supabase
+    // This-week completed tasks (Mon → today), by completion date
+    db
+      .from("tasks")
+      .select("*", { count: "exact", head: true })
+      .eq("assigned_to", effectiveUserId)
+      .eq("status", "completed")
+      .gte("completed_at", weekStart),
+    // This-week leave requests, by submission date
+    db
       .from("leaves")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", effectiveUserId),
-    supabase
+      .eq("user_id", effectiveUserId)
+      .gte("created_at", weekStart),
+    db
       .from("member_kyc")
       .select("bank_name, bank_account, bank_ifsc, aadhaar_number, pan_number, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2")
       .eq("user_id", effectiveUserId)
@@ -152,7 +179,8 @@ export default async function ProfilePage() {
         weekHours:    Math.round(weekHours * 10) / 10,
         weekMissed,
         totalCompleted: totalCompleted ?? 0,
-        totalLeaves:    totalLeaves ?? 0,
+        weekCompleted:  weekCompleted ?? 0,
+        weekLeaves:     weekLeaves ?? 0,
         avgHoursPerDay: avgHours,
       }}
       chartData={sevenDayChart}

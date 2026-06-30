@@ -25,6 +25,7 @@ export default async function LeavesPage({
 
   const statusFilter = params.status ?? "pending"
   const today = new Date().toISOString().split("T")[0]
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0]
 
   const admin = adminClient()
 
@@ -43,7 +44,7 @@ export default async function LeavesPage({
     .from("leaves")
     .select("*, users(id, name, employee_id, phone, gender)")
     .eq("company_id", cid)
-    .order("created_at", { ascending: false })
+    .order("from_date", { ascending: false })
 
   if (statusFilter !== "all") {
     leavesQuery = leavesQuery.eq("status", statusFilter)
@@ -59,6 +60,10 @@ export default async function LeavesPage({
     { count: approvedCount },
     { count: rejectedCount },
     { data: companyLeaves },
+    { count: fullDayCount },
+    { count: wfhCount },
+    { count: shootCount },
+    { count: halfDayCount },
   ] = await Promise.all([
     leavesQuery,
     admin
@@ -67,7 +72,7 @@ export default async function LeavesPage({
       .eq("company_id", cid)
       .in("status", ["pending", "approved"])
       .neq("leave_type", "permission")
-      .gte("from_date", today)
+      .gte("from_date", tomorrow)
       .order("from_date")
       .limit(4),
     admin
@@ -80,7 +85,7 @@ export default async function LeavesPage({
       .select("*", { count: "exact", head: true })
       .eq("company_id", cid)
       .eq("status", "approved")
-      .neq("leave_type", "permission")
+      .in("leave_type", ["full_day", "half_day"])
       .lte("from_date", today)
       .gte("to_date", today),
     admin
@@ -88,13 +93,17 @@ export default async function LeavesPage({
       .select("from_date, to_date, users(id, name)")
       .eq("company_id", cid)
       .eq("status", "approved")
-      .neq("leave_type", "permission")
+      .in("leave_type", ["full_day", "half_day"])
       .lte("from_date", today)
       .gte("to_date", today),
     admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "pending"),
     admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "approved"),
     admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "rejected"),
     admin.from("company_leaves").select("id, date, name").eq("company_id", cid).order("date"),
+    admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("leave_type", "full_day"),
+    admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("leave_type", "wfh"),
+    admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("leave_type", "shoot_day"),
+    admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("leave_type", "half_day"),
   ])
 
   const total = Math.max(1, memberCount ?? 0)
@@ -117,6 +126,10 @@ export default async function LeavesPage({
       approvedCount={approvedCount ?? 0}
       rejectedCount={rejectedCount ?? 0}
       companyLeaves={(companyLeaves ?? []) as { id: string; date: string; name: string }[]}
+      fullDayCount={fullDayCount ?? 0}
+      wfhCount={wfhCount ?? 0}
+      shootCount={shootCount ?? 0}
+      halfDayCount={halfDayCount ?? 0}
     />
   )
 }

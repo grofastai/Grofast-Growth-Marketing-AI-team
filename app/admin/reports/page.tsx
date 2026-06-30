@@ -49,6 +49,7 @@ export default async function ReportsPage({
     { data: tasksRaw },
     { data: projectsRaw },
     { data: taskActivityRaw },
+    { data: collabRaw },
   ] = await Promise.all([
     admin
       .from("daily_updates")
@@ -76,6 +77,13 @@ export default async function ReportsPage({
       .select("task_id")
       .eq("company_id", cid)
       .not("task_id", "is", null),
+    // Confirmed collab hours for this date (add to totalHours)
+    admin
+      .from("collaboration_confirmations")
+      .select("collaborator_id, confirmed_hours")
+      .eq("company_id", cid)
+      .eq("date", dateFilter)
+      .in("status", ["confirmed", "edited_confirmed"]),
   ])
 
   const updates   = updatesRaw   ?? []
@@ -104,7 +112,9 @@ export default async function ReportsPage({
   )
   const absentUpdates  = updates.filter((u: any) => u.attendance_status === "leave" || u.attendance_status === "absent")
 
-  const totalHours    = presentUpdates.reduce((s: number, u: any) => s + getUpdateHours(u), 0)
+  const collabTotalHours = ((collabRaw ?? []) as { collaborator_id: string; confirmed_hours: number | null }[])
+    .reduce((s, c) => s + (c.confirmed_hours ?? 0), 0)
+  const totalHours    = presentUpdates.reduce((s: number, u: any) => s + getUpdateHours(u), 0) + collabTotalHours
   const totalLearning = updates.reduce((s: number, u: any) => s + getUpdateLearning(u), 0)
 
   // ── Not updated members ──────────────────────────────────────────────────────

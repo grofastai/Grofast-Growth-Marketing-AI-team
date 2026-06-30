@@ -33,25 +33,67 @@ async function checkCollabOverlapsWork(
   userId: string,
   date: string,
   startTime: string,
-  endTime: string
+  endTime: string,
+  excludeCollabId?: string
 ): Promise<string | null> {
   if (!startTime || !endTime) return null
-  const { data: upd } = await admin
-    .from('daily_updates')
-    .select('work_entries')
-    .eq('user_id', userId)
-    .eq('date', date)
-    .maybeSingle()
-  const entries = Array.isArray((upd as { work_entries?: unknown } | null)?.work_entries)
-    ? (upd as { work_entries: Record<string, unknown>[] }).work_entries
+
+  const [updResult, otherCollabsResult, leavesResult] = await Promise.all([
+    // Own work entries (all types — breaks, learning, work all count)
+    admin.from('daily_updates').select('work_entries').eq('user_id', userId).eq('date', date).maybeSingle(),
+    // Other confirmed collab windows for same date
+    admin.from('collaboration_confirmations')
+      .select('id, confirmed_start_time, confirmed_end_time')
+      .eq('collaborator_id', userId).eq('date', date)
+      .in('status', ['confirmed', 'edited_confirmed']),
+    // Permission + half-day leave windows
+    admin.from('leaves')
+      .select('leave_type, half_day_from_time, half_day_to_time, permission_time, permission_hours')
+      .eq('user_id', userId)
+      .in('status', ['approved', 'pending'])
+      .in('leave_type', ['half_day', 'permission'])
+      .lte('from_date', date).gte('to_date', date),
+  ])
+
+  // Check own work entries (ALL types including breaks and learning)
+  const entries = Array.isArray((updResult.data as { work_entries?: unknown } | null)?.work_entries)
+    ? (updResult.data as { work_entries: Record<string, unknown>[] }).work_entries
     : []
   for (const e of entries) {
-    if (e.task_type === 'break' || e.task_type === 'learning') continue
     if (!e.start_time || !e.end_time) continue
     if (timesOverlapCollab(startTime, endTime, e.start_time as string, e.end_time as string)) {
-      return `Collab time ${startTime}–${endTime} overlaps with your own entry "${e.title}" (${e.start_time}–${e.end_time}). Use Edit to pick a non-overlapping window, or Reject if you already logged this work yourself.`
+      const type = e.task_type === 'break' ? 'break' : e.task_type === 'learning' ? 'learning entry' : 'work entry'
+      return `Collab time ${startTime}–${endTime} overlaps with your own ${type} "${e.title}" (${e.start_time}–${e.end_time}). Use Edit to pick a non-overlapping window, or Reject if you already logged this time yourself.`
     }
   }
+
+  // Check other confirmed collabs on same date
+  const otherCollabs = (otherCollabsResult.data ?? []) as { id: string; confirmed_start_time: string | null; confirmed_end_time: string | null }[]
+  for (const c of otherCollabs) {
+    if (excludeCollabId && c.id === excludeCollabId) continue
+    if (!c.confirmed_start_time || !c.confirmed_end_time) continue
+    if (timesOverlapCollab(startTime, endTime, c.confirmed_start_time, c.confirmed_end_time)) {
+      return `Collab time ${startTime}–${endTime} overlaps with another confirmed collaboration (${c.confirmed_start_time}–${c.confirmed_end_time}). You cannot be in two collaborations at the same time.`
+    }
+  }
+
+  // Check leave windows (permission + half-day)
+  const leaves = (leavesResult.data ?? []) as { leave_type: string; half_day_from_time?: string | null; half_day_to_time?: string | null; permission_time?: string | null; permission_hours?: number | null }[]
+  for (const l of leaves) {
+    if (l.leave_type === 'half_day' && l.half_day_from_time && l.half_day_to_time) {
+      if (timesOverlapCollab(startTime, endTime, l.half_day_from_time, l.half_day_to_time))
+        return `Collab time ${startTime}–${endTime} falls within your Half Day Leave (${l.half_day_from_time}–${l.half_day_to_time}). No collaboration allowed during leave time.`
+    } else if (l.leave_type === 'permission' && l.permission_time && l.permission_hours) {
+      const [h, m] = l.permission_time.split(':').map(Number)
+      const total = h * 60 + m + Math.round(l.permission_hours * 60)
+      const endH = String(Math.floor(total / 60)).padStart(2, '0')
+      const endM = String(total % 60).padStart(2, '0')
+      const leaveEnd = `${endH}:${endM}`
+      if (timesOverlapCollab(startTime, endTime, l.permission_time, leaveEnd))
+        return `Collab time ${startTime}–${endTime} falls within your Permission Leave (${l.permission_time}–${leaveEnd}). No collaboration allowed during leave time.`
+    }
+  }
+
   return null
 }
 
@@ -126,7 +168,8 @@ export async function editCollaborationTime(
   const overlapErr = await checkCollabOverlapsWork(
     admin, user.id,
     (conf as { date: string }).date,
-    startTime, endTime
+    startTime, endTime,
+    id  // exclude this collab from the "other collabs" check (editing in place)
   )
   if (overlapErr) return { success: false, error: overlapErr }
 

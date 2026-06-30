@@ -663,7 +663,8 @@ export default function HistoryClient({
       const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const learnH = entries.length > 0 ? learnFromEntries : (u.learning_hours ?? 0)
       const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-      const h = workH + learnH
+      const collabH = collabHoursByDate.get(u.date) ?? 0
+      const h = workH + learnH + collabH
       totalHours += h
       totalLearning += learnH
       totalBreak += breakH

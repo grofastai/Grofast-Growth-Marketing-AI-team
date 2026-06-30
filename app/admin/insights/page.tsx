@@ -136,6 +136,7 @@ export default async function InsightsPage({
     { data: attRaw },
     { data: clientsRaw },
     { data: salaryHistoryRaw },
+    { data: collabRaw },
   ] = await Promise.all([
     admin.from('daily_updates')
       .select('user_id, date, work_entries, working_hours, learning_hours')
@@ -163,6 +164,13 @@ export default async function InsightsPage({
       .eq('company_id', cid)
       .lte('effective_from', dateFrom)
       .order('effective_from', { ascending: false }),
+    // Confirmed collab hours per member for this period
+    admin.from('collaboration_confirmations')
+      .select('collaborator_id, confirmed_hours')
+      .eq('company_id', cid)
+      .in('status', ['confirmed', 'edited_confirmed'])
+      .gte('date', dateFrom)
+      .lte('date', dateTo),
   ])
 
   const updates = (updatesRaw ?? []) as UpdateRow[]
@@ -255,6 +263,18 @@ export default async function InsightsPage({
     if (!dailyMap[du.date]) dailyMap[du.date] = { hours: 0, cost: 0 }
     dailyMap[du.date].hours += workH
     dailyMap[du.date].cost  += workH * hourly
+  }
+
+  // Add confirmed collab hours to each member's trackedHours + totalCost
+  for (const c of (collabRaw ?? []) as { collaborator_id: string; confirmed_hours: number | null }[]) {
+    const ch = c.confirmed_hours ?? 0
+    if (ch <= 0) continue
+    const hourly = hourlyForMember(c.collaborator_id)
+    if (!accMap[c.collaborator_id]) {
+      accMap[c.collaborator_id] = { trackedHours: 0, learningHours: 0, totalCost: 0, shoot: 0, edit: 0, technical: 0, voiceover: 0, poster: 0, clients: new Set() }
+    }
+    accMap[c.collaborator_id].trackedHours += ch
+    accMap[c.collaborator_id].totalCost    += ch * hourly
   }
 
   // ── Member utilization ────────────────────────────────────────────────────

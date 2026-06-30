@@ -156,35 +156,100 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
       {/* ── Page wrap: hero card + two-pane shell ─────────────────── */}
       <div style={{ maxWidth: 1240, margin: '0 auto', padding: '16px' }}>
 
-        {/* Hero — rounded card matching the Profile banner */}
-        <div style={{ background: HERO_GRADIENT, borderRadius: 20, position: 'relative', overflow: 'hidden', padding: '22px 24px', boxShadow: '0 8px 32px rgba(180,0,0,0.4)', marginBottom: 16 }}>
-          <div style={{ position: 'absolute', top: -40, right: -40, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', bottom: -30, left: 60, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-              <div>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 99, background: 'rgba(255,255,255,0.15)', color: '#fff', marginBottom: 10, border: '1px solid rgba(255,255,255,0.2)', letterSpacing: '0.04em' }}>
-                  💬 Support Inbox
-                </span>
-                <h1 style={{ fontSize: 26, fontWeight: 900, margin: '0 0 4px', fontFamily: 'var(--font-jakarta)', color: '#fff' }}>Help the team</h1>
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: 0 }}>
-                  {stats.open + stats.in_progress} need attention · {tickets.length} total
-                </p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+        {/* ── HERO ────────────────────────────────────────────────────── */}
+        <div style={{
+          background: 'linear-gradient(130deg, #1a0000 0%, #8B0000 40%, #CC1111 70%, #E8251A 100%)',
+          borderRadius: 24, position: 'relative', overflow: 'hidden',
+          padding: '0', boxShadow: '0 12px 48px rgba(160,0,0,0.5)', marginBottom: 16, minHeight: 210,
+          display: 'flex', alignItems: 'stretch',
+        }}>
+          {/* Layered depth glows */}
+          <div style={{ position: 'absolute', top: -60, left: -60, width: 280, height: 280, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,80,80,0.18) 0%, transparent 70%)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: -40, right: 320, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
+          {/* Top-right sparkle dots */}
+          <div style={{ position: 'absolute', top: 18, right: 380, width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', top: 40, right: 340, width: 4, height: 4, borderRadius: '50%', background: 'rgba(255,255,255,0.22)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', top: 14, right: 290, width: 5, height: 5, borderRadius: '50%', background: 'rgba(255,200,200,0.3)', pointerEvents: 'none' }} />
+
+          {/* Girl character — full height right */}
+          <div className="hidden md:block" style={{ position: 'absolute', right: 0, bottom: 0, width: 320, height: '100%', pointerEvents: 'none', zIndex: 0 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/support/hero-girl.png" alt=""
+              style={{ position: 'absolute', bottom: 0, right: 0, height: '115%', width: 'auto', maxWidth: 340, objectFit: 'contain', objectPosition: 'bottom right', filter: 'drop-shadow(0 8px 28px rgba(0,0,0,0.32))' }} />
+          </div>
+
+          {/* Content area */}
+          <div style={{ position: 'relative', zIndex: 1, flex: 1, padding: '22px 28px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            {/* Top row: badge + buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, padding: '5px 13px', borderRadius: 99, background: 'rgba(255,255,255,0.14)', color: '#fff', border: '1px solid rgba(255,255,255,0.22)', letterSpacing: '0.05em', backdropFilter: 'blur(4px)' }}>
+                🎧 Support Inbox
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {canAssign && (
                   <button onClick={() => setShowAssign(true)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 16px', borderRadius: 13, fontSize: 13.5, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.28)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                    <UserPlus size={16} /> Assign handler
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 15px', borderRadius: 12, fontSize: 12.5, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(4px)' }}>
+                    <UserPlus size={14} /> Assign handler
                   </button>
                 )}
                 <button onClick={() => setShowNew(true)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 18px', borderRadius: 13, fontSize: 13.5, fontWeight: 800, color: '#B91212', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 6px 18px rgba(0,0,0,0.22)', whiteSpace: 'nowrap' }}>
-                  <Plus size={16} /> New ticket
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: '#B91212', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 4px 18px rgba(0,0,0,0.22)', whiteSpace: 'nowrap' }}>
+                  <Plus size={14} /> New ticket
                 </button>
               </div>
             </div>
+
+            {/* Title + subtitle */}
+            <div style={{ marginTop: 14 }}>
+              <h1 style={{ fontSize: 30, fontWeight: 900, margin: '0 0 6px', fontFamily: 'var(--font-jakarta)', color: '#fff', lineHeight: 1.15, maxWidth: 380, letterSpacing: '-0.02em' }}>
+                Help Your Team<br />Faster
+              </h1>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', margin: '0 0 18px', maxWidth: 300, lineHeight: 1.55 }}>
+                Manage tickets, reply instantly, and keep every client happy.
+              </p>
+
+              {/* Stat chips row */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { icon: '🎧', value: stats.open,        label: 'Open' },
+                  { icon: '✅', value: stats.resolved,    label: 'Resolved' },
+                  { icon: '⏱',  value: stats.in_progress, label: 'In Progress' },
+                ].map(chip => (
+                  <div key={chip.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'rgba(0,0,0,0.22)', borderRadius: 14, padding: '8px 14px', border: '1px solid rgba(255,255,255,0.14)', backdropFilter: 'blur(6px)' }}>
+                    <span style={{ fontSize: 18, lineHeight: 1 }}>{chip.icon}</span>
+                    <div>
+                      <p style={{ fontSize: 19, fontWeight: 900, color: '#fff', margin: 0, lineHeight: 1, fontFamily: 'var(--font-jakarta)' }}>{chip.value}</p>
+                      <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 1 }}>{chip.label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
+        </div>
+
+        {/* ── STAT CARDS ROW ──────────────────────────────────────────── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(148px, 1fr))', gap: 10, marginBottom: 14 }}>
+          {[
+            { icon: '🎧', label: 'Open Tickets',   value: stats.open,        sub: 'Needs attention',  dot: '#EF4444', accent: 'rgba(239,68,68,0.08)' },
+            { icon: '⏳', label: 'Waiting',         value: stats.in_progress, sub: 'Waiting for reply', dot: '#8B5CF6', accent: 'rgba(139,92,246,0.08)' },
+            { icon: '✅', label: 'Resolved Today',  value: stats.resolved,    sub: 'Great progress!',  dot: '#10B981', accent: 'rgba(16,185,129,0.08)' },
+            { icon: '🔒', label: 'Closed',           value: stats.closed,      sub: 'All wrapped up',  dot: '#9CA3AF', accent: 'rgba(156,163,175,0.08)' },
+          ].map(card => (
+            <div key={card.label} style={{ background: '#FFFFFF', borderRadius: 18, padding: '16px 16px 14px', border: '1px solid #EBEDF2', boxShadow: '0 2px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: 13 }}>
+              <div style={{ width: 46, height: 46, borderRadius: 14, flexShrink: 0, background: card.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
+                {card.icon}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B5BF', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{card.label}</p>
+                <p style={{ fontSize: 24, fontWeight: 900, color: '#1F2430', margin: 0, lineHeight: 1, fontFamily: 'var(--font-jakarta)' }}>{card.value}</p>
+                <p style={{ fontSize: 10.5, color: card.dot, margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: card.dot, display: 'inline-block', flexShrink: 0 }} />
+                  {card.sub}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
 
         {tickets.length === 0 ? (
@@ -196,7 +261,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
             <p style={{ fontSize: 13, color: '#8A8F99', margin: '6px 0 0' }}>No support requests yet. New ones land here.</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', height: 'calc(100vh - 210px)', minHeight: 460 }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', height: 'calc(100vh - 370px)', minHeight: 420 }}>
 
             {/* LEFT: queue */}
             <aside className={showThreadMobile ? 'hidden lg:flex' : 'flex'}
@@ -354,8 +419,41 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                   </>
                 )
               })() : (
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A6AAB3', fontSize: 13 }}>
-                  Select a ticket to open the conversation.
+                /* ── Empty state — boy character ── */
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '28px 36px', textAlign: 'center', background: 'linear-gradient(180deg,#FAFBFC 0%,#F3F4F8 100%)' }}>
+                  {/* Character with soft glow ring */}
+                  <div style={{ position: 'relative', width: 220, height: 200, marginBottom: 20, flexShrink: 0 }}>
+                    <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'radial-gradient(circle, rgba(222,26,26,0.07) 0%, transparent 70%)', top: '20%' }} />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/brand/support/hero-boy.png" alt=""
+                      style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.12))' }} />
+                  </div>
+
+                  <h3 style={{ fontSize: 18, fontWeight: 900, color: '#1F2430', margin: '0 0 8px', fontFamily: 'var(--font-jakarta)', letterSpacing: '-0.01em' }}>Select a ticket</h3>
+                  <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 24px', maxWidth: 220, lineHeight: 1.65 }}>
+                    Choose a conversation from the left panel. Replies will appear here.
+                  </p>
+
+                  {/* Flow steps */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {([
+                      { bg: '#FEF2F2', color: '#EF4444', emoji: '👤', label: 'Customer' },
+                      { bg: '#F3E8FF', color: '#8B5CF6', emoji: '🎧', label: 'Agent' },
+                      { bg: '#ECFDF5', color: '#10B981', emoji: '✅', label: 'Resolved' },
+                    ] as const).map((step, i) => (
+                      <div key={step.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {i > 0 && (
+                          <svg width="18" height="10" viewBox="0 0 18 10" fill="none">
+                            <path d="M1 5h14M11 1l4 4-4 4" stroke="#D1D5DB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                          <div style={{ width: 40, height: 40, borderRadius: 12, background: step.bg, border: `1.5px solid ${step.color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, boxShadow: `0 2px 8px ${step.color}18` }}>{step.emoji}</div>
+                          <span style={{ fontSize: 9, color: '#B0B5BF', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{step.label}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </section>

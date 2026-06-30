@@ -266,9 +266,9 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     for (const u of monthlyUpdates) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
       for (const e of entries) {
-        if      (e.task_type === "poster")    nmPosterCount++
-        else if (e.task_type === "edit")      nmEditCount++
-        else if (e.task_type === "voiceover") nmVoiceoverCount++
+        if      (e.task_type === "poster"    && !(e as unknown as Record<string,unknown>).is_rework) nmPosterCount++
+        else if (e.task_type === "edit"      && !(e as unknown as Record<string,unknown>).is_rework) nmEditCount++
+        else if (e.task_type === "voiceover" && !(e as unknown as Record<string,unknown>).is_rework) nmVoiceoverCount++
         else if (e.task_type === "other")     nmTechHrs += e.duration_hours ?? 0
       }
     }

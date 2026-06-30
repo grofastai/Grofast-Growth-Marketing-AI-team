@@ -346,7 +346,7 @@ export function computeDeliverables(
 
       } else if (tt === 'voiceover') {
         const cost = entry.price != null ? entry.price : hourly * hrs
-        voiceoverCountAcc++
+        if (!(entry as Record<string,unknown>).is_rework) voiceoverCountAcc++
         voiceoverHoursAcc += hrs
         const ve = { date: row.date, clientName: entryClientName, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Voiceover'), hours: hrs, cost }
         otherWork.push(ve); voiceoverWork.push(ve)
@@ -355,7 +355,7 @@ export function computeDeliverables(
 
       } else if (tt === 'poster') {
         const cost = entry.price != null ? entry.price : hourly * hrs
-        posterCountAcc++
+        if (!(entry as Record<string,unknown>).is_rework) posterCountAcc++
         posterHoursAcc += hrs
         const pe = { date: row.date, clientName: entryClientName, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Poster'), hours: hrs, cost }
         otherWork.push(pe); posterWork.push(pe)
@@ -411,14 +411,14 @@ export function computeDeliverables(
       dayMap[date].push({ date, memberName: name, taskType: 'edit', itemCount: 1, hours: hrs, cost, label: title })
 
     } else if (tt === 'voiceover') {
-      voiceoverCountAcc++
+      if (!(fe as unknown as Record<string,unknown>).is_rework) voiceoverCountAcc++
       voiceoverHoursAcc += hrs
       const ve = { date, clientName: fe.client_name, memberName: name, title, hours: hrs, cost }
       otherWork.push(ve); voiceoverWork.push(ve)
       dayMap[date].push({ date, memberName: name, taskType: 'voiceover', itemCount: 1, hours: hrs, cost, label: title })
 
     } else if (tt === 'poster') {
-      posterCountAcc++
+      if (!(fe as unknown as Record<string,unknown>).is_rework) posterCountAcc++
       posterHoursAcc += hrs
       const pe = { date, clientName: fe.client_name, memberName: name, title, hours: hrs, cost }
       otherWork.push(pe); posterWork.push(pe)

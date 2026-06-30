@@ -1012,7 +1012,7 @@ export default function FreelancersMemberClient({
   }
 
   return (
-    <div style={{ height: isEmbedded ? "100%" : "100vh", display: "flex", flexDirection: "column", background: "#F5F6FA", overflow: "hidden" }}>
+    <div style={{ ...(isEmbedded ? { flex: 1, minHeight: 0 } : { height: "100vh" }), display: "flex", flexDirection: "column", background: "#F5F6FA", overflow: "hidden" }}>
 
       {/* Top header */}
       <div style={{ background: "#FFFFFF", borderBottom: "1px solid #EBEBEB", padding: "12px 20px", flexShrink: 0 }}>

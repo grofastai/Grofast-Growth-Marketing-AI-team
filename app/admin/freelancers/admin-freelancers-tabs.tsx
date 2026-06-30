@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { Sparkles, Users, Briefcase, FileText } from "lucide-react"
 import FlMediaClient from "./fl-media-client"
 import FreelancersMemberClient from "@/app/member/freelancers/freelancers-member-client"
 import type { Freelancer, WorkEntry } from "@/app/member/freelancers/freelancers-member-client"
@@ -64,6 +65,7 @@ export default function AdminFreelancersTabs({
   pastClientNames: string[]
 }) {
   const [selected, setSelected] = useState<{ type: "media" | "fl"; id: string } | null>(null)
+  const [mobileShowRight, setMobileShowRight] = useState(false)
 
   const flMediaTotals = useMemo(() => {
     const map: Record<string, number> = {}
@@ -95,16 +97,51 @@ export default function AdminFreelancersTabs({
   })), [flEntries])
 
   return (
-    <div className="flex flex-col md:flex-row" style={{ height: "calc(100vh - 80px)", marginTop: -1, borderTop: "1px solid #F0F1F5" }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: "#F8F9FB" }}>
 
-      {/* ── Unified left panel ───────────────────────────────────────────────── */}
-      <div className={selected ? "hidden md:flex md:flex-col md:w-[220px]" : "flex flex-col w-full md:w-[220px]"}
-        style={{ flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", overflowY: "auto" }}>
+      {/* ── Hero header ──────────────────────────────────────────────────────── */}
+      <div style={{ flexShrink: 0, margin: "14px 14px 0", borderRadius: 18, overflow: "hidden", background: "linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)", boxShadow: "0 6px 24px rgba(222,26,26,0.3)", position: "relative" }}>
+        <div style={{ position: "absolute", top: -30, right: -30, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -20, right: 140, width: 90, height: 90, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+        <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, position: "relative", zIndex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
+              <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 7, padding: "3px 5px", display: "flex", alignItems: "center" }}>
+                <Sparkles size={12} style={{ color: "#FFD700" }} />
+              </div>
+              <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
+            </div>
+            <h1 style={{ fontSize: "clamp(18px,5vw,28px)", fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1.1 }}>Freelancers</h1>
+            <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+              {([
+                { icon: <Users size={9} />, label: `${activeFreelancers.length} Freelancers` },
+                { icon: <Briefcase size={9} />, label: `${workEntries.length} Entries` },
+                { icon: <FileText size={9} />, label: `${flMembers.length} Media` },
+              ] as const).map(s => (
+                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "2px 8px" }}>
+                  <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "#FFFFFF" }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Briefcase size={15} style={{ color: "#FFFFFF" }} />
+          </div>
+        </div>
+      </div>
 
-        <button onClick={() => setSelected(null)} style={{ width: "100%", padding: "10px 14px 6px", display: "flex", alignItems: "center", justifyContent: "space-between", background: !selected ? "rgba(99,102,241,0.06)" : "transparent", border: "none", borderLeft: `3px solid ${!selected ? "#6366F1" : "transparent"}`, cursor: "pointer", textAlign: "left" }}>
-          <span style={{ fontSize: 9, fontWeight: 700, color: !selected ? "#6366F1" : "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em" }}>All Members</span>
-          <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", background: "#F0F0F5", borderRadius: 99, padding: "1px 7px" }}>{totalCount}</span>
-        </button>
+      {/* ── Two-panel body ───────────────────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row" style={{ flex: 1, minHeight: 0, overflow: "hidden", background: "#fff", marginTop: 10, borderTop: "1px solid #F0F1F5" }}>
+
+        {/* ── Unified left panel ─────────────────────────────────────────────── */}
+        <div className={(selected || mobileShowRight) ? "hidden md:flex md:flex-col md:w-[220px]" : "flex flex-col w-full md:w-[220px]"}
+          style={{ flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", overflowY: "auto" }}>
+
+          <button onClick={() => { setSelected(null); setMobileShowRight(true) }} style={{ width: "100%", padding: "10px 14px 6px", display: "flex", alignItems: "center", justifyContent: "space-between", background: !selected ? "rgba(99,102,241,0.06)" : "transparent", border: "none", borderLeft: `3px solid ${!selected ? "#6366F1" : "transparent"}`, cursor: "pointer", textAlign: "left" }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: !selected ? "#6366F1" : "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em" }}>All Members</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", background: "#F0F0F5", borderRadius: 99, padding: "1px 7px" }}>{totalCount}</span>
+          </button>
 
         {/* FL Media Production members (login-based) */}
         {flMembers.length > 0 && (
@@ -166,46 +203,49 @@ export default function AdminFreelancersTabs({
           </>
         )}
 
-        {totalCount === 0 && (
-          <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#9CA3AF" }}>No members yet</div>
-        )}
-      </div>
+          {totalCount === 0 && (
+            <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#9CA3AF" }}>No members yet</div>
+          )}
+        </div>
 
-      {/* ── Right panel ──────────────────────────────────────────────────────── */}
-      <div className={!selected ? "hidden md:flex md:flex-col" : "flex flex-col"} style={{ flex: 1, overflow: "hidden", height: "100%" }}>
-        {/* Back button — mobile only */}
-        {selected && (
-          <button className="md:hidden flex items-center gap-2 px-4 py-3 text-[13px] font-bold text-gray-600 border-b border-gray-100 bg-white"
-            onClick={() => setSelected(null)}>
-            ← Back to All Members
-          </button>
-        )}
+        {/* ── Right panel ────────────────────────────────────────────────────── */}
+        <div className={(!selected && !mobileShowRight) ? "hidden md:flex md:flex-col" : "flex flex-col"}
+          style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
 
-        {/* FL Media Production member → price-entry table */}
-        {selected?.type === "media" && (
-          <FlMediaClient
-            key={selected.id}
-            members={flMembers}
-            entries={flEntries}
-            hideLeftPanel
-            forceMemberId={selected.id}
-          />
-        )}
+          {/* Back button — mobile only */}
+          {(selected || mobileShowRight) && (
+            <button className="md:hidden flex items-center gap-2 px-4 py-3 text-[13px] font-bold text-gray-600 border-b border-gray-100 bg-white"
+              onClick={() => { setSelected(null); setMobileShowRight(false) }}>
+              ← Back to All Members
+            </button>
+          )}
 
-        {/* Combined view (default) OR individual freelancer */}
-        {selected?.type !== "media" && (
-          <FreelancersMemberClient
-            key={selected?.id ?? "combined"}
-            freelancers={freelancers}
-            workEntries={workEntries}
-            clientNames={clientNames}
-            pastClientNames={pastClientNames}
-            hideLeftPanel
-            initialSelectedId={selected?.id}
-            isEmbedded
-            loginMemberEntries={loginMemberEntries}
-          />
-        )}
+          {/* FL Media Production member → price-entry table */}
+          {selected?.type === "media" && (
+            <FlMediaClient
+              key={selected.id}
+              members={flMembers}
+              entries={flEntries}
+              hideLeftPanel
+              forceMemberId={selected.id}
+            />
+          )}
+
+          {/* Combined view (default) OR individual freelancer */}
+          {selected?.type !== "media" && (
+            <FreelancersMemberClient
+              key={selected?.id ?? "combined"}
+              freelancers={freelancers}
+              workEntries={workEntries}
+              clientNames={clientNames}
+              pastClientNames={pastClientNames}
+              hideLeftPanel
+              initialSelectedId={selected?.id}
+              isEmbedded
+              loginMemberEntries={loginMemberEntries}
+            />
+          )}
+        </div>
       </div>
     </div>
   )

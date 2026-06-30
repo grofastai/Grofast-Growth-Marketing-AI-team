@@ -135,7 +135,7 @@ export default function FlMediaClient({
   const selectedMember = members.find(m => m.id === selectedMemberId)
 
   return (
-    <div style={{ display: "flex", gap: 0, height: "100%" }}>
+    <div style={{ display: "flex", gap: 0, flex: 1, minHeight: 0 }}>
 
       {/* ── Left panel ──────────────────────────────────────────────────────── */}
       {!hideLeftPanel && (
@@ -160,7 +160,7 @@ export default function FlMediaClient({
       )}
 
       {/* ── Right panel ─────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
         {/* Premium reddish header */}
         <div style={{ padding: "20px 24px 18px", background: "linear-gradient(135deg, #7F0000 0%, #B01230 50%, #DC143C 100%)", boxShadow: "0 4px 24px rgba(176,18,48,0.3)", position: "relative", overflow: "hidden", flexShrink: 0 }}>
@@ -207,7 +207,7 @@ export default function FlMediaClient({
         </div>
 
         {/* Entry cards */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
           {filteredEntries.length === 0 ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "#9CA3AF", gap: 8 }}>
               <span style={{ fontSize: 32, opacity: 0.3 }}>📋</span>

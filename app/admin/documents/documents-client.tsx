@@ -509,7 +509,7 @@ export default function DocumentsClient({
         <div className="hidden md:block" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "56%", zIndex: 1, opacity: 0.9 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/documents/hero-boy.png" alt=""
-            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", display: "block" }} />
+            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 15%", display: "block" }} />
           {/* Fade left edge into red */}
           <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "60%", background: "linear-gradient(to right, #8B1212 0%, rgba(139,18,18,0.55) 50%, transparent 100%)", zIndex: 2, pointerEvents: "none" }} />
           {/* Dark shade top-right corner — makes buttons readable */}

@@ -9,6 +9,16 @@ import { fmtRupee, fmtDate } from '@/lib/clients-deliverables'
 
 // ── Work type display config ──────────────────────────────────────────────────
 
+const INTERNAL_BRAND_ORDER = ['GROFAST DIGITAL', 'KARTHICK BRANDS', 'GROFAST AI']
+
+function sortInternalBrands(list: ClientRow[]) {
+  return [...list].sort((a, b) => {
+    const ai = INTERNAL_BRAND_ORDER.indexOf(a.name.toUpperCase())
+    const bi = INTERNAL_BRAND_ORDER.indexOf(b.name.toUpperCase())
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
+  })
+}
+
 const WORK_TYPE_CFG: Record<string, { emoji: string; color: string; bg: string }> = {
   reel:         { emoji: '🎬', color: '#E53935', bg: 'rgba(229,57,53,0.08)'   },
   short:        { emoji: '📱', color: '#F97316', bg: 'rgba(249,115,22,0.08)'  },
@@ -210,7 +220,7 @@ export default function ClientsUnifiedClient({
   const router = useRouter()
   const [search, setSearch] = useState('')
 
-  const internalClients = useMemo(() => activeClients.filter(c => c.industry === 'Internal Brand'), [activeClients])
+  const internalClients = useMemo(() => sortInternalBrands(activeClients.filter(c => c.industry === 'Internal Brand')), [activeClients])
   const regularActive   = useMemo(() => activeClients.filter(c => c.industry !== 'Internal Brand'), [activeClients])
 
   function filterList(list: ClientRow[]) {
@@ -268,21 +278,30 @@ export default function ClientsUnifiedClient({
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#F8F9FB' }}>
       {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
       <div style={{ flexShrink: 0, margin: '16px 16px 0', borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)', boxShadow: '0 8px 32px rgba(222,26,26,0.35)', position: 'relative' }}>
+        {/* Decorative circles */}
         <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
         <div style={{ position: 'absolute', bottom: -20, right: 180, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
-        <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, position: 'relative', zIndex: 1 }}>
+        {/* Pixar-style client illustration — right side, fades into gradient */}
+        <div className="hidden sm:block" style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%', pointerEvents: 'none', zIndex: 0 }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 110, background: 'linear-gradient(to right, #8B1A1A 0%, transparent 100%)', zIndex: 2 }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 30, background: 'linear-gradient(to bottom, rgba(127,29,29,0.85) 0%, transparent 100%)', zIndex: 2 }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 30, background: 'linear-gradient(to top, rgba(127,29,29,0.85) 0%, transparent 100%)', zIndex: 2 }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/client-hero.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'left center', display: 'block', opacity: 0.92 }} />
+        </div>
+        <div style={{ padding: '28px 28px', display: 'flex', alignItems: 'center', gap: 16, position: 'relative', zIndex: 1 }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
               <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '5px 7px', display: 'flex', alignItems: 'center' }}>
                 <Sparkles size={14} style={{ color: '#FFD700' }} />
               </div>
               <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Admin Dashboard</span>
             </div>
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: '#FFFFFF', margin: '0 0 4px', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>Clients</h1>
+            <h1 style={{ fontSize: 32, fontWeight: 900, color: '#FFFFFF', margin: '0 0 6px', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>Clients</h1>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', margin: 0 }}>Manage active clients, deliverables and financials</p>
-            <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
               {[
-                { icon: <Building2 size={11} />, label: `${activeClients.length} Active` },
+                { icon: <Building2 size={11} />, label: `${regularActive.length} Active` },
                 { icon: <TrendingUp size={11} />, label: `${pastClients.length} Past Clients` },
                 { icon: <Users size={11} />, label: `${activeClients.length + pastClients.length} Total` },
               ].map(s => (
@@ -292,9 +311,6 @@ export default function ClientsUnifiedClient({
                 </div>
               ))}
             </div>
-          </div>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Building2 size={18} style={{ color: '#FFFFFF' }} />
           </div>
         </div>
       </div>

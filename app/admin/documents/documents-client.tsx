@@ -498,34 +498,26 @@ export default function DocumentsClient({
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <div style={{
         margin: "16px 16px 0", borderRadius: 20, overflow: "hidden",
-        background: "linear-gradient(120deg, #C01010 0%, #D41515 35%, #C01010 65%, #9B0D0D 100%)",
-        boxShadow: "0 8px 32px rgba(180,0,0,0.45)", position: "relative", minHeight: 186,
+        background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
+        boxShadow: "0 8px 32px rgba(180,0,0,0.45)", position: "relative", minHeight: 200,
       }}>
-        {/* Depth glows */}
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 28% 50%, rgba(255,60,60,0.18) 0%, transparent 58%)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 80% 40%, rgba(70,0,0,0.32) 0%, transparent 55%)", pointerEvents: "none" }} />
-        {/* Sparkle dots */}
-        <div style={{ position: "absolute", top: 20, left: "32%", width: 5, height: 5, borderRadius: "50%", background: "rgba(255,255,255,0.42)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", top: 42, left: "28%", width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.26)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: 26, left: "36%", width: 4, height: 4, borderRadius: "50%", background: "rgba(255,200,200,0.32)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", top: 30, right: "22%", width: 4, height: 4, borderRadius: "50%", background: "rgba(255,255,255,0.28)", pointerEvents: "none" }} />
+        {/* Decorative circles */}
+        <div style={{ position: "absolute", top: -50, left: -50, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -30, right: 220, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
-        {/* ── Boy character — center-right, blends into red via multiply ── */}
-        <div className="hidden md:block" style={{
-          position: "absolute", left: "28%", top: "50%",
-          transform: "translateY(-50%)",
-          width: 540, height: "160%",
-          pointerEvents: "none", zIndex: 1,
-        }}>
+        {/* ── Photo cover — right 56%, objectFit cover, fades left ── */}
+        <div className="hidden md:block" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "56%", zIndex: 1, opacity: 0.9 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/documents/hero-boy.png" alt=""
-            style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center", mixBlendMode: "multiply", filter: "brightness(0.95) saturate(1.15)" }} />
+            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", display: "block" }} />
+          {/* Gradient fade — left edge blends into red */}
+          <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "60%", background: "linear-gradient(to right, #8B1212 0%, rgba(139,18,18,0.55) 50%, transparent 100%)", zIndex: 2, pointerEvents: "none" }} />
         </div>
 
         {/* ── Buttons — absolute top-right ── */}
-        <div style={{ position: "absolute", top: 18, right: 20, display: "flex", flexDirection: "column", gap: 8, zIndex: 3, alignItems: "flex-end" }}>
+        <div style={{ position: "absolute", top: 18, right: 20, display: "flex", flexDirection: "column", gap: 8, zIndex: 4, alignItems: "flex-end" }}>
           <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}
-            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", backdropFilter: "blur(8px)", whiteSpace: "nowrap" }}>
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.18)", color: "#fff", backdropFilter: "blur(8px)", whiteSpace: "nowrap" }}>
             <Upload size={13} /> Upload Document
           </button>
           <a href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8" target="_blank" rel="noopener noreferrer"
@@ -535,9 +527,9 @@ export default function DocumentsClient({
         </div>
 
         {/* ── Left content: badge top, title+chips bottom ── */}
-        <div style={{ position: "relative", zIndex: 2, padding: "18px 22px 20px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 186, maxWidth: 400 }}>
+        <div style={{ position: "relative", zIndex: 3, padding: "22px 28px 24px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 200, maxWidth: "46%" }}>
           {/* Badge — top left */}
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 99, background: "rgba(0,0,0,0.22)", color: "#fff", border: "1px solid rgba(255,255,255,0.22)", letterSpacing: "0.04em", alignSelf: "flex-start" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.22)", letterSpacing: "0.04em", alignSelf: "flex-start" }}>
             📄 Admin Dashboard
           </span>
 
@@ -551,9 +543,9 @@ export default function DocumentsClient({
             </p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {[
-                { emoji: "👥", value: members.length,  label: "Members" },
-                { emoji: "📄", value: totalFiles,       label: "Files" },
-                { emoji: "✅", value: verifiedCount,   label: "Verified" },
+                { emoji: "👥", value: members.length, label: "Members" },
+                { emoji: "📄", value: totalFiles,      label: "Files" },
+                { emoji: "✅", value: verifiedCount,  label: "Verified" },
               ].map(chip => (
                 <div key={chip.label} style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.14)", borderRadius: 12, padding: "7px 13px", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(4px)" }}>
                   <span style={{ fontSize: 15, lineHeight: 1 }}>{chip.emoji}</span>

@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
-import DailyUpdateForm, { type ActiveLeave } from "./daily-update-form"
+import DailyUpdateForm, { type ActiveLeave, type CollabWindow } from "./daily-update-form"
 import { Loader2 } from "lucide-react"
 
 function adminSupabase() {
@@ -54,6 +54,7 @@ export default async function UpdatePage() {
     { data: teamMembersRaw },
     { data: approvedLeavesRaw },
     { data: activeLeavesList },
+    { data: collabWindowsRaw },
     { data: todayClockLog },
     { data: yesterdayUpdate },
     { data: yesterdayLeave },
@@ -112,6 +113,13 @@ export default async function UpdatePage() {
       .in("status", ["approved", "pending"])
       .in("leave_type", ["half_day", "permission"])
       .gte("to_date", thirtyDaysAgoStr),
+    // Direction 2: confirmed collab windows block new work entries at same time
+    admin
+      .from("collaboration_confirmations")
+      .select("date, confirmed_start_time, confirmed_end_time")
+      .eq("collaborator_id", effectiveUserId)
+      .in("status", ["confirmed", "edited_confirmed"])
+      .gte("date", thirtyDaysAgoStr),
     // 4A: did the member clock in today?
     admin
       .from("attendance_logs")
@@ -196,6 +204,11 @@ export default async function UpdatePage() {
         requiresClockIn={requiresClockIn}
         defaultDate={defaultDate}
         activeLeavesList={(activeLeavesList ?? []) as ActiveLeave[]}
+        collabWindows={
+          ((collabWindowsRaw ?? []) as { date: string; confirmed_start_time: string | null; confirmed_end_time: string | null }[])
+            .filter(c => c.confirmed_start_time && c.confirmed_end_time)
+            .map(c => ({ date: c.date, from: c.confirmed_start_time!, to: c.confirmed_end_time! })) as CollabWindow[]
+        }
       />
     </Suspense>
   )

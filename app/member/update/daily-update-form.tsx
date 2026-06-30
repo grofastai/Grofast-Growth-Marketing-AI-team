@@ -99,28 +99,34 @@ export type ActiveLeave = {
   half_day_from_time?: string | null; half_day_to_time?: string | null
   permission_time?: string | null; permission_hours?: number | string | null
 }
+export type CollabWindow = { date: string; from: string; to: string }
 type OverlapEntry = { id?: string; start: string; end: string; title: string }
 function findOverlapError(
   newEntries: OverlapEntry[],
   savedEntries: Record<string, unknown>[],
   activeLeaves: ActiveLeave[],
-  date: string
+  date: string,
+  collabWindows: CollabWindow[] = []
 ): string | null {
   const valid = newEntries.filter(n => n.start && n.end)
   if (valid.length === 0) return null
-  // Build leave time windows for this date
-  const leaveWindows: { from: string; to: string; label: string }[] = []
+  // Build blocked time windows: leave + confirmed collabs for this date
+  const blockedWindows: { from: string; to: string; label: string }[] = []
   for (const l of activeLeaves) {
     if (l.from_date > date || l.to_date < date) continue
     if (l.leave_type === 'half_day' && l.half_day_from_time && l.half_day_to_time) {
-      leaveWindows.push({ from: l.half_day_from_time, to: l.half_day_to_time, label: 'Half Day Leave' })
+      blockedWindows.push({ from: l.half_day_from_time, to: l.half_day_to_time, label: 'Half Day Leave' })
     } else if (l.leave_type === 'permission' && l.permission_time && l.permission_hours) {
       const [h, m] = (l.permission_time as string).split(':').map(Number)
       const totalMins = h * 60 + m + Math.round(Number(l.permission_hours) * 60)
       const endH = String(Math.floor(totalMins / 60)).padStart(2, '0')
       const endM = String(totalMins % 60).padStart(2, '0')
-      leaveWindows.push({ from: l.permission_time as string, to: `${endH}:${endM}`, label: 'Permission Leave' })
+      blockedWindows.push({ from: l.permission_time as string, to: `${endH}:${endM}`, label: 'Permission Leave' })
     }
+  }
+  for (const c of collabWindows) {
+    if (c.date === date && c.from && c.to)
+      blockedWindows.push({ from: c.from, to: c.to, label: `Confirmed Collab (${c.from}–${c.to})` })
   }
   const newIds = new Set(valid.map(n => n.id).filter(Boolean))
   const saved = savedEntries.filter(e => e.start_time && e.end_time && !newIds.has(e.id as string))
@@ -129,9 +135,9 @@ function findOverlapError(
       if (timesOverlap(n.start, n.end, ex.start_time as string, ex.end_time as string, 3))
         return `Time ${n.start}–${n.end} overlaps with "${ex.title}" (${ex.start_time}–${ex.end_time}). Please fix the times.`
     }
-    for (const w of leaveWindows) {
+    for (const w of blockedWindows) {
       if (timesOverlap(n.start, n.end, w.from, w.to, 0))
-        return `"${n.title}" (${n.start}–${n.end}) overlaps with your ${w.label} (${w.from}–${w.to}). No entries allowed during leave time.`
+        return `"${n.title}" (${n.start}–${n.end}) overlaps with your ${w.label}. No entries allowed during that time.`
     }
   }
   for (let i = 0; i < valid.length; i++) {
@@ -439,7 +445,7 @@ type PastUpdate = {
 
 export default function DailyUpdateForm({
   projects, sheetClientNames = [], pastClientNames = [], userName, team, workLayout, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
-  todayClockedIn = true, requiresClockIn = false, defaultDate, activeLeavesList = [],
+  todayClockedIn = true, requiresClockIn = false, defaultDate, activeLeavesList = [], collabWindows = [],
 }: {
   projects: Project[]; sheetClientNames?: string[]; pastClientNames?: string[]; userName: string; team?: string | null
   workLayout?: 'media' | 'non_media' | 'freelance_media'
@@ -447,6 +453,7 @@ export default function DailyUpdateForm({
   teamMembers?: TeamMember[]; approvedLeaveDates?: string[]
   todayClockedIn?: boolean; requiresClockIn?: boolean; defaultDate?: string
   activeLeavesList?: ActiveLeave[]
+  collabWindows?: CollabWindow[]
 }) {
   const router = useRouter()
   const existingUpdateRef = useRef(existingUpdate)
@@ -794,7 +801,7 @@ export default function DailyUpdateForm({
         ...posters.map(p => ({ id: p.id, start: p.startTime, end: p.endTime, title: p.title || 'Poster' })),
         ...nmEdits.map(n => ({ id: n.id, start: n.startTime, end: n.endTime, title: n.title || 'Edit' })),
       ]
-      const overlapErr = findOverlapError(newEntries, existingEntries, activeLeavesList, selectedDate)
+      const overlapErr = findOverlapError(newEntries, existingEntries, activeLeavesList, selectedDate, collabWindows)
       if (overlapErr) { setWorkingError(overlapErr); return }
     }
 
@@ -949,7 +956,7 @@ export default function DailyUpdateForm({
         ...voiceovers.map(v => ({ id: v.id, start: v.startTime, end: v.endTime, title: v.title || 'Voiceover' })),
         ...posters.map(p => ({ id: p.id, start: p.startTime, end: p.endTime, title: p.title || 'Poster' })),
       ]
-      const overlapErr = findOverlapError(newEntries, existingEntries, activeLeavesList, selectedDate)
+      const overlapErr = findOverlapError(newEntries, existingEntries, activeLeavesList, selectedDate, collabWindows)
       if (overlapErr) { setError(overlapErr); return }
     }
     const work_entries = [
@@ -1262,7 +1269,7 @@ export default function DailyUpdateForm({
               .map(w => ({ id: w.id, start: w.start_time as string, end: w.end_time as string, title: w.title as string || 'Work' }))
           : []),
       ]
-      const overlapErr = findOverlapError(newEntries, existingEntries, activeLeavesList, selectedDate)
+      const overlapErr = findOverlapError(newEntries, existingEntries, activeLeavesList, selectedDate, collabWindows)
       if (overlapErr) { setError(overlapErr); return }
     }
 

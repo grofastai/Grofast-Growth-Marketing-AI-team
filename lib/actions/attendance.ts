@@ -565,9 +565,11 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
   }))
 
   // Expand approved leave date ranges into individual date strings
+  // Only full_day and half_day count as absent/leave days in the attendance table.
+  // permission = still present; wfh/shoot_day = working (different mode, not absent)
   const leaveDates: string[] = []
   for (const lv of (leavesResult.data ?? [])) {
-    if (lv.leave_type === 'permission') continue // permission doesn't make full day absent
+    if (lv.leave_type === 'permission' || lv.leave_type === 'wfh' || lv.leave_type === 'shoot_day') continue
     const cur = new Date(lv.from_date + 'T12:00:00')
     const end = new Date(lv.to_date + 'T12:00:00')
     while (cur <= end) {

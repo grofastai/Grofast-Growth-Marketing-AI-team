@@ -2941,8 +2941,6 @@ export default function DailyUpdateForm({
                         <option value="Tea">☕ Tea</option>
                         <option value="Lunch Break">🍱 Lunch Break</option>
                         <option value="Personal">🏠 Personal</option>
-                        <option value="Permission">🙏 Permission</option>
-                        <option value="Half Day Leave">🌓 Half Day Leave</option>
                         <option value="Short Break">🚶 Short Break</option>
                         <option value="Early Logoff">🌙 Early Logoff</option>
                         <option value="Late Login">⏰ Late Login</option>
@@ -2982,8 +2980,6 @@ export default function DailyUpdateForm({
                         <option value="Tea">☕ Tea</option>
                         <option value="Lunch Break">🍱 Lunch Break</option>
                         <option value="Personal">🏠 Personal</option>
-                        <option value="Permission">🙏 Permission</option>
-                        <option value="Half Day Leave">🌓 Half Day Leave</option>
                         <option value="Short Break">🚶 Short Break</option>
                         <option value="Early Logoff">🌙 Early Logoff</option>
                         <option value="Late Login">⏰ Late Login</option>

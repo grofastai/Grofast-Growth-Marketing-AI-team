@@ -42,6 +42,7 @@ interface UpdateRow {
   learning_start_time: string | null; learning_end_time: string | null
   shoot_count: number | null
   work_entries: WorkEntry[] | null; created_at: string
+  participant_ids?: string[] | null
 }
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -424,7 +425,7 @@ export default function HistoryClient({
 
   // Learning edit state
   const [editingLearningId, setEditingLearningId] = useState<string | null>(null)
-  const [learningDraft, setLearningDraft] = useState<{ client: string; topic: string; notes: string; hours: string; startTime: string; endTime: string }>({ client: "GROFAST DIGITAL", topic: "", notes: "", hours: "", startTime: "", endTime: "" })
+  const [learningDraft, setLearningDraft] = useState<{ client: string; topic: string; notes: string; hours: string; startTime: string; endTime: string; participantIds: string[] }>({ client: "GROFAST DIGITAL", topic: "", notes: "", hours: "", startTime: "", endTime: "", participantIds: [] })
   const [savingLearning, setSavingLearning] = useState(false)
 
   // Per-entry date change state
@@ -622,12 +623,13 @@ export default function HistoryClient({
     const raw = u.learning_topic ?? ""
     const m = raw.match(/^\[([^\]]+)\]\s*(.*)$/)
     setLearningDraft({
-      client:    m ? m[1] : "GROFAST DIGITAL",
-      topic:     m ? m[2] : raw,
-      notes:     u.learning_notes ?? "",
-      hours:     u.learning_hours != null ? String(u.learning_hours) : "",
-      startTime: u.learning_start_time ?? "",
-      endTime:   u.learning_end_time   ?? "",
+      client:         m ? m[1] : "GROFAST DIGITAL",
+      topic:          m ? m[2] : raw,
+      notes:          u.learning_notes ?? "",
+      hours:          u.learning_hours != null ? String(u.learning_hours) : "",
+      startTime:      u.learning_start_time ?? "",
+      endTime:        u.learning_end_time   ?? "",
+      participantIds: u.participant_ids ?? [],
     })
   }
 
@@ -647,6 +649,7 @@ export default function HistoryClient({
       learning_notes:      learningDraft.notes || null,
       learning_start_time: learningDraft.startTime || null,
       learning_end_time:   learningDraft.endTime   || null,
+      participant_ids:     learningDraft.participantIds.length > 0 ? learningDraft.participantIds : null,
     })
     if (result.success) {
       setEditingLearningId(null)
@@ -1712,6 +1715,29 @@ export default function HistoryClient({
                                 placeholder="Any notes or details…"
                                 style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }}/>
                             </div>
+                            {members.length > 0 && (
+                              <div>
+                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>👥 Learned With</label>
+                                <div style={{ position:"relative" }}>
+                                  <select value="" onChange={ev => { const id = ev.target.value; if (id && !learningDraft.participantIds.includes(id)) setLearningDraft(d => ({ ...d, participantIds: [...d.participantIds, id] })) }}
+                                    style={{ width:"100%", padding:"7px 28px 7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box", appearance:"none" }}>
+                                    <option value="">Add teammate…</option>
+                                    {members.filter(m => !learningDraft.participantIds.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                  </select>
+                                </div>
+                                {learningDraft.participantIds.length > 0 && (
+                                  <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                    {learningDraft.participantIds.map(pid => {
+                                      const m = members.find(t => t.id === pid); if (!m) return null
+                                      return (<button key={pid} type="button" onClick={() => setLearningDraft(d => ({ ...d, participantIds: d.participantIds.filter(p => p !== pid) }))}
+                                        style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 6px", borderRadius:99, background:"rgba(245,158,11,0.1)", border:"1.5px solid rgba(245,158,11,0.35)", cursor:"pointer", fontSize:11, fontWeight:700, color:"#B45309" }}>
+                                        {m.name.split(" ")[0]} ✕
+                                      </button>)
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                             <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                               <button onClick={() => setEditingLearningId(null)}
                                 style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>
@@ -1841,6 +1867,29 @@ export default function HistoryClient({
                                     placeholder="Any notes or details…"
                                     style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }}/>
                                 </div>
+                                {members.length > 0 && (
+                                  <div>
+                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>👥 Learned With</label>
+                                    <div style={{ position:"relative" }}>
+                                      <select value="" onChange={ev => { const id = ev.target.value; if (id && !learningDraft.participantIds.includes(id)) setLearningDraft(d => ({ ...d, participantIds: [...d.participantIds, id] })) }}
+                                        style={{ width:"100%", padding:"7px 28px 7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box", appearance:"none" }}>
+                                        <option value="">Add teammate…</option>
+                                        {members.filter(m => !learningDraft.participantIds.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                      </select>
+                                    </div>
+                                    {learningDraft.participantIds.length > 0 && (
+                                      <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                        {learningDraft.participantIds.map(pid => {
+                                          const m = members.find(t => t.id === pid); if (!m) return null
+                                          return (<button key={pid} type="button" onClick={() => setLearningDraft(d => ({ ...d, participantIds: d.participantIds.filter(p => p !== pid) }))}
+                                            style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 6px", borderRadius:99, background:"rgba(245,158,11,0.1)", border:"1.5px solid rgba(245,158,11,0.35)", cursor:"pointer", fontSize:11, fontWeight:700, color:"#B45309" }}>
+                                            {m.name.split(" ")[0]} ✕
+                                          </button>)
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                                   <button onClick={() => setEditingLearningId(null)}
                                     style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>
@@ -2166,8 +2215,8 @@ export default function HistoryClient({
                                   </div>)
                                 })()}
 
-                                {/* ── EDITING ENTRY ── */}
-                                {editDraft.task_type === "edit" && (()=>{
+                                {/* ── EDITING ENTRY (media only) ── */}
+                                {editDraft.task_type === "edit" && isMedia && (()=>{
                                   const HF: React.CSSProperties = { background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box" as const }
                                   const HL: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
                                   const dur = calcDur(editDraft.start_time, editDraft.end_time)

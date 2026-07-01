@@ -484,22 +484,26 @@ export async function updatePastDailyUpdate(
 
 export async function updateDailyUpdateLearning(
   id: string,
-  data: { learning_hours: number | null; learning_topic: string | null; learning_notes: string | null; learning_start_time?: string | null; learning_end_time?: string | null }
+  data: { learning_hours: number | null; learning_topic: string | null; learning_notes: string | null; learning_start_time?: string | null; learning_end_time?: string | null; participant_ids?: string[] | null }
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await getUserContext()
   if ('error' in ctx) return { success: false, error: ctx.error }
   const { userId } = ctx
 
   const admin = adminSupabase()
+  const updatePayload: Record<string, unknown> = {
+    learning_hours:      data.learning_hours,
+    learning_topic:      data.learning_topic || null,
+    learning_notes:      data.learning_notes || null,
+    learning_start_time: data.learning_start_time ?? null,
+    learning_end_time:   data.learning_end_time   ?? null,
+  }
+  if (data.participant_ids !== undefined) {
+    updatePayload.participant_ids = data.participant_ids
+  }
   const { error } = await admin
     .from('daily_updates')
-    .update({
-      learning_hours:      data.learning_hours,
-      learning_topic:      data.learning_topic || null,
-      learning_notes:      data.learning_notes || null,
-      learning_start_time: data.learning_start_time ?? null,
-      learning_end_time:   data.learning_end_time   ?? null,
-    })
+    .update(updatePayload)
     .eq('id', id)
     .eq('user_id', userId)
 

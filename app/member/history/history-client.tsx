@@ -2303,13 +2303,15 @@ export default function HistoryClient({
                                       </div>
                                     </div>
                                     <div><label style={HL}>Video Name *</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="e.g. Evan Styles Makeover Reel" style={HF} /></div>
-                                    <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"flex-start", justifyContent:"center" }}>
-                                      <div style={{ flex:"0 0 auto" }}>
+                                    <div style={{ display:"flex", flexWrap:"wrap", alignItems:"flex-start", gap:8 }}>
+                                      <div className="w-full md:w-auto">
                                         <label style={HL}>Video Length</label>
                                         <VideoDurationPicker value={editDraft.video_duration??""} onChange={v=>setEditDraft(d=>({...d,video_duration:v}))} inputStyle={{ background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"9px 10px", fontSize:13 }} />
                                       </div>
-                                      <div style={{ width:80, flexShrink:0 }}><label style={HL}>Revisions</label><input type="number" min="0" max="99" value={editDraft.revisions??0} onChange={ev=>setEditDraft(d=>({...d,revisions:parseInt(ev.target.value)||0}))} placeholder="0" style={HF} /></div>
-                                      <div style={{ width:80, flexShrink:0 }}><label style={HL}>🪝 Hooks</label><input type="number" min="0" max="99" value={editDraft.hooks_completed??0} onChange={ev=>setEditDraft(d=>({...d,hooks_completed:Math.max(0,parseInt(ev.target.value)||0)}))} placeholder="0" style={HF} /></div>
+                                      <div style={{ flex:1, display:"flex", justifyContent:"center", gap:8, alignItems:"flex-start" }}>
+                                        <div style={{ width:80, flexShrink:0 }}><label style={HL}>Revisions</label><input type="number" min="0" max="99" value={editDraft.revisions??0} onChange={ev=>setEditDraft(d=>({...d,revisions:parseInt(ev.target.value)||0}))} placeholder="0" style={HF} /></div>
+                                        <div style={{ width:80, flexShrink:0 }}><label style={HL}>🪝 Hooks</label><input type="number" min="0" max="99" value={editDraft.hooks_completed??0} onChange={ev=>setEditDraft(d=>({...d,hooks_completed:Math.max(0,parseInt(ev.target.value)||0)}))} placeholder="0" style={HF} /></div>
+                                      </div>
                                     </div>
                                     <div>
                                       <label style={HL}>✏️ Editing Time <span style={{ color:"#EF4444" }}>*</span></label>

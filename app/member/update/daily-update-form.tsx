@@ -2814,19 +2814,21 @@ export default function DailyUpdateForm({
                         <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Name *</label>
                         <input value={e.title} onChange={ev => patchEdit(e.id, { title: ev.target.value })} placeholder="e.g. Evan Styles Makeover Reel" style={F} />
                       </div>
-                      {/* Duration + Revisions + Hooks — centered on desktop */}
-                      <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"flex-start", marginBottom:10, justifyContent:"center" }}>
-                        <div style={{ flex:"0 0 auto" }}>
+                      {/* Video Length left, Revisions+Hooks centered in remaining space; mobile: Video Length full-width own line */}
+                      <div style={{ display:"flex", flexWrap:"wrap", alignItems:"flex-start", marginBottom:10, gap:8 }}>
+                        <div className="w-full md:w-auto">
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Length</label>
                           <VideoDurationPicker value={e.videoDuration} onChange={v => patchEdit(e.id, { videoDuration: v })} />
                         </div>
-                        <div style={{ width:80, flexShrink:0 }}>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Revisions</label>
-                          <input type="number" min="0" max="99" value={e.revisions} onChange={ev => patchEdit(e.id, { revisions: parseInt(ev.target.value) || 0 })} placeholder="0" style={F} />
-                        </div>
-                        <div style={{ width:80, flexShrink:0 }}>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🪝 Hooks</label>
-                          <input type="number" min="0" max="99" step="1" value={e.hooksCompleted} onChange={ev => patchEdit(e.id, { hooksCompleted: Math.max(0, Math.floor(parseInt(ev.target.value) || 0)) })} placeholder="0" style={F} />
+                        <div style={{ flex:1, display:"flex", justifyContent:"center", gap:8, alignItems:"flex-start" }}>
+                          <div style={{ width:80, flexShrink:0 }}>
+                            <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Revisions</label>
+                            <input type="number" min="0" max="99" value={e.revisions} onChange={ev => patchEdit(e.id, { revisions: parseInt(ev.target.value) || 0 })} placeholder="0" style={F} />
+                          </div>
+                          <div style={{ width:80, flexShrink:0 }}>
+                            <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🪝 Hooks</label>
+                            <input type="number" min="0" max="99" step="1" value={e.hooksCompleted} onChange={ev => patchEdit(e.id, { hooksCompleted: Math.max(0, Math.floor(parseInt(ev.target.value) || 0)) })} placeholder="0" style={F} />
+                          </div>
                         </div>
                       </div>
                       {/* ── Editing time window (for shoot overlap detection) ── */}

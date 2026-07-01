@@ -1706,7 +1706,7 @@ export default function HistoryClient({
                                 {(() => { const [fh,fm] = learningDraft.startTime ? learningDraft.startTime.split(":").map(Number) : [0,0]; const [th,tm] = learningDraft.endTime ? learningDraft.endTime.split(":").map(Number) : [0,0]; const h = Math.max(0,(th*60+tm-fh*60-fm)/60); return <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:h>0?"rgba(245,158,11,0.1)":"#F9FAFB", color:h>0?"#B45309":"#9CA3AF" }}>{h>0?fmtH(h):"—"}</span> })()}
                               </div>
                             </div>
-                            <div style={{ display:"grid", gridTemplateColumns: members.length > 0 ? "7fr 3fr" : "1fr", gap:10, alignItems:"start" }}>
+                            <div className={`grid ${members.length > 0 ? "md:grid-cols-[7fr_3fr]" : ""}`} style={{ gap:10, alignItems:"start" }}>
                               <div>
                                 <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
                                 <textarea rows={2} value={learningDraft.notes} onChange={e => setLearningDraft(d => ({ ...d, notes: e.target.value }))}
@@ -1861,7 +1861,7 @@ export default function HistoryClient({
                                     {(() => { const [fh,fm] = learningDraft.startTime ? learningDraft.startTime.split(":").map(Number) : [0,0]; const [th,tm] = learningDraft.endTime ? learningDraft.endTime.split(":").map(Number) : [0,0]; const h = Math.max(0,(th*60+tm-fh*60-fm)/60); return <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:h>0?"rgba(245,158,11,0.1)":"#F9FAFB", color:h>0?"#B45309":"#9CA3AF" }}>{h>0?fmtH(h):"—"}</span> })()}
                                   </div>
                                 </div>
-                                <div style={{ display:"grid", gridTemplateColumns: members.length > 0 ? "7fr 3fr" : "1fr", gap:10, alignItems:"start" }}>
+                                <div className={`grid ${members.length > 0 ? "md:grid-cols-[7fr_3fr]" : ""}`} style={{ gap:10, alignItems:"start" }}>
                                   <div>
                                     <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
                                     <textarea rows={2} value={learningDraft.notes} onChange={e => setLearningDraft(d => ({ ...d, notes: e.target.value }))}
@@ -2402,7 +2402,7 @@ export default function HistoryClient({
                                       </div>
                                     )}
                                     {editDraft.task_type==="learning" ? (
-                                      <div style={{ display:"grid", gridTemplateColumns: members.length > 0 ? "7fr 3fr" : "1fr", gap:10, alignItems:"start" }}>
+                                      <div className={`grid ${members.length > 0 ? "md:grid-cols-[7fr_3fr]" : ""}`} style={{ gap:10, alignItems:"start" }}>
                                         <div>
                                           <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
                                           <textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }} />

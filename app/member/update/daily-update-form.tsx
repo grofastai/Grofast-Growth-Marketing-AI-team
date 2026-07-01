@@ -3084,8 +3084,8 @@ export default function DailyUpdateForm({
                         </div>
                       </div>
                     </div>
-                    {/* Notes + Learned With — 70/30 on same row */}
-                    <div style={{ display:"grid", gridTemplateColumns: teamMembers.length > 0 ? "7fr 3fr" : "1fr", gap:12, alignItems:"start" }}>
+                    {/* Notes + Learned With — 70/30 on desktop, stacked on mobile */}
+                    <div className={`grid ${teamMembers.length > 0 ? "md:grid-cols-[7fr_3fr]" : ""}`} style={{ gap:12, alignItems:"start" }}>
                       <div>
                         <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Notes</label>
                         <input value={blk.notes} onChange={e => patchLearningBlock(blk.id, { notes: e.target.value })} placeholder="Key takeaways, resources used…" style={F} />

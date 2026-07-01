@@ -2143,7 +2143,7 @@ export default function HistoryClient({
                                         </div>
                                       </div>
                                       <div>
-                                        <label style={HL}>Shoot Type / Title *</label>
+                                        <label style={HL}>Title *</label>
                                         <input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="e.g. Basketball Tournament Shoot" style={HF} />
                                       </div>
                                     </div>

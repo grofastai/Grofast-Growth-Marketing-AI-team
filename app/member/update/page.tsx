@@ -98,6 +98,7 @@ export default async function UpdatePage() {
       .eq("status", "active")
       .eq("role", "MEMBER")
       .neq("id", effectiveUserId)
+      .or("work_layout.neq.freelance_media,work_layout.is.null")
       .order("name"),
     admin
       .from("leaves")

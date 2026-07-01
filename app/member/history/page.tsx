@@ -125,6 +125,8 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
           .select("id, name")
           .eq("company_id", companyId)
           .eq("status", "active")
+          .eq("role", "MEMBER")
+          .or("work_layout.neq.freelance_media,work_layout.is.null")
       : Promise.resolve({ data: [] as MemberInfo[] }),
     // Attendance logs for the full year
     admin

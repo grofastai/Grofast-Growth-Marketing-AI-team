@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { createShoot, updateShootStatus, deleteShoot } from '@/lib/actions/shoots'
 import {
   Camera, Plus, X, Loader2, MapPin, Users, Wrench,
-  IndianRupee, Clock, CheckCircle2, XCircle, CalendarClock, Trash2,
+  IndianRupee, Clock, CheckCircle2, XCircle, CalendarClock, Trash2, AlertTriangle,
 } from 'lucide-react'
 
 type Shoot = {
@@ -360,8 +360,10 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
                 </div>
 
                 {formError && (
-                  <p className="text-[12px] px-3 py-2 rounded-lg"
-                    style={{ background: 'rgba(222,26,26,0.06)', color: '#de1a1a' }}>{formError}</p>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px' }}>
+                    <AlertTriangle size={13} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#DC2626', lineHeight: 1.4 }}>{formError}</span>
+                  </div>
                 )}
               </div>
 

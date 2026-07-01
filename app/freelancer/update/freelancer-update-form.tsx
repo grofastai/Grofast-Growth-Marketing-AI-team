@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { Camera, Scissors, Mic, CheckCircle, AlertCircle, ChevronDown, IndianRupee, Calendar, CreditCard } from "lucide-react"
+import { Camera, Scissors, Mic, CheckCircle, ChevronDown, IndianRupee, Calendar, CreditCard } from "lucide-react"
 import { submitFreelancerUpdate } from "@/lib/actions/freelancer-updates"
+import { useToast } from "@/components/ui/useToast"
 
 type WorkType = "shooting" | "editing" | "voice_over"
 
@@ -89,6 +90,7 @@ function TextArea({ value, onChange, placeholder, rows = 3 }: {
 
 export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
   const today = new Date().toISOString().split("T")[0]
+  const { toastEl, showToast } = useToast()
 
   const [workType, setWorkType] = useState<WorkType>("shooting")
   const [freelancerId, setFreelancerId] = useState("")
@@ -97,8 +99,7 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
   const [cost, setCost] = useState("")
   const [deadline, setDeadline] = useState("")
   const [paymentStatus, setPaymentStatus] = useState<"unpaid" | "paid">("unpaid")
-  const [formStatus, setFormStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
-  const [errorMsg, setErrorMsg] = useState("")
+  const [formStatus, setFormStatus] = useState<"idle" | "loading" | "success">("idle")
 
   // Shooting
   const [shootTitle, setShootTitle] = useState("")
@@ -133,11 +134,10 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!freelancerId) { setErrorMsg("Please select a freelancer"); setFormStatus("error"); return }
-    if (!clientId)     { setErrorMsg("Please select a client");     setFormStatus("error"); return }
+    if (!freelancerId) { showToast("Please select a freelancer"); return }
+    if (!clientId)     { showToast("Please select a client"); return }
 
     setFormStatus("loading")
-    setErrorMsg("")
 
     const commonFields = {
       freelancer_id:  freelancerId,
@@ -197,13 +197,14 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
       resetWorkFields()
       setCost(""); setDeadline(""); setPaymentStatus("unpaid")
     } else {
-      setFormStatus("error")
-      setErrorMsg(result.error ?? "Something went wrong")
+      setFormStatus("idle")
+      showToast(result.error ?? "Something went wrong")
     }
   }
 
   return (
     <form onSubmit={handleSubmit}>
+      {toastEl}
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
         {/* Freelancer + Client + Date */}
@@ -386,12 +387,6 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", background: "rgba(45,106,79,0.08)", borderRadius: 10, border: "1px solid rgba(45,106,79,0.2)" }}>
             <CheckCircle size={18} color="#2D6A4F" />
             <span style={{ fontSize: 14, fontWeight: 600, color: "#2D6A4F" }}>Update logged successfully!</span>
-          </div>
-        )}
-        {formStatus === "error" && errorMsg && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", background: "rgba(239,68,68,0.07)", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)" }}>
-            <AlertCircle size={18} color="#EF4444" />
-            <span style={{ fontSize: 14, fontWeight: 600, color: "#EF4444" }}>{errorMsg}</span>
           </div>
         )}
 

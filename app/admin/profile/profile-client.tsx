@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   Edit2, Check, X, Loader2, LogOut, Camera, HeartPulse, MapPin, UserPlus,
   Landmark, CreditCard, FileText, Upload, CheckCircle2, ChevronRight,
-  Bell, Settings, Lock, FolderOpen, User, Users, Clock, Shield,
+  Bell, Settings, Lock, FolderOpen, User, Users, Clock, Shield, AlertTriangle,
 } from "lucide-react"
 import { updateOwnProfile } from "@/lib/actions/team"
 import { updatePersonalDetails, updateKYC } from "@/lib/actions/profile"
@@ -293,7 +293,12 @@ export default function AdminProfileClient({
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <input className="ap-in" style={{ ...IS, fontSize: "15px", fontWeight: "700" }} value={editName} onChange={e => setEditName(e.target.value)} placeholder="Full name" />
                     <input className="ap-in" style={IS} value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Phone number" />
-                    {editError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{editError}</p>}
+                    {editError && (
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "8px 12px" }}>
+                        <AlertTriangle size={12} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                        <span style={{ fontSize: 11, fontWeight: 600, color: "#DC2626", lineHeight: 1.4 }}>{editError}</span>
+                      </div>
+                    )}
                     <div style={{ display: "flex", gap: 8 }}>
                       <button onClick={handleSave} disabled={savePending}
                         style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 16px", borderRadius: 10, background: "#DE1A1A", border: "none", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
@@ -327,7 +332,12 @@ export default function AdminProfileClient({
                     </button>
                   </div>
                 )}
-                {photoError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{photoError}</p>}
+                {photoError && (
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "8px 12px", marginTop: 4 }}>
+                    <AlertTriangle size={12} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#DC2626", lineHeight: 1.4 }}>{photoError}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -392,7 +402,12 @@ export default function AdminProfileClient({
                       <input value={personal.emergency_contact_phone} onChange={e => setPersonal(p => ({ ...p, emergency_contact_phone: e.target.value }))} className="ap-in" style={IS} placeholder="Phone" />
                     </div>
                   </div>
-                  {personalError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{personalError}</p>}
+                  {personalError && (
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "8px 12px" }}>
+                      <AlertTriangle size={12} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: "#DC2626", lineHeight: 1.4 }}>{personalError}</span>
+                    </div>
+                  )}
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={handlePersonalSave} disabled={personalPending}
                       style={{ display: "flex", alignItems: "center", gap: 5, padding: "9px 18px", borderRadius: 10, background: "linear-gradient(135deg,#DE1A1A,#7F1D1D)", border: "none", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
@@ -487,7 +502,12 @@ export default function AdminProfileClient({
                       </div>
                     </div>
                   ))}
-                  {kycError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{kycError}</p>}
+                  {kycError && (
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "8px 12px" }}>
+                      <AlertTriangle size={12} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: "#DC2626", lineHeight: 1.4 }}>{kycError}</span>
+                    </div>
+                  )}
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={handleKYCSave} disabled={kycPending}
                       style={{ display: "flex", alignItems: "center", gap: 5, padding: "9px 18px", borderRadius: 10, background: "linear-gradient(135deg,#DE1A1A,#7F1D1D)", border: "none", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
@@ -639,7 +659,12 @@ export default function AdminProfileClient({
               <Upload size={14} /> Upload your own photo
               <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) { setShowPicker(false); handlePhotoUpload(f) } }} />
             </label>
-            {photoError && <p style={{ fontSize: 11, color: "#DE1A1A", marginTop: 10, textAlign: "center" }}>{photoError}</p>}
+            {photoError && (
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "8px 12px", marginTop: 10 }}>
+                <AlertTriangle size={12} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#DC2626", lineHeight: 1.4 }}>{photoError}</span>
+              </div>
+            )}
           </div>
         </div>
       )}

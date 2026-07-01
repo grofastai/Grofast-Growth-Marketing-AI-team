@@ -4,15 +4,16 @@ import { useState, useTransition } from "react"
 import { sendWhatsAppBlast } from "@/lib/actions/blast"
 import type { BlastResult } from "@/lib/actions/blast"
 import { MessageSquare, Send, CheckCircle2, XCircle, Phone, Users, RotateCcw } from "lucide-react"
+import { useToast } from "@/components/ui/useToast"
 
 type Member = { id: string; name: string; employee_id: string; phone: string | null }
 
 export default function BlastClient({ members }: { members: Member[] }) {
+  const { toastEl, showToast } = useToast()
   const [message, setMessage]       = useState("")
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll]   = useState(false)
   const [results, setResults]       = useState<BlastResult[] | null>(null)
-  const [error, setError]           = useState("")
   const [isPending, startTransition] = useTransition()
 
   function toggleAll(checked: boolean) {
@@ -28,12 +29,11 @@ export default function BlastClient({ members }: { members: Member[] }) {
   }
 
   function send() {
-    setError("")
     setResults(null)
     startTransition(async () => {
       const ids = selectAll ? members.map(m => m.id) : Array.from(selectedIds)
       const res = await sendWhatsAppBlast({ memberIds: ids, message })
-      if (!res.success) { setError(res.error ?? "Failed to send"); return }
+      if (!res.success) { showToast(res.error ?? "Failed to send"); return }
       setResults(res.results)
     })
   }
@@ -115,6 +115,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
   // ── Compose view ──────────────────────────────────────────
   return (
     <div className="p-4 md:p-6 xl:p-8 max-w-[1100px]">
+      {toastEl}
       {/* Header */}
       <div className="mb-7">
         <h1 className="gradient-heading text-[30px] font-black leading-tight"
@@ -148,13 +149,6 @@ export default function BlastClient({ members }: { members: Member[] }) {
               {message.length} / 1000
             </p>
           </div>
-
-          {error && (
-            <div className="px-4 py-3 rounded-xl text-[13px] font-medium"
-              style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.15)", color: "#de1a1a" }}>
-              {error}
-            </div>
-          )}
 
           <button onClick={send} disabled={!canSend}
             className="flex items-center gap-2 px-6 py-3 rounded-xl text-[14px] font-bold transition-all"

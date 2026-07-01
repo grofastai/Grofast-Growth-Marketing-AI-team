@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { submitExpense } from "@/lib/actions/expenses"
-import { Receipt, Plus, CheckCircle2, Clock, XCircle, Loader2, X, IndianRupee } from "lucide-react"
+import { Receipt, Plus, CheckCircle2, Clock, XCircle, Loader2, X, IndianRupee, AlertTriangle } from "lucide-react"
 
 const CATEGORIES = ["Travel", "Food", "Equipment", "Software", "Office Supplies", "Other"]
 
@@ -204,8 +204,10 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
                     value={form.notes} onChange={set("notes")} />
                 </div>
                 {error && (
-                  <p className="text-[12px] px-3 py-2 rounded-lg"
-                    style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>{error}</p>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10, padding: "10px 14px" }}>
+                    <AlertTriangle size={13} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#DC2626", lineHeight: 1.4 }}>{error}</span>
+                  </div>
                 )}
               </div>
               <div className="px-6 pb-5 flex gap-3">

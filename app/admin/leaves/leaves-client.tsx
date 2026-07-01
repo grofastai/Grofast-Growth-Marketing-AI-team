@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { useState, useTransition } from "react"
-import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, XOctagon, Paperclip, Plus, Trash2, Pencil, X } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, XOctagon, Paperclip, Plus, Trash2, Pencil, X, AlertTriangle } from "lucide-react"
 import { updateLeaveStatus } from "@/lib/actions/leaves"
 import { addCompanyLeave, updateCompanyLeave, deleteCompanyLeave } from "@/lib/actions/company-leaves"
 
@@ -452,7 +452,12 @@ export default function LeavesClient({
                     Add Holiday
                   </button>
                 </div>
-                {holidayError && <p style={{ fontSize:12, color:"#EF4444", fontWeight:600, margin:"10px 0 0" }}>{holidayError}</p>}
+                {holidayError && (
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10, padding: "10px 14px", marginTop: 10 }}>
+                    <AlertTriangle size={13} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#DC2626", lineHeight: 1.4 }}>{holidayError}</span>
+                  </div>
+                )}
               </div>
 
               {/* Holiday list */}
@@ -492,7 +497,12 @@ export default function LeavesClient({
                                 <X size={12} style={{ color:"#6B7280" }} />
                               </button>
                             </div>
-                            {editHolidayError && <p style={{ fontSize:11, color:"#EF4444", fontWeight:600, margin:"6px 0 0" }}>{editHolidayError}</p>}
+                            {editHolidayError && (
+                              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10, padding: "8px 12px", marginTop: 6 }}>
+                                <AlertTriangle size={12} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                                <span style={{ fontSize: 11, fontWeight: 600, color: "#DC2626", lineHeight: 1.4 }}>{editHolidayError}</span>
+                              </div>
+                            )}
                           </div>
                         )
                       }

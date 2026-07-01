@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { CheckCircle2, Loader2, Plus, Trash2 } from 'lucide-react'
+import { CheckCircle2, Loader2, Plus, Trash2, AlertTriangle } from 'lucide-react'
 import { submitSimpleUpdate, type SimpleEntryInput } from '@/lib/actions/simple-update'
 
 const PROGRESS_PRESETS = [25, 50, 75, 100]
@@ -336,8 +336,9 @@ export default function ActivityUpdateForm({
 
       {/* Error */}
       {error && (
-        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
-          <p style={{ fontSize: 12, color: '#EF4444', margin: 0, fontWeight: 600 }}>{error}</p>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
+          <AlertTriangle size={13} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#DC2626', lineHeight: 1.4 }}>{error}</span>
         </div>
       )}
 

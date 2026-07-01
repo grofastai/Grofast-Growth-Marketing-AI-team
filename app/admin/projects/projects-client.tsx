@@ -5,7 +5,7 @@ import Link from "next/link"
 import {
   Search, Plus, FolderOpen, CheckCircle2, Clock, PauseCircle,
   MoreVertical, MapPin, X, Pencil, Trash2, Loader2, User,
-  Briefcase, ChevronDown, Target, ArrowRight, Package, CalendarRange,
+  Briefcase, ChevronDown, Target, ArrowRight, Package, CalendarRange, AlertTriangle,
 } from "lucide-react"
 import { createProject, updateProject, deleteProject } from "@/lib/actions/projects"
 
@@ -269,10 +269,10 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
           </div>
 
           {error && (
-            <p className="text-[12px] px-4 py-3 rounded-lg"
-              style={{ background: "rgba(222,26,26,0.07)", color: "#F87171", border: "1px solid rgba(222,26,26,0.18)" }}>
-              {error}
-            </p>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 10, padding: "10px 14px" }}>
+              <AlertTriangle size={13} color="#EF4444" style={{ flexShrink: 0, marginTop: 1 }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#DC2626", lineHeight: 1.4 }}>{error}</span>
+            </div>
           )}
         </div>
 

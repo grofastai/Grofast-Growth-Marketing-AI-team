@@ -11,6 +11,7 @@ import {
 import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
 import { buildClientOptions } from "@/lib/utils/client-options"
 import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
+import { useToast } from "@/components/ui/useToast"
 
 interface Project { id: string; business_name: string }
 interface TeamMember { id: string; name: string; employee_id: string; role: string; team?: string | null }
@@ -665,9 +666,11 @@ export default function DailyUpdateForm({
     existingUpdate?.active_tab === "learning" ? ((existingUpdate?.participant_ids as string[]) ?? []) : []
   )
 
+  const { toastEl, showToast } = useToast()
   const [error,         setError]         = useState<string | null>(null)
   const [workingError,  setWorkingError]  = useState<string | null>(null)
   const [learningError, setLearningError] = useState<string | null>(null)
+  useEffect(() => { if (error) showToast(error) }, [error])
   const existingHasMedia = (u: Record<string, unknown> | null) =>
     !!(u && (
       (Array.isArray((u as Record<string,unknown>).work_entries) &&
@@ -1609,6 +1612,7 @@ export default function DailyUpdateForm({
 
   return (
     <div className="p-4 md:p-6" style={{ background:"#F5F6FA", minHeight:"100vh" }}>
+      {toastEl}
 
       {/* ── HEADER ────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:20, padding:"16px 18px", gap:14, boxShadow:"0 8px 32px rgba(180,0,0,0.35)", position:"relative", overflow:"hidden", marginBottom:20 }}>
@@ -3152,10 +3156,9 @@ export default function DailyUpdateForm({
           {(isMediaTeam || tab === "break") && (
             <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", flexWrap:"wrap" }}>
               <div>
-                {error && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{error}</p>}
-                {!error && tab === "media"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{shoots.length} shoot{shoots.length !== 1 ? "s" : ""} · {edits.length} edit{edits.length !== 1 ? "s" : ""} · {totalMediaHours}h total</p>}
-                {!error && tab === "learning"&& <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningSummaryTopic || "not set"}{filledLearningBlocks.length > 1 ? ` +${filledLearningBlocks.length - 1} more` : ""} · {learningHours}h</p>}
-                {!error && tab === "break"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>
+                {tab === "media"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{shoots.length} shoot{shoots.length !== 1 ? "s" : ""} · {edits.length} edit{edits.length !== 1 ? "s" : ""} · {totalMediaHours}h total</p>}
+                {tab === "learning"&& <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningSummaryTopic || "not set"}{filledLearningBlocks.length > 1 ? ` +${filledLearningBlocks.length - 1} more` : ""} · {learningHours}h</p>}
+                {tab === "break"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>
                   {isMediaTeam ? `${mediaBreaks.length} break${mediaBreaks.length !== 1 ? "s" : ""} · ${mediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h` : `${nonMediaBreaks.length} break${nonMediaBreaks.length !== 1 ? "s" : ""} · ${nonMediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h`}
                 </p>}
               </div>

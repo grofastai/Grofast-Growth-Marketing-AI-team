@@ -773,10 +773,10 @@ export default function DailyUpdateForm({
     return () => document.removeEventListener("click", handler, true)
   }, [hasUnsaved])
 
-  // Past 15-day revision options per entry type
+  // Past 30-day revision options per entry type
   const past15Options = useMemo(() => {
     const cutoff = new Date(selectedDate + "T12:00:00")
-    cutoff.setDate(cutoff.getDate() - 15)
+    cutoff.setDate(cutoff.getDate() - 30)
     const cutoffStr = cutoff.toISOString().split("T")[0]
     type Opt = { key: string; label: string; title: string; client: string; date: string }
     const editsOpts: Opt[] = [], voiceoversOpts: Opt[] = [], postersOpts: Opt[] = []
@@ -788,12 +788,11 @@ export default function DailyUpdateForm({
         const title = (e.title as string) || ""
         const client = (e.client_name as string) || ""
         if (!title) continue
-        const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"short", month:"short", day:"numeric" })
+        const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { day:"numeric", month:"short", year:"numeric" })
         const key = `${u.date}||${client}||${title}`
-        const label = `${client} – ${title} (${dateLabel})`
-        if (e.task_type === "edit") editsOpts.push({ key, label, title, client, date: u.date })
-        else if (e.task_type === "voiceover") voiceoversOpts.push({ key, label, title, client, date: u.date })
-        else if (e.task_type === "poster") postersOpts.push({ key, label, title, client, date: u.date })
+        if (e.task_type === "edit") editsOpts.push({ key, label:`🎬  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
+        else if (e.task_type === "voiceover") voiceoversOpts.push({ key, label:`🎙️  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
+        else if (e.task_type === "poster") postersOpts.push({ key, label:`🖼️  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
       }
     }
     return { edits: editsOpts, voiceovers: voiceoversOpts, posters: postersOpts }
@@ -1969,10 +1968,10 @@ export default function DailyUpdateForm({
                                 if (opt) patchVoiceover(e.id, { linkedToTitle: opt.title, linkedToClient: opt.client, linkedToDate: opt.date })
                               }}
                               style={{ flex:1, fontSize:11, padding:"4px 8px", borderRadius:8, border:"1px solid rgba(245,158,11,0.4)", background:"#fff", color:"#374151", outline:"none" }}>
-                              <option value="">Select original voiceover (last 15 days)…</option>
+                              <option value="">Select original voiceover (last 30 days)…</option>
                               {past15Options.voiceovers.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
                             </select>
-                          ) : <span style={{ fontSize:11, color:"#9CA3AF" }}>No voiceovers in last 15 days</span>
+                          ) : <span style={{ fontSize:11, color:"#9CA3AF" }}>No voiceovers in last 30 days</span>
                         )}
                         {e.isRework && e.linkedToTitle && <span style={{ fontSize:10, fontWeight:700, color:"#B45309", whiteSpace:"nowrap" }}>→ {e.linkedToTitle}</span>}
                       </div>
@@ -2085,10 +2084,10 @@ export default function DailyUpdateForm({
                                 if (opt) patchPoster(e.id, { linkedToTitle: opt.title, linkedToClient: opt.client, linkedToDate: opt.date })
                               }}
                               style={{ flex:1, fontSize:11, padding:"4px 8px", borderRadius:8, border:"1px solid rgba(245,158,11,0.4)", background:"#fff", color:"#374151", outline:"none" }}>
-                              <option value="">Select original poster (last 15 days)…</option>
+                              <option value="">Select original poster (last 30 days)…</option>
                               {past15Options.posters.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
                             </select>
-                          ) : <span style={{ fontSize:11, color:"#9CA3AF" }}>No posters in last 15 days</span>
+                          ) : <span style={{ fontSize:11, color:"#9CA3AF" }}>No posters in last 30 days</span>
                         )}
                         {e.isRework && e.linkedToTitle && <span style={{ fontSize:10, fontWeight:700, color:"#B45309", whiteSpace:"nowrap" }}>→ {e.linkedToTitle}</span>}
                       </div>
@@ -2234,10 +2233,10 @@ export default function DailyUpdateForm({
                                 if (opt) patchNmEdit(e.id, { linkedToTitle: opt.title, linkedToClient: opt.client, linkedToDate: opt.date })
                               }}
                               style={{ flex:1, fontSize:11, padding:"4px 8px", borderRadius:8, border:"1px solid rgba(245,158,11,0.4)", background:"#fff", color:"#374151", outline:"none" }}>
-                              <option value="">Select original edit (last 15 days)…</option>
+                              <option value="">Select original edit (last 30 days)…</option>
                               {past15Options.edits.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
                             </select>
-                          ) : <span style={{ fontSize:11, color:"#9CA3AF" }}>No edit entries in last 15 days</span>
+                          ) : <span style={{ fontSize:11, color:"#9CA3AF" }}>No edit entries in last 30 days</span>
                         )}
                         {e.isRework && e.linkedToTitle && <span style={{ fontSize:10, fontWeight:700, color:"#B45309", whiteSpace:"nowrap" }}>→ {e.linkedToTitle}</span>}
                       </div>
@@ -2710,11 +2709,11 @@ export default function DailyUpdateForm({
                                 if (opt) patchEdit(e.id, { linkedToTitle: opt.title, linkedToClient: opt.client, linkedToDate: opt.date })
                               }}
                               style={{ flex:1, fontSize:11, padding:"5px 8px", borderRadius:8, border:"1px solid rgba(245,158,11,0.4)", background:"#fff", color:"#374151", outline:"none" }}>
-                              <option value="">Select original video (last 15 days)…</option>
+                              <option value="">Select original video (last 30 days)…</option>
                               {past15Options.edits.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
                             </select>
                           ) : (
-                            <span style={{ fontSize:11, color:"#9CA3AF" }}>No edit entries in last 15 days</span>
+                            <span style={{ fontSize:11, color:"#9CA3AF" }}>No edit entries in last 30 days</span>
                           )
                         )}
                         {e.isRework && e.linkedToTitle && (

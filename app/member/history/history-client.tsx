@@ -382,6 +382,28 @@ export default function HistoryClient({
 
   const pendingCount = useMemo(() => collabConfirms.filter(c => c.status === 'pending').length, [collabConfirms])
 
+  // Revision picker options — scanned from all loaded updates, newest first
+  const revisionOptionsByType = useMemo(() => {
+    type RevOpt = { key: string; label: string; title: string; client: string; date: string }
+    const edits: RevOpt[] = [], voiceovers: RevOpt[] = [], posters: RevOpt[] = []
+    for (const u of updates) {
+      const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntry[] : []
+      for (const e of entries) {
+        if (e.is_rework) continue
+        const title = (e.title as string) || ""
+        const client = (e.client_name as string) || (e._brand as string) || ""
+        if (!title) continue
+        const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
+        const key = `${client}||${title}||${u.date}`
+        if (e.task_type === "edit") edits.push({ key, label:`🎬  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
+        else if (e.task_type === "voiceover") voiceovers.push({ key, label:`🎙️  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
+        else if (e.task_type === "poster") posters.push({ key, label:`🖼️  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
+      }
+    }
+    const byDate = (a: RevOpt, b: RevOpt) => b.date.localeCompare(a.date)
+    return { edits: edits.sort(byDate), voiceovers: voiceovers.sort(byDate), posters: posters.sort(byDate) }
+  }, [updates])
+
   // Per-entry edit state
   const [editingKey, setEditingKey]   = useState<string | null>(null) // "updateId:entryIdx"
   const [editDraft, setEditDraft]     = useState<Partial<WorkEntry>>({})
@@ -2135,13 +2157,25 @@ export default function HistoryClient({
                                   return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                                     <p style={{ fontSize:11, fontWeight:800, color:"#6366F1", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Editing Entry</p>
                                     {/* Revision toggle in edit modal */}
-                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 12px", borderRadius:10, background:editDraft.is_rework?"rgba(245,158,11,0.08)":"rgba(99,102,241,0.04)", border:editDraft.is_rework?"1px solid rgba(245,158,11,0.3)":"1px solid rgba(99,102,241,0.1)" }}>
+                                    <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"7px 12px", borderRadius:10, background:editDraft.is_rework?"rgba(245,158,11,0.08)":"rgba(99,102,241,0.04)", border:editDraft.is_rework?"1px solid rgba(245,158,11,0.3)":"1px solid rgba(99,102,241,0.1)" }}>
                                       <button type="button" onClick={()=>setEditDraft(d=>({...d, is_rework:!d.is_rework, linked_to_title:null, linked_to_client:null, linked_to_date:null}))}
-                                        style={{ padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.is_rework?"rgba(245,158,11,0.2)":"rgba(99,102,241,0.12)", color:editDraft.is_rework?"#92400E":"#4F46E5", whiteSpace:"nowrap", flexShrink:0 }}>
+                                        style={{ padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.is_rework?"rgba(245,158,11,0.2)":"rgba(99,102,241,0.12)", color:editDraft.is_rework?"#92400E":"#4F46E5", whiteSpace:"nowrap", alignSelf:"flex-start" }}>
                                         {editDraft.is_rework ? "✓ Revision" : "Revision of existing?"}
                                       </button>
-                                      {editDraft.is_rework && editDraft.linked_to_title && (
-                                        <span style={{ fontSize:10, fontWeight:700, color:"#B45309" }}>↩ {editDraft.linked_to_client} – {editDraft.linked_to_title}</span>
+                                      {editDraft.is_rework && (
+                                        <div style={{ position:"relative" }}>
+                                          <select
+                                            value={editDraft.linked_to_title ? `${editDraft.linked_to_client||""}||${editDraft.linked_to_title}||${editDraft.linked_to_date||""}` : ""}
+                                            onChange={ev=>{const val=ev.target.value;if(!val){setEditDraft(d=>({...d,linked_to_title:null,linked_to_client:null,linked_to_date:null}));return}const p=val.split("||");setEditDraft(d=>({...d,linked_to_client:p[0]||null,linked_to_title:p[1]||null,linked_to_date:p[2]||null}))}}
+                                            style={{...HF,paddingRight:28,appearance:"none"}}>
+                                            <option value="">— Pick original editing video —</option>
+                                            {revisionOptionsByType.edits.map(o=><option key={o.key} value={o.key}>{o.label}</option>)}
+                                            {editDraft.linked_to_title&&!revisionOptionsByType.edits.find(o=>o.title===editDraft.linked_to_title&&o.client===(editDraft.linked_to_client??""))&&(
+                                              <option value={`${editDraft.linked_to_client||""}||${editDraft.linked_to_title}||${editDraft.linked_to_date||""}`}>{editDraft.linked_to_client?editDraft.linked_to_client+" – ":""}{editDraft.linked_to_title} ↩</option>
+                                            )}
+                                          </select>
+                                          <ChevronDown size={11} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"#9CA3AF",pointerEvents:"none"}} />
+                                        </div>
                                       )}
                                     </div>
                                     <div>
@@ -2333,13 +2367,25 @@ export default function HistoryClient({
                                   return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                                     <p style={{ fontSize:11, fontWeight:800, color:"#8B5CF6", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Voiceover</p>
                                     {/* Revision toggle */}
-                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 12px", borderRadius:10, background:editDraft.is_rework?"rgba(245,158,11,0.08)":"rgba(139,92,246,0.04)", border:editDraft.is_rework?"1px solid rgba(245,158,11,0.3)":"1px solid rgba(139,92,246,0.1)" }}>
+                                    <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"7px 12px", borderRadius:10, background:editDraft.is_rework?"rgba(245,158,11,0.08)":"rgba(139,92,246,0.04)", border:editDraft.is_rework?"1px solid rgba(245,158,11,0.3)":"1px solid rgba(139,92,246,0.1)" }}>
                                       <button type="button" onClick={()=>setEditDraft(d=>({...d, is_rework:!d.is_rework, linked_to_title:null, linked_to_client:null, linked_to_date:null}))}
-                                        style={{ padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.is_rework?"rgba(245,158,11,0.2)":"rgba(139,92,246,0.12)", color:editDraft.is_rework?"#92400E":"#7C3AED", whiteSpace:"nowrap", flexShrink:0 }}>
+                                        style={{ padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.is_rework?"rgba(245,158,11,0.2)":"rgba(139,92,246,0.12)", color:editDraft.is_rework?"#92400E":"#7C3AED", whiteSpace:"nowrap", alignSelf:"flex-start" }}>
                                         {editDraft.is_rework ? "✓ Revision" : "Revision of existing?"}
                                       </button>
-                                      {editDraft.is_rework && editDraft.linked_to_title && (
-                                        <span style={{ fontSize:10, fontWeight:700, color:"#B45309" }}>↩ {editDraft.linked_to_client} – {editDraft.linked_to_title}</span>
+                                      {editDraft.is_rework && (
+                                        <div style={{ position:"relative" }}>
+                                          <select
+                                            value={editDraft.linked_to_title ? `${editDraft.linked_to_client||""}||${editDraft.linked_to_title}||${editDraft.linked_to_date||""}` : ""}
+                                            onChange={ev=>{const val=ev.target.value;if(!val){setEditDraft(d=>({...d,linked_to_title:null,linked_to_client:null,linked_to_date:null}));return}const p=val.split("||");setEditDraft(d=>({...d,linked_to_client:p[0]||null,linked_to_title:p[1]||null,linked_to_date:p[2]||null}))}}
+                                            style={{...HF,paddingRight:28,appearance:"none"}}>
+                                            <option value="">— Pick original voiceover —</option>
+                                            {revisionOptionsByType.voiceovers.map(o=><option key={o.key} value={o.key}>{o.label}</option>)}
+                                            {editDraft.linked_to_title&&!revisionOptionsByType.voiceovers.find(o=>o.title===editDraft.linked_to_title&&o.client===(editDraft.linked_to_client??""))&&(
+                                              <option value={`${editDraft.linked_to_client||""}||${editDraft.linked_to_title}||${editDraft.linked_to_date||""}`}>{editDraft.linked_to_client?editDraft.linked_to_client+" – ":""}{editDraft.linked_to_title} ↩</option>
+                                            )}
+                                          </select>
+                                          <ChevronDown size={11} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"#9CA3AF",pointerEvents:"none"}} />
+                                        </div>
                                       )}
                                     </div>
                                     <div>
@@ -2399,13 +2445,25 @@ export default function HistoryClient({
                                   return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                                     <p style={{ fontSize:11, fontWeight:800, color:"#EC4899", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Poster</p>
                                     {/* Revision toggle */}
-                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 12px", borderRadius:10, background:editDraft.is_rework?"rgba(245,158,11,0.08)":"rgba(236,72,153,0.04)", border:editDraft.is_rework?"1px solid rgba(245,158,11,0.3)":"1px solid rgba(236,72,153,0.1)" }}>
+                                    <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"7px 12px", borderRadius:10, background:editDraft.is_rework?"rgba(245,158,11,0.08)":"rgba(236,72,153,0.04)", border:editDraft.is_rework?"1px solid rgba(245,158,11,0.3)":"1px solid rgba(236,72,153,0.1)" }}>
                                       <button type="button" onClick={()=>setEditDraft(d=>({...d, is_rework:!d.is_rework, linked_to_title:null, linked_to_client:null, linked_to_date:null}))}
-                                        style={{ padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.is_rework?"rgba(245,158,11,0.2)":"rgba(236,72,153,0.12)", color:editDraft.is_rework?"#92400E":"#BE185D", whiteSpace:"nowrap", flexShrink:0 }}>
+                                        style={{ padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.is_rework?"rgba(245,158,11,0.2)":"rgba(236,72,153,0.12)", color:editDraft.is_rework?"#92400E":"#BE185D", whiteSpace:"nowrap", alignSelf:"flex-start" }}>
                                         {editDraft.is_rework ? "✓ Revision" : "Revision of existing?"}
                                       </button>
-                                      {editDraft.is_rework && editDraft.linked_to_title && (
-                                        <span style={{ fontSize:10, fontWeight:700, color:"#B45309" }}>↩ {editDraft.linked_to_client} – {editDraft.linked_to_title}</span>
+                                      {editDraft.is_rework && (
+                                        <div style={{ position:"relative" }}>
+                                          <select
+                                            value={editDraft.linked_to_title ? `${editDraft.linked_to_client||""}||${editDraft.linked_to_title}||${editDraft.linked_to_date||""}` : ""}
+                                            onChange={ev=>{const val=ev.target.value;if(!val){setEditDraft(d=>({...d,linked_to_title:null,linked_to_client:null,linked_to_date:null}));return}const p=val.split("||");setEditDraft(d=>({...d,linked_to_client:p[0]||null,linked_to_title:p[1]||null,linked_to_date:p[2]||null}))}}
+                                            style={{...HF,paddingRight:28,appearance:"none"}}>
+                                            <option value="">— Pick original poster —</option>
+                                            {revisionOptionsByType.posters.map(o=><option key={o.key} value={o.key}>{o.label}</option>)}
+                                            {editDraft.linked_to_title&&!revisionOptionsByType.posters.find(o=>o.title===editDraft.linked_to_title&&o.client===(editDraft.linked_to_client??""))&&(
+                                              <option value={`${editDraft.linked_to_client||""}||${editDraft.linked_to_title}||${editDraft.linked_to_date||""}`}>{editDraft.linked_to_client?editDraft.linked_to_client+" – ":""}{editDraft.linked_to_title} ↩</option>
+                                            )}
+                                          </select>
+                                          <ChevronDown size={11} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"#9CA3AF",pointerEvents:"none"}} />
+                                        </div>
                                       )}
                                     </div>
                                     <div>
@@ -2490,6 +2548,27 @@ export default function HistoryClient({
                                   const dur = calcDur(editDraft.start_time, editDraft.end_time)
                                   return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                                     <p style={{ fontSize:11, fontWeight:800, color:"#0D9488", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Editing Entry</p>
+                                    <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"7px 12px", borderRadius:10, background:editDraft.is_rework?"rgba(245,158,11,0.08)":"rgba(13,148,136,0.04)", border:editDraft.is_rework?"1px solid rgba(245,158,11,0.3)":"1px solid rgba(13,148,136,0.1)" }}>
+                                      <button type="button" onClick={()=>setEditDraft(d=>({...d, is_rework:!d.is_rework, linked_to_title:null, linked_to_client:null, linked_to_date:null}))}
+                                        style={{ padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.is_rework?"rgba(245,158,11,0.2)":"rgba(13,148,136,0.12)", color:editDraft.is_rework?"#92400E":"#0D9488", whiteSpace:"nowrap", alignSelf:"flex-start" }}>
+                                        {editDraft.is_rework ? "✓ Revision" : "Revision of existing?"}
+                                      </button>
+                                      {editDraft.is_rework && (
+                                        <div style={{ position:"relative" }}>
+                                          <select
+                                            value={editDraft.linked_to_title ? `${editDraft.linked_to_client||""}||${editDraft.linked_to_title}||${editDraft.linked_to_date||""}` : ""}
+                                            onChange={ev=>{const val=ev.target.value;if(!val){setEditDraft(d=>({...d,linked_to_title:null,linked_to_client:null,linked_to_date:null}));return}const p=val.split("||");setEditDraft(d=>({...d,linked_to_client:p[0]||null,linked_to_title:p[1]||null,linked_to_date:p[2]||null}))}}
+                                            style={{...HF,paddingRight:28,appearance:"none"}}>
+                                            <option value="">— Pick original editing video —</option>
+                                            {revisionOptionsByType.edits.map(o=><option key={o.key} value={o.key}>{o.label}</option>)}
+                                            {editDraft.linked_to_title&&!revisionOptionsByType.edits.find(o=>o.title===editDraft.linked_to_title&&o.client===(editDraft.linked_to_client??""))&&(
+                                              <option value={`${editDraft.linked_to_client||""}||${editDraft.linked_to_title}||${editDraft.linked_to_date||""}`}>{editDraft.linked_to_client?editDraft.linked_to_client+" – ":""}{editDraft.linked_to_title} ↩</option>
+                                            )}
+                                          </select>
+                                          <ChevronDown size={11} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"#9CA3AF",pointerEvents:"none"}} />
+                                        </div>
+                                      )}
+                                    </div>
                                     <div>
                                       <label style={HL}>Date</label>
                                       <input type="date" value={editDraftDate} onChange={ev=>setEditDraftDate(ev.target.value)} style={{ ...HF, colorScheme:"light" }} />

@@ -90,7 +90,7 @@ export default async function UpdatePage() {
       .eq("user_id", effectiveUserId)
       .neq("date", today)
       .order("date", { ascending: false })
-      .limit(30),
+      .limit(60),
     admin
       .from("users")
       .select("id, name, employee_id, role, team")

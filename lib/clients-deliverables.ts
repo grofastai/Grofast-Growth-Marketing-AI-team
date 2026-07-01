@@ -66,6 +66,7 @@ export type VideoEntry = {
   timeTaken: number
   revisions: number
   cost: number
+  isRework?: boolean
 }
 
 export type VideoTypeGroup = {
@@ -83,6 +84,7 @@ export type OtherWorkEntry = {
   title: string
   hours: number
   cost: number
+  isRework?: boolean
 }
 
 export type TeamContribution = {
@@ -308,7 +310,8 @@ export function computeDeliverables(
             const vCost = calcVideoCost(v, hourly, rateMap)
             editCost += vCost
             tm.videoCount++
-            if (isMedia && !(entry as Record<string,unknown>).is_rework) { mediaEditCount++; mediaEditHours += v.time_taken ?? 0 }
+            const isReworkEntry = !!(entry as Record<string,unknown>).is_rework
+            if (!isReworkEntry) { mediaEditCount++; mediaEditHours += v.time_taken ?? 0 }
             if (!videoMap[vType]) videoMap[vType] = { videoType: vType, count: 0, totalTimeTaken: 0, totalCost: 0, videos: [] }
             videoMap[vType].count++
             videoMap[vType].totalTimeTaken += v.time_taken ?? 0
@@ -316,7 +319,7 @@ export function computeDeliverables(
             videoMap[vType].videos.push({
               date: row.date, clientName: entryClientName, memberName: user.name,
               videoName: v.video_name ?? entry.title ?? '—', videoType: vType,
-              timeTaken: v.time_taken ?? 0, revisions: v.revisions ?? 0, cost: vCost,
+              timeTaken: v.time_taken ?? 0, revisions: v.revisions ?? 0, cost: vCost, isRework: isReworkEntry,
             })
           }
           // Admin-set price overrides the sum of per-video costs
@@ -333,7 +336,8 @@ export function computeDeliverables(
           const vCost = entry.price != null ? entry.price : (typeRate + laborCost)
           editCost = vCost
           tm.videoCount++
-          if (isMedia && !(entry as Record<string,unknown>).is_rework) { mediaEditCount++; mediaEditHours += timeTaken }
+          const isReworkEntry2 = !!(anyEntry.is_rework)
+          if (!isReworkEntry2) { mediaEditCount++; mediaEditHours += timeTaken }
           if (!videoMap[vType]) videoMap[vType] = { videoType: vType, count: 0, totalTimeTaken: 0, totalCost: 0, videos: [] }
           videoMap[vType].count++
           videoMap[vType].totalTimeTaken += timeTaken
@@ -341,7 +345,7 @@ export function computeDeliverables(
           videoMap[vType].videos.push({
             date: row.date, clientName: entryClientName, memberName: user.name,
             videoName: entry.title ?? '—', videoType: vType,
-            timeTaken, revisions: (anyEntry.revisions as number | undefined) ?? 0, cost: vCost,
+            timeTaken, revisions: (anyEntry.revisions as number | undefined) ?? 0, cost: vCost, isRework: isReworkEntry2,
           })
         }
         tm.cost += editCost
@@ -349,18 +353,20 @@ export function computeDeliverables(
 
       } else if (tt === 'voiceover') {
         const cost = entry.price != null ? entry.price : hourly * hrs
-        if (!(entry as Record<string,unknown>).is_rework) voiceoverCountAcc++
+        const isReworkV = !!(entry as Record<string,unknown>).is_rework
+        if (!isReworkV) voiceoverCountAcc++
         voiceoverHoursAcc += hrs
-        const ve = { date: row.date, clientName: entryClientName, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Voiceover'), hours: hrs, cost }
+        const ve = { date: row.date, clientName: entryClientName, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Voiceover'), hours: hrs, cost, isRework: isReworkV }
         otherWork.push(ve); voiceoverWork.push(ve)
         tm.otherHours += hrs; tm.cost += cost
         dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'voiceover', itemCount: 1, hours: hrs, cost, label: entry.title ?? 'Voiceover' })
 
       } else if (tt === 'poster') {
         const cost = entry.price != null ? entry.price : hourly * hrs
-        if (!(entry as Record<string,unknown>).is_rework) posterCountAcc++
+        const isReworkP = !!(entry as Record<string,unknown>).is_rework
+        if (!isReworkP) posterCountAcc++
         posterHoursAcc += hrs
-        const pe = { date: row.date, clientName: entryClientName, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Poster'), hours: hrs, cost }
+        const pe = { date: row.date, clientName: entryClientName, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Poster'), hours: hrs, cost, isRework: isReworkP }
         otherWork.push(pe); posterWork.push(pe)
         tm.otherHours += hrs; tm.cost += cost
         dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'poster', itemCount: 1, hours: hrs, cost, label: entry.title ?? 'Poster' })

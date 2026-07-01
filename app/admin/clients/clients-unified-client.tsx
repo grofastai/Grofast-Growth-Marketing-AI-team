@@ -641,11 +641,14 @@ export default function ClientsUnifiedClient({
                     </tr></thead>
                     <tbody>
                       {allVideos.map((v, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
+                        <tr key={i} style={{ borderBottom: '1px solid #F9FAFB', background: v.isRework ? 'rgba(245,158,11,0.04)' : undefined }}>
                           <td style={{ padding: '10px 14px', fontSize: 12, color: '#6B7280' }}>{fmtDate(v.date)}</td>
                           {showClient && <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: '#6366F1' }}>{v.clientName}</td>}
                           <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151' }}>{v.memberName}</td>
-                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>{v.videoName}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>
+                            {v.isRework && <span style={{ fontSize: 10, fontWeight: 700, color: '#B45309', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6, padding: '1px 6px', marginRight: 6 }}>↩ Revision</span>}
+                            {v.videoName}
+                          </td>
                           <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>{v.timeTaken > 0 ? `${v.timeTaken}h` : '—'}</td>
                           <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: '#111827' }}>{fmtRupee(v.cost)}</td>
                         </tr>
@@ -658,7 +661,7 @@ export default function ClientsUnifiedClient({
 
             {/* ── Shared row table helper ───────────────────────────────── */}
             {deliverables && (() => {
-              type FlatEntry = { date: string; clientName: string; memberName: string; title: string; hours: number; cost: number }
+              type FlatEntry = { date: string; clientName: string; memberName: string; title: string; hours: number; cost: number; isRework?: boolean }
               function EntryTable({ entries }: { entries: FlatEntry[] }) {
                 return (
                   <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', minWidth: 400, borderCollapse: 'collapse' }}>
@@ -668,11 +671,14 @@ export default function ClientsUnifiedClient({
                     </tr></thead>
                     <tbody>
                       {entries.map((o, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
+                        <tr key={i} style={{ borderBottom: '1px solid #F9FAFB', background: o.isRework ? 'rgba(245,158,11,0.04)' : undefined }}>
                           <td style={{ padding: '10px 14px', fontSize: 12, color: '#6B7280' }}>{fmtDate(o.date)}</td>
                           {showClient && <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: '#6366F1' }}>{o.clientName}</td>}
                           <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151' }}>{o.memberName}</td>
-                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>{o.title}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>
+                            {o.isRework && <span style={{ fontSize: 10, fontWeight: 700, color: '#B45309', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6, padding: '1px 6px', marginRight: 6 }}>↩ Revision</span>}
+                            {o.title}
+                          </td>
                           <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>{o.hours.toFixed(1)}h</td>
                           <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: '#111827' }}>{fmtRupee(o.cost)}</td>
                         </tr>

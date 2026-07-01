@@ -15,9 +15,9 @@ function isAuthorized(req: NextRequest): boolean {
   return !!secret && req.headers.get('authorization') === `Bearer ${secret}`
 }
 
-// Runs every 30 minutes (via 29 daily cron entries covering 8 AM–10 PM IST).
-// Finds posts whose scheduled_time is 25–35 min from now (10-min window
-// centred on the 30-min-before mark) and sends a WhatsApp reminder once.
+// Runs every 15 minutes (via daily cron entries covering 8 AM–10 PM IST).
+// Finds posts whose scheduled_time is 10–20 min from now (10-min window
+// centred on the 15-min-before mark) and sends a WhatsApp reminder once.
 // reminder_sent prevents duplicate sends.
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
@@ -32,11 +32,11 @@ export async function GET(req: NextRequest) {
 
   const today = `${istNow.getFullYear()}-${String(istNow.getMonth() + 1).padStart(2, '0')}-${String(istNow.getDate()).padStart(2, '0')}`
 
-  // Window: now+25min → now+35min (catches posts 30 min out, 10-min safety buffer)
-  const plus25 = new Date(istNow.getTime() + 25 * 60 * 1000)
-  const plus35 = new Date(istNow.getTime() + 35 * 60 * 1000)
-  const windowStart = `${String(plus25.getHours()).padStart(2, '0')}:${String(plus25.getMinutes()).padStart(2, '0')}:00`
-  const windowEnd   = `${String(plus35.getHours()).padStart(2, '0')}:${String(plus35.getMinutes()).padStart(2, '0')}:00`
+  // Window: now+10min → now+20min (catches posts 15 min out, 10-min safety buffer)
+  const plus10 = new Date(istNow.getTime() + 10 * 60 * 1000)
+  const plus20 = new Date(istNow.getTime() + 20 * 60 * 1000)
+  const windowStart = `${String(plus10.getHours()).padStart(2, '0')}:${String(plus10.getMinutes()).padStart(2, '0')}:00`
+  const windowEnd   = `${String(plus20.getHours()).padStart(2, '0')}:${String(plus20.getMinutes()).padStart(2, '0')}:00`
 
   const { data: posts, error } = await admin
     .from('content_posts')

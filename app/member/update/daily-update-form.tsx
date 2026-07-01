@@ -782,8 +782,15 @@ export default function DailyUpdateForm({
   const past15Options = useMemo(() => {
     const MAX = 50
     type Opt = { key: string; label: string; title: string; client: string; date: string }
+    type Source = { date: string; work_entries: Record<string, unknown>[] | null }
     const editsOpts: Opt[] = [], voiceoversOpts: Opt[] = [], postersOpts: Opt[] = []
-    for (const u of pastUpdates) {
+    // existingUpdate (today's row) is fetched separately from pastUpdates (which excludes today),
+    // so it must be merged in here — otherwise entries added today can never appear as a revision target.
+    const sources: Source[] = [
+      ...(existingUpdate ? [existingUpdate as unknown as Source] : []),
+      ...(pastUpdates as unknown as Source[]),
+    ]
+    for (const u of sources) {
       if (u.date > selectedDate) continue
       if (editsOpts.length >= MAX && voiceoversOpts.length >= MAX && postersOpts.length >= MAX) break
       const entries = Array.isArray(u.work_entries) ? u.work_entries as Record<string, unknown>[] : []
@@ -800,7 +807,7 @@ export default function DailyUpdateForm({
       }
     }
     return { edits: editsOpts, voiceovers: voiceoversOpts, posters: postersOpts }
-  }, [pastUpdates, selectedDate])
+  }, [pastUpdates, existingUpdate, selectedDate])
 
   const totalShootHours     = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
   const totalTravelHours    = useMemo(() => shoots.reduce((s, e) => s + e.travelHours, 0), [shoots])

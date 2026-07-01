@@ -1419,7 +1419,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               <div style={{ display: "grid", gridTemplateColumns: schedType === "shoot" ? "1fr" : "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={L}>Date *</label>
-                  <input type="date" value={schedDate} onChange={e => setSchedDate(e.target.value)} required style={F} />
+                  <input type="date" max="2099-12-31" value={schedDate} onChange={e => setSchedDate(e.target.value)} required style={F} />
                 </div>
                 {schedType !== "shoot" && (
                   <div>

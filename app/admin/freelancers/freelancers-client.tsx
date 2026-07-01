@@ -471,6 +471,7 @@ const BLANK_E: EState = {
 }
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
+function clampDate(v: string) { if (!v) return v; const [yr = '', mo = '', dy = ''] = v.split('-'); const y = yr.length > 4 ? yr.slice(0, 4) : yr; const m = mo && +mo > 12 ? '12' : mo; const d = dy && +dy > 31 ? '31' : dy; return [y, m, d].filter(Boolean).join('-') }
 
 function ClientSelect({ value, onChange, activeClientNames, pastClientNames }: {
   value: string; onChange: (v: string) => void
@@ -718,7 +719,7 @@ function WorkSheet({
                     activeClientNames={activeClientNames} pastClientNames={pastClientNames} />
                 </Field>
                 <Field label="Date">
-                  <input type="date" className={inputCls} value={form.date} onChange={e => setF("date", e.target.value)} />
+                  <input type="date" max="2099-12-31" className={inputCls} value={form.date} onChange={e => setF("date", clampDate(e.target.value))} />
                 </Field>
               </div>
 
@@ -745,10 +746,10 @@ function WorkSheet({
                 <>
                   <div className="grid grid-cols-3 gap-3">
                     <Field label="Date Given">
-                      <input type="date" className={inputCls} value={form.date_given} onChange={e => setF("date_given", e.target.value)} />
+                      <input type="date" max="2099-12-31" className={inputCls} value={form.date_given} onChange={e => setF("date_given", clampDate(e.target.value))} />
                     </Field>
                     <Field label="Date Finished">
-                      <input type="date" className={inputCls} value={form.date_finished} onChange={e => setF("date_finished", e.target.value)} />
+                      <input type="date" max="2099-12-31" className={inputCls} value={form.date_finished} onChange={e => setF("date_finished", clampDate(e.target.value))} />
                     </Field>
                     <Field label="Video Type">
                       <select className={selectCls} value={form.video_type} onChange={e => setF("video_type", e.target.value)}>
@@ -1090,7 +1091,7 @@ function EntryRow({ entry, idx, freelancerType, freelancer, activeClientNames, p
                 activeClientNames={activeClientNames} pastClientNames={pastClientNames} />
             </Field>
             <Field label="Date">
-              <input type="date" className={inputCls} value={form.date} onChange={e => setF("date", e.target.value)} />
+              <input type="date" max="2099-12-31" className={inputCls} value={form.date} onChange={e => setF("date", clampDate(e.target.value))} />
             </Field>
           </div>
           <Field label="Title">

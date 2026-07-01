@@ -162,6 +162,7 @@ const LABEL: React.CSSProperties = {
   textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 5,
 }
 
+function clampDate(v: string) { if (!v) return v; const [yr = '', mo = '', dy = ''] = v.split('-'); const y = yr.length > 4 ? yr.slice(0, 4) : yr; const m = mo && +mo > 12 ? '12' : mo; const d = dy && +dy > 31 ? '31' : dy; return [y, m, d].filter(Boolean).join('-') }
 // ── Single entry card inside work sheet ──────────────────────────────────────
 
 function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onRemove, canRemove }: {
@@ -275,7 +276,7 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
         {/* Date */}
         <div>
           <label style={LABEL}>📅 Date *</label>
-          <input type="date" value={entry.date_given} onChange={e => onChange("date_given", e.target.value)} style={{ ...FIELD, colorScheme: "light" }} />
+          <input type="date" max="2099-12-31" value={entry.date_given} onChange={e => onChange("date_given", clampDate(e.target.value))} style={{ ...FIELD, colorScheme: "light" }} />
         </div>
 
         {/* Client Name */}

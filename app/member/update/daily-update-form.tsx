@@ -460,6 +460,8 @@ type PastUpdate = {
   work_entries: Record<string, unknown>[] | null; active_tab?: string | null; learning_topic: string | null
 }
 
+function clampDate(v: string) { if (!v) return v; const [yr = '', mo = '', dy = ''] = v.split('-'); const y = yr.length > 4 ? yr.slice(0, 4) : yr; const m = mo && +mo > 12 ? '12' : mo; const d = dy && +dy > 31 ? '31' : dy; return [y, m, d].filter(Boolean).join('-') }
+
 export default function DailyUpdateForm({
   projects, sheetClientNames = [], pastClientNames = [], userName, team, workLayout, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
   todayClockedIn = true, requiresClockIn = false, defaultDate, activeLeavesList = [], collabWindows = [],
@@ -2722,11 +2724,11 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Date Given</label>
-                          <input type="date" value={e.dateGiven} onChange={ev => patchEdit(e.id, { dateGiven: ev.target.value })} style={{ ...F, colorScheme:"light" }} />
+                          <input type="date" max="2099-12-31" value={e.dateGiven} onChange={ev => patchEdit(e.id, { dateGiven: clampDate(ev.target.value) })} style={{ ...F, colorScheme:"light" }} />
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Date Finished</label>
-                          <input type="date" value={e.dateFinished} onChange={ev => patchEdit(e.id, { dateFinished: ev.target.value })} style={{ ...F, colorScheme:"light" }} />
+                          <input type="date" max="2099-12-31" value={e.dateFinished} onChange={ev => patchEdit(e.id, { dateFinished: clampDate(ev.target.value) })} style={{ ...F, colorScheme:"light" }} />
                         </div>
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>

@@ -54,11 +54,11 @@ export default function DashboardFilterBar({
 
       {showCustom && (
         <div className="flex items-center gap-2 w-full mt-2">
-          <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
+          <input type="date" max="2099-12-31" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
             className="px-3 py-2 rounded-lg text-[12px]"
             style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#FFFFFF", colorScheme: "dark" }} />
           <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>to</span>
-          <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)}
+          <input type="date" max="2099-12-31" value={customTo} onChange={(e) => setCustomTo(e.target.value)}
             className="px-3 py-2 rounded-lg text-[12px]"
             style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#FFFFFF", colorScheme: "dark" }} />
           <button type="button"

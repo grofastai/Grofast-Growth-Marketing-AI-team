@@ -436,7 +436,7 @@ export default function LeavesClient({
                 <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"flex-end" }}>
                   <div style={{ display:"flex", flexDirection:"column", gap:5, flex:"0 0 160px" }}>
                     <label style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em" }}>Date</label>
-                    <input type="date" value={holidayDate} onChange={e => setHolidayDate(e.target.value)}
+                    <input type="date" max="2099-12-31" value={holidayDate} onChange={e => setHolidayDate(e.target.value)}
                       style={{ fontSize:13, fontWeight:600, color:"#111827", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"9px 12px", outline:"none", cursor:"pointer" }} />
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:5, flex:1, minWidth:160 }}>
@@ -477,7 +477,7 @@ export default function LeavesClient({
                         return (
                           <div key={h.id} style={{ padding:"12px 20px", borderBottom: borderStyle, background:"rgba(30,64,175,0.03)" }}>
                             <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
-                              <input type="date" value={editHolidayDate} onChange={e => setEditHolidayDate(e.target.value)}
+                              <input type="date" max="2099-12-31" value={editHolidayDate} onChange={e => setEditHolidayDate(e.target.value)}
                                 style={{ fontSize:12, fontWeight:600, color:"#111827", background:"#F9FAFB", border:"1.5px solid #BFDBFE", borderRadius:8, padding:"7px 10px", outline:"none", flex:"0 0 148px" }} />
                               <input type="text" value={editHolidayName} onChange={e => setEditHolidayName(e.target.value)}
                                 onKeyDown={e => e.key === "Enter" && handleSaveHoliday(h.id)}

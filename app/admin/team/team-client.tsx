@@ -627,7 +627,7 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                     {!isNoLoginTeam && (
                       <div>
                         <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Date of Birth</label>
-                        <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }} value={form.date_of_birth} onChange={set("date_of_birth")} />
+                        <input type="date" max="2099-12-31" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }} value={form.date_of_birth} onChange={set("date_of_birth")} />
                       </div>
                     )}
                     <div>
@@ -825,7 +825,7 @@ function AssignTaskModal({ member, onClose }: AssignTaskModalProps) {
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: "#6B7280" }}>Due Date <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optional)</span></label>
-                <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
+                <input type="date" max="2099-12-31" value={dueDate} onChange={e => setDueDate(e.target.value)}
                   className="w-full rounded-xl px-4 py-2.5 text-[13px] outline-none"
                   style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111", colorScheme: "light", fontFamily: "inherit" }} />
               </div>

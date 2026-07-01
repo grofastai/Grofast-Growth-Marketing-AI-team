@@ -824,7 +824,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
               </div>
               <div>
                 <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Due Date</label>
-                <input name="due_date" type="date" className="ti" style={{ colorScheme: "light" }} />
+                <input name="due_date" type="date" max="2099-12-31" className="ti" style={{ colorScheme: "light" }} />
               </div>
 
               {/* Manager Note */}

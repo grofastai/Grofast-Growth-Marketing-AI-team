@@ -100,6 +100,7 @@ const TABS = [
   { key: "activity",     label: "Activity",      Icon: Activity },
 ]
 
+function clampDate(v: string) { if (!v) return v; const [yr = '', mo = '', dy = ''] = v.split('-'); const y = yr.length > 4 ? yr.slice(0, 4) : yr; const m = mo && +mo > 12 ? '12' : mo; const d = dy && +dy > 31 ? '31' : dy; return [y, m, d].filter(Boolean).join('-') }
 // ── Main Component ───────────────────────────────────────────────────────────
 
 export default function FreelancerProfileClient({
@@ -423,7 +424,7 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, activeClient
               <button onClick={() => setShowAdd(false)}><X size={18} style={{ color: "#6B7280" }} /></button>
             </div>
             <div className="space-y-3">
-              <div><Label text="Date" /><input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} style={inputStyle} /></div>
+              <div><Label text="Date" /><input type="date" max="2099-12-31" value={form.date} onChange={e => setForm(p => ({ ...p, date: clampDate(e.target.value) }))} style={inputStyle} /></div>
               <div>
                 <Label text="Client Name" />
                 <ProfileClientSelect
@@ -596,7 +597,7 @@ function PaymentsTab({ freelancer, payments, stats, currentUserRole }: {
               <button onClick={() => setShowAdd(false)}><X size={18} style={{ color: "#6B7280" }} /></button>
             </div>
             <div className="space-y-3">
-              <div><Label text="Date" /><input type="date" value={form.paid_date} onChange={e => setForm(p => ({ ...p, paid_date: e.target.value }))} style={inputStyle} /></div>
+              <div><Label text="Date" /><input type="date" max="2099-12-31" value={form.paid_date} onChange={e => setForm(p => ({ ...p, paid_date: clampDate(e.target.value) }))} style={inputStyle} /></div>
               <div><Label text="Amount (₹)" /><input type="number" min="1" step="0.01" placeholder="e.g. 5000" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} style={inputStyle} /></div>
               <div>
                 <Label text="Payment Method" />

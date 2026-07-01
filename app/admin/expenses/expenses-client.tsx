@@ -198,7 +198,7 @@ function ClientExpenseModal({ clients, selectedMonth, editing, onClose }: {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6B7280" }}>Date</label>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)}
+            <input type="date" max="2099-12-31" value={date} onChange={e => setDate(e.target.value)}
               className="mt-1 w-full rounded-xl px-3 py-2.5 text-[13px] outline-none"
               style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }} />
           </div>

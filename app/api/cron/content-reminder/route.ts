@@ -15,7 +15,9 @@ function isAuthorized(req: NextRequest): boolean {
   return !!secret && req.headers.get('authorization') === `Bearer ${secret}`
 }
 
-// Runs every 15 minutes (via daily cron entries covering 8 AM–10 PM IST).
+// Runs every 15 minutes (via daily cron entries covering 8:30 AM–9:15 PM IST —
+// trimmed from the full day to keep total vercel.json cron entries under the
+// Hobby plan's 100-item cap; each entry must fire at most once/day on Hobby).
 // Finds posts whose scheduled_time is 10–20 min from now (10-min window
 // centred on the 15-min-before mark) and sends a WhatsApp reminder once.
 // reminder_sent prevents duplicate sends.

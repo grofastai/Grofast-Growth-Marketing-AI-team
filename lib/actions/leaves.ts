@@ -563,12 +563,13 @@ export async function updateLeaveStatus(
         .maybeSingle()
       if (!existing) {
         const attStatus = leave.leave_type === 'half_day' ? 'half_day' : 'leave'
-        admin.from('attendance_logs').insert({
+        const { error: attErr } = await admin.from('attendance_logs').insert({
           company_id: leave.company_id,
           user_id:    leave.user_id,
           date:       dateStr,
           status:     attStatus,
-        }).then(({ error: e }) => { if (e) console.error('[leave approval] attendance insert:', e.message) })
+        })
+        if (attErr) console.error('[leave approval] attendance insert:', attErr.message)
       }
       // For full_day leave: delete any empty daily_update row so the 🌴 leave card shows in history
       if (leave.leave_type === 'full_day') {
@@ -582,8 +583,8 @@ export async function updateLeaveStatus(
         if (du) {
           const entries = Array.isArray(du.work_entries) ? (du.work_entries as { task_type?: string }[]).filter(e => e.task_type !== 'break') : []
           if (entries.length === 0) {
-            admin.from('daily_updates').delete().eq('id', du.id)
-              .then(({ error: e }) => { if (e) console.error('[leave approval] daily_update cleanup:', e.message) })
+            const { error: delErr } = await admin.from('daily_updates').delete().eq('id', du.id)
+            if (delErr) console.error('[leave approval] daily_update cleanup:', delErr.message)
           }
         }
       }

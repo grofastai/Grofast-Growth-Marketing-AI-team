@@ -1762,7 +1762,7 @@ export default function HistoryClient({
                       <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>Approved</span>
                     </div>
                   ) : entries.length === 0 ? (() => {
-                    const leaveForDay = (u.attendance_status === "leave" || u.attendance_status === "absent")
+                    const leaveForDay = u.attendance_status === "leave"
                       ? approvedLeaves.find(l => u.date >= l.from_date && u.date <= l.to_date)
                       : undefined
                     if (leaveForDay?.leave_type === "full_day") {

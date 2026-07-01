@@ -123,7 +123,7 @@ export default async function AttendancePage({
   const presentCount = (members ?? []).filter(m => { const l = logMap.get(m.id); return l?.clock_in || l?.status === "present" }).length
   const absentCount  = (members ?? []).filter(m => {
     const log = logMap.get(m.id)
-    const hasLeaveLog = (log?.status === "leave" || log?.status === "absent") && !log?.clock_in
+    const hasLeaveLog = log?.status === "leave" && !log?.clock_in
     const hasApprovedLeave = !log && onLeaveSet.has(m.id)
     return hasLeaveLog || hasApprovedLeave
   }).length
@@ -317,7 +317,7 @@ export default async function AttendancePage({
                 ) : (
                   (members ?? []).map((m, i) => {
                     const log       = logMap.get(m.id)
-                    const isAbsent  = (log?.status === "leave" || log?.status === "absent") && !log?.clock_in
+                    const isAbsent  = log?.status === "leave" && !log?.clock_in
                     const isWorking = !!(log?.clock_in && !log?.clock_out)
                     const isDone    = !!(log?.clock_in && log?.clock_out)
                     const dur       = calcDurationNet(log?.clock_in ?? null, log?.clock_out ?? null, m.id, log?.break_total_mins ?? null)
@@ -332,7 +332,7 @@ export default async function AttendancePage({
                     const avatarColors = ["#de1a1a","#6366F1","#10B981","#F59E0B","#8B5CF6","#06B6D4"]
                     const avatarColor = avatarColors[i % avatarColors.length]
 
-                    const hasLog = !!(log?.clock_in || log?.status === "absent")
+                    const hasLog = !!(log?.clock_in || log?.status === "leave")
                     return (
                       <div key={m.id} style={{
                         display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px 40px",

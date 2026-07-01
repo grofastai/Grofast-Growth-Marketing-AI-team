@@ -357,7 +357,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     setEditBrkIn(toHHMM(breakIn)); setEditBrkOut(toHHMM(breakOut))
   }
 
-  const isAbsent  = todayLog?.status === "leave" || todayLog?.status === "absent"
+  const isAbsent  = todayLog?.status === "leave"
   const isIn      = !!todayLog?.clock_in && !todayLog?.clock_out && todayLog?.status === "present"
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
   const notLogged = !todayLog
@@ -393,7 +393,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const isBelowExpected  = isIn && hoursWorked > 0 && hoursWorked < (SHIFT_HOURS - todayPermissionHours)
 
   const presentCount    = activeWeekLogs.filter(l => l.status === "present").length
-  const absentCount     = activeWeekLogs.filter(l => l.status === "leave" || l.status === "absent").length
+  const absentCount     = activeWeekLogs.filter(l => l.status === "leave").length
   const wfhCount        = activeWeekLogs.filter(l => l.work_type === "wfh" && l.status === "present").length
   const officeCount     = activeWeekLogs.filter(l => l.work_type === "office" && l.status === "present").length
   const totalWeekHours  = activeWeekLogs.filter(l => l.clock_in && l.status === "present").reduce((sum, l) => {
@@ -905,7 +905,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 const isFuture   = date > today
                 const isToday    = date === today
                 const present    = log?.status === "present"
-                const absent     = log?.status === "leave" || log?.status === "absent"
+                const absent     = log?.status === "leave"
                 // Prefer daily_updates.working_hours (accurate entry-based calc) for past days;
                 // fall back to clock_in/clock_out span minus breaks for today or when no update
                 const navWorkedH = weekOff !== 0 ? (log as unknown as { worked_hours?: number })?.worked_hours : undefined

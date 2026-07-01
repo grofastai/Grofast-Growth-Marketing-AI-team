@@ -343,7 +343,7 @@ export default function ActivitiesClient({
       if (u.attendance_status === "present") {
         presentSet.add(user.id)
         totalHours += hrs
-      } else if (u.attendance_status === "leave" || u.attendance_status === "absent") {
+      } else if (u.attendance_status === "leave") {
         onLeaveSet.add(user.id)
       }
     }

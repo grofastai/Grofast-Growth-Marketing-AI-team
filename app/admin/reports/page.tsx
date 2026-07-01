@@ -110,7 +110,7 @@ export default async function ReportsPage({
     u.attendance_status === "present" ||
     (u.attendance_status == null && getUpdateHours(u) > 0)
   )
-  const absentUpdates  = updates.filter((u: any) => u.attendance_status === "leave" || u.attendance_status === "absent")
+  const absentUpdates  = updates.filter((u: any) => u.attendance_status === "leave")
 
   const collabTotalHours = ((collabRaw ?? []) as { collaborator_id: string; confirmed_hours: number | null }[])
     .reduce((s, c) => s + (c.confirmed_hours ?? 0), 0)

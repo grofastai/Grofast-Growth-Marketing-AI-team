@@ -391,7 +391,7 @@ export default function HistoryClient({
       for (const e of entries) {
         if (e.is_rework) continue
         const title = (e.title as string) || ""
-        const client = (e.client_name as string) || (e._brand as string) || ""
+        const client = (e.client_name as string) || ""
         if (!title) continue
         const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
         const key = `${client}||${title}||${u.date}`

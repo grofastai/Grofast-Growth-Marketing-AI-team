@@ -1706,35 +1706,41 @@ export default function HistoryClient({
                                 {(() => { const [fh,fm] = learningDraft.startTime ? learningDraft.startTime.split(":").map(Number) : [0,0]; const [th,tm] = learningDraft.endTime ? learningDraft.endTime.split(":").map(Number) : [0,0]; const h = Math.max(0,(th*60+tm-fh*60-fm)/60); return <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:h>0?"rgba(245,158,11,0.1)":"#F9FAFB", color:h>0?"#B45309":"#9CA3AF" }}>{h>0?fmtH(h):"—"}</span> })()}
                               </div>
                             </div>
-                            <div>
-                              <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
-                              <textarea rows={2} value={learningDraft.notes} onChange={e => setLearningDraft(d => ({ ...d, notes: e.target.value }))}
-                                placeholder="Any notes or details…"
-                                style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }}/>
-                            </div>
-                            {members.length > 0 && (
+                            <div style={{ display:"grid", gridTemplateColumns: members.length > 0 ? "7fr 3fr" : "1fr", gap:10, alignItems:"start" }}>
                               <div>
-                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>👥 Learned With</label>
-                                <div style={{ position:"relative" }}>
-                                  <select value="" onChange={ev => { const id = ev.target.value; if (id && !learningDraft.participantIds.includes(id)) setLearningDraft(d => ({ ...d, participantIds: [...d.participantIds, id] })) }}
-                                    style={{ width:"100%", padding:"7px 28px 7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box", appearance:"none" }}>
-                                    <option value="">Add teammate…</option>
-                                    {members.filter(m => !learningDraft.participantIds.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                                  </select>
-                                </div>
-                                {learningDraft.participantIds.length > 0 && (
-                                  <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
-                                    {learningDraft.participantIds.map(pid => {
-                                      const m = members.find(t => t.id === pid); if (!m) return null
-                                      return (<button key={pid} type="button" onClick={() => setLearningDraft(d => ({ ...d, participantIds: d.participantIds.filter(p => p !== pid) }))}
-                                        style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 6px", borderRadius:99, background:"rgba(245,158,11,0.1)", border:"1.5px solid rgba(245,158,11,0.35)", cursor:"pointer", fontSize:11, fontWeight:700, color:"#B45309" }}>
-                                        {m.name.split(" ")[0]} ✕
-                                      </button>)
-                                    })}
-                                  </div>
-                                )}
+                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
+                                <textarea rows={2} value={learningDraft.notes} onChange={e => setLearningDraft(d => ({ ...d, notes: e.target.value }))}
+                                  placeholder="Any notes or details…"
+                                  style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }}/>
                               </div>
-                            )}
+                              {members.length > 0 && (
+                                <div>
+                                  <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>👥 Learned With</label>
+                                  <div style={{ position:"relative" }}>
+                                    <select value="" onChange={ev => { const id = ev.target.value; if (id && !learningDraft.participantIds.includes(id)) setLearningDraft(d => ({ ...d, participantIds: [...d.participantIds, id] })) }}
+                                      style={{ width:"100%", padding:"7px 24px 7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box", appearance:"none" }}>
+                                      <option value="">Add teammate…</option>
+                                      {members.filter(m => !learningDraft.participantIds.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                    </select>
+                                    <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                  </div>
+                                  {learningDraft.participantIds.length > 0 && (
+                                    <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                      {learningDraft.participantIds.map(pid => {
+                                        const m = members.find(t => t.id === pid); if (!m) return null
+                                        const ini = m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase()
+                                        return (<button key={pid} type="button" onClick={() => setLearningDraft(d => ({ ...d, participantIds: d.participantIds.filter(p => p !== pid) }))}
+                                          style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(16,185,129,0.1)", border:"1.5px solid rgba(16,185,129,0.3)", cursor:"pointer" }}>
+                                          <div style={{ width:16, height:16, borderRadius:"50%", background:"#10B981", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{ini}</div>
+                                          <span style={{ fontSize:10, fontWeight:700, color:"#065F46" }}>{m.name.split(" ")[0]}</span>
+                                          <span style={{ fontSize:8, color:"#10B981" }}>✕</span>
+                                        </button>)
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                             <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                               <button onClick={() => setEditingLearningId(null)}
                                 style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>
@@ -1855,35 +1861,41 @@ export default function HistoryClient({
                                     {(() => { const [fh,fm] = learningDraft.startTime ? learningDraft.startTime.split(":").map(Number) : [0,0]; const [th,tm] = learningDraft.endTime ? learningDraft.endTime.split(":").map(Number) : [0,0]; const h = Math.max(0,(th*60+tm-fh*60-fm)/60); return <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:h>0?"rgba(245,158,11,0.1)":"#F9FAFB", color:h>0?"#B45309":"#9CA3AF" }}>{h>0?fmtH(h):"—"}</span> })()}
                                   </div>
                                 </div>
-                                <div>
-                                  <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
-                                  <textarea rows={2} value={learningDraft.notes} onChange={e => setLearningDraft(d => ({ ...d, notes: e.target.value }))}
-                                    placeholder="Any notes or details…"
-                                    style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }}/>
-                                </div>
-                                {members.length > 0 && (
+                                <div style={{ display:"grid", gridTemplateColumns: members.length > 0 ? "7fr 3fr" : "1fr", gap:10, alignItems:"start" }}>
                                   <div>
-                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>👥 Learned With</label>
-                                    <div style={{ position:"relative" }}>
-                                      <select value="" onChange={ev => { const id = ev.target.value; if (id && !learningDraft.participantIds.includes(id)) setLearningDraft(d => ({ ...d, participantIds: [...d.participantIds, id] })) }}
-                                        style={{ width:"100%", padding:"7px 28px 7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box", appearance:"none" }}>
-                                        <option value="">Add teammate…</option>
-                                        {members.filter(m => !learningDraft.participantIds.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                                      </select>
-                                    </div>
-                                    {learningDraft.participantIds.length > 0 && (
-                                      <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
-                                        {learningDraft.participantIds.map(pid => {
-                                          const m = members.find(t => t.id === pid); if (!m) return null
-                                          return (<button key={pid} type="button" onClick={() => setLearningDraft(d => ({ ...d, participantIds: d.participantIds.filter(p => p !== pid) }))}
-                                            style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 6px", borderRadius:99, background:"rgba(245,158,11,0.1)", border:"1.5px solid rgba(245,158,11,0.35)", cursor:"pointer", fontSize:11, fontWeight:700, color:"#B45309" }}>
-                                            {m.name.split(" ")[0]} ✕
-                                          </button>)
-                                        })}
-                                      </div>
-                                    )}
+                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
+                                    <textarea rows={2} value={learningDraft.notes} onChange={e => setLearningDraft(d => ({ ...d, notes: e.target.value }))}
+                                      placeholder="Any notes or details…"
+                                      style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }}/>
                                   </div>
-                                )}
+                                  {members.length > 0 && (
+                                    <div>
+                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>👥 Learned With</label>
+                                      <div style={{ position:"relative" }}>
+                                        <select value="" onChange={ev => { const id = ev.target.value; if (id && !learningDraft.participantIds.includes(id)) setLearningDraft(d => ({ ...d, participantIds: [...d.participantIds, id] })) }}
+                                          style={{ width:"100%", padding:"7px 24px 7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box", appearance:"none" }}>
+                                          <option value="">Add teammate…</option>
+                                          {members.filter(m => !learningDraft.participantIds.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                        </select>
+                                        <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                      </div>
+                                      {learningDraft.participantIds.length > 0 && (
+                                        <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                          {learningDraft.participantIds.map(pid => {
+                                            const m = members.find(t => t.id === pid); if (!m) return null
+                                            const ini = m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase()
+                                            return (<button key={pid} type="button" onClick={() => setLearningDraft(d => ({ ...d, participantIds: d.participantIds.filter(p => p !== pid) }))}
+                                              style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(16,185,129,0.1)", border:"1.5px solid rgba(16,185,129,0.3)", cursor:"pointer" }}>
+                                              <div style={{ width:16, height:16, borderRadius:"50%", background:"#10B981", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{ini}</div>
+                                              <span style={{ fontSize:10, fontWeight:700, color:"#065F46" }}>{m.name.split(" ")[0]}</span>
+                                              <span style={{ fontSize:8, color:"#10B981" }}>✕</span>
+                                            </button>)
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                                 <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                                   <button onClick={() => setEditingLearningId(null)}
                                     style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>
@@ -2387,10 +2399,34 @@ export default function HistoryClient({
                                         <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>End Time</label><input type="time" value={editDraft.end_time??""} onChange={ev=>setEditDraft(d=>({...d,end_time:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} /></div>
                                       </div>
                                     )}
-                                    {editDraft.task_type!=="other" && (
+                                    {editDraft.task_type==="learning" ? (
+                                      <div style={{ display:"grid", gridTemplateColumns: members.length > 0 ? "7fr 3fr" : "1fr", gap:10, alignItems:"start" }}>
+                                        <div>
+                                          <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
+                                          <textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }} />
+                                        </div>
+                                        {members.length>0 && (
+                                          <div>
+                                            <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>👥 Learned With</label>
+                                            <div style={{ position:"relative" }}>
+                                              <select value="" onChange={ev=>{const id=ev.target.value;if(id&&!(editDraft.participant_ids??[]).includes(id))setEditDraft(d=>({...d,participant_ids:[...(d.participant_ids??[]),id]}))}} style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1px solid #E5E7EB", borderRadius:8, padding:"7px 24px 7px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                                                <option value="">Add teammate…</option>
+                                                {members.filter(m=>!(editDraft.participant_ids??[]).includes(m.id)).map(m=>(<option key={m.id} value={m.id}>{m.name}</option>))}
+                                              </select>
+                                              <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                            </div>
+                                            {(editDraft.participant_ids??[]).length>0 && (
+                                              <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                                {(editDraft.participant_ids??[]).map(pid=>{const m=members.find(t=>t.id===pid);if(!m)return null;const ini=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase();return(<button key={pid} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:(d.participant_ids??[]).filter(p=>p!==pid)}))} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(16,185,129,0.1)", border:"1.5px solid rgba(16,185,129,0.3)", cursor:"pointer" }}><div style={{ width:16, height:16, borderRadius:"50%", background:"#10B981", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{ini}</div><span style={{ fontSize:10, fontWeight:700, color:"#065F46" }}>{m.name.split(" ")[0]}</span><span style={{ fontSize:8, color:"#10B981" }}>✕</span></button>)})}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : editDraft.task_type!=="other" ? (
                                       <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }} /></div>
-                                    )}
-                                    {members.length>0 && (
+                                    ) : null}
+                                    {editDraft.task_type==="other" && members.length>0 && (
                                       <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
                                         <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:5 }}>👥 Worked With</label>
                                         <div style={{ position:"relative" }}>

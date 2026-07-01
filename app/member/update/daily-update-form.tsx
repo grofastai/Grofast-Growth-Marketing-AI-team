@@ -1790,7 +1790,7 @@ export default function DailyUpdateForm({
       )}
 
       {/* ── TABS (all teams) ─────────────────────────────────────────────── */}
-      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"nowrap", overflowX:"auto", WebkitOverflowScrolling:"touch", paddingBottom:2 }}>
+      <div className="flex md:grid" style={{ gridTemplateColumns:`repeat(${TABS.length},1fr)`, gap:8, marginBottom:20, overflowX:"auto", WebkitOverflowScrolling:"touch" as const, paddingBottom:2 }}>
         {TABS.map(t => {
           const isDone = t.id === "working" ? workingDone : t.id === "learning" ? learningDone : t.id === "media" ? mediaDone : t.id === "break" ? breaksDone : false
           return (
@@ -3082,54 +3082,47 @@ export default function DailyUpdateForm({
                         </div>
                       </div>
                     </div>
-                    {/* Notes */}
-                    <div>
-                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Notes</label>
-                      <input value={blk.notes} onChange={e => patchLearningBlock(blk.id, { notes: e.target.value })} placeholder="Key takeaways, resources used…" style={F} />
+                    {/* Notes + Learned With — 70/30 on same row */}
+                    <div style={{ display:"grid", gridTemplateColumns: teamMembers.length > 0 ? "7fr 3fr" : "1fr", gap:12, alignItems:"start" }}>
+                      <div>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Notes</label>
+                        <input value={blk.notes} onChange={e => patchLearningBlock(blk.id, { notes: e.target.value })} placeholder="Key takeaways, resources used…" style={F} />
+                      </div>
+                      {teamMembers.length > 0 && (
+                        <div>
+                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 5px" }}>👥 Learned With</p>
+                          <div style={{ position:"relative" }}>
+                            <select value="" onChange={e => { const id = e.target.value; if (id && !learningParticipantIds.includes(id)) setLearningParticipantIds(prev => [...prev, id]) }}
+                              style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 24px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                              <option value="">Add teammate…</option>
+                              {teamMembers.filter(m => !learningParticipantIds.includes(m.id)).map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                          {learningParticipantIds.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                              {learningParticipantIds.map(pid => {
+                                const m = teamMembers.find(t => t.id === pid)
+                                if (!m) return null
+                                const initials = m.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
+                                return (
+                                  <button key={pid} type="button" onClick={() => setLearningParticipantIds(prev => prev.filter(p => p !== pid))}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(16,185,129,0.1)", border:"1.5px solid rgba(16,185,129,0.3)", cursor:"pointer" }}>
+                                    <div style={{ width:16, height:16, borderRadius:"50%", background:"#10B981", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#065F46" }}>{m.name.split(" ")[0]}</span>
+                                    <span style={{ fontSize:8, color:"#10B981" }}>✕</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
-                {/* Add another learning block */}
-                {/* Learned With */}
-                {teamMembers.length > 0 && (
-                  <div style={{ paddingTop:10, borderTop:"1px dashed #EBEDF2" }}>
-                    <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Learned With</p>
-                    <div style={{ position:"relative" }}>
-                      <select
-                        value=""
-                        onChange={e => {
-                          const id = e.target.value
-                          if (id && !learningParticipantIds.includes(id))
-                            setLearningParticipantIds(prev => [...prev, id])
-                        }}
-                        style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                        <option value="">Add teammate…</option>
-                        {teamMembers.filter(m => !learningParticipantIds.includes(m.id)).map(m => (
-                          <option key={m.id} value={m.id}>{m.name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                    </div>
-                    {learningParticipantIds.length > 0 && (
-                      <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
-                        {learningParticipantIds.map(pid => {
-                          const m = teamMembers.find(t => t.id === pid)
-                          if (!m) return null
-                          const initials = m.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
-                          return (
-                            <button key={pid} type="button"
-                              onClick={() => setLearningParticipantIds(prev => prev.filter(p => p !== pid))}
-                              style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(16,185,129,0.1)", border:"1.5px solid rgba(16,185,129,0.3)", cursor:"pointer" }}>
-                              <div style={{ width:16, height:16, borderRadius:"50%", background:"#10B981", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
-                              <span style={{ fontSize:10, fontWeight:700, color:"#065F46" }}>{m.name.split(" ")[0]}</span>
-                              <span style={{ fontSize:8, color:"#10B981" }}>✕</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
                 <button type="button" onClick={addLearningBlock}
                   style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, padding:"11px", borderRadius:12, border:"1.5px dashed #10B981", background:"rgba(16,185,129,0.06)", color:"#059669", fontSize:12, fontWeight:700, cursor:"pointer" }}>
                   <Plus size={14} /> Add Another Learning

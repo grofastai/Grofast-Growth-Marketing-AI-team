@@ -2820,7 +2820,7 @@ export default function DailyUpdateForm({
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Length</label>
                           <VideoDurationPicker value={e.videoDuration} onChange={v => patchEdit(e.id, { videoDuration: v })} />
                         </div>
-                        <div className="flex justify-end md:justify-center" style={{ flex:1, gap:8, alignItems:"flex-start" }}>
+                        <div className="flex justify-start md:justify-center" style={{ flex:1, gap:8, alignItems:"flex-start" }}>
                           <div style={{ width:80, flexShrink:0 }}>
                             <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Revisions</label>
                             <input type="number" min="0" max="99" value={e.revisions} onChange={ev => patchEdit(e.id, { revisions: parseInt(ev.target.value) || 0 })} placeholder="0" style={F} />

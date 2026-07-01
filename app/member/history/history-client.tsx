@@ -2306,7 +2306,7 @@ export default function HistoryClient({
                                         <label style={HL}>Video Length</label>
                                         <VideoDurationPicker value={editDraft.video_duration??""} onChange={v=>setEditDraft(d=>({...d,video_duration:v}))} inputStyle={{ background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"9px 10px", fontSize:13 }} />
                                       </div>
-                                      <div className="flex justify-end md:justify-center" style={{ flex:1, gap:8, alignItems:"flex-start" }}>
+                                      <div className="flex justify-start md:justify-center" style={{ flex:1, gap:8, alignItems:"flex-start" }}>
                                         <div style={{ width:80, flexShrink:0 }}><label style={HL}>Revisions</label><input type="number" min="0" max="99" value={editDraft.revisions??0} onChange={ev=>setEditDraft(d=>({...d,revisions:parseInt(ev.target.value)||0}))} placeholder="0" style={HF} /></div>
                                         <div style={{ width:80, flexShrink:0 }}><label style={HL}>🪝 Hooks</label><input type="number" min="0" max="99" value={editDraft.hooks_completed??0} onChange={ev=>setEditDraft(d=>({...d,hooks_completed:Math.max(0,parseInt(ev.target.value)||0)}))} placeholder="0" style={HF} /></div>
                                       </div>

@@ -876,13 +876,14 @@ export default function DailyUpdateForm({
       if (toMins(p.endTime) <= toMins(p.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
-    // Editing (non-media) mandatory: client, video name, start/end time
+    // Editing (non-media) mandatory: client, video name, video type, start/end time
     for (let i = 0; i < nmEdits.length; i++) {
       const n = nmEdits[i]
       const label = nmEdits.length > 1 ? `Edit ${i + 1}: ` : "Edit: "
       const client = n.clientName === "__custom__" ? n.customClient.trim() : n.clientName
       if (!client) { setWorkingError(`${label}Select a client.`); return }
       if (!n.title.trim()) { setWorkingError(`${label}Enter a video name.`); return }
+      if (!n.videoType || n.videoType === "") { setWorkingError(`${label}Select a video type.`); return }
       if (!n.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!n.endTime)   { setWorkingError(`${label}Enter end time.`); return }
       if (toMins(n.endTime) <= toMins(n.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
@@ -1009,6 +1010,47 @@ export default function DailyUpdateForm({
       const overlapErr = findOverlapError(newEntries, existingEntries, activeLeavesList, selectedDate, collabWindows)
       if (overlapErr) { setError(overlapErr); return }
     }
+
+    // Per-entry field validation — runs on Submit (not just per-entry Save)
+    for (let i = 0; i < shoots.length; i++) {
+      const s = shoots[i]
+      const label = shoots.length > 1 ? `Shoot ${i + 1}: ` : "Shoot: "
+      if (!s.clientName || s.clientName === "") { setError(`${label}Select a client.`); return }
+      if (!s.title.trim()) { setError(`${label}Enter a shoot title.`); return }
+      if (!s.startTime || !s.endTime) { setError(`${label}Set start and end time.`); return }
+      if (toMins(s.endTime) <= toMins(s.startTime)) { setError(`${label}End time must be after start time.`); return }
+    }
+    for (let i = 0; i < edits.length; i++) {
+      const e = edits[i]
+      const label = edits.length > 1 ? `Edit ${i + 1}: ` : "Edit: "
+      if (!e.clientName || e.clientName === "") { setError(`${label}Select a client.`); return }
+      if (!e.title.trim()) { setError(`${label}Enter a video name.`); return }
+      if (!e.videoType || e.videoType === "") { setError(`${label}Select a video type.`); return }
+      if (!e.dateGiven) { setError(`${label}Set the Date Given.`); return }
+      if (!e.dateFinished) { setError(`${label}Set the Date Finished.`); return }
+      if (!e.videoDuration) { setError(`${label}Select the video duration.`); return }
+      if (e.revisions === null || e.revisions === undefined || isNaN(Number(e.revisions)) || !Number.isInteger(Number(e.revisions)) || Number(e.revisions) < 0) { setError(`${label}Revisions must be a whole number (0, 1, 2…).`); return }
+      if (e.hooksCompleted === null || e.hooksCompleted === undefined || isNaN(Number(e.hooksCompleted)) || !Number.isInteger(Number(e.hooksCompleted)) || Number(e.hooksCompleted) < 0) { setError(`${label}Hooks Completed must be a whole number (0, 1, 2…).`); return }
+      if (!e.startTime || !e.endTime) { setError(`${label}Set start and end time.`); return }
+      if (toMins(e.endTime) <= toMins(e.startTime)) { setError(`${label}End time must be after start time.`); return }
+    }
+    for (let i = 0; i < voiceovers.length; i++) {
+      const v = voiceovers[i]
+      const label = voiceovers.length > 1 ? `Voiceover ${i + 1}: ` : "Voiceover: "
+      if (!v.clientName || v.clientName === "") { setError(`${label}Select a client.`); return }
+      if (!v.title.trim()) { setError(`${label}Enter a title / project name.`); return }
+      if (!v.startTime || !v.endTime) { setError(`${label}Set start and end time.`); return }
+      if (toMins(v.endTime) <= toMins(v.startTime)) { setError(`${label}End time must be after start time.`); return }
+    }
+    for (let i = 0; i < posters.length; i++) {
+      const p = posters[i]
+      const label = posters.length > 1 ? `Poster ${i + 1}: ` : "Poster: "
+      if (!p.clientName || p.clientName === "") { setError(`${label}Select a client.`); return }
+      if (!p.title.trim()) { setError(`${label}Enter a poster name.`); return }
+      if (!p.startTime || !p.endTime) { setError(`${label}Set start and end time.`); return }
+      if (toMins(p.endTime) <= toMins(p.startTime)) { setError(`${label}End time must be after start time.`); return }
+    }
+
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
@@ -1135,6 +1177,8 @@ export default function DailyUpdateForm({
         return setEntryErrors(p => ({ ...p, [entryId]: "Select a client before saving." }))
       if (!editEntry.title.trim())
         return setEntryErrors(p => ({ ...p, [entryId]: "Enter a video name before saving." }))
+      if (!editEntry.videoType || editEntry.videoType === "")
+        return setEntryErrors(p => ({ ...p, [entryId]: "Select a video type before saving." }))
       if (!editEntry.dateGiven)
         return setEntryErrors(p => ({ ...p, [entryId]: "Set the Date Given before saving." }))
       if (!editEntry.dateFinished)
@@ -1143,10 +1187,10 @@ export default function DailyUpdateForm({
         return setEntryErrors(p => ({ ...p, [entryId]: "Set start and end time before saving." }))
       if (toMins(editEntry.endTime) <= toMins(editEntry.startTime))
         return setEntryErrors(p => ({ ...p, [entryId]: "End time must be after start time." }))
-      if (!editEntry.videoLink.trim())
-        return setEntryErrors(p => ({ ...p, [entryId]: "Enter the Drive/Video link before saving." }))
       if (!editEntry.videoDuration)
         return setEntryErrors(p => ({ ...p, [entryId]: "Select the video duration (e.g. 30 sec, 1 min) before saving." }))
+      if (editEntry.revisions === null || editEntry.revisions === undefined || isNaN(Number(editEntry.revisions)) || !Number.isInteger(Number(editEntry.revisions)) || Number(editEntry.revisions) < 0)
+        return setEntryErrors(p => ({ ...p, [entryId]: "Revisions must be a whole number (0, 1, 2…)." }))
       if (editEntry.hooksCompleted === null || editEntry.hooksCompleted === undefined || isNaN(Number(editEntry.hooksCompleted)) || !Number.isInteger(Number(editEntry.hooksCompleted)) || Number(editEntry.hooksCompleted) < 0)
         return setEntryErrors(p => ({ ...p, [entryId]: "Hooks Completed must be a whole number (0, 1, 2, 3…)." }))
       // Overlap check against other edits only (shoot overlap is handled separately)

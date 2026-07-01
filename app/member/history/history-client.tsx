@@ -1683,9 +1683,8 @@ export default function HistoryClient({
                                   <select value={learningDraft.client} onChange={e => setLearningDraft(d => ({ ...d, client: e.target.value }))}
                                     style={{ width:"100%", padding:"7px 28px 7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box", appearance:"none" }}>
                                     <option value="">Select client…</option>
-                                    <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
-                                    <option value="GROFAST AI">GROFAST AI</option>
-                                    <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
+                                    {activeClientsForEdit.map(c => <option key={c} value={c}>{c}</option>)}
+                                    {pastClientsOnly.map(c => <option key={`p-${c}`} value={c}>{c}</option>)}
                                   </select>
                                   <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                 </div>
@@ -1838,9 +1837,8 @@ export default function HistoryClient({
                                       <select value={learningDraft.client} onChange={e => setLearningDraft(d => ({ ...d, client: e.target.value }))}
                                         style={{ width:"100%", padding:"7px 28px 7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box", appearance:"none" }}>
                                         <option value="">Select client…</option>
-                                        <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
-                                        <option value="GROFAST AI">GROFAST AI</option>
-                                        <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
+                                        {activeClientsForEdit.map(c => <option key={c} value={c}>{c}</option>)}
+                                        {pastClientsOnly.map(c => <option key={`p-${c}`} value={c}>{c}</option>)}
                                       </select>
                                       <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                     </div>
@@ -2346,23 +2344,33 @@ export default function HistoryClient({
                                       <input type="date" max="2099-12-31" value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:editDraftDate!==editOrigDate?"1.5px solid #6366F1":"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
-                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-                                      <div>
-                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Title</label>
-                                        <input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
-                                        {editDraft.task_type==="learning"
-                                          ? <select value={editDraft.client_name??""} onChange={ev=>setEditDraft(d=>({...d,client_name:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                    {editDraft.task_type==="learning" ? (
+                                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                                        <div>
+                                          <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>For Client *</label>
+                                          <div style={{ position:"relative" }}>
+                                            <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;const topic=parseLearningTitle(editDraft.title??"").topic;setEditDraft(d=>({...d,client_name:v,title:v?`[${v}] ${topic}`:topic}))}} style={{ width:"100%", padding:"7px 24px 7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box", appearance:"none" }}>
                                               <option value="">Select client…</option>
-                                              <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
-                                              <option value="GROFAST AI">GROFAST AI</option>
-                                              <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
+                                              {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
+                                              {pastClientsOnly.map(c=><option key={`p-${c}`} value={c}>{c}</option>)}
                                             </select>
-                                          : null}
+                                            <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic / Course *</label>
+                                          <input value={parseLearningTitle(editDraft.title??"").topic} onChange={ev=>{const topic=ev.target.value;const client=editDraft.client_name??"";setEditDraft(d=>({...d,title:client?`[${client}] ${topic}`:topic}))}} placeholder="What did you learn?" style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} />
+                                        </div>
                                       </div>
-                                    </div>
+                                    ) : (
+                                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                                        <div>
+                                          <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Title</label>
+                                          <input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} />
+                                        </div>
+                                        <div></div>
+                                      </div>
+                                    )}
                                     {editDraft.task_type==="other" && (
                                       <div>
                                         <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:6 }}>
@@ -2395,12 +2403,22 @@ export default function HistoryClient({
                                         )}
                                       </div>
                                     )}
-                                    {(editDraft.task_type==="other"||editDraft.task_type==="learning") && (
+                                    {editDraft.task_type==="learning" ? (
+                                      <div>
+                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>📘 Learning Time</label>
+                                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                          <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
+                                          <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                          <HTimePicker value={editDraft.end_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} />
+                                          {(()=>{const h=calcDur(editDraft.start_time,editDraft.end_time);return <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:h>0?"rgba(245,158,11,0.1)":"#F9FAFB", color:h>0?"#B45309":"#9CA3AF" }}>{h>0?fmtH(h):"—"}</span>})()}
+                                        </div>
+                                      </div>
+                                    ) : editDraft.task_type==="other" ? (
                                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                                         <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Start Time</label><input type="time" value={editDraft.start_time??""} onChange={ev=>setEditDraft(d=>({...d,start_time:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} /></div>
                                         <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>End Time</label><input type="time" value={editDraft.end_time??""} onChange={ev=>setEditDraft(d=>({...d,end_time:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} /></div>
                                       </div>
-                                    )}
+                                    ) : null}
                                     {editDraft.task_type==="learning" ? (
                                       <div className={`grid ${members.length > 0 ? "md:grid-cols-[7fr_3fr]" : ""}`} style={{ gap:10, alignItems:"start" }}>
                                         <div>

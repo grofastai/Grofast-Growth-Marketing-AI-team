@@ -1823,7 +1823,7 @@ export default function DailyUpdateForm({
                     <Clock size={16} style={{ color:"#DE1A1A" }} />
                   </div>
                   <div>
-                    <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Today&apos;s Time Log</p>
+                    <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Technical</p>
                     <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{filledBlocks.length} {filledBlocks.length === 1 ? "block" : "blocks"} · {totalLoggedHours.toFixed(1)}h logged{nonMediaBreaks.length > 0 ? ` · ${nonMediaBreaks.length} break${nonMediaBreaks.length > 1 ? "s" : ""}` : ""}</p>
                   </div>
                 </div>
@@ -1980,7 +1980,7 @@ export default function DailyUpdateForm({
 
               {/* ── Voiceover Today section ─────────────────────────────── */}
               {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-                <SectionHead icon={<span style={{ fontSize:16 }}>🎙️</span>} label="Voiceover Today" count={voiceovers.length} color="#8B5CF6" />
+                <SectionHead icon={<span style={{ fontSize:16 }}>🎙️</span>} label="Voiceover" count={voiceovers.length} color="#8B5CF6" />
                 {voiceovers.length === 0 ? (
                   <div onClick={addVoiceover} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #DDD6FE", background:"rgba(139,92,246,0.02)", cursor:"pointer" }}>
                     <div style={{ position:"relative", width:180, height:140 }}>
@@ -2096,7 +2096,7 @@ export default function DailyUpdateForm({
 
               {/* ── Poster Today section ────────────────────────────────── */}
               {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-                <SectionHead icon={<span style={{ fontSize:16 }}>🖼️</span>} label="Poster Today" count={posters.length} color="#EC4899" />
+                <SectionHead icon={<span style={{ fontSize:16 }}>🖼️</span>} label="Poster" count={posters.length} color="#EC4899" />
                 {posters.length === 0 ? (
                   <div onClick={addPoster} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #FBCFE8", background:"rgba(236,72,153,0.02)", cursor:"pointer" }}>
                     <div style={{ position:"relative", width:180, height:140 }}>
@@ -2478,7 +2478,7 @@ export default function DailyUpdateForm({
 
             {/* Shoots */}
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-              <SectionHead icon={<Camera size={16} style={{ color:"#EF4444" }} />} label="Shoots Today" count={shoots.length} color="#EF4444" />
+              <SectionHead icon={<Camera size={16} style={{ color:"#EF4444" }} />} label="Shooting" count={shoots.length} color="#EF4444" />
               {shoots.length === 0 ? (
                 <div onClick={addShoot} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #FECACA", background:"rgba(239,68,68,0.02)", cursor:"pointer" }}>
                   <div style={{ position:"relative", width:180, height:140 }}>

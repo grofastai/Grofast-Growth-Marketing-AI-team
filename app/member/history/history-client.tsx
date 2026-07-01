@@ -1293,7 +1293,7 @@ export default function HistoryClient({
                                 setCollabLoading(conf.id)
                                 const r = await confirmCollaboration(conf.id)
                                 if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'confirmed' } : c))
-                                else showToast(r.error ?? "Failed to confirm. Try again.")
+                                else showToast(r.error ?? "Failed to confirm. Try again.", "error", "Cannot Confirm")
                                 setCollabLoading(null)
                               }} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#22C55E", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
                                 {loading ? "…" : "✓ Confirm"}
@@ -2762,7 +2762,7 @@ export default function HistoryClient({
                             setCollabLoading(conf.id)
                             const r = await confirmCollaboration(conf.id)
                             if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'confirmed', confirmed_start_time: c.original_start_time, confirmed_end_time: c.original_end_time, confirmed_hours: c.original_duration_hours } : c))
-                            else showToast(r.error ?? "Failed to confirm. Try again.")
+                            else showToast(r.error ?? "Failed to confirm. Try again.", "error", "Cannot Confirm")
                             setCollabLoading(null)
                           }} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#22C55E", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
                             {loading ? "…" : "✓ Confirm"}

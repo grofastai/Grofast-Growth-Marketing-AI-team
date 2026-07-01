@@ -2545,7 +2545,7 @@ export default function DailyUpdateForm({
 
 
                       <div style={{ marginBottom:10 }}>
-                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Time</label>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Shooting Time</label>
                         <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                           <TimePicker value={s.startTime} onChange={st => patchShoot(s.id, { startTime: st, durationHours: calcDuration(st, s.endTime) })} />
                           <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
@@ -2847,13 +2847,11 @@ export default function DailyUpdateForm({
                         </div>
                       </div>
                       {/* ── Editing time window (for shoot overlap detection) ── */}
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:8 }}>
-                        <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>✏️ Edit Start Time</label>
+                      <div style={{ marginBottom:8 }}>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>✏️ Editing Time</label>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                           <TimePicker value={e.startTime} onChange={v => patchEdit(e.id, { startTime: v })} />
-                        </div>
-                        <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>✏️ Edit End Time</label>
+                          <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
                           <TimePicker value={e.endTime} onChange={v => patchEdit(e.id, { endTime: v })} />
                         </div>
                       </div>

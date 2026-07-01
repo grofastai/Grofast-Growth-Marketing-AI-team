@@ -2113,7 +2113,7 @@ export default function HistoryClient({
                                   return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                                     <p style={{ fontSize:11, fontWeight:800, color:"#EF4444", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Shoot</p>
                                     <div>
-                                      <label style={HL}>Date</label>
+                                      <label style={HL}>Entry Date</label>
                                       <input type="date" max="2099-12-31" value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
@@ -2148,7 +2148,7 @@ export default function HistoryClient({
                                       </div>
                                     </div>
                                     <div>
-                                      <label style={HL}>Time</label>
+                                      <label style={HL}>Shooting Time</label>
                                       <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                                         <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
                                         <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
@@ -2245,7 +2245,7 @@ export default function HistoryClient({
                                       )}
                                     </div>
                                     <div>
-                                      <label style={HL}>Date</label>
+                                      <label style={HL}>Entry Date</label>
                                       <input type="date" max="2099-12-31" value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
@@ -2455,7 +2455,7 @@ export default function HistoryClient({
                                       )}
                                     </div>
                                     <div>
-                                      <label style={HL}>Date</label>
+                                      <label style={HL}>Entry Date</label>
                                       <input type="date" max="2099-12-31" value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
@@ -2533,7 +2533,7 @@ export default function HistoryClient({
                                       )}
                                     </div>
                                     <div>
-                                      <label style={HL}>Date</label>
+                                      <label style={HL}>Entry Date</label>
                                       <input type="date" max="2099-12-31" value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
@@ -2636,7 +2636,7 @@ export default function HistoryClient({
                                       )}
                                     </div>
                                     <div>
-                                      <label style={HL}>Date</label>
+                                      <label style={HL}>Entry Date</label>
                                       <input type="date" max="2099-12-31" value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>

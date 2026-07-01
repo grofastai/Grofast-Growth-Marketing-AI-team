@@ -3059,8 +3059,9 @@ export default function DailyUpdateForm({
                           <select value={blk.client} onChange={e => patchLearningBlock(blk.id, { client: e.target.value })}
                             style={{ ...F, paddingRight:28, appearance:"none" }}>
                             <option value="">Select client…</option>
-                            {activeClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                            {pastClientOptions.map(c => <option key={`p-${c}`} value={c}>{c}</option>)}
+                            <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
+                            <option value="GROFAST AI">GROFAST AI</option>
+                            <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
                           </select>
                           <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                         </div>

@@ -1683,8 +1683,9 @@ export default function HistoryClient({
                                   <select value={learningDraft.client} onChange={e => setLearningDraft(d => ({ ...d, client: e.target.value }))}
                                     style={{ width:"100%", padding:"7px 28px 7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box", appearance:"none" }}>
                                     <option value="">Select client…</option>
-                                    {activeClientsForEdit.map(c => <option key={c} value={c}>{c}</option>)}
-                                    {pastClientsOnly.map(c => <option key={`p-${c}`} value={c}>{c}</option>)}
+                                    <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
+                                    <option value="GROFAST AI">GROFAST AI</option>
+                                    <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
                                   </select>
                                   <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                 </div>
@@ -2351,8 +2352,9 @@ export default function HistoryClient({
                                           <div style={{ position:"relative" }}>
                                             <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;const topic=parseLearningTitle(editDraft.title??"").topic;setEditDraft(d=>({...d,client_name:v,title:v?`[${v}] ${topic}`:topic}))}} style={{ width:"100%", padding:"7px 24px 7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box", appearance:"none" }}>
                                               <option value="">Select client…</option>
-                                              {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
-                                              {pastClientsOnly.map(c=><option key={`p-${c}`} value={c}>{c}</option>)}
+                                              <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
+                                              <option value="GROFAST AI">GROFAST AI</option>
+                                              <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
                                             </select>
                                             <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                           </div>

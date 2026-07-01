@@ -978,10 +978,9 @@ export default function HistoryClient({
         </div>
       )}
 
-      {/* ── FILTERS ───────────────────────────────────────────────────── */}
+      {/* ── MONTH PILLS ───────────────────────────────────────────────────── */}
       <div style={{ background:"#fff", borderBottom:"1px solid #EBEDF2" }} className="px-4 md:px-7 py-2.5">
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          {/* All Time */}
+        <div style={{ display:"flex", alignItems:"center", gap:8, overflowX:"auto", paddingBottom:2 }}>
           <button
             onClick={() => { setSelectedMonth(""); setSelectedDate("") }}
             style={{
@@ -990,42 +989,25 @@ export default function HistoryClient({
               color:      selectedMonth === "" ? "#FFFFFF"  : "#6B7280",
               border:     selectedMonth === "" ? "1.5px solid #DE1A1A" : "1.5px solid transparent",
             }}>
-            All Time
+            All
           </button>
-          {/* This Month */}
-          <button
-            onClick={() => { setSelectedMonth(currentMonthLabel); setSelectedDate("") }}
-            style={{
-              padding:"6px 16px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
-              background: selectedMonth === currentMonthLabel ? "#DE1A1A" : "#F5F6FA",
-              color:      selectedMonth === currentMonthLabel ? "#FFFFFF"  : "#6B7280",
-              border:     selectedMonth === currentMonthLabel ? "1.5px solid #DE1A1A" : "1.5px solid transparent",
-            }}>
-            This Month
-          </button>
-          {/* Month picker */}
-          {(() => {
-            const pickerActive = selectedMonth !== "" && selectedMonth !== currentMonthLabel
+          {months.map(m => {
+            const active = selectedMonth === m
+            const shortLabel = new Date(m + " 1").toLocaleDateString("en-US", { month:"short", year:"2-digit" })
             return (
-              <input
-                type="month"
-                value={selectedMonth ? labelToMonthInput(selectedMonth) : ""}
-                onChange={e => {
-                  if (!e.target.value) { setSelectedMonth(""); return }
-                  setSelectedMonth(monthInputToLabel(e.target.value))
-                  setSelectedDate("")
-                }}
+              <button
+                key={m}
+                onClick={() => { setSelectedMonth(active ? "" : m); setSelectedDate("") }}
                 style={{
-                  padding:"5px 12px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", flexShrink:0,
-                  background: pickerActive ? "#DE1A1A" : "#F5F6FA",
-                  color:      pickerActive ? "#FFFFFF"  : "#6B7280",
-                  border:     pickerActive ? "1.5px solid #DE1A1A" : "1.5px solid #E5E7EB",
-                  outline:"none",
-                  colorScheme: pickerActive ? "dark" : "light",
-                }}
-              />
+                  padding:"6px 16px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
+                  background: active ? "#DE1A1A" : "#F5F6FA",
+                  color:      active ? "#FFFFFF"  : "#6B7280",
+                  border:     active ? "1.5px solid #DE1A1A" : "1.5px solid transparent",
+                }}>
+                {shortLabel}
+              </button>
             )
-          })()}
+          })}
         </div>
       </div>
 

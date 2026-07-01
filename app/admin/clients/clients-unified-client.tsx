@@ -518,11 +518,10 @@ export default function ClientsUnifiedClient({
               background: '#FFFFFF', borderRadius: 14, padding: '14px 18px',
               border: '1px solid #EBEDF2', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
             }}>
-              {/* Quick buttons */}
+              {/* Quick buttons — All Time first, then This Month */}
               {([
-                { key: 'this', label: 'This Month' },
-                { key: 'last', label: 'Last Month' },
                 { key: 'all',  label: 'All Time'   },
+                { key: 'this', label: 'This Month' },
               ] as const).map(({ key, label }) => (
                 <button key={key} onClick={() => setQuick(key)} style={{
                   padding: '7px 16px', borderRadius: 9, fontSize: 12, fontWeight: 700,
@@ -534,8 +533,6 @@ export default function ClientsUnifiedClient({
                   {label}
                 </button>
               ))}
-
-              <div style={{ width: 1, height: 24, background: '#E5E7EB', margin: '0 4px' }} />
 
               {/* Month picker */}
               <input

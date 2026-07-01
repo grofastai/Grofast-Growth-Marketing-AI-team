@@ -2666,14 +2666,27 @@ export default function DailyUpdateForm({
                       {teamMembers.length > 0 && (
                         <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #F0F1F5" }}>
                           <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Shot With</p>
+                          <div style={{ position:"relative" }}>
+                            <select value="" onChange={ev => {
+                              const id = ev.target.value
+                              if (id && !s.participantIds.includes(id))
+                                patchShoot(s.id, { participantIds: [...s.participantIds, id] })
+                            }} style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                              <option value="">Add teammate…</option>
+                              {teamMembers.filter(m => !s.participantIds.includes(m.id)).map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
                           {s.participantIds.length > 0 && (
-                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
                               {s.participantIds.map(pid => {
                                 const m = teamMembers.find(t => t.id === pid)
                                 if (!m) return null
                                 const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
                                 return (
-                                  <button key={pid} onClick={() => patchShoot(s.id, { participantIds: s.participantIds.filter(p => p !== pid) })}
+                                  <button key={pid} type="button" onClick={() => patchShoot(s.id, { participantIds: s.participantIds.filter(p => p !== pid) })}
                                     style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(239,68,68,0.1)", border:"1.5px solid rgba(239,68,68,0.3)", cursor:"pointer" }}>
                                     <div style={{ width:16, height:16, borderRadius:"50%", background:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
                                     <span style={{ fontSize:10, fontWeight:700, color:"#B91C1C" }}>{m.name.split(" ")[0]}</span>
@@ -2683,20 +2696,6 @@ export default function DailyUpdateForm({
                               })}
                             </div>
                           )}
-                          <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
-                            {teamMembers.slice(0, 20).map(m => {
-                              const selected = s.participantIds.includes(m.id)
-                              const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
-                              return (
-                                <button key={m.id} onClick={() => patchShoot(s.id, { participantIds: selected ? s.participantIds.filter(p => p !== m.id) : [...s.participantIds, m.id] })}
-                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, cursor:"pointer", background: selected ? "rgba(239,68,68,0.1)" : "#F9FAFB", border:`1.5px solid ${selected ? "rgba(239,68,68,0.4)" : "#EBEDF2"}` }}>
-                                  <div style={{ width:16, height:16, borderRadius:"50%", background: selected ? "#EF4444" : "#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color: selected ? "#fff" : "#9CA3AF" }}>{initials}</div>
-                                  <span style={{ fontSize:10, fontWeight:700, color: selected ? "#B91C1C" : "#374151" }}>{m.name.split(" ")[0]}</span>
-                                  {selected && <span style={{ fontSize:8, color:"#EF4444" }}>✓</span>}
-                                </button>
-                              )
-                            })}
-                          </div>
                         </div>
                       )}
                       {entryErrors[s.id] && (
@@ -2818,21 +2817,23 @@ export default function DailyUpdateForm({
                           <input value={e.title} onChange={ev => patchEdit(e.id, { title: ev.target.value })} placeholder="e.g. Evan Styles Makeover Reel" style={F} />
                         </div>
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 110px", gap:10, marginBottom:10 }}>
-                        <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Type</label>
-                          <div style={{ position:"relative" }}>
-                            <select value={e.videoType} onChange={ev => patchEdit(e.id, { videoType: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                              <option value="">Select type…</option>
-                              {["ADVERTISEMENT","ADVERTISEMENT WITH HOOKS","LONG FORMAT VIDEO","CINEMATIC","PROMOTION VIDEOS","INSTAGRAM REELS","YOUTUBE SHORTS","GREEN SCREEN EDITING","PERSONAL BRANDING"].map(t => <option key={t} value={t}>{t}</option>)}
-                              <option value="__other__">✏️ Other (type…)</option>
-                            </select>
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                          {e.videoType === "__other__" && (
-                            <input value={e.customVideoType} onChange={ev => patchEdit(e.id, { customVideoType: ev.target.value })} placeholder="Type video type…" style={{ ...F, marginTop:6, background:"rgba(99,102,241,0.05)", borderColor:"rgba(99,102,241,0.25)" }} />
-                          )}
+                      {/* Video Type — full width */}
+                      <div style={{ marginBottom:10 }}>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Type</label>
+                        <div style={{ position:"relative" }}>
+                          <select value={e.videoType} onChange={ev => patchEdit(e.id, { videoType: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                            <option value="">Select type…</option>
+                            {["ADVERTISEMENT","ADVERTISEMENT WITH HOOKS","LONG FORMAT VIDEO","CINEMATIC","PROMOTION VIDEOS","INSTAGRAM REELS","YOUTUBE SHORTS","GREEN SCREEN EDITING","PERSONAL BRANDING"].map(t => <option key={t} value={t}>{t}</option>)}
+                            <option value="__other__">✏️ Other (type…)</option>
+                          </select>
+                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                         </div>
+                        {e.videoType === "__other__" && (
+                          <input value={e.customVideoType} onChange={ev => patchEdit(e.id, { customVideoType: ev.target.value })} placeholder="Type video type…" style={{ ...F, marginTop:6, background:"rgba(99,102,241,0.05)", borderColor:"rgba(99,102,241,0.25)" }} />
+                        )}
+                      </div>
+                      {/* Duration + Revisions + Hooks — 3 col row */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px", gap:10, marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration</label>
                           <VideoDurationPicker value={e.videoDuration} onChange={v => patchEdit(e.id, { videoDuration: v })} />
@@ -2842,7 +2843,7 @@ export default function DailyUpdateForm({
                           <input type="number" min="0" max="99" value={e.revisions} onChange={ev => patchEdit(e.id, { revisions: parseInt(ev.target.value) || 0 })} placeholder="0" style={F} />
                         </div>
                         <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🪝 Hooks Completed</label>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🪝 Hooks</label>
                           <input type="number" min="0" max="99" step="1" value={e.hooksCompleted} onChange={ev => patchEdit(e.id, { hooksCompleted: Math.max(0, Math.floor(parseInt(ev.target.value) || 0)) })} placeholder="0" style={F} />
                         </div>
                       </div>
@@ -3073,42 +3074,43 @@ export default function DailyUpdateForm({
                         </button>
                       )}
                     </div>
-                    <div>
-                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>For Client *</label>
-                      <div style={{ display:"flex", gap:8 }}>
-                        {["GROFAST DIGITAL", "GROFAST AI"].map(c => (
-                          <button key={c} type="button" onClick={() => patchLearningBlock(blk.id, { client: c })}
-                            style={{ flex:1, padding:"9px 14px", borderRadius:10, fontSize:12, fontWeight:700, cursor:"pointer",
-                              border: blk.client === c ? "2px solid #10B981" : "1.5px solid #EBEDF2",
-                              background: blk.client === c ? "rgba(16,185,129,0.1)" : "#F9FAFB",
-                              color: blk.client === c ? "#059669" : "#6B7280" }}>
-                            {c}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Topic / Course *</label>
-                      <input value={blk.topic} onChange={e => patchLearningBlock(blk.id, { topic: e.target.value })} placeholder="e.g. DaVinci Resolve color grading, Adobe Premiere…" style={F} />
-                    </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
+                    {/* For Client (dropdown) + Topic on same row */}
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                       <div>
-                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>From *</label>
-                        <TimePicker value={blk.from} onChange={v => patchLearningBlock(blk.id, { from: v })} allowEmpty style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
-                      </div>
-                      <div>
-                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>To *</label>
-                        <TimePicker value={blk.to} onChange={v => patchLearningBlock(blk.id, { to: v })} allowEmpty style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
-                      </div>
-                      <div>
-                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Duration</label>
-                        <div style={{ ...F, background:"#F9FAFB", color: calcLearningHours(blk.from, blk.to) > 0 ? "#111827" : "#9CA3AF", fontWeight:700, display:"flex", alignItems:"center" }}>
-                          {calcLearningHours(blk.from, blk.to) > 0 ? `${calcLearningHours(blk.from, blk.to)}h` : "—"}
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>For Client *</label>
+                        <div style={{ position:"relative" }}>
+                          <select value={blk.client} onChange={e => patchLearningBlock(blk.id, { client: e.target.value })}
+                            style={{ ...F, paddingRight:28, appearance:"none" }}>
+                            <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
+                            <option value="GROFAST AI">GROFAST AI</option>
+                            <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
+                          </select>
+                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                         </div>
                       </div>
+                      <div>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Topic / Course *</label>
+                        <input value={blk.topic} onChange={e => patchLearningBlock(blk.id, { topic: e.target.value })} placeholder="e.g. DaVinci Resolve…" style={F} />
+                      </div>
                     </div>
+                    {/* Learning Time — matches Editing Time style */}
                     <div>
-                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Notes</label>
+                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>📘 Learning Time</label>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                        <TimePicker value={blk.from} onChange={v => patchLearningBlock(blk.id, { from: v })} allowEmpty />
+                        <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                        <TimePicker value={blk.to} onChange={v => patchLearningBlock(blk.id, { to: v })} allowEmpty />
+                        {calcLearningHours(blk.from, blk.to) > 0 && (
+                          <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:8, background:"rgba(16,185,129,0.08)", border:"1.5px solid rgba(16,185,129,0.25)" }}>
+                            <span style={{ fontSize:13, fontWeight:700, color:"#059669" }}>{fmtTravel(calcLearningHours(blk.from, blk.to))}</span>
+                            <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {/* Notes */}
+                    <div>
+                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Notes</label>
                       <input value={blk.notes} onChange={e => patchLearningBlock(blk.id, { notes: e.target.value })} placeholder="Key takeaways, resources used…" style={F} />
                     </div>
                   </div>

@@ -61,6 +61,15 @@ const TASK_CFG = {
 }
 const DOT_COLORS = ["#22C55E","#F59E0B","#6366F1","#EF4444","#0EA5E9","#EC4899"]
 
+function labelToMonthInput(label: string): string {
+  const d = new Date(label + " 1")
+  if (isNaN(d.getTime())) return ""
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+}
+function monthInputToLabel(val: string): string {
+  return new Date(val + "-01T12:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" })
+}
+
 function parseLearningTitle(title: string | null): { client: string; topic: string } {
   if (!title) return { client: "", topic: "" }
   const m = title.match(/^\[([^\]]+)\]\s*(.*)$/)
@@ -422,9 +431,12 @@ export default function HistoryClient({
   // Past-client mode for edit dropdown (mirrors daily update form)
   const [editClientShowPast, setEditClientShowPast] = useState(false)
 
+  const currentMonthLabel = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })
   const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date()
-    return now.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    const hasCurrentMonth = updates.some(u => monthLabel(u.date) === currentMonthLabel)
+    if (hasCurrentMonth) return currentMonthLabel
+    // Fall back to most recent month with data (updates are sorted newest-first)
+    return updates.length > 0 ? monthLabel(updates[0].date) : currentMonthLabel
   })
   const [search, setSearch]               = useState("")
   const [selectedDate, setSelectedDate]   = useState(defaultDate ?? "")
@@ -944,10 +956,10 @@ export default function HistoryClient({
         </div>
       )}
 
-      {/* ── MONTH PILLS ───────────────────────────────────────────────────── */}
+      {/* ── FILTERS ───────────────────────────────────────────────────── */}
       <div style={{ background:"#fff", borderBottom:"1px solid #EBEDF2" }} className="px-4 md:px-7 py-2.5">
-        <div style={{ display:"flex", alignItems:"center", gap:8, overflowX:"auto", paddingBottom:2 }}>
-          {/* "All" pill */}
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          {/* All Time */}
           <button
             onClick={() => { setSelectedMonth(""); setSelectedDate("") }}
             style={{
@@ -956,25 +968,42 @@ export default function HistoryClient({
               color:      selectedMonth === "" ? "#FFFFFF"  : "#6B7280",
               border:     selectedMonth === "" ? "1.5px solid #DE1A1A" : "1.5px solid transparent",
             }}>
-            All
+            All Time
           </button>
-          {months.map(m => {
-            const active = selectedMonth === m
-            const shortLabel = new Date(m + " 1").toLocaleDateString("en-US", { month:"short", year:"2-digit" })
+          {/* This Month */}
+          <button
+            onClick={() => { setSelectedMonth(currentMonthLabel); setSelectedDate("") }}
+            style={{
+              padding:"6px 16px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
+              background: selectedMonth === currentMonthLabel ? "#DE1A1A" : "#F5F6FA",
+              color:      selectedMonth === currentMonthLabel ? "#FFFFFF"  : "#6B7280",
+              border:     selectedMonth === currentMonthLabel ? "1.5px solid #DE1A1A" : "1.5px solid transparent",
+            }}>
+            This Month
+          </button>
+          {/* Month picker */}
+          {(() => {
+            const pickerActive = selectedMonth !== "" && selectedMonth !== currentMonthLabel
             return (
-              <button
-                key={m}
-                onClick={() => { setSelectedMonth(active ? "" : m); setSelectedDate("") }}
+              <input
+                type="month"
+                value={selectedMonth ? labelToMonthInput(selectedMonth) : ""}
+                onChange={e => {
+                  if (!e.target.value) { setSelectedMonth(""); return }
+                  setSelectedMonth(monthInputToLabel(e.target.value))
+                  setSelectedDate("")
+                }}
                 style={{
-                  padding:"6px 16px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
-                  background: active ? "#DE1A1A" : "#F5F6FA",
-                  color:      active ? "#FFFFFF"  : "#6B7280",
-                  border:     active ? "1.5px solid #DE1A1A" : "1.5px solid transparent",
-                }}>
-                {shortLabel}
-              </button>
+                  padding:"5px 12px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", flexShrink:0,
+                  background: pickerActive ? "#DE1A1A" : "#F5F6FA",
+                  color:      pickerActive ? "#FFFFFF"  : "#6B7280",
+                  border:     pickerActive ? "1.5px solid #DE1A1A" : "1.5px solid #E5E7EB",
+                  outline:"none",
+                  colorScheme: pickerActive ? "dark" : "light",
+                }}
+              />
             )
-          })}
+          })()}
         </div>
       </div>
 
@@ -1278,6 +1307,7 @@ export default function HistoryClient({
                                 setCollabLoading(conf.id)
                                 const r = await confirmCollaboration(conf.id)
                                 if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'confirmed' } : c))
+                                else alert(r.error ?? "Failed to confirm. Try again.")
                                 setCollabLoading(null)
                               }} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#22C55E", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
                                 {loading ? "…" : "✓ Confirm"}
@@ -2746,6 +2776,7 @@ export default function HistoryClient({
                             setCollabLoading(conf.id)
                             const r = await confirmCollaboration(conf.id)
                             if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'confirmed', confirmed_start_time: c.original_start_time, confirmed_end_time: c.original_end_time, confirmed_hours: c.original_duration_hours } : c))
+                            else alert(r.error ?? "Failed to confirm. Try again.")
                             setCollabLoading(null)
                           }} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#22C55E", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
                             {loading ? "…" : "✓ Confirm"}

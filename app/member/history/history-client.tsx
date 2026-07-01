@@ -425,7 +425,7 @@ export default function HistoryClient({
 
   // Learning edit state
   const [editingLearningId, setEditingLearningId] = useState<string | null>(null)
-  const [learningDraft, setLearningDraft] = useState<{ client: string; topic: string; notes: string; hours: string; startTime: string; endTime: string; participantIds: string[] }>({ client: "GROFAST DIGITAL", topic: "", notes: "", hours: "", startTime: "", endTime: "", participantIds: [] })
+  const [learningDraft, setLearningDraft] = useState<{ client: string; topic: string; notes: string; hours: string; startTime: string; endTime: string; participantIds: string[] }>({ client: "GROFAST DIGITAL", topic: "", notes: "", hours: "", startTime: "09:00", endTime: "09:00", participantIds: [] })
   const [savingLearning, setSavingLearning] = useState(false)
 
   // Per-entry date change state
@@ -627,8 +627,8 @@ export default function HistoryClient({
       topic:          m ? m[2] : raw,
       notes:          u.learning_notes ?? "",
       hours:          u.learning_hours != null ? String(u.learning_hours) : "",
-      startTime:      u.learning_start_time ?? "",
-      endTime:        u.learning_end_time   ?? "",
+      startTime:      u.learning_start_time ?? "09:00",
+      endTime:        u.learning_end_time   ?? "09:00",
       participantIds: u.participant_ids ?? [],
     })
   }
@@ -1676,37 +1676,33 @@ export default function HistoryClient({
                         <div style={{ margin:"0 18px 14px", padding:"14px", borderRadius:12, background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.25)" }}>
                           <p style={{ fontSize:11, fontWeight:700, color:"#D97706", margin:"0 0 10px" }}>Edit Learning</p>
                           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                            <div>
-                              <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
-                              <select value={learningDraft.client} onChange={e => setLearningDraft(d => ({ ...d, client: e.target.value }))}
-                                style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
-                                <option value="GROFAST AI">GROFAST AI</option>
-                                <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic</label>
-                              <input value={learningDraft.topic} onChange={e => setLearningDraft(d => ({ ...d, topic: e.target.value }))}
-                                placeholder="What did you learn?"
-                                style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
-                            </div>
-                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 80px", gap:8 }}>
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                               <div>
-                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>From</label>
-                                <input type="time" value={learningDraft.startTime} onChange={e => setLearningDraft(d => ({ ...d, startTime: e.target.value }))}
-                                  style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
-                              </div>
-                              <div>
-                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>To</label>
-                                <input type="time" value={learningDraft.endTime} onChange={e => setLearningDraft(d => ({ ...d, endTime: e.target.value }))}
-                                  style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
-                              </div>
-                              <div>
-                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Total</label>
-                                <div style={{ padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, fontWeight:700, color: learningDraft.startTime && learningDraft.endTime ? "#111111" : "#9CA3AF", background:"#F9FAFB" }}>
-                                  {(() => { const [fh,fm] = learningDraft.startTime ? learningDraft.startTime.split(":").map(Number) : [0,0]; const [th,tm] = learningDraft.endTime ? learningDraft.endTime.split(":").map(Number) : [0,0]; const h = Math.max(0,(th*60+tm-fh*60-fm)/60); return h > 0 ? fmtH(h) : "—" })()}
+                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>For Client</label>
+                                <div style={{ position:"relative" }}>
+                                  <select value={learningDraft.client} onChange={e => setLearningDraft(d => ({ ...d, client: e.target.value }))}
+                                    style={{ width:"100%", padding:"7px 28px 7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box", appearance:"none" }}>
+                                    <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
+                                    <option value="GROFAST AI">GROFAST AI</option>
+                                    <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
+                                  </select>
+                                  <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                 </div>
+                              </div>
+                              <div>
+                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic / Course</label>
+                                <input value={learningDraft.topic} onChange={e => setLearningDraft(d => ({ ...d, topic: e.target.value }))}
+                                  placeholder="What did you learn?"
+                                  style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
+                              </div>
+                            </div>
+                            <div>
+                              <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>📘 Learning Time</label>
+                              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                <HTimePicker value={learningDraft.startTime || "09:00"} onChange={v => setLearningDraft(d => ({ ...d, startTime: v }))} />
+                                <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                <HTimePicker value={learningDraft.endTime || "09:00"} onChange={v => setLearningDraft(d => ({ ...d, endTime: v }))} />
+                                {(() => { const [fh,fm] = learningDraft.startTime ? learningDraft.startTime.split(":").map(Number) : [0,0]; const [th,tm] = learningDraft.endTime ? learningDraft.endTime.split(":").map(Number) : [0,0]; const h = Math.max(0,(th*60+tm-fh*60-fm)/60); return h > 0 ? <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.1)", color:"#B45309" }}>{fmtH(h)}</span> : null })()}
                               </div>
                             </div>
                             <div>
@@ -1828,37 +1824,33 @@ export default function HistoryClient({
                             <div style={{ margin:"0 18px 14px", padding:"14px", borderRadius:12, background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.25)" }}>
                               <p style={{ fontSize:11, fontWeight:700, color:"#D97706", margin:"0 0 10px" }}>Edit Learning</p>
                               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                                <div>
-                                  <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
-                                  <select value={learningDraft.client} onChange={e => setLearningDraft(d => ({ ...d, client: e.target.value }))}
-                                    style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                    <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
-                                    <option value="GROFAST AI">GROFAST AI</option>
-                                    <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
-                                  </select>
-                                </div>
-                                <div>
-                                  <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic</label>
-                                  <input value={learningDraft.topic} onChange={e => setLearningDraft(d => ({ ...d, topic: e.target.value }))}
-                                    placeholder="What did you learn?"
-                                    style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
-                                </div>
-                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 80px", gap:8 }}>
+                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                                   <div>
-                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>From</label>
-                                    <input type="time" value={learningDraft.startTime} onChange={e => setLearningDraft(d => ({ ...d, startTime: e.target.value }))}
-                                      style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
-                                  </div>
-                                  <div>
-                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>To</label>
-                                    <input type="time" value={learningDraft.endTime} onChange={e => setLearningDraft(d => ({ ...d, endTime: e.target.value }))}
-                                      style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
-                                  </div>
-                                  <div>
-                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Total</label>
-                                    <div style={{ padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, fontWeight:700, color: learningDraft.startTime && learningDraft.endTime ? "#111111" : "#9CA3AF", background:"#F9FAFB" }}>
-                                      {(() => { const [fh,fm] = learningDraft.startTime ? learningDraft.startTime.split(":").map(Number) : [0,0]; const [th,tm] = learningDraft.endTime ? learningDraft.endTime.split(":").map(Number) : [0,0]; const h = Math.max(0,(th*60+tm-fh*60-fm)/60); return h > 0 ? fmtH(h) : "—" })()}
+                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>For Client</label>
+                                    <div style={{ position:"relative" }}>
+                                      <select value={learningDraft.client} onChange={e => setLearningDraft(d => ({ ...d, client: e.target.value }))}
+                                        style={{ width:"100%", padding:"7px 28px 7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box", appearance:"none" }}>
+                                        <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
+                                        <option value="GROFAST AI">GROFAST AI</option>
+                                        <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
+                                      </select>
+                                      <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                     </div>
+                                  </div>
+                                  <div>
+                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic / Course</label>
+                                    <input value={learningDraft.topic} onChange={e => setLearningDraft(d => ({ ...d, topic: e.target.value }))}
+                                      placeholder="What did you learn?"
+                                      style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
+                                  </div>
+                                </div>
+                                <div>
+                                  <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>📘 Learning Time</label>
+                                  <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                    <HTimePicker value={learningDraft.startTime || "09:00"} onChange={v => setLearningDraft(d => ({ ...d, startTime: v }))} />
+                                    <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                    <HTimePicker value={learningDraft.endTime || "09:00"} onChange={v => setLearningDraft(d => ({ ...d, endTime: v }))} />
+                                    {(() => { const [fh,fm] = learningDraft.startTime ? learningDraft.startTime.split(":").map(Number) : [0,0]; const [th,tm] = learningDraft.endTime ? learningDraft.endTime.split(":").map(Number) : [0,0]; const h = Math.max(0,(th*60+tm-fh*60-fm)/60); return h > 0 ? <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.1)", color:"#B45309" }}>{fmtH(h)}</span> : null })()}
                                   </div>
                                 </div>
                                 <div>
@@ -2278,9 +2270,6 @@ export default function HistoryClient({
                                           <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                         </div>
                                       </div>
-                                      <div><label style={HL}>Video Name *</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="e.g. Evan Styles Makeover Reel" style={HF} /></div>
-                                    </div>
-                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 110px", gap:10 }}>
                                       <div>
                                         <label style={HL}>Video Type</label>
                                         <div style={{ position:"relative" }}>
@@ -2292,15 +2281,15 @@ export default function HistoryClient({
                                           <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                         </div>
                                       </div>
+                                    </div>
+                                    <div><label style={HL}>Video Name *</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="e.g. Evan Styles Makeover Reel" style={HF} /></div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px", gap:10 }}>
                                       <div>
-                                        <label style={HL}>Duration</label>
+                                        <label style={HL}>Video Length</label>
                                         <VideoDurationPicker value={editDraft.video_duration??""} onChange={v=>setEditDraft(d=>({...d,video_duration:v}))} inputStyle={{ background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"9px 10px", fontSize:13 }} />
                                       </div>
                                       <div><label style={HL}>Revisions</label><input type="number" min="0" max="99" value={editDraft.revisions??0} onChange={ev=>setEditDraft(d=>({...d,revisions:parseInt(ev.target.value)||0}))} placeholder="0" style={HF} /></div>
-                                    </div>
-                                    <div>
-                                      <label style={HL}>🪝 Hooks Completed</label>
-                                      <input type="number" min="0" max="99" value={editDraft.hooks_completed??0} onChange={ev=>setEditDraft(d=>({...d,hooks_completed:Math.max(0,parseInt(ev.target.value)||0)}))} placeholder="0" style={{ ...HF, width:100 }} />
+                                      <div><label style={HL}>🪝 Hooks</label><input type="number" min="0" max="99" value={editDraft.hooks_completed??0} onChange={ev=>setEditDraft(d=>({...d,hooks_completed:Math.max(0,parseInt(ev.target.value)||0)}))} placeholder="0" style={HF} /></div>
                                     </div>
                                     <div>
                                       <label style={HL}>✏️ Editing Time <span style={{ color:"#EF4444" }}>*</span></label>
@@ -2317,10 +2306,8 @@ export default function HistoryClient({
                                       </div>
                                       <button type="button" onClick={()=>setEditDraft(d=>({...d,drive_updated:!d.drive_updated}))} style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px", borderRadius:10, border:"1.5px solid", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.drive_updated?"rgba(34,197,94,0.1)":"#F9FAFB", borderColor:editDraft.drive_updated?"rgba(34,197,94,0.4)":"#EBEDF2", color:editDraft.drive_updated?"#16A34A":"#9CA3AF" }}>{editDraft.drive_updated?"Drive Updated ✓":"Drive Updated?"}</button>
                                     </div>
-                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                                      <div><label style={HL}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Software used, challenges…" style={{ ...HF, resize:"none" }} /></div>
-                                      <div><label style={HL}>Drive / Video Link</label><input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="https://drive.google.com/…" style={HF} /></div>
-                                    </div>
+                                    <div><label style={HL}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Software used, challenges…" style={{ ...HF, resize:"none" }} /></div>
+                                    <div><label style={HL}>Drive / Video Link</label><input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="https://drive.google.com/…" style={HF} /></div>
                                     {members.length>0 && (
                                       <div style={{ paddingTop:8, borderTop:"1px dashed #F0F1F5" }}>
                                         <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Edited With</p>
@@ -2481,10 +2468,10 @@ export default function HistoryClient({
                                           <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                         </div>
                                       </div>
-                                      <div><label style={HL}>Title / Project</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="Script or project name" style={HF} /></div>
+                                      <div><label style={HL}>Script Name</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="Script or project name" style={HF} /></div>
                                     </div>
                                     <div>
-                                      <label style={HL}>🎙 Recording Time</label>
+                                      <label style={HL}>🎙 Voiceover Time</label>
                                       <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                                         <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
                                         <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
@@ -2492,10 +2479,8 @@ export default function HistoryClient({
                                         {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(139,92,246,0.1)", color:"#8B5CF6" }}>{fmtTravel(dur)}</span>}
                                       </div>
                                     </div>
-                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                                      <div><label style={HL}>Drive / Audio Link</label><input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="https://drive.google.com/…" style={HF} /></div>
-                                      <div><label style={HL}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Script details, revisions…" style={{ ...HF, resize:"none" }} /></div>
-                                    </div>
+                                    <div><label style={HL}>Drive / Audio Link</label><input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="https://drive.google.com/…" style={HF} /></div>
+                                    <div><label style={HL}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Script details, revisions…" style={{ ...HF, resize:"none" }} /></div>
                                     <div style={{ display:"flex", gap:8, justifyContent:"flex-end", borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4 }}>
                                       <button onClick={()=>{setEditingKey(null);setEditDraft({})}} style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
                                       <button onClick={()=>saveEntry(u.id,entries,ei)} disabled={savingKey===eKey} style={{ display:"flex", alignItems:"center", gap:5, padding:"9px 20px", borderRadius:10, background:"#8B5CF6", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:savingKey===eKey?0.7:1, boxShadow:"0 4px 12px rgba(139,92,246,0.3)" }}><Check size={12}/> {savingKey===eKey?"Saving…":"Save Voiceover"}</button>
@@ -2570,10 +2555,8 @@ export default function HistoryClient({
                                         {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(236,72,153,0.1)", color:"#EC4899" }}>{fmtTravel(dur)}</span>}
                                       </div>
                                     </div>
-                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                                      <div><label style={HL}>Drive / File Link</label><input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="https://drive.google.com/…" style={HF} /></div>
-                                      <div><label style={HL}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Design details, revisions…" style={{ ...HF, resize:"none" }} /></div>
-                                    </div>
+                                    <div><label style={HL}>Drive / File Link</label><input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="https://drive.google.com/…" style={HF} /></div>
+                                    <div><label style={HL}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Design details, revisions…" style={{ ...HF, resize:"none" }} /></div>
                                     {members.length > 0 && (
                                       <div>
                                         <label style={HL}>👥 Worked With</label>
@@ -2662,22 +2645,22 @@ export default function HistoryClient({
                                           <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                         </div>
                                       </div>
-                                      <div><label style={HL}>Video Name</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="Video or project name" style={HF} /></div>
-                                    </div>
-                                    <div>
-                                      <label style={HL}>Video Type</label>
-                                      <div style={{ position:"relative" }}>
-                                        <select value={editDraft.video_type??""} onChange={ev=>setEditDraft(d=>({...d,video_type:ev.target.value}))} style={{ ...HF, paddingRight:28, appearance:"none" }}>
-                                          <option value="">Select type…</option>
-                                          <option value="AI GENERATED">AI Generated</option>
-                                          <option value="SIMPLE EDIT">Simple Edit</option>
-                                          <option value="EDIT + AI">Edit + AI</option>
-                                        </select>
-                                        <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                      <div>
+                                        <label style={HL}>Video Type</label>
+                                        <div style={{ position:"relative" }}>
+                                          <select value={editDraft.video_type??""} onChange={ev=>setEditDraft(d=>({...d,video_type:ev.target.value}))} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                            <option value="">Select type…</option>
+                                            <option value="AI GENERATED">AI Generated</option>
+                                            <option value="SIMPLE EDIT">Simple Edit</option>
+                                            <option value="EDIT + AI">Edit + AI</option>
+                                          </select>
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
                                       </div>
                                     </div>
+                                    <div><label style={HL}>Video Name</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="Video or project name" style={HF} /></div>
                                     <div>
-                                      <label style={HL}>🎬 Edit Time</label>
+                                      <label style={HL}>⏱ Editing Time</label>
                                       <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                                         <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
                                         <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
@@ -2685,12 +2668,9 @@ export default function HistoryClient({
                                         {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(13,148,136,0.1)", color:"#0D9488" }}>{fmtTravel(dur)}</span>}
                                       </div>
                                     </div>
-                                    <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:10 }}>
-                                      <div><label style={HL}>Drive / File Link</label><input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="https://drive.google.com/…" style={HF} /></div>
-                                    </div>
                                     {members.length > 0 && (
                                       <div>
-                                        <label style={HL}>👥 Worked With</label>
+                                        <label style={HL}>👥 Edited With</label>
                                         <div style={{ position:"relative" }}>
                                           <select value="" onChange={ev=>{const id=ev.target.value;if(id&&!(editDraft.participant_ids??[]).includes(id))setEditDraft(d=>({...d,participant_ids:[...(d.participant_ids??[]),id]}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
                                             <option value="">Add teammate…</option>

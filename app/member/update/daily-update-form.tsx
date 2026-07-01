@@ -261,7 +261,7 @@ interface LearningBlock {
   from: string; to: string; notes: string
 }
 function newLearningBlock(): LearningBlock {
-  return { id: crypto.randomUUID(), client: "GROFAST DIGITAL", topic: "", from: "", to: "", notes: "" }
+  return { id: crypto.randomUUID(), client: "GROFAST DIGITAL", topic: "", from: "09:00", to: "09:00", notes: "" }
 }
 function calcLearningHours(from: string, to: string): number {
   if (!from || !to) return 0
@@ -582,19 +582,19 @@ export default function DailyUpdateForm({
 
   // ── Voiceovers (media) ───────────────────────────────────────────────────
   const [voiceovers, setVoiceovers] = useState<EditEntry[]>(() => existingUpdate ? parseExistingVoiceovers(existingUpdate) : [])
-  const addVoiceover    = () => setVoiceovers(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[], isRework:false, linkedToTitle:"", linkedToClient:"", linkedToDate:"" }])
+  const addVoiceover    = () => setVoiceovers(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"09:00", endTime:"09:00", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[], isRework:false, linkedToTitle:"", linkedToClient:"", linkedToDate:"" }])
   const patchVoiceover  = (id: string, patch: Partial<EditEntry>) => setVoiceovers(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
   const removeVoiceover = (id: string) => setVoiceovers(p => p.filter(e => e.id !== id))
 
   // ── Posters (media) ──────────────────────────────────────────────────────
   const [posters, setPosters] = useState<EditEntry[]>(() => existingUpdate ? parseExistingPosters(existingUpdate) : [])
-  const addPoster    = () => setPosters(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[], isRework:false, linkedToTitle:"", linkedToClient:"", linkedToDate:"" }])
+  const addPoster    = () => setPosters(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"09:00", endTime:"09:00", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[], isRework:false, linkedToTitle:"", linkedToClient:"", linkedToDate:"" }])
   const patchPoster  = (id: string, patch: Partial<EditEntry>) => setPosters(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
   const removePoster = (id: string) => setPosters(p => p.filter(e => e.id !== id))
 
   // ── Non-media editing ─────────────────────────────────────────────────────
   const [nmEdits, setNmEdits] = useState<EditEntry[]>(() => (!isMediaTeam && existingUpdate) ? parseExistingNmEdits(existingUpdate) : [])
-  const addNmEdit    = () => setNmEdits(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[], isRework:false, linkedToTitle:"", linkedToClient:"", linkedToDate:"" }])
+  const addNmEdit    = () => setNmEdits(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"09:00", endTime:"09:00", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[], isRework:false, linkedToTitle:"", linkedToClient:"", linkedToDate:"" }])
   const patchNmEdit  = (id: string, patch: Partial<EditEntry>) => setNmEdits(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
   const removeNmEdit = (id: string) => setNmEdits(p => p.filter(e => e.id !== id))
 
@@ -1873,15 +1873,11 @@ export default function DailyUpdateForm({
 
                         {/* ── Work-only fields ── */}
                         {!block.isBreak && (<>
-                          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                            <input value={block.description} onChange={e => patchBlock(block.id, { description: e.target.value })}
-                              placeholder="What did you work on?"
-                              style={{ flex:1, minWidth:140, background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", fontSize:12, color:"#111827", outline:"none" }} />
-                          </div>
-                          {/* Client / Project multi-select */}
-                          <div style={{ marginTop:4 }}>
-                            <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project</p>
-                            <div style={{ position:"relative" }}>
+                          {/* Client + Title in 2-col row */}
+                          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                            <div>
+                              <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5, margin:"0 0 5px" }}>Client / Project</p>
+                              <div style={{ position:"relative" }}>
                               {showPastFor.has(`blk-${block.id}`) ? (
                                 <select value="" onChange={e => { const v = e.target.value; if (!v) return; if (v === "__back__") { exitPastMode(`blk-${block.id}`); return } if (!block.clientNames.includes(v)) patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" }); exitPastMode(`blk-${block.id}`) }}
                                   style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
@@ -1898,69 +1894,75 @@ export default function DailyUpdateForm({
                               </select>
                               )}
                               <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                              </div>
                             </div>
-                            {(block.clientNames.length > 0 || block.projectName) && (
-                              <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
-                                {block.clientNames.map(name => (
-                                  <button key={name} type="button"
-                                    onClick={() => patchBlock(block.id, { clientNames: block.clientNames.filter(n => n !== name), isMultiClient: block.clientNames.length > 2 })}
-                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(222,26,26,0.08)", border:"1.5px solid rgba(222,26,26,0.25)", cursor:"pointer" }}>
-                                    <span style={{ fontSize:10, fontWeight:700, color:"#de1a1a" }}>{name}</span>
-                                    <span style={{ fontSize:8, color:"#de1a1a" }}>✕</span>
-                                  </button>
-                                ))}
-                                {block.projectName === "__custom__" && (
-                                  <button type="button" onClick={() => patchBlock(block.id, { projectName: "", brand: "", customClient: "" })}
-                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.08)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
-                                    <span style={{ fontSize:10, fontWeight:700, color:"#6366F1" }}>✏️ Other</span>
-                                    <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                            {block.projectName === "__custom__" && (
-                              <input value={block.customClient} onChange={e => patchBlock(block.id, { customClient: e.target.value })}
-                                placeholder="Type client name…"
-                                style={{ width:"100%", fontSize:11, fontWeight:600, color:"#111827", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", outline:"none", boxSizing:"border-box", marginTop:6 }} />
-                            )}
-                            {/* Worked With — per block */}
-                            {teamMembers.length > 0 && (
-                              <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #EBEDF2" }}>
-                                <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
-                                <div style={{ position:"relative" }}>
-                                  <select value="" onChange={e => {
-                                    const id = e.target.value
-                                    if (id && !block.participantIds.includes(id))
-                                      patchBlock(block.id, { participantIds: [...block.participantIds, id] })
-                                  }} style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                                    <option value="">Add teammate…</option>
-                                    {teamMembers.filter(m => !block.participantIds.includes(m.id)).map(m => (
-                                      <option key={m.id} value={m.id}>{m.name}</option>
-                                    ))}
-                                  </select>
-                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                </div>
-                                {block.participantIds.length > 0 && (
-                                  <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
-                                    {block.participantIds.map(pid => {
-                                      const m = teamMembers.find(t => t.id === pid)
-                                      if (!m) return null
-                                      const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
-                                      return (
-                                        <button key={pid} type="button"
-                                          onClick={() => patchBlock(block.id, { participantIds: block.participantIds.filter(p => p !== pid) })}
-                                          style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
-                                          <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
-                                          <span style={{ fontSize:10, fontWeight:700, color:"#4338CA" }}>{m.name.split(" ")[0]}</span>
-                                          <span style={{ fontSize:8, color:"#818CF8" }}>✕</span>
-                                        </button>
-                                      )
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                            <div>
+                              <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5, margin:"0 0 5px" }}>Title</p>
+                              <input value={block.description} onChange={e => patchBlock(block.id, { description: e.target.value })}
+                                placeholder="What did you work on?"
+                                style={{ width:"100%", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"8px 10px", fontSize:12, color:"#111827", outline:"none", boxSizing:"border-box" as const }} />
+                            </div>
                           </div>
+                          {(block.clientNames.length > 0 || block.projectName) && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:4 }}>
+                              {block.clientNames.map(name => (
+                                <button key={name} type="button"
+                                  onClick={() => patchBlock(block.id, { clientNames: block.clientNames.filter(n => n !== name), isMultiClient: block.clientNames.length > 2 })}
+                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(222,26,26,0.08)", border:"1.5px solid rgba(222,26,26,0.25)", cursor:"pointer" }}>
+                                  <span style={{ fontSize:10, fontWeight:700, color:"#de1a1a" }}>{name}</span>
+                                  <span style={{ fontSize:8, color:"#de1a1a" }}>✕</span>
+                                </button>
+                              ))}
+                              {block.projectName === "__custom__" && (
+                                <button type="button" onClick={() => patchBlock(block.id, { projectName: "", brand: "", customClient: "" })}
+                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.08)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
+                                  <span style={{ fontSize:10, fontWeight:700, color:"#6366F1" }}>✏️ Other</span>
+                                  <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                          {block.projectName === "__custom__" && (
+                            <input value={block.customClient} onChange={e => patchBlock(block.id, { customClient: e.target.value })}
+                              placeholder="Type client name…"
+                              style={{ width:"100%", fontSize:11, fontWeight:600, color:"#111827", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", outline:"none", boxSizing:"border-box", marginTop:6 }} />
+                          )}
+                          {teamMembers.length > 0 && (
+                            <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #EBEDF2" }}>
+                              <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                              <div style={{ position:"relative" }}>
+                                <select value="" onChange={e => {
+                                  const id = e.target.value
+                                  if (id && !block.participantIds.includes(id))
+                                    patchBlock(block.id, { participantIds: [...block.participantIds, id] })
+                                }} style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                                  <option value="">Add teammate…</option>
+                                  {teamMembers.filter(m => !block.participantIds.includes(m.id)).map(m => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                  ))}
+                                </select>
+                                <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                              </div>
+                              {block.participantIds.length > 0 && (
+                                <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                  {block.participantIds.map(pid => {
+                                    const m = teamMembers.find(t => t.id === pid)
+                                    if (!m) return null
+                                    const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                    return (
+                                      <button key={pid} type="button"
+                                        onClick={() => patchBlock(block.id, { participantIds: block.participantIds.filter(p => p !== pid) })}
+                                        style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
+                                        <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                        <span style={{ fontSize:10, fontWeight:700, color:"#4338CA" }}>{m.name.split(" ")[0]}</span>
+                                        <span style={{ fontSize:8, color:"#818CF8" }}>✕</span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </>)}
                       </div>
                       </Fragment>
@@ -2057,30 +2059,26 @@ export default function DailyUpdateForm({
                           {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchVoiceover(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
                         </div>
                         <div>
-                          <label style={L}>Title / Project</label>
+                          <label style={L}>Script Name</label>
                           <input value={e.title} onChange={ev => patchVoiceover(e.id, { title: ev.target.value })} placeholder="Script or project name" style={F} />
                         </div>
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:8, alignItems:"end", marginBottom:8 }}>
-                        <div>
-                          <label style={L}>Start Time</label>
-                          <input type="time" value={e.startTime} onChange={ev => patchVoiceover(e.id, { startTime: ev.target.value })} style={F} />
+                      <div style={{ marginBottom:8 }}>
+                        <label style={L}>🎙 Voiceover Time</label>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                          <TimePicker value={e.startTime} onChange={v => patchVoiceover(e.id, { startTime: v })} />
+                          <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                          <TimePicker value={e.endTime} onChange={v => patchVoiceover(e.id, { endTime: v })} />
+                          {dur > 0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(139,92,246,0.1)", color:"#8B5CF6" }}>{fmtTravel(dur)}</span>}
                         </div>
-                        <div>
-                          <label style={L}>End Time</label>
-                          <input type="time" value={e.endTime} onChange={ev => patchVoiceover(e.id, { endTime: ev.target.value })} style={F} />
-                        </div>
-                        {dur > 0 && <span style={{ fontSize:11, fontWeight:800, color:"#8B5CF6", padding:"8px 10px", borderRadius:8, background:"rgba(139,92,246,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:8 }}>
-                        <div>
-                          <label style={L}>Drive / Audio Link</label>
-                          <input value={e.videoLink} onChange={ev => patchVoiceover(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
-                        </div>
-                        <div>
-                          <label style={L}>Notes</label>
-                          <input value={e.notes} onChange={ev => patchVoiceover(e.id, { notes: ev.target.value })} placeholder="Script details, revisions…" style={F} />
-                        </div>
+                      <div style={{ marginBottom:8 }}>
+                        <label style={L}>Drive / Audio Link</label>
+                        <input value={e.videoLink} onChange={ev => patchVoiceover(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
+                      </div>
+                      <div>
+                        <label style={L}>Notes</label>
+                        <input value={e.notes} onChange={ev => patchVoiceover(e.id, { notes: ev.target.value })} placeholder="Script details, revisions…" style={F} />
                       </div>
                     </div>
                   )
@@ -2177,26 +2175,18 @@ export default function DailyUpdateForm({
                           <input value={e.title} onChange={ev => patchPoster(e.id, { title: ev.target.value })} placeholder="Poster or design name" style={F} />
                         </div>
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:8, alignItems:"end", marginBottom:8 }}>
-                        <div>
-                          <label style={L}>Start Time</label>
-                          <input type="time" value={e.startTime} onChange={ev => patchPoster(e.id, { startTime: ev.target.value })} style={F} />
+                      <div style={{ marginBottom:8 }}>
+                        <label style={L}>🎨 Designing Time</label>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                          <TimePicker value={e.startTime} onChange={v => patchPoster(e.id, { startTime: v })} />
+                          <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                          <TimePicker value={e.endTime} onChange={v => patchPoster(e.id, { endTime: v })} />
+                          {dur > 0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(236,72,153,0.1)", color:"#EC4899" }}>{fmtTravel(dur)}</span>}
                         </div>
-                        <div>
-                          <label style={L}>End Time</label>
-                          <input type="time" value={e.endTime} onChange={ev => patchPoster(e.id, { endTime: ev.target.value })} style={F} />
-                        </div>
-                        {dur > 0 && <span style={{ fontSize:11, fontWeight:800, color:"#EC4899", padding:"8px 10px", borderRadius:8, background:"rgba(236,72,153,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:8, marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
-                        <div>
-                          <label style={L}>Drive / File Link</label>
-                          <input value={e.videoLink} onChange={ev => patchPoster(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
-                        </div>
-                        <div>
-                          <label style={L}>Notes</label>
-                          <input value={e.notes} onChange={ev => patchPoster(e.id, { notes: ev.target.value })} placeholder="Design details, revisions…" style={F} />
-                        </div>
+                      <div style={{ marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
+                        <label style={L}>Notes</label>
+                        <input value={e.notes} onChange={ev => patchPoster(e.id, { notes: ev.target.value })} placeholder="Design details, revisions…" style={F} />
                       </div>
                       {teamMembers.length > 0 && (
                         <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
@@ -2322,46 +2312,38 @@ export default function DailyUpdateForm({
                           {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchNmEdit(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
                         </div>
                         <div>
-                          <label style={L}>Video Name</label>
-                          <input value={e.title} onChange={ev => patchNmEdit(e.id, { title: ev.target.value })} placeholder="Video or project name" style={F} />
+                          <label style={L}>Video Type</label>
+                          <div style={{ position:"relative" }}>
+                            <select value={e.videoType} onChange={ev => patchNmEdit(e.id, { videoType: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                              <option value="">Select type…</option>
+                              <option value="AI GENERATED">AI Generated</option>
+                              <option value="SIMPLE EDIT">Simple Edit</option>
+                              <option value="EDIT + AI">Edit + AI</option>
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
                         </div>
                       </div>
                       <div style={{ marginBottom:8 }}>
-                        <label style={L}>Video Type</label>
-                        <div style={{ position:"relative" }}>
-                          <select value={e.videoType} onChange={ev => patchNmEdit(e.id, { videoType: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                            <option value="">Select type…</option>
-                            <option value="AI GENERATED">AI Generated</option>
-                            <option value="SIMPLE EDIT">Simple Edit</option>
-                            <option value="EDIT + AI">Edit + AI</option>
-                          </select>
-                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                        <label style={L}>Video Name</label>
+                        <input value={e.title} onChange={ev => patchNmEdit(e.id, { title: ev.target.value })} placeholder="Video or project name" style={F} />
+                      </div>
+                      <div style={{ marginBottom:8 }}>
+                        <label style={L}>⏱ Editing Time</label>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                          <TimePicker value={e.startTime} onChange={v => patchNmEdit(e.id, { startTime: v })} />
+                          <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                          <TimePicker value={e.endTime} onChange={v => patchNmEdit(e.id, { endTime: v })} />
+                          {dur > 0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(13,148,136,0.1)", color:"#0D9488" }}>{fmtTravel(dur)}</span>}
                         </div>
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:8, alignItems:"end", marginBottom:8 }}>
-                        <div>
-                          <label style={L}>Start Time</label>
-                          <input type="time" value={e.startTime} onChange={ev => patchNmEdit(e.id, { startTime: ev.target.value })} style={F} />
-                        </div>
-                        <div>
-                          <label style={L}>End Time</label>
-                          <input type="time" value={e.endTime} onChange={ev => patchNmEdit(e.id, { endTime: ev.target.value })} style={F} />
-                        </div>
-                        {dur > 0 && <span style={{ fontSize:11, fontWeight:800, color:"#0D9488", padding:"8px 10px", borderRadius:8, background:"rgba(13,148,136,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
-                      </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:8, marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
-                        <div>
-                          <label style={L}>Drive / File Link</label>
-                          <input value={e.videoLink} onChange={ev => patchNmEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
-                        </div>
-                        <div>
-                          <label style={L}>Notes</label>
-                          <input value={e.notes} onChange={ev => patchNmEdit(e.id, { notes: ev.target.value })} placeholder="Edit details…" style={F} />
-                        </div>
+                      <div style={{ marginBottom:8 }}>
+                        <label style={L}>Notes</label>
+                        <input value={e.notes} onChange={ev => patchNmEdit(e.id, { notes: ev.target.value })} placeholder="Edit details…" style={F} />
                       </div>
                       {teamMembers.length > 0 && (
                         <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
-                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Edited With</p>
                           <div style={{ position:"relative" }}>
                             <select value="" onChange={ev => { const id = ev.target.value; if (id && !e.participantIds.includes(id)) patchNmEdit(e.id, { participantIds: [...e.participantIds, id] }) }}
                               style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
@@ -2813,29 +2795,29 @@ export default function DailyUpdateForm({
                           )}
                         </div>
                         <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Name *</label>
-                          <input value={e.title} onChange={ev => patchEdit(e.id, { title: ev.target.value })} placeholder="e.g. Evan Styles Makeover Reel" style={F} />
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Type</label>
+                          <div style={{ position:"relative" }}>
+                            <select value={e.videoType} onChange={ev => patchEdit(e.id, { videoType: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                              <option value="">Select type…</option>
+                              {["ADVERTISEMENT","ADVERTISEMENT WITH HOOKS","LONG FORMAT VIDEO","CINEMATIC","PROMOTION VIDEOS","INSTAGRAM REELS","YOUTUBE SHORTS","GREEN SCREEN EDITING","PERSONAL BRANDING"].map(t => <option key={t} value={t}>{t}</option>)}
+                              <option value="__other__">✏️ Other (type…)</option>
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                          {e.videoType === "__other__" && (
+                            <input value={e.customVideoType} onChange={ev => patchEdit(e.id, { customVideoType: ev.target.value })} placeholder="Type video type…" style={{ ...F, marginTop:6, background:"rgba(99,102,241,0.05)", borderColor:"rgba(99,102,241,0.25)" }} />
+                          )}
                         </div>
                       </div>
-                      {/* Video Type — full width */}
+                      {/* Video Name — full width */}
                       <div style={{ marginBottom:10 }}>
-                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Type</label>
-                        <div style={{ position:"relative" }}>
-                          <select value={e.videoType} onChange={ev => patchEdit(e.id, { videoType: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                            <option value="">Select type…</option>
-                            {["ADVERTISEMENT","ADVERTISEMENT WITH HOOKS","LONG FORMAT VIDEO","CINEMATIC","PROMOTION VIDEOS","INSTAGRAM REELS","YOUTUBE SHORTS","GREEN SCREEN EDITING","PERSONAL BRANDING"].map(t => <option key={t} value={t}>{t}</option>)}
-                            <option value="__other__">✏️ Other (type…)</option>
-                          </select>
-                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                        </div>
-                        {e.videoType === "__other__" && (
-                          <input value={e.customVideoType} onChange={ev => patchEdit(e.id, { customVideoType: ev.target.value })} placeholder="Type video type…" style={{ ...F, marginTop:6, background:"rgba(99,102,241,0.05)", borderColor:"rgba(99,102,241,0.25)" }} />
-                        )}
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Name *</label>
+                        <input value={e.title} onChange={ev => patchEdit(e.id, { title: ev.target.value })} placeholder="e.g. Evan Styles Makeover Reel" style={F} />
                       </div>
                       {/* Duration + Revisions + Hooks — 3 col row */}
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px", gap:10, marginBottom:10 }}>
                         <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration</label>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Length</label>
                           <VideoDurationPicker value={e.videoDuration} onChange={v => patchEdit(e.id, { videoDuration: v })} />
                         </div>
                         <div>
@@ -2892,17 +2874,15 @@ export default function DailyUpdateForm({
                           <Upload size={12} /> {e.driveUpdated ? "Drive Updated ✓" : "Drive Updated?"}
                         </button>
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                        <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Notes</label>
-                          <input value={e.notes} onChange={ev => patchEdit(e.id, { notes: ev.target.value })} placeholder="Software used, challenges…" style={F} />
-                        </div>
-                        <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>
-                            <Link2 size={9} style={{ display:"inline", marginRight:4 }} />Drive / Video Link
-                          </label>
-                          <input value={e.videoLink} onChange={ev => patchEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/… (optional)" style={F} />
-                        </div>
+                      <div style={{ marginBottom:10 }}>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Notes</label>
+                        <input value={e.notes} onChange={ev => patchEdit(e.id, { notes: ev.target.value })} placeholder="Software used, challenges…" style={F} />
+                      </div>
+                      <div>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>
+                          <Link2 size={9} style={{ display:"inline", marginRight:4 }} />Drive / Video Link
+                        </label>
+                        <input value={e.videoLink} onChange={ev => patchEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/… (optional)" style={F} />
                       </div>
                       {entryErrors[e.id] && (
                         <div style={{ margin:"8px 0 0", padding:"8px 12px", borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.25)", fontSize:11, fontWeight:600, color:"#DC2626" }}>
@@ -3097,9 +3077,9 @@ export default function DailyUpdateForm({
                     <div>
                       <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>📘 Learning Time</label>
                       <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                        <TimePicker value={blk.from} onChange={v => patchLearningBlock(blk.id, { from: v })} allowEmpty />
+                        <TimePicker value={blk.from} onChange={v => patchLearningBlock(blk.id, { from: v })} />
                         <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
-                        <TimePicker value={blk.to} onChange={v => patchLearningBlock(blk.id, { to: v })} allowEmpty />
+                        <TimePicker value={blk.to} onChange={v => patchLearningBlock(blk.id, { to: v })} />
                         {calcLearningHours(blk.from, blk.to) > 0 && (
                           <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:8, background:"rgba(16,185,129,0.08)", border:"1.5px solid rgba(16,185,129,0.25)" }}>
                             <span style={{ fontSize:13, fontWeight:700, color:"#059669" }}>{fmtTravel(calcLearningHours(blk.from, blk.to))}</span>

@@ -2113,7 +2113,7 @@ export default function HistoryClient({
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                                       <div>
-                                        <label style={HL}>Client / Project *</label>
+                                        <label style={HL}>Client Name *</label>
                                         <div style={{ position:"relative" }}>
                                           {editClientShowPast
                                             ? <div>
@@ -2137,7 +2137,7 @@ export default function HistoryClient({
                                         </div>
                                       </div>
                                       <div>
-                                        <label style={HL}>Title *</label>
+                                        <label style={HL}>Shoot Name *</label>
                                         <input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="e.g. Basketball Tournament Shoot" style={HF} />
                                       </div>
                                     </div>
@@ -2188,16 +2188,24 @@ export default function HistoryClient({
                                       <label style={HL}>🔗 Drive Link</label>
                                       <input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="Paste Google Drive / folder link…" style={HF} />
                                     </div>
-                                    <div>
-                                      <label style={HL}>Notes</label>
-                                      <textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Shots taken, any issues…" style={{ ...HF, resize:"none" }} />
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"end" }}>
+                                      <div>
+                                        <label style={HL}>Notes</label>
+                                        <textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Shots taken, any issues…" style={{ ...HF, resize:"none" }} />
+                                      </div>
+                                      <button type="button" onClick={()=>setEditDraft(d=>({...d,video_uploaded:!d.video_uploaded}))} style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px", borderRadius:10, border:"1.5px solid", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.video_uploaded?"rgba(34,197,94,0.1)":"#F9FAFB", borderColor:editDraft.video_uploaded?"rgba(34,197,94,0.4)":"#EBEDF2", color:editDraft.video_uploaded?"#16A34A":"#9CA3AF" }}>{editDraft.video_uploaded?"Uploaded ✓":"Video Uploaded?"}</button>
                                     </div>
-                                    <button type="button" onClick={()=>setEditDraft(d=>({...d,video_uploaded:!d.video_uploaded}))} style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px", borderRadius:10, border:"1.5px solid", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.video_uploaded?"rgba(34,197,94,0.1)":"#F9FAFB", borderColor:editDraft.video_uploaded?"rgba(34,197,94,0.4)":"#EBEDF2", color:editDraft.video_uploaded?"#16A34A":"#9CA3AF" }}>{editDraft.video_uploaded?"Uploaded ✓":"Video Uploaded?"}</button>
                                     {members.length>0 && (
                                       <div style={{ paddingTop:8, borderTop:"1px dashed #F0F1F5" }}>
                                         <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Shot With</p>
-                                        {(editDraft.participant_ids??[]).length>0 && <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>{(editDraft.participant_ids??[]).map(pid=>{const m=members.find(t=>t.id===pid);if(!m)return null;const ini=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase();return(<button key={pid} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:(d.participant_ids??[]).filter(p=>p!==pid)}))} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(239,68,68,0.1)", border:"1.5px solid rgba(239,68,68,0.3)", cursor:"pointer" }}><div style={{ width:16, height:16, borderRadius:"50%", background:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{ini}</div><span style={{ fontSize:10, fontWeight:700, color:"#B91C1C" }}>{m.name.split(" ")[0]}</span><span style={{ fontSize:8, color:"#EF4444" }}>✕</span></button>)})}</div>}
-                                        <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>{members.map(m=>{const sel=(editDraft.participant_ids??[]).includes(m.id);const ini=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase();return(<button key={m.id} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:sel?(d.participant_ids??[]).filter(p=>p!==m.id):[...(d.participant_ids??[]),m.id]}))} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, cursor:"pointer", background:sel?"rgba(239,68,68,0.1)":"#F9FAFB", border:`1.5px solid ${sel?"rgba(239,68,68,0.4)":"#EBEDF2"}` }}><div style={{ width:16, height:16, borderRadius:"50%", background:sel?"#EF4444":"#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:sel?"#fff":"#9CA3AF" }}>{ini}</div><span style={{ fontSize:10, fontWeight:700, color:sel?"#B91C1C":"#374151" }}>{m.name.split(" ")[0]}</span>{sel&&<span style={{ fontSize:8, color:"#EF4444" }}>✓</span>}</button>)})}</div>
+                                        <div style={{ position:"relative" }}>
+                                          <select value="" onChange={ev=>{const id=ev.target.value;if(id&&!(editDraft.participant_ids??[]).includes(id))setEditDraft(d=>({...d,participant_ids:[...(d.participant_ids??[]),id]}))}} style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                                            <option value="">Add teammate…</option>
+                                            {members.filter(m=>!(editDraft.participant_ids??[]).includes(m.id)).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+                                          </select>
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
+                                        {(editDraft.participant_ids??[]).length>0 && <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>{(editDraft.participant_ids??[]).map(pid=>{const m=members.find(t=>t.id===pid);if(!m)return null;const ini=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase();return(<button key={pid} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:(d.participant_ids??[]).filter(p=>p!==pid)}))} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(239,68,68,0.1)", border:"1.5px solid rgba(239,68,68,0.3)", cursor:"pointer" }}><div style={{ width:16, height:16, borderRadius:"50%", background:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{ini}</div><span style={{ fontSize:10, fontWeight:700, color:"#B91C1C" }}>{m.name.split(" ")[0]}</span><span style={{ fontSize:8, color:"#EF4444" }}>✕</span></button>)})}</div>}
                                       </div>
                                     )}
                                     <div style={{ display:"flex", gap:8, justifyContent:"flex-end", borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4 }}>

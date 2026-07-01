@@ -564,7 +564,7 @@ export default function DailyUpdateForm({
   const addEdit    = () => setEdits(p => [...p, {
     id: crypto.randomUUID(), clientName: "", brand: "", customClient: "", title: "",
     videoType: "", customVideoType: "", videoDuration: "", hooksCompleted: 0,
-    startTime: "", endTime: "",
+    startTime: "09:00", endTime: "09:00",
     dateGiven: todayStr, dateFinished: todayStr, timeTaken: 2,
     driveUpdated: false, revisions: 0, videoLink: "", notes: "", participantIds: [],
     isRework: false, linkedToTitle: "", linkedToClient: "", linkedToDate: "",
@@ -2814,9 +2814,9 @@ export default function DailyUpdateForm({
                         <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Name *</label>
                         <input value={e.title} onChange={ev => patchEdit(e.id, { title: ev.target.value })} placeholder="e.g. Evan Styles Makeover Reel" style={F} />
                       </div>
-                      {/* Duration + Revisions + Hooks — flex wrap for mobile */}
-                      <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"flex-start", marginBottom:10 }}>
-                        <div style={{ flex:"1 1 120px" }}>
+                      {/* Duration + Revisions + Hooks — centered on desktop */}
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"flex-start", marginBottom:10, justifyContent:"center" }}>
+                        <div style={{ flex:"0 0 auto" }}>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Length</label>
                           <VideoDurationPicker value={e.videoDuration} onChange={v => patchEdit(e.id, { videoDuration: v })} />
                         </div>
@@ -2864,20 +2864,20 @@ export default function DailyUpdateForm({
                         )
                       })()}
                       <div style={{ marginBottom:10 }}>
-                        <button onClick={() => patchEdit(e.id, { driveUpdated: !e.driveUpdated })}
-                          style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px", borderRadius:10, border:"1.5px solid", cursor:"pointer", fontSize:11, fontWeight:700, whiteSpace:"nowrap", background: e.driveUpdated ? "rgba(34,197,94,0.1)" : "#F9FAFB", borderColor: e.driveUpdated ? "rgba(34,197,94,0.4)" : "#EBEDF2", color: e.driveUpdated ? "#16A34A" : "#9CA3AF" }}>
-                          <Upload size={12} /> {e.driveUpdated ? "Drive Updated ✓" : "Drive Updated?"}
-                        </button>
-                      </div>
-                      <div style={{ marginBottom:10 }}>
                         <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Notes</label>
                         <input value={e.notes} onChange={ev => patchEdit(e.id, { notes: ev.target.value })} placeholder="Software used, challenges…" style={F} />
                       </div>
-                      <div>
+                      <div style={{ marginBottom:10 }}>
                         <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>
                           <Link2 size={9} style={{ display:"inline", marginRight:4 }} />Drive / Video Link
                         </label>
                         <input value={e.videoLink} onChange={ev => patchEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/… (optional)" style={F} />
+                      </div>
+                      <div>
+                        <button onClick={() => patchEdit(e.id, { driveUpdated: !e.driveUpdated })}
+                          style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px", borderRadius:10, border:"1.5px solid", cursor:"pointer", fontSize:11, fontWeight:700, whiteSpace:"nowrap", background: e.driveUpdated ? "rgba(34,197,94,0.1)" : "#F9FAFB", borderColor: e.driveUpdated ? "rgba(34,197,94,0.4)" : "#EBEDF2", color: e.driveUpdated ? "#16A34A" : "#9CA3AF" }}>
+                          <Upload size={12} /> {e.driveUpdated ? "Drive Updated ✓" : "Drive Updated?"}
+                        </button>
                       </div>
                       {entryErrors[e.id] && (
                         <div style={{ margin:"8px 0 0", padding:"8px 12px", borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.25)", fontSize:11, fontWeight:600, color:"#DC2626" }}>

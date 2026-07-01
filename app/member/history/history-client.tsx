@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContai
 import { useRouter } from "next/navigation"
 import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning, addEntryToDate } from "@/lib/actions/daily-updates"
 import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
+import { useToast } from "@/components/ui/useToast"
 import { confirmCollaboration, editCollaborationTime, rejectCollaboration, deleteCollaborationsByEntry } from "@/lib/actions/collaboration"
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
@@ -358,12 +359,7 @@ export default function HistoryClient({
   const router = useRouter()
   const [deletingId, setDeletingId]       = useState<string | null>(null)
   const [infoDismissed, setInfoDismissed] = useState(false)
-  const [toastError, setToastError]       = useState<string | null>(null)
-  useEffect(() => {
-    if (!toastError) return
-    const t = setTimeout(() => setToastError(null), 5000)
-    return () => clearTimeout(t)
-  }, [toastError])
+  const { toastEl, showToast } = useToast()
 
   // Collaboration confirmation state
   const [collabConfirms, setCollabConfirms] = useState<CollaborationConfirmation[]>(collaborationConfirmations)
@@ -454,7 +450,7 @@ export default function HistoryClient({
     if (result.success) {
       router.refresh()
     } else {
-      alert("Failed to delete: " + result.error)
+      showToast("Failed to delete: " + result.error)
     }
     setDeletingId(null)
   }
@@ -530,10 +526,10 @@ export default function HistoryClient({
   async function saveEntry(updateId: string, allEntries: WorkEntry[], entryIdx: number) {
     const key = `${updateId}:${entryIdx}`
     if (editDraft.task_type === "edit" && isMedia) {
-      if (!editDraft.date_given) { alert("Please set Date Given before saving."); return }
-      if (!editDraft.date_finished) { alert("Please set Date Finished before saving."); return }
-      if (!editDraft.start_time || !editDraft.end_time) { alert("Please set Edit Start & End Time before saving."); return }
-      if (editDraft.start_time >= (editDraft.end_time ?? "")) { alert("Edit End Time must be after Start Time."); return }
+      if (!editDraft.date_given) { showToast("Please set Date Given before saving."); return }
+      if (!editDraft.date_finished) { showToast("Please set Date Finished before saving."); return }
+      if (!editDraft.start_time || !editDraft.end_time) { showToast("Please set Edit Start & End Time before saving."); return }
+      if (editDraft.start_time >= (editDraft.end_time ?? "")) { showToast("Edit End Time must be after Start Time."); return }
       if (!editDraft.video_duration) { alert("Please select the video Duration before saving."); return }
     } else if (editDraft.task_type === "edit" && !isMedia) {
       if (!editDraft.start_time || !editDraft.end_time) { alert("Please set Start & End Time before saving."); return }
@@ -912,21 +908,7 @@ export default function HistoryClient({
   return (
     <div style={{ background:"#F8F9FC", minHeight:"100vh", padding:"0" }}>
 
-      {/* ── ERROR TOAST ───────────────────────────────────────────────────── */}
-      {toastError && (
-        <div style={{ position:"fixed", top:20, left:"50%", transform:"translateX(-50%)", zIndex:9999, maxWidth:420, width:"calc(100% - 40px)", background:"#1F2937", color:"#fff", borderRadius:14, padding:"14px 18px 14px 16px", boxShadow:"0 8px 32px rgba(0,0,0,0.35)", display:"flex", alignItems:"flex-start", gap:12, animation:"slideDown 0.25s ease" }}>
-          <div style={{ width:28, height:28, borderRadius:"50%", background:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:1 }}>
-            <span style={{ fontSize:13, fontWeight:900 }}>!</span>
-          </div>
-          <div style={{ flex:1 }}>
-            <p style={{ fontSize:12, fontWeight:800, color:"#F87171", margin:"0 0 3px" }}>Cannot Confirm</p>
-            <p style={{ fontSize:12, color:"#D1D5DB", margin:0, lineHeight:1.5 }}>{toastError}</p>
-          </div>
-          <button onClick={() => setToastError(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9CA3AF", padding:0, flexShrink:0 }}>
-            <X size={14}/>
-          </button>
-        </div>
-      )}
+      {toastEl}
 
       {/* ── TOPBAR ────────────────────────────────────────────────────────── */}
       <div style={{ background:"#fff", borderBottom:"1px solid #EBEDF2" }} className="px-4 md:px-7 py-3 flex flex-wrap items-center gap-3">
@@ -1311,7 +1293,7 @@ export default function HistoryClient({
                                 setCollabLoading(conf.id)
                                 const r = await confirmCollaboration(conf.id)
                                 if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'confirmed' } : c))
-                                else setToastError(r.error ?? "Failed to confirm. Try again.")
+                                else showToast(r.error ?? "Failed to confirm. Try again.")
                                 setCollabLoading(null)
                               }} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#22C55E", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
                                 {loading ? "…" : "✓ Confirm"}
@@ -2780,7 +2762,7 @@ export default function HistoryClient({
                             setCollabLoading(conf.id)
                             const r = await confirmCollaboration(conf.id)
                             if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'confirmed', confirmed_start_time: c.original_start_time, confirmed_end_time: c.original_end_time, confirmed_hours: c.original_duration_hours } : c))
-                            else setToastError(r.error ?? "Failed to confirm. Try again.")
+                            else showToast(r.error ?? "Failed to confirm. Try again.")
                             setCollabLoading(null)
                           }} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#22C55E", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
                             {loading ? "…" : "✓ Confirm"}

@@ -2,10 +2,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Mic, Square, Play, Trash2, Loader2 } from 'lucide-react'
 import { addAudioAttachment, getAttachments, deleteAttachment } from '@/lib/actions/notes'
+import { useToast } from '@/components/ui/useToast'
 
 function fmt(s: number) { const m = Math.floor(s / 60); const r = s % 60; return `${m}:${String(r).padStart(2, '0')}` }
 
 export function VoiceRecorder({ noteId }: { noteId: string }) {
+  const { toastEl, showToast } = useToast()
   const [list, setList] = useState<{ id: string; url: string; duration: number | null }[]>([])
   const [recording, setRecording] = useState(false)
   const [secs, setSecs] = useState(0)
@@ -22,7 +24,7 @@ export function VoiceRecorder({ noteId }: { noteId: string }) {
   const start = async () => {
     let stream: MediaStream
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }) }
-    catch { alert('Microphone permission denied'); return }
+    catch { showToast('Microphone permission denied'); return }
     const mr = new MediaRecorder(stream); rec.current = mr; chunks.current = []
     mr.ondataavailable = e => chunks.current.push(e.data)
     mr.onstop = async () => {
@@ -35,7 +37,7 @@ export function VoiceRecorder({ noteId }: { noteId: string }) {
         const res = await fetch('/api/notes/audio', { method: 'POST', body: fd })
         const json = await res.json()
         if (json.url) { await addAudioAttachment(noteId, json.url, dur, 'voice.webm'); await reload() }
-        else alert(json.error ?? 'Upload failed')
+        else showToast(json.error ?? 'Upload failed')
       } finally { setBusy(false); setSecs(0); secsRef.current = 0 }
     }
     mr.start(); setRecording(true); setSecs(0); secsRef.current = 0
@@ -48,6 +50,7 @@ export function VoiceRecorder({ noteId }: { noteId: string }) {
 
   return (
     <div style={{ padding: 10, border: '1px solid #F1F1F4', borderRadius: 12, marginTop: 8 }}>
+      {toastEl}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {recording ? (
           <button onClick={stop} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#DE1A1A', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>

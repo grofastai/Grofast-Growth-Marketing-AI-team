@@ -10,6 +10,7 @@ import { CalendarView } from './calendar-view'
 import { filterNotes, type HubView, type FilterNote } from '@/lib/notes/filter'
 import { canEditNote } from '@/lib/notes/access'
 import { createNote, updateNote, createFolder, deleteNote, deleteFolder } from '@/lib/actions/notes'
+import { useToast } from '@/components/ui/useToast'
 import type { HubNote, Folder, TeamMember, NoteScope } from './types'
 
 export default function NotesHub({ initialNotes, folders, teamMembers, viewer }: {
@@ -17,6 +18,7 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
   viewer: { id: string; role: 'ADMIN' | 'MEMBER' }
 }) {
   const router = useRouter()
+  const { toastEl, showToast } = useToast()
   const isAdmin = viewer.role === 'ADMIN'
   const [sharing, setSharing] = useState<string | null>(null)
   const [view, setView] = useState<HubView>('all')
@@ -51,14 +53,14 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
       }
       if (active) {
         const r = await updateNote(active.id, input)
-        if (!r.success) { alert(r.error ?? 'Save failed'); return }
+        if (!r.success) { showToast(r.error ?? 'Save failed'); return }
       } else {
         const r = await createNote(input)
         if (r.success && r.id) {
           setActiveId(r.id)
           setCreating(false)
         } else {
-          alert(r.error ?? 'Could not create note')
+          showToast(r.error ?? 'Could not create note')
           return
         }
       }
@@ -88,6 +90,7 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#F8F9FC' }}>
+      {toastEl}
       {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
       <div style={{ flexShrink: 0, margin: '16px 16px 0', borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)', boxShadow: '0 8px 32px rgba(222,26,26,0.35)', position: 'relative' }}>
         <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />

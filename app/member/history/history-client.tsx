@@ -530,10 +530,10 @@ export default function HistoryClient({
       if (!editDraft.date_finished) { showToast("Please set Date Finished before saving."); return }
       if (!editDraft.start_time || !editDraft.end_time) { showToast("Please set Edit Start & End Time before saving."); return }
       if (editDraft.start_time >= (editDraft.end_time ?? "")) { showToast("Edit End Time must be after Start Time."); return }
-      if (!editDraft.video_duration) { alert("Please select the video Duration before saving."); return }
+      if (!editDraft.video_duration) { showToast("Please select the video Duration before saving."); return }
     } else if (editDraft.task_type === "edit" && !isMedia) {
-      if (!editDraft.start_time || !editDraft.end_time) { alert("Please set Start & End Time before saving."); return }
-      if (editDraft.start_time >= (editDraft.end_time ?? "")) { alert("End time must be after Start time."); return }
+      if (!editDraft.start_time || !editDraft.end_time) { showToast("Please set Start & End Time before saving."); return }
+      if (editDraft.start_time >= (editDraft.end_time ?? "")) { showToast("End time must be after Start time."); return }
     }
     setSavingKey(key)
     let draftToSave: Partial<WorkEntry> = { ...editDraft }
@@ -565,7 +565,7 @@ export default function HistoryClient({
         const s1 = toMins(newStart), e1 = toMins(newEnd)
         const s2 = toMins(other.start_time as string), e2 = toMins(other.end_time as string)
         if (e2 > s2 && Math.min(e1, e2) - Math.max(s1, s2) > 3) {
-          alert(`Time ${newStart}–${newEnd} overlaps with "${other.title}" (${other.start_time}–${other.end_time}). Please fix the times.`)
+          showToast(`Time ${newStart}–${newEnd} overlaps with "${other.title}" (${other.start_time}–${other.end_time}). Please fix the times.`)
           setSavingKey(null); return
         }
       }
@@ -575,15 +575,15 @@ export default function HistoryClient({
       // Move entry to a different date
       const withoutEntry = (allEntries as unknown as Record<string, unknown>[]).filter((_, i) => i !== entryIdx)
       const r1 = await updatePastDailyUpdate(updateId, withoutEntry)
-      if (!r1.success) { alert("Failed to move entry: " + r1.error); setSavingKey(null); return }
+      if (!r1.success) { showToast("Failed to move entry: " + r1.error); setSavingKey(null); return }
       const r2 = await addEntryToDate(editDraftDate, updatedEntry)
-      if (!r2.success) { alert("Entry removed from old date but failed to add to new date: " + r2.error); setSavingKey(null); return }
+      if (!r2.success) { showToast("Entry removed from old date but failed to add to new date: " + r2.error); setSavingKey(null); return }
     } else {
       const updated = allEntries.map((e, i) =>
         i === entryIdx ? updatedEntry : (e as unknown as Record<string, unknown>)
       )
       const result = await updatePastDailyUpdate(updateId, updated)
-      if (!result.success) { alert("Failed to save: " + result.error); setSavingKey(null); return }
+      if (!result.success) { showToast("Failed to save: " + result.error); setSavingKey(null); return }
     }
 
     setEditingKey(null)
@@ -611,7 +611,7 @@ export default function HistoryClient({
       }
       router.refresh()
     } else {
-      alert("Failed to delete entry: " + result.error)
+      showToast("Failed to delete entry: " + result.error)
     }
     setDeletingKey(null)
   }
@@ -651,7 +651,7 @@ export default function HistoryClient({
       setEditingLearningId(null)
       router.refresh()
     } else {
-      alert("Failed to save: " + result.error)
+      showToast("Failed to save: " + result.error)
     }
     setSavingLearning(false)
   }
@@ -1293,7 +1293,7 @@ export default function HistoryClient({
                                 setCollabLoading(conf.id)
                                 const r = await confirmCollaboration(conf.id)
                                 if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'confirmed' } : c))
-                                else showToast(r.error ?? "Failed to confirm. Try again.", "error", "Cannot Confirm")
+                                else showToast(r.error ?? "Failed to confirm. Try again.")
                                 setCollabLoading(null)
                               }} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#22C55E", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
                                 {loading ? "…" : "✓ Confirm"}
@@ -2762,7 +2762,7 @@ export default function HistoryClient({
                             setCollabLoading(conf.id)
                             const r = await confirmCollaboration(conf.id)
                             if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'confirmed', confirmed_start_time: c.original_start_time, confirmed_end_time: c.original_end_time, confirmed_hours: c.original_duration_hours } : c))
-                            else showToast(r.error ?? "Failed to confirm. Try again.", "error", "Cannot Confirm")
+                            else showToast(r.error ?? "Failed to confirm. Try again.")
                             setCollabLoading(null)
                           }} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#22C55E", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
                             {loading ? "…" : "✓ Confirm"}

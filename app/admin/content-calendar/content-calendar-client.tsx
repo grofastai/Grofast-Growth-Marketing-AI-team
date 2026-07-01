@@ -8,6 +8,7 @@ import {
   PlayCircle, Image, Film, Layers, Send, Trash2, Pencil,
 } from "lucide-react"
 import { createContentPost, updateContentPost, updateContentPostStatus, deleteContentPost } from "@/lib/actions/content-calendar"
+import { useToast } from "@/components/ui/useToast"
 import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
@@ -165,6 +166,7 @@ const LABEL: React.CSSProperties = {
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ContentCalendarClient({ posts: initial, shoots, tasks, members, clients, pastClients = [], initialYear, initialMonth }: Props) {
   const router = useRouter()
+  const { toastEl, showToast } = useToast()
   const [posts, setPosts]     = useState(initial)
   useEffect(() => { setPosts(initial) }, [initial])
   const [year,  setYear]      = useState(initialYear)
@@ -356,7 +358,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         setPosts(prev => prev.filter(p => p.id !== postId))
         router.refresh()
       } else {
-        alert(res?.error ?? "Failed to delete. Please try again.")
+        showToast(res?.error ?? "Failed to delete. Please try again.")
       }
     })
   }
@@ -386,6 +388,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div style={{ background: "#F9FAFB", minHeight: "100vh", padding: isMobile ? "12px" : "24px" }}>
+      {toastEl}
 
       {/* ── Hero Header — double-colour banner ── */}
       <div style={{

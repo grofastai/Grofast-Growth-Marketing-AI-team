@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Bell, BellOff, Loader2 } from "lucide-react"
+import { useToast } from "@/components/ui/useToast"
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
@@ -13,6 +14,7 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export default function PushSubscribeButton() {
+  const { toastEl, showToast } = useToast()
   const [state, setState] = useState<"loading" | "unsupported" | "subscribed" | "unsubscribed">("loading")
   const [busy, setBusy] = useState(false)
 
@@ -29,7 +31,7 @@ export default function PushSubscribeButton() {
 
   async function toggle() {
     if (!VAPID_PUBLIC) {
-      alert("Notifications are not configured yet. Please contact your admin.")
+      showToast("Notifications are not configured yet. Please contact your admin.", "info")
       return
     }
 
@@ -48,7 +50,7 @@ export default function PushSubscribeButton() {
         // Check if already denied
         const permission = await Notification.requestPermission()
         if (permission === "denied") {
-          alert("Notifications are blocked. To enable:\n\n1. Click the lock icon (🔒) in your browser's address bar\n2. Set Notifications → Allow\n3. Refresh the page and try again")
+          showToast("Notifications are blocked. Click the lock icon in your browser address bar → Set Notifications → Allow → Refresh.", "info")
           setBusy(false)
           return
         }
@@ -73,7 +75,7 @@ export default function PushSubscribeButton() {
       }
     } catch (err) {
       console.error("Push notification error:", err)
-      alert("Could not enable notifications. Please try again or contact support.")
+      showToast("Could not enable notifications. Please try again or contact support.")
     } finally {
       setBusy(false)
     }
@@ -82,7 +84,9 @@ export default function PushSubscribeButton() {
   if (state === "loading" || state === "unsupported") return null
 
   return (
-    <button
+    <>
+      {toastEl}
+      <button
       onClick={toggle}
       disabled={busy}
       title={state === "subscribed" ? "Disable notifications" : "Enable notifications"}
@@ -99,5 +103,6 @@ export default function PushSubscribeButton() {
           : <BellOff size={13} style={{ color: "rgba(255,255,255,0.5)" }} />
       }
     </button>
+    </>
   )
 }

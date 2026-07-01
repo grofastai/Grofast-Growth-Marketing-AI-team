@@ -7,6 +7,7 @@ import {
   CheckCircle2, Plus, X, Loader2, Send, Pencil, Trash2,
 } from "lucide-react"
 import { updateContentPostStatus, createContentPost, updateContentPost, deleteContentPost } from "@/lib/actions/content-calendar"
+import { useToast } from "@/components/ui/useToast"
 import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
@@ -128,6 +129,7 @@ function DonutChart({ total, posted, inProgress, ready, pending }: {
 export default function MemberContentCalendarClient({ posts: initial, shoots, tasks, members, clientNames, pastClientNames = [], userId, role = "MEMBER", initialYear, initialMonth }: Props) {
   const isAdmin = role === "ADMIN"
   const router = useRouter()
+  const { toastEl, showToast } = useToast()
   const [posts, setPosts] = useState(initial)
   useEffect(() => { setPosts(initial) }, [initial])
   const [year, setYear]   = useState(initialYear)
@@ -316,7 +318,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
         setPosts(prev => prev.filter(p => p.id !== postId))
         router.refresh()
       } else {
-        alert(res?.error ?? "Failed to delete. Please try again.")
+        showToast(res?.error ?? "Failed to delete. Please try again.")
       }
     })
   }
@@ -400,6 +402,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
 
   return (
     <div style={{ background: "#F9FAFB", minHeight: "100vh", padding: isMobile ? "12px" : "24px" }}>
+      {toastEl}
 
       {/* ── Hero Header — double-colour banner ── */}
       <div style={{

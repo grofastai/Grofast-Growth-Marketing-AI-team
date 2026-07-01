@@ -4,6 +4,7 @@ import { useState, useRef, useMemo, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase/client'
 import { createTicket, addResponse, closeTicket } from '@/lib/actions/support'
+import { useToast } from '@/components/ui/useToast'
 import {
   Plus, Search, Send, Loader2, X, Paperclip, ChevronLeft,
   LifeBuoy, CheckCircle2, XCircle, AlertCircle,
@@ -30,6 +31,7 @@ type Ticket = {
 
 export default function MemberSupportChat({ tickets, currentUserId = '' }: { tickets: Ticket[]; currentUserId?: string }) {
   const router = useRouter()
+  const { toastEl, showToast } = useToast()
   const supabase = useMemo(() => createBrowserClient(), [])
 
   const sorted = useMemo(
@@ -106,13 +108,13 @@ export default function MemberSupportChat({ tickets, currentUserId = '' }: { tic
   async function uploadReplyImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !active) return
-    if (file.size > 5 * 1024 * 1024) { alert('Max image size is 5 MB'); return }
+    if (file.size > 5 * 1024 * 1024) { showToast('Max image size is 5 MB'); return }
     setUploading(true)
     try {
       const ext = file.name.split('.').pop() ?? 'jpg'
       const path = `${active.id}/${Date.now()}.${ext}`
       const { data, error } = await supabase.storage.from('support-attachments').upload(path, file)
-      if (error || !data) { alert('Upload failed'); return }
+      if (error || !data) { showToast('Upload failed'); return }
       const { data: { publicUrl } } = supabase.storage.from('support-attachments').getPublicUrl(data.path)
       await addResponse({ ticket_id: active.id, message: `[img]${publicUrl}` })
       router.refresh()
@@ -134,6 +136,7 @@ export default function MemberSupportChat({ tickets, currentUserId = '' }: { tic
 
   return (
     <div style={{ background: '#EDEEF2', minHeight: '100vh' }}>
+      {toastEl}
       <style>{SUPPORT_ANIM_CSS}</style>
 
       {/* ── Page wrap: hero card + two-pane shell ─────────────────── */}

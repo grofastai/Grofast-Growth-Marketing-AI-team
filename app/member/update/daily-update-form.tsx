@@ -261,7 +261,7 @@ interface LearningBlock {
   from: string; to: string; notes: string
 }
 function newLearningBlock(): LearningBlock {
-  return { id: crypto.randomUUID(), client: "GROFAST DIGITAL", topic: "", from: "09:00", to: "09:00", notes: "" }
+  return { id: crypto.randomUUID(), client: "", topic: "", from: "09:00", to: "09:00", notes: "" }
 }
 function calcLearningHours(from: string, to: string): number {
   if (!from || !to) return 0
@@ -2814,17 +2814,17 @@ export default function DailyUpdateForm({
                         <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Name *</label>
                         <input value={e.title} onChange={ev => patchEdit(e.id, { title: ev.target.value })} placeholder="e.g. Evan Styles Makeover Reel" style={F} />
                       </div>
-                      {/* Duration + Revisions + Hooks — 3 col row */}
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px", gap:10, marginBottom:10 }}>
-                        <div>
+                      {/* Duration + Revisions + Hooks — flex wrap for mobile */}
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"flex-start", marginBottom:10 }}>
+                        <div style={{ flex:"1 1 120px" }}>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Length</label>
                           <VideoDurationPicker value={e.videoDuration} onChange={v => patchEdit(e.id, { videoDuration: v })} />
                         </div>
-                        <div>
+                        <div style={{ width:80, flexShrink:0 }}>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Revisions</label>
                           <input type="number" min="0" max="99" value={e.revisions} onChange={ev => patchEdit(e.id, { revisions: parseInt(ev.target.value) || 0 })} placeholder="0" style={F} />
                         </div>
-                        <div>
+                        <div style={{ width:80, flexShrink:0 }}>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🪝 Hooks</label>
                           <input type="number" min="0" max="99" step="1" value={e.hooksCompleted} onChange={ev => patchEdit(e.id, { hooksCompleted: Math.max(0, Math.floor(parseInt(ev.target.value) || 0)) })} placeholder="0" style={F} />
                         </div>
@@ -2836,6 +2836,10 @@ export default function DailyUpdateForm({
                           <TimePicker value={e.startTime} onChange={v => patchEdit(e.id, { startTime: v })} />
                           <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
                           <TimePicker value={e.endTime} onChange={v => patchEdit(e.id, { endTime: v })} />
+                          <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 10px", borderRadius:8, background:calcDuration(e.startTime, e.endTime)>0?"rgba(222,26,26,0.06)":"#F9FAFB", border:calcDuration(e.startTime, e.endTime)>0?"1.5px solid rgba(222,26,26,0.2)":"1.5px solid #EBEDF2" }}>
+                            <span style={{ fontSize:12, fontWeight:700, color:calcDuration(e.startTime, e.endTime)>0?"#DE1A1A":"#9CA3AF" }}>{calcDuration(e.startTime, e.endTime)>0?fmtTravel(calcDuration(e.startTime, e.endTime)):"—"}</span>
+                            <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
+                          </div>
                         </div>
                       </div>
                       {(() => {
@@ -2859,16 +2863,7 @@ export default function DailyUpdateForm({
                           </div>
                         )
                       })()}
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"end", marginBottom:10 }}>
-                        <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration</label>
-                          <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:8, background: calcDuration(e.startTime, e.endTime) > 0 ? "rgba(222,26,26,0.06)" : "#F9FAFB", border: calcDuration(e.startTime, e.endTime) > 0 ? "1.5px solid rgba(222,26,26,0.2)" : "1.5px solid #EBEDF2" }}>
-                            <span style={{ fontSize:13, fontWeight:700, color: calcDuration(e.startTime, e.endTime) > 0 ? "#DE1A1A" : "#9CA3AF" }}>
-                              {calcDuration(e.startTime, e.endTime) > 0 ? fmtTravel(calcDuration(e.startTime, e.endTime)) : "—"}
-                            </span>
-                            <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
-                          </div>
-                        </div>
+                      <div style={{ marginBottom:10 }}>
                         <button onClick={() => patchEdit(e.id, { driveUpdated: !e.driveUpdated })}
                           style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px", borderRadius:10, border:"1.5px solid", cursor:"pointer", fontSize:11, fontWeight:700, whiteSpace:"nowrap", background: e.driveUpdated ? "rgba(34,197,94,0.1)" : "#F9FAFB", borderColor: e.driveUpdated ? "rgba(34,197,94,0.4)" : "#EBEDF2", color: e.driveUpdated ? "#16A34A" : "#9CA3AF" }}>
                           <Upload size={12} /> {e.driveUpdated ? "Drive Updated ✓" : "Drive Updated?"}
@@ -3061,6 +3056,7 @@ export default function DailyUpdateForm({
                         <div style={{ position:"relative" }}>
                           <select value={blk.client} onChange={e => patchLearningBlock(blk.id, { client: e.target.value })}
                             style={{ ...F, paddingRight:28, appearance:"none" }}>
+                            <option value="">Select client…</option>
                             <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
                             <option value="GROFAST AI">GROFAST AI</option>
                             <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
@@ -3080,12 +3076,10 @@ export default function DailyUpdateForm({
                         <TimePicker value={blk.from} onChange={v => patchLearningBlock(blk.id, { from: v })} />
                         <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
                         <TimePicker value={blk.to} onChange={v => patchLearningBlock(blk.id, { to: v })} />
-                        {calcLearningHours(blk.from, blk.to) > 0 && (
-                          <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:8, background:"rgba(16,185,129,0.08)", border:"1.5px solid rgba(16,185,129,0.25)" }}>
-                            <span style={{ fontSize:13, fontWeight:700, color:"#059669" }}>{fmtTravel(calcLearningHours(blk.from, blk.to))}</span>
-                            <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
-                          </div>
-                        )}
+                        <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 10px", borderRadius:8, background:calcLearningHours(blk.from, blk.to)>0?"rgba(16,185,129,0.08)":"#F9FAFB", border:calcLearningHours(blk.from, blk.to)>0?"1.5px solid rgba(16,185,129,0.25)":"1.5px solid #EBEDF2" }}>
+                          <span style={{ fontSize:12, fontWeight:700, color:calcLearningHours(blk.from, blk.to)>0?"#059669":"#9CA3AF" }}>{calcLearningHours(blk.from, blk.to)>0?fmtTravel(calcLearningHours(blk.from, blk.to)):"—"}</span>
+                          <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
+                        </div>
                       </div>
                     </div>
                     {/* Notes */}
@@ -3096,10 +3090,6 @@ export default function DailyUpdateForm({
                   </div>
                 ))}
                 {/* Add another learning block */}
-                <button type="button" onClick={addLearningBlock}
-                  style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, padding:"11px", borderRadius:12, border:"1.5px dashed #10B981", background:"rgba(16,185,129,0.06)", color:"#059669", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                  <Plus size={14} /> Add Another Learning
-                </button>
                 {/* Learned With */}
                 {teamMembers.length > 0 && (
                   <div style={{ paddingTop:10, borderTop:"1px dashed #EBEDF2" }}>
@@ -3140,6 +3130,10 @@ export default function DailyUpdateForm({
                     )}
                   </div>
                 )}
+                <button type="button" onClick={addLearningBlock}
+                  style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, padding:"11px", borderRadius:12, border:"1.5px dashed #10B981", background:"rgba(16,185,129,0.06)", color:"#059669", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  <Plus size={14} /> Add Another Learning
+                </button>
               </div>
               )}
 

@@ -304,19 +304,19 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                   return (
                     <button key={t.id} onClick={() => openTicket(t.id)} className="sd-row"
                       style={{ animationDelay: `${Math.min(i * 26, 220)}ms`, width: '100%', textAlign: 'left', display: 'flex', gap: 11, padding: 11, borderRadius: 13, cursor: 'pointer', marginBottom: 6,
-                        background: isActive ? 'rgba(222,26,26,0.14)' : '#F9FAFB',
-                        border: isActive ? '1.5px solid #DE1A1A' : '1px solid #EDEEF1',
-                        boxShadow: isActive ? '0 2px 10px rgba(222,26,26,0.15)' : '0 1px 3px rgba(0,0,0,0.03)' }}>
-                      <div style={{ width: 38, height: 38, borderRadius: 11, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: '#FFFFFF', position: 'relative' }}>
+                        background: isActive ? 'linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)' : '#F9FAFB',
+                        border: isActive ? 'none' : '1px solid #EDEEF1',
+                        boxShadow: isActive ? '0 4px 16px rgba(139,18,18,0.35)' : '0 1px 3px rgba(0,0,0,0.03)' }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 11, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: isActive ? 'rgba(255,255,255,0.15)' : '#FFFFFF', position: 'relative' }}>
                         {cat.emoji}
                         <span style={{ position: 'absolute', bottom: -1, right: -1, width: 11, height: 11, borderRadius: '50%', background: tok.ring, border: '2px solid #fff' }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.title}</span>
-                          <span style={{ fontSize: 10, color: '#6B7280', flexShrink: 0 }}>{timeAgo(t.updated_at)}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: isActive ? '#FFFFFF' : '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.title}</span>
+                          <span style={{ fontSize: 10, color: isActive ? 'rgba(255,255,255,0.6)' : '#6B7280', flexShrink: 0 }}>{timeAgo(t.updated_at)}</span>
                         </div>
-                        <p style={{ margin: '2px 0 0', fontSize: 11.5, color: '#4B5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ margin: '2px 0 0', fontSize: 11.5, color: isActive ? 'rgba(255,255,255,0.75)' : '#4B5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {requesterName(t)} · {preview}
                         </p>
                         <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>

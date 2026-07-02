@@ -264,7 +264,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                 {card.icon}
               </div>
               <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B5BF', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{card.label}</p>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{card.label}</p>
                 <p style={{ fontSize: 24, fontWeight: 900, color: '#1F2430', margin: 0, lineHeight: 1, fontFamily: 'var(--font-jakarta)' }}>{card.value}</p>
                 <p style={{ fontSize: 10.5, color: card.dot, margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: card.dot, display: 'inline-block', flexShrink: 0 }} />
@@ -472,7 +472,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                         )}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                           <div style={{ width: 40, height: 40, borderRadius: 12, background: step.bg, border: `1.5px solid ${step.color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, boxShadow: `0 2px 8px ${step.color}18` }}>{step.emoji}</div>
-                          <span style={{ fontSize: 9, color: '#B0B5BF', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{step.label}</span>
+                          <span style={{ fontSize: 9, color: '#6B7280', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{step.label}</span>
                         </div>
                       </div>
                     ))}

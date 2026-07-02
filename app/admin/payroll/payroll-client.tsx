@@ -10,7 +10,8 @@ import {
   runPayroll,
   saveBonusAdvance,
 } from "@/lib/actions/payroll"
-import { savePayrollSettings, type PayrollSettings } from "@/lib/actions/payroll-settings"
+import { savePayrollSettings } from "@/lib/actions/payroll-settings"
+import type { PayrollSettings } from "@/lib/payroll-settings-defaults"
 import { useToast } from "@/components/ui/useToast"
 
 type PayrollRow = {

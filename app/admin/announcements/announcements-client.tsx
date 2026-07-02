@@ -238,12 +238,6 @@ export default function AnnouncementsClient({
                     : `${pinnedCount} pinned · Keep your team informed`}
                 </p>
               </div>
-              <button
-                onClick={() => setShowForm(true)}
-                style={{ marginTop: 4, padding: "11px 28px", borderRadius: 10, fontSize: 14, fontWeight: 700, background: "linear-gradient(135deg, #E53935, #B71C1C)", color: "#fff", border: "none", cursor: "pointer", width: "100%", maxWidth: 200, boxShadow: "0 4px 14px rgba(229,57,53,0.3)" }}
-              >
-                Create Announcement
-              </button>
             </div>
           </div>
 

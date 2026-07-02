@@ -205,12 +205,20 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
 
           {/* ── LEFT CONTENT: badge top-left, title+chips bottom-left ── */}
           <div style={{ position: 'relative', zIndex: 2, padding: '18px 22px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', minHeight: 186, maxWidth: 400 }}>
-            {/* Badge — top left; buttons wrap alongside it on mobile instead of overlapping */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 99, background: 'rgba(0,0,0,0.22)', color: '#fff', border: '1px solid rgba(255,255,255,0.22)', letterSpacing: '0.04em' }}>
-                🎧 Support Inbox
-              </span>
-              <div className="flex md:hidden flex-wrap" style={{ gap: 8 }}>
+            {/* Badge — top left */}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 99, background: 'rgba(0,0,0,0.22)', color: '#fff', border: '1px solid rgba(255,255,255,0.22)', letterSpacing: '0.04em', alignSelf: 'flex-start' }}>
+              🎧 Support Inbox
+            </span>
+
+            {/* Title + subtitle + buttons(mobile) + chips — anchored bottom */}
+            <div>
+              <h1 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 5px', fontFamily: 'var(--font-jakarta)', color: '#fff', lineHeight: 1.18, letterSpacing: '-0.01em' }}>
+                Help Your Team Faster
+              </h1>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: '0 0 14px', lineHeight: 1.55 }}>
+                Manage tickets, reply instantly,<br />and keep every client happy.
+              </p>
+              <div className="flex md:hidden flex-wrap" style={{ gap: 8, marginBottom: 14 }}>
                 {canAssign && (
                   <button onClick={() => setShowAssign(true)}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 15px', borderRadius: 12, fontSize: 12.5, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(8px)' }}>
@@ -222,16 +230,6 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                   <Plus size={14} /> New ticket
                 </button>
               </div>
-            </div>
-
-            {/* Title + subtitle + chips — anchored bottom */}
-            <div>
-              <h1 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 5px', fontFamily: 'var(--font-jakarta)', color: '#fff', lineHeight: 1.18, letterSpacing: '-0.01em' }}>
-                Help Your Team Faster
-              </h1>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: '0 0 14px', lineHeight: 1.55 }}>
-                Manage tickets, reply instantly,<br />and keep every client happy.
-              </p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {[
                   { emoji: '🎧', value: stats.open,        label: 'Open' },

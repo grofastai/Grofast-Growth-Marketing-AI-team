@@ -126,7 +126,6 @@ export default function InsightsClient({
     if (next <= today.slice(0, 7)) setMonth(next)
   }
 
-  const monthLabel = new Date(month + '-15').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
   const isCurrentMonth = month === today.slice(0, 7)
 
   // Work breakdown totals from member data
@@ -159,7 +158,6 @@ export default function InsightsClient({
             {/* Month nav */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
               <button onClick={prevMonth} style={{ width: 30, height: 30, borderRadius: 8, border: '1.5px solid #E5E7EB', background: '#fff', cursor: 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
-              <div style={{ padding: '6px 12px', borderRadius: 9, background: '#fff', border: '1.5px solid #E5E7EB', fontSize: 12, fontWeight: 700, color: '#111827', whiteSpace: 'nowrap' }}>{monthLabel}</div>
               <button onClick={nextMonth} disabled={isCurrentMonth} style={{ width: 30, height: 30, borderRadius: 8, border: '1.5px solid #E5E7EB', background: '#fff', cursor: isCurrentMonth ? 'not-allowed' : 'pointer', fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isCurrentMonth ? 0.35 : 1 }}>›</button>
               <input type="month" value={month} max={today.slice(0, 7)} onChange={e => setMonth(e.target.value)}
                 style={{ padding: '6px 10px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,0.3)', fontSize: 12, color: '#FFFFFF', background: 'rgba(255,255,255,0.15)', outline: 'none' }}
@@ -169,7 +167,7 @@ export default function InsightsClient({
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {[
               { icon: <Users size={11} />, label: `${memberUtilization.length} Members` },
-              { icon: <TrendingUp size={11} />, label: monthLabel },
+              { icon: <TrendingUp size={11} />, label: `${kpis.avgEfficiency}% Efficiency` },
               { icon: <BarChart3 size={11} />, label: `${kpis.totalTrackedHours.toFixed(0)}h Tracked` },
             ].map(s => (
               <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '4px 10px' }}>

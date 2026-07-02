@@ -142,8 +142,8 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
         </div>
       </div>
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* Folder sidebar — full width on mobile step 1, fixed width on desktop */}
-        <div className={mobileStep !== 'folders' ? 'hidden md:flex md:flex-col' : 'flex flex-col w-full md:w-auto'}>
+        {/* Folder sidebar — full width on mobile step 1, fixed width on desktop. Always hidden on mobile in calendar mode so the calendar isn't squeezed into a sliver. */}
+        <div className={(calendar || mobileStep !== 'folders') ? 'hidden md:flex md:flex-col' : 'flex flex-col w-full md:w-auto'}>
           <FolderSidebar folders={folders} view={view} activeFolderId={folderId}
             onView={v => { setView(v); setFolderId(null); setMobileStep('notes') }}
             onFolder={id => { setFolderId(id); setView('all'); setMobileStep('notes') }}

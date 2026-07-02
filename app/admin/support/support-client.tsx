@@ -303,19 +303,20 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                   const preview = last ? bodyParts(last.message).text || '📎 Attachment' : bodyParts(t.description).text
                   return (
                     <button key={t.id} onClick={() => openTicket(t.id)} className="sd-row"
-                      style={{ animationDelay: `${Math.min(i * 26, 220)}ms`, width: '100%', textAlign: 'left', display: 'flex', gap: 11, padding: 11, borderRadius: 13, border: 'none', cursor: 'pointer', marginBottom: 2,
-                        background: isActive ? 'rgba(222,26,26,0.06)' : 'transparent',
-                        boxShadow: isActive ? 'inset 0 0 0 1.5px rgba(222,26,26,0.28)' : 'none' }}>
-                      <div style={{ width: 38, height: 38, borderRadius: 11, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: '#F4F5F8', position: 'relative' }}>
+                      style={{ animationDelay: `${Math.min(i * 26, 220)}ms`, width: '100%', textAlign: 'left', display: 'flex', gap: 11, padding: 11, borderRadius: 13, cursor: 'pointer', marginBottom: 6,
+                        background: isActive ? 'rgba(222,26,26,0.06)' : '#F9FAFB',
+                        border: isActive ? '1.5px solid rgba(222,26,26,0.28)' : '1px solid #EDEEF1',
+                        boxShadow: isActive ? 'none' : '0 1px 3px rgba(0,0,0,0.03)' }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 11, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: '#FFFFFF', position: 'relative' }}>
                         {cat.emoji}
                         <span style={{ position: 'absolute', bottom: -1, right: -1, width: 11, height: 11, borderRadius: '50%', background: tok.ring, border: '2px solid #fff' }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#1F2430', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.title}</span>
-                          <span style={{ fontSize: 10, color: '#B6BAC2', flexShrink: 0 }}>{timeAgo(t.updated_at)}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.title}</span>
+                          <span style={{ fontSize: 10, color: '#6B7280', flexShrink: 0 }}>{timeAgo(t.updated_at)}</span>
                         </div>
-                        <p style={{ margin: '2px 0 0', fontSize: 11.5, color: '#8A8F99', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ margin: '2px 0 0', fontSize: 11.5, color: '#4B5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {requesterName(t)} · {preview}
                         </p>
                         <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>

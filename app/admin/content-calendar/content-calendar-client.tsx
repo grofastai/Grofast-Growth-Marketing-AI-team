@@ -487,20 +487,24 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         {/* Post / Shoot tabs */}
         <div style={{ flex: 1, minWidth: 260, display: "flex", gap: 4, background: "#FFFFFF", borderRadius: 18, padding: 4, border: "1px solid #E5E7EB", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
           {([
-            { mode: "post"  as const, icon: "📄", label: "Post Schedule",  desc: "Reels, posters, stories", grad: "linear-gradient(135deg, #C41230 0%, #8B0000 100%)", shadow: "rgba(139,0,0,0.35)" },
-            { mode: "shoot" as const, icon: "📹", label: "Shoot Schedule", desc: "Video shoots & locations",  grad: "linear-gradient(135deg, #1D4ED8 0%, #4D8CFF 100%)", shadow: "rgba(29,78,216,0.35)" },
-          ]).map(({ mode, icon, label, desc, grad, shadow }) => (
+            { mode: "post"  as const, label: "Post Schedule",  desc: "Reels, posters, stories", grad: "linear-gradient(135deg, #C41230 0%, #8B0000 100%)", shadow: "rgba(139,0,0,0.35)", img: "/post-illustration.png" },
+            { mode: "shoot" as const, label: "Shoot Schedule", desc: "Video shoots & locations",  grad: "linear-gradient(135deg, #1D4ED8 0%, #4D8CFF 100%)", shadow: "rgba(29,78,216,0.35)", img: "/shoot-illustration.png" },
+          ]).map(({ mode, label, desc, grad, shadow, img }) => (
             <button key={mode} onClick={() => setContentMode(mode)} style={{
-              flex: 1, padding: isMobile ? "12px 14px" : "16px 20px", borderRadius: 14, border: "none", cursor: "pointer",
+              flex: 1, padding: isMobile ? "10px 10px 10px 14px" : "12px 14px 12px 20px", borderRadius: 14, border: "none", cursor: "pointer",
               background: contentMode === mode ? grad : "transparent",
               color: contentMode === mode ? "#FFF" : "#6B7280",
               textAlign: "left", transition: "all 0.18s",
               boxShadow: contentMode === mode ? `0 4px 20px ${shadow}` : "none",
+              display: "flex", alignItems: "center", gap: 8,
             }}>
-              <p style={{ fontSize: isMobile ? 13 : 14, fontWeight: 800, margin: "0 0 2px", display: "flex", alignItems: "center", gap: 6 }}>
-                <span>{icon}</span> {label}
-              </p>
-              <p style={{ fontSize: isMobile ? 10 : 11, opacity: contentMode === mode ? 0.75 : 0.6, margin: 0, fontWeight: 500 }}>{desc}</p>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: isMobile ? 13 : 14, fontWeight: 800, margin: "0 0 2px", whiteSpace: "nowrap" }}>{label}</p>
+                <p style={{ fontSize: isMobile ? 10 : 11, opacity: contentMode === mode ? 0.75 : 0.6, margin: 0, fontWeight: 500 }}>{desc}</p>
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={img} alt="" aria-hidden="true"
+                style={{ height: isMobile ? 40 : 52, width: "auto", objectFit: "contain", flexShrink: 0, opacity: contentMode === mode ? 1 : 0.45, filter: contentMode === mode ? "none" : "grayscale(40%)" }} />
             </button>
           ))}
         </div>

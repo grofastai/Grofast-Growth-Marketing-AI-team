@@ -368,12 +368,13 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
           </div>
 
           {/* Right: controls */}
-          <div className="flex items-center flex-wrap justify-center sm:justify-end" style={{ gap: 10, flexShrink: 0 }}>
-            <div style={{ display: "flex", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: 4, gap: 3 }}>
+          <div className="flex flex-col sm:flex-row sm:items-center w-full sm:w-auto" style={{ gap: 10, flexShrink: 0 }}>
+            <div className="w-full sm:w-auto" style={{ display: "flex", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: 4, gap: 3 }}>
               {([["member", <Users size={13} key="u" />, "By Member"], ["status", <Columns size={13} key="c" />, "By Status"]] as const).map(([mode, icon, label]) => (
                 <button key={mode} onClick={() => setViewMode(mode as "member" | "status")}
+                  className="flex-1 sm:flex-initial"
                   style={{
-                    display: "flex", alignItems: "center", gap: 6,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                     padding: "8px 16px", borderRadius: 10, fontSize: 12, fontWeight: 700,
                     border: "none", cursor: "pointer", transition: "all 0.15s",
                     background: viewMode === mode ? "#FFFFFF" : "transparent",
@@ -384,8 +385,8 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                 </button>
               ))}
             </div>
-            <button onClick={() => openForm()} style={{
-              display: "flex", alignItems: "center", gap: 8,
+            <button onClick={() => openForm()} className="w-full sm:w-auto" style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               padding: "11px 22px", borderRadius: 14, fontSize: 13, fontWeight: 800,
               border: "none", cursor: "pointer",
               background: "#FFFFFF", color: "#de1a1a",

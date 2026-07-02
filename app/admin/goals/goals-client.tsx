@@ -645,24 +645,23 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
       </div>
 
       {/* ── BOTTOM BANNER ───────────────────────────────────────────────────── */}
-      <div style={{
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between" style={{
         marginTop: 24, borderRadius: 24, overflow: "hidden",
         background: "linear-gradient(135deg, #1E1B4B 0%, #312E81 40%, #4C1D95 100%)",
         boxShadow: "0 8px 32px rgba(49,46,129,0.35)",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        minHeight: 180, position: "relative",
+        position: "relative",
       }}>
         {/* Decorative circles */}
         <div style={{ position: "absolute", top: -30, left: 260, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", bottom: -20, left: 380, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
 
         {/* Left — team image */}
-        <div style={{ position: "relative", width: 320, height: 180, flexShrink: 0 }}>
+        <div className="w-full md:w-[320px]" style={{ position: "relative", height: 180, flexShrink: 0 }}>
           <Image src="/brand/task-assign/teamfordown.png" alt="" fill style={{ objectFit: "cover", objectPosition: "center top" }} />
         </div>
 
         {/* Text */}
-        <div style={{ flex: 1, padding: "28px 36px", position: "relative", zIndex: 1 }}>
+        <div className="px-6 py-6 md:px-9 md:py-7" style={{ flex: 1, position: "relative", zIndex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <TrendingUp size={16} style={{ color: "#A78BFA" }} />
             <span style={{ fontSize: 11, fontWeight: 700, color: "#A78BFA", textTransform: "uppercase", letterSpacing: "0.12em" }}>Team Productivity</span>
@@ -675,8 +674,8 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
           </p>
         </div>
 
-        {/* Right — lamp illustration */}
-        <div style={{ position: "relative", width: 170, height: 170, flexShrink: 0, marginRight: 16 }}>
+        {/* Right — lamp illustration, desktop only (no room on mobile alongside image+text) */}
+        <div className="hidden md:block" style={{ position: "relative", width: 170, height: 170, flexShrink: 0, marginRight: 16 }}>
           <Image src="/brand/task-assign/studyfortitle.png" alt="" fill style={{ objectFit: "contain", objectPosition: "right center" }} />
         </div>
       </div>

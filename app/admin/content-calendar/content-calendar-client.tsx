@@ -425,7 +425,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             </>
           }
           rightSlot={
-            <div className="hidden lg:flex" style={{ alignItems: "center", gap: 16 }}>
+            <div className="hidden md:flex" style={{ alignItems: "center", gap: 16 }}>
               {/* Character + greeting card */}
               <div style={{ display: "flex", alignItems: "flex-end", gap: 16 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}

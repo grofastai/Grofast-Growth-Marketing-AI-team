@@ -388,10 +388,8 @@ export default function DocumentsClient({
   const totalFiles    = documents.length
   const verifiedCount = documents.filter(d => d.doc_type !== "Other").length
   const pendingKYC    = members.filter(m => !kycRecords.find(k => k.user_id === m.id && k.bank_account)).length
-  const totalBytes    = documents.reduce((a, d) => a + (d.file_size ?? 0), 0)
-  const storageGB     = (totalBytes / (1024 * 1024 * 1024)).toFixed(1)
-  const STORAGE_CAP_GB = 50
-  const storagePct    = Math.min(100, Math.round((totalBytes / (STORAGE_CAP_GB * 1024 * 1024 * 1024)) * 100))
+  const membersWithDocs = members.filter(m => documents.some(d => d.user_id === m.id)).length
+  const coveragePct     = members.length > 0 ? Math.round((membersWithDocs / members.length) * 100) : 0
 
   // Profile completion
   const completionPct = useMemo(() => {
@@ -567,7 +565,7 @@ export default function DocumentsClient({
         <HeroStatCard label="Total Files"        value={String(totalFiles)}    sub="16.4%" icon="📄" color="#6366F1" up />
         <HeroStatCard label="Verified Documents" value={String(verifiedCount)} sub="22.1%" icon="✅" color="#16A34A" up />
         <HeroStatCard label="Pending KYC"        value={String(pendingKYC)}    sub="5.6%"  icon="⏳" color="#F59E0B" up={false} />
-        <HeroStatCard label="Cloud Storage"      value={`${storageGB} GB`}     sub="32.4 GB / 50 GB" icon="☁️" color="#0EA5E9" up={false} />
+        <HeroStatCard label="Doc Coverage"        value={`${coveragePct}%`}     sub={`${membersWithDocs}/${members.length} members`} icon="📁" color="#0EA5E9" up={coveragePct >= 50} />
       </div>
 
       {/* ── MAIN 3-COLUMN GRID ──────────────────────────────────────────────── */}
@@ -976,20 +974,20 @@ export default function DocumentsClient({
         </div>
       </div>
 
-      {/* ── BOTTOM: Cloud Storage + Recent Uploads ───────────────────────────── */}
+      {/* ── BOTTOM: Document Coverage + Recent Uploads ───────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 px-4 md:px-5 pb-6 pt-3.5">
-        {/* Cloud Storage */}
+        {/* Document Coverage — % of members who've uploaded at least one document */}
         <div style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", padding: "18px", display: "flex", alignItems: "center", gap: 16 }}>
-          <Image src="/brand/documents/hero-boy.png" alt="Cloud" width={80} height={80} style={{ objectFit: "contain", flexShrink: 0 }} />
+          <Image src="/brand/documents/hero-boy.png" alt="Documents" width={80} height={80} style={{ objectFit: "contain", flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <div className="flex items-center justify-between mb-2">
-              <p style={{ fontSize: 13, fontWeight: 800, color: "#111" }}>Cloud Storage</p>
-              <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "rgba(249,115,22,0.1)", color: "#EA580C" }}>{storagePct}%</span>
+              <p style={{ fontSize: 13, fontWeight: 800, color: "#111" }}>Document Coverage</p>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "rgba(249,115,22,0.1)", color: "#EA580C" }}>{coveragePct}%</span>
             </div>
             <div style={{ height: 8, borderRadius: 99, background: "#F3F4F6", overflow: "hidden", marginBottom: 8 }}>
-              <div style={{ height: "100%", width: `${storagePct}%`, borderRadius: 99, background: "linear-gradient(90deg, #3B82F6, #0EA5E9)" }} />
+              <div style={{ height: "100%", width: `${coveragePct}%`, borderRadius: 99, background: "linear-gradient(90deg, #3B82F6, #0EA5E9)" }} />
             </div>
-            <p style={{ fontSize: 11, color: "#6B7280" }}>{storageGB} GB / {STORAGE_CAP_GB} GB used</p>
+            <p style={{ fontSize: 11, color: "#6B7280" }}>{membersWithDocs} of {members.length} members have uploaded documents</p>
           </div>
         </div>
 

@@ -689,6 +689,61 @@ export default function PayrollClient({
     }
   }
 
+  // Builds a printable summary report entirely client-side from the rows
+  // already computed and on screen — no new API route, no re-running any
+  // salary calculation, so it can't drift from what's actually displayed.
+  function handleGenerateReport() {
+    if (rows.length === 0) {
+      showToast("No payroll rows to report for this month.", "error")
+      return
+    }
+    const win = window.open("", "_blank", "noopener,noreferrer")
+    if (!win) {
+      showToast("Pop-up blocked — allow pop-ups to view the report.", "error")
+      return
+    }
+    const tableRows = rows.map(r => `
+      <tr>
+        <td>${r.name}</td>
+        <td>#${r.employee_id}</td>
+        <td style="text-align:right">${fmt(r.basePay)}</td>
+        <td style="text-align:right">${fmt(r.deduction)}</td>
+        <td style="text-align:right">${fmt(r.otPay)}</td>
+        <td style="text-align:right">${fmt(r.bonus)}</td>
+        <td style="text-align:right">${fmt(r.advance)}</td>
+        <td style="text-align:right;font-weight:700">${fmt(r.finalNetPay)}</td>
+        <td>${r.isPaid ? "Paid" : "Pending"}</td>
+      </tr>`).join("")
+    win.document.write(`<!DOCTYPE html><html><head><title>Payroll Report — ${monthName}</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:32px;color:#111}
+        h1{font-size:20px;margin:0 0 4px}
+        p.sub{color:#6B7280;margin:0 0 20px;font-size:13px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{padding:8px 10px;border-bottom:1px solid #E5E7EB;text-align:left}
+        th{background:#F9FAFB;font-weight:700;color:#374151}
+        .totals{display:flex;gap:24px;margin-bottom:20px}
+        .totals div{background:#F9FAFB;border-radius:10px;padding:10px 16px}
+        .totals strong{display:block;font-size:16px}
+        @media print{ body{padding:0} }
+      </style></head>
+      <body>
+        <h1>Payroll Report — ${monthName}</h1>
+        <p class="sub">${rows.length} employees · ${paidCount} paid · Generated ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+        <div class="totals">
+          <div>Total Base Pay<strong>${fmt(totalBase)}</strong></div>
+          <div>Total OT Pay<strong>${fmt(totalOT)}</strong></div>
+          <div>Total Deductions<strong>${fmt(totalDed)}</strong></div>
+          <div>Total Net Payroll<strong>${fmt(totalFinal)}</strong></div>
+        </div>
+        <table>
+          <thead><tr><th>Name</th><th>ID</th><th>Base</th><th>Deduction</th><th>OT Pay</th><th>Bonus</th><th>Advance</th><th>Net Pay</th><th>Status</th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </body></html>`)
+    win.document.close()
+  }
+
   const SUMMARY = [
     { label: "Total Payroll",    value: fmtK(totalFinal), sub: `${paidCount} of ${rows.length} paid`,    color: "#E53935", bg: "#FFF5F5", idx: 0 },
     { label: "Total OT Pay",     value: fmtK(totalOT),    sub: `${rows.filter(r => r.otPay > 0).length} with OT`,   color: "#F97316", bg: "#FFF7ED", idx: 1 },
@@ -1126,15 +1181,14 @@ export default function PayrollClient({
                 { emoji: "📄", label: "Generate Payslip", action: handleBulkPayslip, active: false },
                 { emoji: "📋", label: selectMode ? "Cancel Select" : "Bulk Update", action: handleToggleSelectMode, active: selectMode },
                 { emoji: "⚙️", label: "Payroll Settings", action: handleOpenSettings, active: false },
-                { emoji: "📊", label: "Reports", action: undefined, active: false },
+                { emoji: "📊", label: "Reports", action: handleGenerateReport, active: false },
               ].map((action) => (
-                <button key={action.label} onClick={action.action} disabled={!action.action} style={{
+                <button key={action.label} onClick={action.action} style={{
                   padding: "12px 8px", borderRadius: 14,
                   background: action.active ? "rgba(229,57,53,0.08)" : "#F9FAFB",
                   border: action.active ? "1.5px solid rgba(229,57,53,0.3)" : "1.5px solid #EBEBEB",
-                  cursor: action.action ? "pointer" : "not-allowed",
+                  cursor: "pointer",
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 7,
-                  opacity: action.action ? 1 : 0.5,
                 }}>
                   <span style={{ fontSize: 22 }}>{action.emoji}</span>
                   <span style={{ fontSize: 10, fontWeight: 600, color: action.active ? "#E53935" : "#374151", textAlign: "center" }}>{action.label}</span>

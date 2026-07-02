@@ -1238,17 +1238,18 @@ export default function FreelancersMemberClient({
             const joinedDate = selectedFreelancer.created_at
               ? new Date(selectedFreelancer.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
               : null
+            const isRJ = selectedFreelancer.team === "Freelance RJ Voiceover"
             return (
               <div>
                 {/* HERO BANNER */}
-                <div className="sm:min-h-[210px] sm:max-h-[320px]" style={{ margin: "16px 16px 0", position: "relative", overflow: "hidden", borderRadius: 24, boxShadow: `0 10px 38px rgba(0,0,0,0.4)` }}>
-                  {/* Background clipped to rounded corners via inner div — keeps overflow:visible on the outer so image can extend below */}
+                <div className="sm:min-h-[210px] sm:max-h-[320px]" style={{ margin: "16px 16px 0", position: "relative", overflow: "visible", borderRadius: 24, boxShadow: `0 10px 38px rgba(0,0,0,0.4)` }}>
+                  {/* Background clipped to rounded corners via inner div — outer stays overflow:visible so the character can hang past the bottom edge */}
                   <div style={{ position: "absolute", inset: 0, borderRadius: 24, background: cfg.heroBg, overflow: "hidden", zIndex: 0 }}>
                     <div style={{ position: "absolute", top: -50, right: -50, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.07)" }} />
                     <div style={{ position: "absolute", bottom: -30, left: 140, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
                     <div style={{ position: "absolute", top: 20, left: 220, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
                     {/* RJ Voiceover: soundwave inside background clip — desktop compact layout only */}
-                    {selectedFreelancer.team === "Freelance RJ Voiceover" && (
+                    {isRJ && (
                       <svg className="hidden sm:block" viewBox="0 0 320 80" style={{ position: "absolute", bottom: 24, right: 160, width: 220, height: 56, opacity: 0.22, pointerEvents: "none" }} preserveAspectRatio="none">
                         {[4,12,28,8,20,36,14,42,10,26,38,6,30,16,44,22,32,8,18,40,12,34,24,10,46,20,8,30].map((h, i) => (
                           <rect key={i} x={i * 11 + 2} y={(80 - h) / 2} width={7} height={h} rx={3} fill="#A855F7" />
@@ -1256,14 +1257,21 @@ export default function FreelancersMemberClient({
                       </svg>
                     )}
                   </div>
-                  {/* Character image (desktop) — anchored bottom-right inside the banner, beside the text */}
-                  {selectedFreelancer.team === "Freelance RJ Voiceover" && (
+                  {/* Character image (desktop) — anchored bottom-right, leaves clearance at the top for the Add Work button */}
+                  {isRJ && (
                     <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
                       className="hidden sm:block"
                       style={{ position: "absolute", bottom: 0, right: 16, height: "88%", maxHeight: 260, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
+                  {/* Character image (mobile) — bigger, hangs slightly past the bottom edge for a premium look; no button up top to clear on mobile */}
+                  {isRJ && (
+                    <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
+                      className="block sm:hidden"
+                      style={{ position: "absolute", bottom: -10, right: 16, height: "100%", maxHeight: 320, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", zIndex: 1 }} />
+                  )}
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
-                    <div className="flex flex-col items-start text-left gap-3 sm:flex-row sm:flex-wrap sm:justify-between">
+                    {/* Desktop layout (all teams) — for RJ, hidden on mobile in favor of the dedicated stacked block below */}
+                    <div className={isRJ ? "hidden sm:flex sm:items-start sm:flex-wrap sm:justify-between sm:gap-3" : "flex flex-col items-start text-left gap-3 sm:flex-row sm:flex-wrap sm:justify-between"}>
                       <div className="flex items-center gap-3 sm:gap-[14px]">
                         <div style={{ width: 56, height: 56, borderRadius: 18, background: "rgba(255,255,255,0.25)", border: "2.5px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
                           <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)" }}>{getInitials(selectedFreelancer.name)}</span>
@@ -1280,30 +1288,41 @@ export default function FreelancersMemberClient({
                             </div>
                             {joinedDate && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Since {joinedDate}</span>}
                           </div>
-                          {selectedFreelancer.team === "Freelance RJ Voiceover" && (
+                          {isRJ && (
                             <div style={{ marginTop: 10 }}>
                               <p style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>🎙️ Giving Voice to Every Brand</p>
-                              <p className="hidden sm:block sm:max-w-[320px]" style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: "3px 0 0", lineHeight: 1.55 }}>Professional RJ Voiceover artist delivering engaging, expressive &amp; impactful voice for your brand, ads, podcasts &amp; more.</p>
+                              <p className="max-w-[320px]" style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: "3px 0 0", lineHeight: 1.55 }}>Professional RJ Voiceover artist delivering engaging, expressive &amp; impactful voice for your brand, ads, podcasts &amp; more.</p>
                             </div>
                           )}
                         </div>
                       </div>
                       <button onClick={() => setAddWorkFor(selectedFreelancer)}
-                        className={selectedFreelancer.team === "Freelance RJ Voiceover" ? "hidden sm:flex" : "flex"}
-                        style={{ padding: "9px 16px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0, transition: "all 0.15s" }}
+                        style={{ padding: "9px 16px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0, transition: "all 0.15s" }}
                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.3)"}
                         onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.2)"}>
                         <Plus size={14} /> Add Work
                       </button>
                     </div>
-                    {/* Mobile-only: character sits beside Add Work in its own row instead of behind the text above */}
-                    {selectedFreelancer.team === "Freelance RJ Voiceover" && (
-                      <div className="flex sm:hidden items-center justify-between" style={{ marginTop: 16 }}>
-                        <button onClick={() => setAddWorkFor(selectedFreelancer)} style={{ padding: "9px 16px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0 }}>
+                    {/* Mobile-only layout for RJ Voiceover — no avatar (the character image already carries identity),
+                        generous spacing between sections, button flows under the heading instead of sitting top-right */}
+                    {isRJ && (
+                      <div className="flex sm:hidden flex-col" style={{ maxWidth: "58%" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", alignSelf: "flex-start" }}>
+                          {cfg.emoji} {cfg.shortLabel}
+                        </span>
+                        <h2 style={{ fontSize: "clamp(18px,4vw,24px)", fontWeight: 900, color: "#fff", margin: "12px 0 0", fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{selectedFreelancer.name}</h2>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                            <Star size={12} fill="#FACC15" color="#FACC15" />
+                            <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{selectedFreelancer.rating.toFixed(1)}</span>
+                          </div>
+                          {joinedDate && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Since {joinedDate}</span>}
+                        </div>
+                        <p style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: "16px 0 0", letterSpacing: "-0.01em" }}>🎙️ Giving Voice to Every Brand</p>
+                        <button onClick={() => setAddWorkFor(selectedFreelancer)}
+                          style={{ marginTop: 16, padding: "9px 16px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0, alignSelf: "flex-start" }}>
                           <Plus size={14} /> Add Work
                         </button>
-                        <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
-                          style={{ height: 100, width: "auto", maxWidth: 130, objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 20px rgba(168,85,247,0.5))" }} />
                       </div>
                     )}
                     {/* KPI glass strip */}

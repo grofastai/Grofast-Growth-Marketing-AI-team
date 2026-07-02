@@ -4,6 +4,7 @@ import { useState, useTransition, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { deleteDocument } from "@/lib/actions/documents"
 import Image from "next/image"
+import { PageHero } from "@/components/admin/PageHero"
 import {
   FileText, Upload, Trash2, FolderOpen, Loader2, X, Download,
   Phone, Mail, Briefcase, Calendar, Shield, HeartPulse, MapPin,
@@ -496,51 +497,33 @@ export default function DocumentsClient({
       )}
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <div style={{
-        margin: "16px 16px 0", borderRadius: 20, overflow: "hidden",
-        background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
-        boxShadow: "0 8px 32px rgba(180,0,0,0.45)", position: "relative", minHeight: 200,
-      }}>
-        {/* Decorative circles */}
-        <div style={{ position: "absolute", top: -50, left: -50, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: -30, right: 220, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
-
-        {/* ── Photo cover — right 56%, objectFit cover, fades left ── */}
-        <div className="hidden md:block" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "56%", zIndex: 1, opacity: 0.9 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/documents/hero-boy.png" alt=""
-            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 15%", display: "block" }} />
-          {/* Fade left edge into red */}
-          <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "60%", background: "linear-gradient(to right, #8B1212 0%, rgba(139,18,18,0.55) 50%, transparent 100%)", zIndex: 2, pointerEvents: "none" }} />
-        </div>
-
-        {/* ── Buttons — absolute top-right ── */}
-        <div style={{ position: "absolute", top: 18, right: 20, display: "flex", flexDirection: "column", gap: 8, zIndex: 4, alignItems: "flex-end" }}>
-          <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}
-            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: "1.5px solid rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.22)", color: "#fff", backdropFilter: "blur(12px)", whiteSpace: "nowrap", boxShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
-            <Upload size={13} /> Upload Document
-          </button>
-          <a href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8" target="_blank" rel="noopener noreferrer"
-            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: "#C01010", background: "#FFFFFF", textDecoration: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.35)", whiteSpace: "nowrap", border: "none" }}>
-            <ExternalLink size={13} /> Drive Backup
-          </a>
-        </div>
-
-        {/* ── Left content: badge top, title+chips bottom ── */}
-        <div style={{ position: "relative", zIndex: 3, padding: "22px 28px 24px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 200, maxWidth: "46%" }}>
-          {/* Badge — top left */}
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.22)", letterSpacing: "0.04em", alignSelf: "flex-start" }}>
-            📄 Admin Dashboard
-          </span>
-
-          {/* Title + subtitle + stat chips — bottom */}
-          <div>
-            <h1 style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", margin: "0 0 5px", fontFamily: "var(--font-jakarta)", lineHeight: 1.15, letterSpacing: "-0.01em" }}>
-              Documents
-            </h1>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.68)", margin: "0 0 14px", lineHeight: 1.55 }}>
-              Manage employee documents<br />securely in one place
-            </p>
+      <div style={{ margin: "16px 16px 0" }}>
+        <PageHero
+          eyebrowIcon={<span style={{ fontSize: 14 }}>📄</span>}
+          title="Documents"
+          subtitle="Manage employee documents securely in one place"
+          maxContentWidth="46%"
+          illustration={
+            <div className="hidden md:block" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "56%", zIndex: 1, opacity: 0.9 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/documents/hero-boy.png" alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 15%", display: "block" }} />
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "60%", background: "linear-gradient(to right, #8B1212 0%, rgba(139,18,18,0.55) 50%, transparent 100%)", zIndex: 2, pointerEvents: "none" }} />
+            </div>
+          }
+          actions={
+            <>
+              <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: "1.5px solid rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.22)", color: "#fff", backdropFilter: "blur(12px)", whiteSpace: "nowrap", boxShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
+                <Upload size={13} /> Upload Document
+              </button>
+              <a href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8" target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: "#C01010", background: "#FFFFFF", textDecoration: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.35)", whiteSpace: "nowrap", border: "none" }}>
+                <ExternalLink size={13} /> Drive Backup
+              </a>
+            </>
+          }
+          belowSubtitle={
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {[
                 { emoji: "👥", value: members.length, label: "Members" },
@@ -556,8 +539,8 @@ export default function DocumentsClient({
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+          }
+        />
       </div>
 
       {/* ── MOBILE STAT CARDS (visible < md, hidden on desktop where hero shows them) ── */}

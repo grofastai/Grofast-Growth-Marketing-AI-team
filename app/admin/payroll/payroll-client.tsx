@@ -13,6 +13,7 @@ import {
 import { savePayrollSettings } from "@/lib/actions/payroll-settings"
 import type { PayrollSettings } from "@/lib/payroll-settings-defaults"
 import { useToast } from "@/components/ui/useToast"
+import { PageHero } from "@/components/admin/PageHero"
 
 type PayrollRow = {
   id: string; name: string; employee_id: string; team: string | null
@@ -930,46 +931,43 @@ export default function PayrollClient({
 
       {/* ── Page header ── */}
       <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12,
-        background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
-        borderRadius: 20, padding: "20px 24px",
-        boxShadow: "0 8px 32px rgba(180,0,0,0.35)",
-        position: "relative", overflow: "hidden",
+        marginBottom: 20,
       }}>
-        <div style={{ position: "absolute", top: -30, right: 120, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
-        <div style={{ position: "relative", zIndex: 1 }}>
-          <h1 style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", margin: 0, fontFamily: "var(--font-jakarta)" }}>Payroll</h1>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: "4px 0 0" }}>Monthly salary breakdown for your team</p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 12, background: "#fff", border: "1.5px solid #E5E7EB" }}>
-            <span style={{ fontSize: 14 }}>📅</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{monthName}</span>
-            <button onClick={() => changeMonth(-1)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>‹</button>
-            <button onClick={() => changeMonth(1)}  style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>›</button>
-          </div>
-          <button
-            onClick={handleRunPayroll}
-            disabled={isRunning || unpaidRows.length === 0}
-            style={{
-              display: "flex", alignItems: "center", gap: 8,
-              padding: "10px 22px", borderRadius: 12,
-              background: unpaidRows.length === 0
-                ? "rgba(255,255,255,0.15)"
-                : "linear-gradient(135deg, #16A34A, #15803D)",
-              color: "#fff", border: "none", cursor: unpaidRows.length === 0 ? "default" : "pointer",
-              fontSize: 13, fontWeight: 700,
-              boxShadow: unpaidRows.length === 0 ? "none" : "0 4px 18px rgba(22,163,74,0.45)",
-              opacity: isRunning ? 0.7 : 1,
-            }}
-          >
-            {isRunning
-              ? "Processing…"
-              : unpaidRows.length === 0
-                ? <><CheckCircle2 size={14} /> All Paid</>
-                : <><Zap size={14} /> Run Payroll ({unpaidRows.length})</>}
-          </button>
-        </div>
+        <PageHero
+          title="Payroll"
+          subtitle="Monthly salary breakdown for your team"
+          actions={
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 12, background: "#fff", border: "1.5px solid #E5E7EB" }}>
+                <span style={{ fontSize: 14 }}>📅</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{monthName}</span>
+                <button onClick={() => changeMonth(-1)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>‹</button>
+                <button onClick={() => changeMonth(1)}  style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>›</button>
+              </div>
+              <button
+                onClick={handleRunPayroll}
+                disabled={isRunning || unpaidRows.length === 0}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "10px 22px", borderRadius: 12,
+                  background: unpaidRows.length === 0
+                    ? "rgba(255,255,255,0.15)"
+                    : "linear-gradient(135deg, #16A34A, #15803D)",
+                  color: "#fff", border: "none", cursor: unpaidRows.length === 0 ? "default" : "pointer",
+                  fontSize: 13, fontWeight: 700,
+                  boxShadow: unpaidRows.length === 0 ? "none" : "0 4px 18px rgba(22,163,74,0.45)",
+                  opacity: isRunning ? 0.7 : 1,
+                }}
+              >
+                {isRunning
+                  ? "Processing…"
+                  : unpaidRows.length === 0
+                    ? <><CheckCircle2 size={14} /> All Paid</>
+                    : <><Zap size={14} /> Run Payroll ({unpaidRows.length})</>}
+              </button>
+            </>
+          }
+        />
       </div>
 
       {/* ── 2-col layout ── */}

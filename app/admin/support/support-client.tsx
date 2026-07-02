@@ -7,13 +7,14 @@ import { addResponse, updateTicketStatus, createTicket, closeTicket, getSupportH
 import { useToast } from '@/components/ui/useToast'
 import {
   Plus, Search, Send, Loader2, X, Paperclip, ChevronLeft,
-  Inbox, CheckCircle2, XCircle, AlertCircle, Clock, UserPlus, LifeBuoy, Check,
+  Inbox, CheckCircle2, XCircle, AlertCircle, Clock, UserPlus, LifeBuoy, Check, Headphones,
 } from 'lucide-react'
 import {
   statusOf, categoryOf, CATEGORIES, priorityOf, PRIORITY_OPTIONS,
-  HERO_GRADIENT, timeAgo, ticketNum,
+  timeAgo, ticketNum,
 } from '@/lib/support-tokens'
 import { Bubble, StatusRibbon, bodyParts, SUPPORT_ANIM_CSS } from '@/components/support/thread-ui'
+import { PageHero } from '@/components/admin/PageHero'
 
 type Response = { id: string; responder_id: string; responder_name: string; message: string; created_at: string }
 type Ticket = {
@@ -160,65 +161,25 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
       <div style={{ maxWidth: 1240, margin: '0 auto', padding: '16px' }}>
 
         {/* ── HERO ────────────────────────────────────────────────────── */}
-        <div style={{
-          background: 'linear-gradient(120deg, #C01010 0%, #D41515 35%, #C01010 65%, #9B0D0D 100%)',
-          borderRadius: 20, position: 'relative', overflow: 'hidden',
-          boxShadow: '0 8px 32px rgba(180,0,0,0.45)', marginBottom: 14, minHeight: 186,
-        }}>
-          {/* Background depth: subtle dark vignette on edges */}
-          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 30% 50%, rgba(255,60,60,0.18) 0%, transparent 60%)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 80% 40%, rgba(80,0,0,0.35) 0%, transparent 55%)', pointerEvents: 'none' }} />
-          {/* Sparkle dots spread across banner */}
-          <div style={{ position: 'absolute', top: 16, left: '30%', width: 5, height: 5, borderRadius: '50%', background: 'rgba(255,255,255,0.45)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', top: 38, left: '26%', width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.28)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', bottom: 24, left: '34%', width: 4, height: 4, borderRadius: '50%', background: 'rgba(255,200,200,0.35)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', top: 28, right: '22%', width: 4, height: 4, borderRadius: '50%', background: 'rgba(255,255,255,0.3)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', bottom: 40, right: '28%', width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,200,200,0.25)', pointerEvents: 'none' }} />
-
-          {/* ── GIRL — center-right, large, fills full height ── */}
-          <div className="hidden md:block" style={{
-            position: 'absolute',
-            left: '28%', top: '50%',
-            transform: 'translateY(-50%)',
-            width: 520, height: '155%',
-            pointerEvents: 'none', zIndex: 1,
-          }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/support/hero-girl.png" alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center bottom', filter: 'drop-shadow(0 6px 24px rgba(0,0,0,0.25))' }} />
-          </div>
-
-          {/* ── BUTTONS — absolute top-right on desktop; below the badge in normal flow on mobile, since
-                absolute positioning collided with the badge on narrow screens ── */}
-          <div className="hidden md:flex" style={{ position: 'absolute', top: 18, right: 20, gap: 8, zIndex: 3 }}>
-            {canAssign && (
-              <button onClick={() => setShowAssign(true)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 15px', borderRadius: 12, fontSize: 12.5, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(8px)' }}>
-                <UserPlus size={14} /> Assign handler
-              </button>
-            )}
-            <button onClick={() => setShowNew(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: '#C01010', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.22)', whiteSpace: 'nowrap' }}>
-              <Plus size={14} /> New ticket
-            </button>
-          </div>
-
-          {/* ── LEFT CONTENT: badge top-left, title+chips bottom-left ── */}
-          <div style={{ position: 'relative', zIndex: 2, padding: '18px 22px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', minHeight: 186, maxWidth: 400 }}>
-            {/* Badge — top left */}
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 99, background: 'rgba(0,0,0,0.22)', color: '#fff', border: '1px solid rgba(255,255,255,0.22)', letterSpacing: '0.04em', alignSelf: 'flex-start' }}>
-              🎧 Support Inbox
-            </span>
-
-            {/* Title + subtitle + buttons(mobile) + chips — anchored bottom */}
-            <div>
-              <h1 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 5px', fontFamily: 'var(--font-jakarta)', color: '#fff', lineHeight: 1.18, letterSpacing: '-0.01em' }}>
-                Help Your Team Faster
-              </h1>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: '0 0 14px', lineHeight: 1.55 }}>
-                Manage tickets, reply instantly,<br />and keep every client happy.
-              </p>
-              <div className="flex md:hidden flex-wrap" style={{ gap: 8, marginBottom: 14 }}>
+        <div style={{ marginBottom: 14 }}>
+          <PageHero
+            eyebrow="SUPPORT INBOX"
+            eyebrowIcon={<Headphones size={14} style={{ color: '#FFD700' }} />}
+            title="Help Your Team Faster"
+            subtitle="Manage tickets, reply instantly, and keep every client happy."
+            maxContentWidth={400}
+            illustration={
+              <div className="hidden md:block" style={{
+                position: 'absolute', left: '28%', top: '50%', transform: 'translateY(-50%)',
+                width: 420, height: '135%', pointerEvents: 'none', zIndex: 1,
+              }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/brand/support/hero-girl.png" alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center bottom', filter: 'drop-shadow(0 6px 24px rgba(0,0,0,0.25))' }} />
+              </div>
+            }
+            actions={
+              <>
                 {canAssign && (
                   <button onClick={() => setShowAssign(true)}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 15px', borderRadius: 12, fontSize: 12.5, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(8px)' }}>
@@ -229,9 +190,9 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: '#C01010', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.22)', whiteSpace: 'nowrap' }}>
                   <Plus size={14} /> New ticket
                 </button>
-              </div>
-            </div>
-          </div>
+              </>
+            }
+          />
         </div>
 
         {/* ── STAT CARDS ROW ──────────────────────────────────────────── */}

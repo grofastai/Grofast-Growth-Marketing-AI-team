@@ -107,7 +107,7 @@ function LiveTimer({ clockInIso, pausedSeconds, breakTotalMins = 0, currentBreak
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clockInIso, currentBreakInIso, breakTotalMins, pausedSeconds])
   return (
-    <span className="font-mono text-[44px] font-black tracking-tight leading-none"
+    <span className="font-mono text-[28px] sm:text-[44px] font-black tracking-tight leading-none whitespace-nowrap"
       style={{ color: currentBreakInIso ? "#9CA3AF" : "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
       {fmtDuration(secs)}
     </span>
@@ -728,7 +728,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
                   </div>
                   {/* Large alarm clock illustration */}
-                  <div className="flex-shrink-0 relative" style={{ width: 160, height: 160 }}>
+                  <div className="flex-shrink-0 relative w-[80px] h-[80px] sm:w-[160px] sm:h-[160px]">
                     <Image src="/brand/character-desk.png" alt="Alarm clock" fill style={{ objectFit: "contain" }} />
                   </div>
                 </div>

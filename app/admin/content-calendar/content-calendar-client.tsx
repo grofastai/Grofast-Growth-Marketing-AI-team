@@ -740,7 +740,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10 }}>
               {[
                 { Icon: Pencil,        label: "Create Post",   sub: "Design & plan", from: "#DE1A1A", to: "#F97316", action: () => { resetForm(); setSchedDates([selectedDate]); setModalMode("add") } },
-                { Icon: UploadCloud,   label: "Upload Media",  sub: "Images/Videos", from: "#1D4ED8", to: "#3B82F6", action: () => setView("list") },
+                { Icon: UploadCloud,   label: "Upload Media",  sub: "Images/Videos", from: "#1D4ED8", to: "#3B82F6", action: () => { resetForm(); setSchedDates([selectedDate]); setModalMode("add") } },
                 { Icon: ClipboardList, label: "View Posts",    sub: "All scheduled", from: "#7C3AED", to: "#A855F7", action: () => setView("list") },
                 { Icon: Lightbulb,     label: "Content Ideas", sub: "AI Suggestions",from: "#D97706", to: "#F59E0B", action: () => {} },
               ].map(a => (

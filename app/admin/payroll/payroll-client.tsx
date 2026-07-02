@@ -10,6 +10,7 @@ import {
   runPayroll,
   saveBonusAdvance,
 } from "@/lib/actions/payroll"
+import { savePayrollSettings, type PayrollSettings } from "@/lib/actions/payroll-settings"
 import { useToast } from "@/components/ui/useToast"
 
 type PayrollRow = {
@@ -541,6 +542,7 @@ function EmployeeCard({
 export default function PayrollClient({
   rows, month, workDays,
   pendingCollabCount, pendingLeaveCount, pendingUpdateCount,
+  payrollSettings,
 }: {
   rows: PayrollRow[]
   month: string
@@ -548,6 +550,7 @@ export default function PayrollClient({
   pendingCollabCount: number
   pendingLeaveCount: number
   pendingUpdateCount: number
+  payrollSettings: PayrollSettings
 }) {
   const router   = useRouter()
   const pathname = usePathname()
@@ -563,6 +566,14 @@ export default function PayrollClient({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showBulkConfirm, setShowBulkConfirm] = useState(false)
   const [isBulkRunning, startBulkTransition] = useTransition()
+
+  // Payroll Settings — separate modal + form state, saves via
+  // savePayrollSettings unchanged. Opening the modal seeds the form from
+  // payrollSettings (the values page.tsx already fetched and used to
+  // compute the rows currently on screen).
+  const [showSettings, setShowSettings] = useState(false)
+  const [settingsForm, setSettingsForm] = useState<PayrollSettings>(payrollSettings)
+  const [isSavingSettings, setIsSavingSettings] = useState(false)
 
   const [year, mon] = month.split("-").map(Number)
   const monthName   = new Date(year, mon - 1).toLocaleString("en-IN", { month: "long", year: "numeric" })
@@ -656,6 +667,26 @@ export default function PayrollClient({
       setSelectMode(false)
       setSelectedIds(new Set())
     })
+  }
+
+  function handleOpenSettings() {
+    setSettingsForm(payrollSettings)
+    setShowSettings(true)
+  }
+  async function handleSaveSettings() {
+    setIsSavingSettings(true)
+    try {
+      const res = await savePayrollSettings(settingsForm)
+      if (res.success) {
+        showToast("Payroll settings saved. Recalculating with the new values…", "success")
+        setShowSettings(false)
+        router.refresh()
+      } else {
+        showToast(res.error ?? "Could not save settings", "error")
+      }
+    } finally {
+      setIsSavingSettings(false)
+    }
   }
 
   const SUMMARY = [
@@ -772,6 +803,74 @@ export default function PayrollClient({
           </div>
         )
       })()}
+
+      {showSettings && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+        }}>
+          <div style={{ background: "#fff", borderRadius: 22, padding: "28px 32px", maxWidth: 480, width: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <h2 style={{ fontSize: 18, fontWeight: 900, color: "#111", margin: "0 0 4px", fontFamily: "var(--font-jakarta)" }}>
+              Payroll Settings
+            </h2>
+            <p style={{ fontSize: 12, color: "#9CA3AF", margin: "0 0 20px" }}>
+              Changes apply from the next calculation onward — past paid months are not recalculated.
+            </p>
+
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Attendance Rules</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
+              {([
+                ["ot_threshold_hrs", "OT Threshold (hrs/day)"],
+                ["half_day_threshold_hrs", "Half-Day Threshold (hrs)"],
+                ["salary_basis_days", "Salary Basis (days/month)"],
+              ] as const).map(([key, label]) => (
+                <label key={key} style={{ display: "block" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>{label}</span>
+                  <input type="number" step="0.1" value={settingsForm[key]}
+                    onChange={e => setSettingsForm(prev => ({ ...prev, [key]: Number(e.target.value) }))}
+                    style={{ width: "100%", padding: "9px 10px", borderRadius: 10, border: "1.5px solid #E5E7EB", fontSize: 13 }} />
+                </label>
+              ))}
+            </div>
+
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Salary Breakdown (payslip only)</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 6 }}>
+              {([
+                ["basic_pct", "Basic (% of gross)"],
+                ["hra_pct", "HRA (% of basic)"],
+                ["travel_pct", "Travel (% of gross)"],
+                ["medical_pct", "Medical (% of gross)"],
+              ] as const).map(([key, label]) => (
+                <label key={key} style={{ display: "block" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>{label}</span>
+                  <input type="number" step="0.5" value={settingsForm[key]}
+                    onChange={e => setSettingsForm(prev => ({ ...prev, [key]: Number(e.target.value) }))}
+                    style={{ width: "100%", padding: "9px 10px", borderRadius: 10, border: "1.5px solid #E5E7EB", fontSize: 13 }} />
+                </label>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 20px" }}>
+              Whatever remains of gross salary after Basic + Travel + Medical is deducted shows on the payslip as &quot;Other Allowance&quot;.
+            </p>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setShowSettings(false)}
+                style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1.5px solid #E5E7EB", background: "#F9FAFB", fontSize: 13, fontWeight: 700, color: "#374151", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveSettings}
+                disabled={isSavingSettings}
+                style={{ flex: 1, padding: "12px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #16A34A, #15803D)", fontSize: 13, fontWeight: 700, color: "#fff", cursor: isSavingSettings ? "wait" : "pointer", boxShadow: "0 4px 16px rgba(22,163,74,0.35)" }}
+              >
+                {isSavingSettings ? "Saving…" : "Save Settings"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Page header ── */}
       <div style={{
@@ -1026,7 +1125,7 @@ export default function PayrollClient({
               {[
                 { emoji: "📄", label: "Generate Payslip", action: handleBulkPayslip, active: false },
                 { emoji: "📋", label: selectMode ? "Cancel Select" : "Bulk Update", action: handleToggleSelectMode, active: selectMode },
-                { emoji: "⚙️", label: "Payroll Settings", action: undefined, active: false },
+                { emoji: "⚙️", label: "Payroll Settings", action: handleOpenSettings, active: false },
                 { emoji: "📊", label: "Reports", action: undefined, active: false },
               ].map((action) => (
                 <button key={action.label} onClick={action.action} disabled={!action.action} style={{

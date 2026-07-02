@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { getPayrollSettings } from '@/lib/actions/payroll-settings'
 
 function adminSupabase() {
   return createClient(
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
   const monthStart  = `${month}-01`
   const monthEnd    = `${month}-${new Date(year, mon, 0).getDate()}`
   const workDays    = workingDaysInMonth(year, mon)
+  const settings    = await getPayrollSettings(requester.company_id)
 
   const [{ data: memberRaw }, { data: updatesRaw }, { data: logsRaw }, { data: companyRaw }, { data: runRaw }, { data: kycRaw }, { data: collabRaw }] = await Promise.all([
     admin.from('users')
@@ -88,7 +90,7 @@ export async function GET(request: NextRequest) {
   const collabHours = ((collabRaw ?? []) as { confirmed_hours: number | null }[]).reduce((s, c) => s + (c.confirmed_hours ?? 0), 0)
   const totalHours  = Math.round((updates.reduce((s, u) => s + (u.working_hours ?? 0), 0) + collabHours) * 10) / 10
   const otHours     = Math.round(updates.reduce((s, u) => {
-    const h = u.working_hours ?? 0; return h > 9.5 ? s + (h - 9.5) : s
+    const h = u.working_hours ?? 0; return h > settings.ot_threshold_hrs ? s + (h - settings.ot_threshold_hrs) : s
   }, 0) * 10) / 10
 
   type MemberRow = {
@@ -111,13 +113,13 @@ export async function GET(request: NextRequest) {
   if (empType === 'regular' && member.monthly_salary) {
     const gross     = member.monthly_salary
     const dailyRate = gross / workDays
-    basic             = Math.round(gross * 0.50)
-    hra               = Math.round(basic * 0.20)        // 10% of gross
-    travelAllowance   = Math.round(gross * 0.07)        // 7% of gross
-    medicalAllowance  = Math.round(gross * 0.03)        // 3% of gross
-    otherAllowance    = Math.max(0, gross - basic - hra - travelAllowance - medicalAllowance) // ~30%
+    basic             = Math.round(gross * (settings.basic_pct / 100))
+    hra               = Math.round(basic * (settings.hra_pct / 100))        // hra_pct is "of basic"
+    travelAllowance   = Math.round(gross * (settings.travel_pct / 100))
+    medicalAllowance  = Math.round(gross * (settings.medical_pct / 100))
+    otherAllowance    = Math.max(0, gross - basic - hra - travelAllowance - medicalAllowance)
     deduction = Math.round(absentDays * dailyRate * 100) / 100
-    otPay     = Math.round(otHours * (dailyRate / 9.5) * 100) / 100
+    otPay     = Math.round(otHours * (dailyRate / settings.ot_threshold_hrs) * 100) / 100
   } else if (member.hourly_rate) {
     basic = Math.round(totalHours * member.hourly_rate * 100) / 100
   }

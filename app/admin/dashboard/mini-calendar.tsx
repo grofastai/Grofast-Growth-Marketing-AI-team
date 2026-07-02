@@ -4,7 +4,7 @@ import { useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
 type Props = {
-  leaveMap: Record<string, string[]>
+  leaveMap: Record<string, { id: string; name: string }[]>
   today: string
   initYear: number
   initMonth: number
@@ -13,6 +13,11 @@ type Props = {
 export default function MiniCalendar({ leaveMap, today, initYear, initMonth }: Props) {
   const [year, setYear]   = useState(initYear)
   const [month, setMonth] = useState(initMonth)
+  const [openDay, setOpenDay] = useState<string | null>(null)
+
+  function getInitials(name: string) {
+    return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
+  }
 
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const firstDay    = new Date(year, month, 1).getDay()
@@ -61,18 +66,56 @@ export default function MiniCalendar({ leaveMap, today, initYear, initMonth }: P
           const dow       = new Date(dayStr + "T12:00:00").getDay()
           const isWeekend = dow === 0 || dow === 6
 
+          const peopleOnLeave = leaveMap[dayStr] ?? []
+          const visibleDots = peopleOnLeave.slice(0, 3)
+          const extraCount  = peopleOnLeave.length - visibleDots.length
+          const isOpen = openDay === dayStr
+
           return (
-            <div key={day} style={{
-              height: 30, borderRadius: 6, display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center", position: "relative",
-              background: isToday ? "#DE1A1A" : hasLeave ? "rgba(217,119,6,0.08)" : "transparent",
-            }}>
-              <span style={{
-                fontSize: 10, fontWeight: isToday ? 800 : 500,
-                color: isToday ? "#FFFFFF" : isWeekend ? "#D1D5DB" : "#374151",
-              }}>{day}</span>
-              {hasLeave && !isToday && (
-                <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#D97706", position: "absolute", bottom: 2 }} />
+            <div key={day} style={{ position: "relative" }}>
+              <div
+                onClick={() => hasLeave && setOpenDay(o => o === dayStr ? null : dayStr)}
+                style={{
+                  height: 30, borderRadius: 6, display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center", position: "relative",
+                  background: isToday ? "#DE1A1A" : hasLeave ? "rgba(217,119,6,0.08)" : "transparent",
+                  cursor: hasLeave ? "pointer" : "default",
+                }}>
+                <span style={{
+                  fontSize: 10, fontWeight: isToday ? 800 : 500,
+                  color: isToday ? "#FFFFFF" : isWeekend ? "#D1D5DB" : "#374151",
+                }}>{day}</span>
+                {hasLeave && !isToday && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 1, position: "absolute", bottom: 2 }}>
+                    {visibleDots.map((p, i) => (
+                      <div key={p.id || i} style={{ width: 4, height: 4, borderRadius: "50%", background: "#D97706" }} />
+                    ))}
+                    {extraCount > 0 && (
+                      <span style={{ fontSize: 6, fontWeight: 800, color: "#D97706", marginLeft: 1, lineHeight: 1 }}>+{extraCount}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {isOpen && (
+                <>
+                  <div onClick={() => setOpenDay(null)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+                  <div style={{
+                    position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)",
+                    marginTop: 4, zIndex: 50, background: "#FFFFFF", borderRadius: 12,
+                    border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                    padding: 8, minWidth: 160, maxWidth: 220,
+                  }}>
+                    {peopleOnLeave.map((p, i) => (
+                      <div key={p.id || i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 4px" }}>
+                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(217,119,6,0.12)", color: "#D97706", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {getInitials(p.name)}
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           )

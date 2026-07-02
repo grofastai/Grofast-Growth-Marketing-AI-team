@@ -644,6 +644,22 @@ export default function DocumentsClient({
 
         {/* ── CENTER: Document Explorer ────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Mobile/tablet employee switcher — the Employees list is desktop-only (lg:flex), so this is the
+              only way to change whose documents are shown below lg */}
+          <div className="lg:hidden" style={{ position: "relative" }}>
+            <Users size={13} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+            <select
+              value={selectedId}
+              onChange={e => { setSelectedId(e.target.value); setActiveTab("documents"); setDocFilter("All"); setDocSearch("") }}
+              style={{
+                width: "100%", padding: "10px 12px 10px 34px", borderRadius: 14, fontSize: 13, fontWeight: 700,
+                border: "1px solid #E5E7EB", outline: "none", color: "#111", background: "#fff",
+                boxSizing: "border-box", appearance: "none",
+              }}>
+              {members.map(m => <option key={m.id} value={m.id}>{m.name} (#{m.employee_id})</option>)}
+            </select>
+            <ChevronRight size={13} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%) rotate(90deg)", color: "#9CA3AF", pointerEvents: "none" }} />
+          </div>
           {selectedMember ? (
             <>
               {/* Profile header card */}

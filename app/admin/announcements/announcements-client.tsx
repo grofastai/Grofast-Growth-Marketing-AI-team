@@ -260,14 +260,15 @@ export default function AnnouncementsClient({
             </div>
           </div>
 
-          {/* Announcements list */}
-          {filtered.length === 0 ? (
+          {/* Announcements list — the "no results" empty state is only shown when a filter/search hides
+              existing announcements; with zero announcements total, the hero card above already covers it */}
+          {announcements.length > 0 && filtered.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px 0", borderRadius: 16, background: "#FAFAFA", border: "1px solid #E5E7EB" }}>
               <Megaphone size={36} style={{ color: "#D1D5DB", marginBottom: 12 }} />
               <p style={{ fontSize: 14, fontWeight: 600, color: "#6B7280", margin: 0 }}>No announcements found</p>
               <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>Try a different filter or create a new one.</p>
             </div>
-          ) : (
+          ) : filtered.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {filtered.map((ann) => {
                 const creator = resolveUser(ann.users)
@@ -355,7 +356,7 @@ export default function AnnouncementsClient({
                 )
               })}
             </div>
-          )}
+          ) : null}
 
           {/* Bottom Banner */}
           <div style={{ marginTop: 24 }}>

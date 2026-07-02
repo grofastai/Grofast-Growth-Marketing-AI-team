@@ -2037,7 +2037,7 @@ export default function DailyUpdateForm({
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
-                          <label style={L}>Client</label>
+                          <label style={L}>Client Name</label>
                           <div style={{ position:"relative" }}>
                             {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
                               <div>
@@ -2149,7 +2149,7 @@ export default function DailyUpdateForm({
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
-                          <label style={L}>Client</label>
+                          <label style={L}>Client Name</label>
                           <div style={{ position:"relative" }}>
                             {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
                               <div>
@@ -2290,7 +2290,7 @@ export default function DailyUpdateForm({
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
-                          <label style={L}>Client</label>
+                          <label style={L}>Client Name</label>
                           <div style={{ position:"relative" }}>
                             {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
                               <div>

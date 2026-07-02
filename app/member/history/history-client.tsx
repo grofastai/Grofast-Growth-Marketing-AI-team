@@ -2510,7 +2510,7 @@ export default function HistoryClient({
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                                       <div>
-                                        <label style={HL}>Client *</label>
+                                        <label style={HL}>Client Name *</label>
                                         <div style={{ position:"relative" }}>
                                           {editClientShowPast
                                             ? <div>
@@ -2586,7 +2586,7 @@ export default function HistoryClient({
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                                       <div>
-                                        <label style={HL}>Client *</label>
+                                        <label style={HL}>Client Name *</label>
                                         <div style={{ position:"relative" }}>
                                           {editClientShowPast
                                             ? <div>
@@ -2687,7 +2687,7 @@ export default function HistoryClient({
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                                       <div>
-                                        <label style={HL}>Client *</label>
+                                        <label style={HL}>Client Name *</label>
                                         <div style={{ position:"relative" }}>
                                           {editClientShowPast
                                             ? <div>

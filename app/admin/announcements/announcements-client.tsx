@@ -183,7 +183,7 @@ export default function AnnouncementsClient({
               ))}
             </div>
           </div>
-          <div style={{ width: 44, height: 44, borderRadius: 14, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <div className="hidden sm:flex" style={{ width: 44, height: 44, borderRadius: 14, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.3)", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Megaphone size={20} style={{ color: "#FFFFFF" }} />
           </div>
         </div>

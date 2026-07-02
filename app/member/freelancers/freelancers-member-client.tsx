@@ -1289,7 +1289,7 @@ export default function FreelancersMemberClient({
                           {selectedFreelancer.team === "Freelance RJ Voiceover" && (
                             <div style={{ marginTop: 10 }}>
                               <p style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>🎙️ Giving Voice to Every Brand</p>
-                              <p className="mx-auto sm:mx-0 max-w-[280px] sm:max-w-[320px]" style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: "3px 0 0", lineHeight: 1.55 }}>Professional RJ Voiceover artist delivering engaging, expressive &amp; impactful voice for your brand, ads, podcasts &amp; more.</p>
+                              <p className="hidden sm:block sm:max-w-[320px]" style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: "3px 0 0", lineHeight: 1.55 }}>Professional RJ Voiceover artist delivering engaging, expressive &amp; impactful voice for your brand, ads, podcasts &amp; more.</p>
                             </div>
                           )}
                         </div>

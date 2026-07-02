@@ -1859,31 +1859,16 @@ export default function DailyUpdateForm({
                       <div style={{ background:"#F9FAFB", borderRadius:14, border:"1px solid #EBEDF2", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
 
                         {/* ── Block header: delete ── */}
-                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                        <div style={{ display:"flex", alignItems:"center" }}>
                           <button onClick={() => removeBlock(block.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
                             <Trash2 size={13} style={{ color:"#EF4444" }} />
                           </button>
                         </div>
 
-                        {/* ── Time row ── */}
-                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                          <Clock size={13} style={{ color:"#DE1A1A", flexShrink:0 }} />
-                          <div style={{ display:"flex", alignItems:"center", gap:6, flex:1, minWidth:200 }}>
-                            <TimePicker value={block.startTime} onChange={v => patchBlock(block.id, { startTime: v })} />
-                            <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
-                            <TimePicker value={block.endTime} onChange={v => patchBlock(block.id, { endTime: v })} />
-                            {block.durationHours > 0 && (
-                              <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background: block.isBreak ? "rgba(245,158,11,0.12)" : "rgba(99,102,241,0.1)", color: block.isBreak ? "#D97706" : "#6366F1", flexShrink:0 }}>{fmtTravel(block.durationHours)}</span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* ── Work-only fields ── */}
-                        {!block.isBreak && (<>
-                          {/* Client + Title in 2-col row */}
-                          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                        {/* ── CLIENT NAME | TITLE (50/50 desktop, stacked mobile) ── */}
+                        <div className="grid md:grid-cols-2" style={{ gap:8 }}>
                             <div>
-                              <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5, margin:"0 0 5px" }}>Client / Project</p>
+                              <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5, margin:"0 0 5px" }}>Client Name</p>
                               <div style={{ position:"relative" }}>
                               {showPastFor.has(`blk-${block.id}`) ? (
                                 <select value="" onChange={e => { const v = e.target.value; if (!v) return; if (v === "__back__") { exitPastMode(`blk-${block.id}`); return } if (!block.clientNames.includes(v)) patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" }); exitPastMode(`blk-${block.id}`) }}
@@ -1934,8 +1919,26 @@ export default function DailyUpdateForm({
                               placeholder="Type client name…"
                               style={{ width:"100%", fontSize:11, fontWeight:600, color:"#111827", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", outline:"none", boxSizing:"border-box", marginTop:6 }} />
                           )}
+
+                          {/* ── WORKING TIME ── */}
+                          <div>
+                            <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", margin:"0 0 5px" }}>⏱ Working Time</p>
+                            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                              <TimePicker value={block.startTime} onChange={v => patchBlock(block.id, { startTime: v })} />
+                              <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                              <TimePicker value={block.endTime} onChange={v => patchBlock(block.id, { endTime: v })} />
+                              {block.durationHours > 0 && (
+                                <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 10px", borderRadius:8, background:"rgba(99,102,241,0.08)", border:"1.5px solid rgba(99,102,241,0.2)" }}>
+                                  <span style={{ fontSize:12, fontWeight:700, color:"#6366F1" }}>{fmtTravel(block.durationHours)}</span>
+                                  <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* ── WORKED WITH (50% desktop) ── */}
                           {teamMembers.length > 0 && (
-                            <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #EBEDF2" }}>
+                            <div className="w-full md:w-1/2">
                               <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
                               <div style={{ position:"relative" }}>
                                 <select value="" onChange={e => {
@@ -1970,7 +1973,6 @@ export default function DailyUpdateForm({
                               )}
                             </div>
                           )}
-                        </>)}
                       </div>
                       </Fragment>
                     )

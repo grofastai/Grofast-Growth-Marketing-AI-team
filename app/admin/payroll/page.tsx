@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import PayrollClient from "./payroll-client"
 import { calcNetWorkHours } from "@/lib/utils/work-hours"
+import { getPayrollSettings } from "@/lib/actions/payroll-settings"
 
 export default async function PayrollPage({
   searchParams,
@@ -31,6 +32,7 @@ export default async function PayrollPage({
   const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
   if (!profile) redirect("/login")
   const cid = profile.company_id
+  const payrollSettings = await getPayrollSettings(cid)
 
   const [
     { data: membersRaw },
@@ -48,7 +50,9 @@ export default async function PayrollPage({
       .from("users")
       .select("id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, paid_leave_days")
       .eq("company_id", cid)
+      .eq("role", "MEMBER")
       .eq("status", "active")
+      .eq("is_freelancer_login", false)
       .is("deleted_at", null)
       .order("name"),
     admin
@@ -178,10 +182,11 @@ export default async function PayrollPage({
     allMonthDays.push(`${month}-${String(d).padStart(2, "0")}`)
   }
 
-  // OT threshold (configurable in future via admin settings table)
-  const OT_THRESHOLD = 9.5
-  const HALF_DAY_THRESHOLD = 4  // hours below this = half day
-  const SALARY_BASIS = 30
+  // Configurable via Payroll Settings — falls back to the same defaults this
+  // page always used if a company has no settings row yet.
+  const OT_THRESHOLD = payrollSettings.ot_threshold_hrs
+  const HALF_DAY_THRESHOLD = payrollSettings.half_day_threshold_hrs  // hours below this = half day
+  const SALARY_BASIS = payrollSettings.salary_basis_days
 
   const rows = members.map(m => {
     const myLogs    = logs.filter(l => l.user_id === m.id)
@@ -289,6 +294,7 @@ export default async function PayrollPage({
       pendingCollabCount={pendingCollabCount ?? 0}
       pendingLeaveCount={pendingLeaveCount ?? 0}
       pendingUpdateCount={pendingUpdateCount}
+      payrollSettings={payrollSettings}
     />
   )
 }

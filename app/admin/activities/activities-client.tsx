@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { Search, Filter, Clock, Users, AlertCircle, TrendingUp, Bell, Star, X, ChevronRight } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 import { calcNetWorkHours } from "@/lib/utils/work-hours"
+import { PageHero } from "@/components/admin/PageHero"
 
 type WorkEntry = Record<string, unknown>
 
@@ -286,7 +287,7 @@ export default function ActivitiesClient({
   const [showCustom, setShowCustom] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
-  void onLeaveIds; void leaveDays; void clockInDays; void pendingLeaves; void pendingCollabs
+  void onLeaveIds; void pendingLeaves; void pendingCollabs
 
   const todayDate        = new Date()
   const todayStr         = todayDate.toISOString().split("T")[0]
@@ -331,24 +332,36 @@ export default function ActivitiesClient({
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const presentSet = new Set<string>()
-    const onLeaveSet = new Set<string>()
-    let totalHours = 0
+    const activeMembers = members.filter(m => m.role !== "ADMIN")
+    const activeMemberIds = new Set(activeMembers.map(m => m.id))
 
+    // Present/on-leave come from the same clock-in / approved-leave data the
+    // Dashboard and Attendance pages use — not from each update's own
+    // attendance_status flag, which only exists if that member happened to
+    // submit a daily update (independent of whether they actually clocked in).
+    const presentSet = new Set<string>()
+    for (const key of clockInDays ?? []) {
+      const sep = key.lastIndexOf(":")
+      const userId = key.slice(0, sep)
+      if (activeMemberIds.has(userId)) presentSet.add(userId)
+    }
+
+    const onLeaveSet = new Set<string>()
+    for (const key of leaveDays ?? []) {
+      const sep = key.lastIndexOf(":")
+      const userId = key.slice(0, sep)
+      if (activeMemberIds.has(userId)) onLeaveSet.add(userId)
+    }
+
+    let totalHours = 0
     for (const u of updates) {
       const user = Array.isArray(u.users) ? u.users[0] : u.users
       if (!user) continue
+      if (u.attendance_status !== "present") continue
       const collabH = collabHoursMap[`${user.id}:${u.date}`] ?? 0
-      const hrs = getUpdateHours(u) + collabH
-      if (u.attendance_status === "present") {
-        presentSet.add(user.id)
-        totalHours += hrs
-      } else if (u.attendance_status === "leave") {
-        onLeaveSet.add(user.id)
-      }
+      totalHours += getUpdateHours(u) + collabH
     }
 
-    const activeMembers = members.filter(m => m.role !== "ADMIN")
     const updatedIds = new Set(updates.map(u => {
       const user = Array.isArray(u.users) ? u.users[0] : u.users
       return user?.id
@@ -363,7 +376,7 @@ export default function ActivitiesClient({
       notUpdated: notUpdated.length,
       notUpdatedMembers: notUpdated,
     }
-  }, [updates, members, collabHoursMap])
+  }, [updates, members, collabHoursMap, clockInDays, leaveDays])
 
   const donutData = useMemo(() => {
     const total = members.filter(m => m.role !== "ADMIN").length || 1
@@ -429,27 +442,20 @@ export default function ActivitiesClient({
     <div style={{ padding: "24px 24px 64px", maxWidth: 1400, margin: "0 auto", fontFamily: "var(--font-jakarta, Inter, sans-serif)" }}>
 
       {/* ── Hero Banner ── */}
-      <div style={{
-        position: "relative", borderRadius: 20, overflow: "hidden", marginBottom: 24,
-        background: "linear-gradient(100deg, #080808 0%, #1A0000 25%, #420000 55%, #C10000 100%)",
-      }}>
-        <div style={{
-          position: "absolute", inset: 0, pointerEvents: "none",
-          background: "radial-gradient(ellipse 38% 70% at 55% 100%, rgba(220,0,0,0.45) 0%, transparent 70%)",
-        }} />
-        <div className="hidden sm:block" style={{ position: "absolute", bottom: -85, left: "54%", transform: "translateX(-50%)", zIndex: 1, pointerEvents: "none" }}>
-          <img
-            src="/brand/activities-hero.png"
-            alt=""
-            style={{ height: 360, width: "auto", objectFit: "contain", userSelect: "none" }}
-          />
-        </div>
-        <div className="flex flex-col sm:flex-row" style={{ padding: "20px 20px", position: "relative", zIndex: 2, gap: 16, minHeight: 160 }}>
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", flex: 1 }}>
-            <h1 style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", lineHeight: 1.1, margin: "0 0 6px" }}>Activities</h1>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: "0 0 16px", lineHeight: 1.5 }}>
-              Track real-time updates and progress from your amazing team.
-            </p>
+      <div style={{ marginBottom: 24 }}>
+        <PageHero
+          title="Activities"
+          subtitle="Track real-time updates and progress from your amazing team."
+          illustration={
+            <div className="hidden md:block" style={{ position: "absolute", bottom: -85, left: "54%", transform: "translateX(-50%)", zIndex: 1, pointerEvents: "none" }}>
+              <img
+                src="/brand/activities-hero.png"
+                alt=""
+                style={{ height: 300, width: "auto", objectFit: "contain", userSelect: "none" }}
+              />
+            </div>
+          }
+          belowSubtitle={
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ position: "relative", flex: 1, maxWidth: 280 }}>
                 <Search size={14} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.45)", pointerEvents: "none" }} />
@@ -458,7 +464,7 @@ export default function ActivitiesClient({
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search members, updates..."
                   style={{
-                    width: "100%", boxSizing: "border-box", height: 48,
+                    width: "100%", boxSizing: "border-box", height: 44,
                     padding: "0 14px 0 38px", border: "1px solid rgba(255,255,255,0.18)",
                     borderRadius: 14, background: "rgba(255,255,255,0.09)", backdropFilter: "blur(10px)",
                     color: "#fff", fontSize: 13, outline: "none",
@@ -466,28 +472,30 @@ export default function ActivitiesClient({
                 />
               </div>
               <button style={{
-                width: 48, height: 48, borderRadius: 14, background: "rgba(255,255,255,0.12)",
+                width: 44, height: 44, borderRadius: 14, background: "rgba(255,255,255,0.12)",
                 border: "1px solid rgba(255,255,255,0.18)", cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
               }}>
                 <Filter size={16} color="rgba(255,255,255,0.75)" />
               </button>
             </div>
-          </div>
-          <div className="hidden sm:flex" style={{ flexDirection: "column", gap: 8, alignItems: "flex-end", justifyContent: "flex-start", paddingTop: 4 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", cursor: "pointer", whiteSpace: "nowrap" }}>
-              <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{displayDate}</span>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          }
+          rightSlot={
+            <div className="hidden md:flex" style={{ flexDirection: "column", gap: 8, alignItems: "flex-end", justifyContent: "flex-start" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", cursor: "pointer", whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{displayDate}</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+              <div style={{ padding: "10px 14px", borderRadius: 12, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", width: 200 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Keep it up! 🚀</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>Team updates are on track today.</div>
+                <svg width="100%" height="24" style={{ marginTop: 4 }}>
+                  <polyline points="0,18 20,12 40,15 60,8 80,10 100,5 120,8 140,4 160,6" fill="none" stroke="#E31E24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
             </div>
-            <div style={{ padding: "10px 14px", borderRadius: 12, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", width: "100%" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Keep it up! 🚀</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>Team updates are on track today.</div>
-              <svg width="100%" height="24" style={{ marginTop: 4 }}>
-                <polyline points="0,18 20,12 40,15 60,8 80,10 100,5 120,8 140,4 160,6" fill="none" stroke="#E31E24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-          </div>
-        </div>
+          }
+        />
       </div>
 
       {/* ── 5 KPI Cards ── */}

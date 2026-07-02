@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { useState, useTransition } from "react"
-import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, XOctagon, Paperclip, Plus, Trash2, Pencil, X, AlertTriangle } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, UserCheck, UserX, XOctagon, Paperclip, Plus, Trash2, Pencil, X, AlertTriangle } from "lucide-react"
 import { updateLeaveStatus } from "@/lib/actions/leaves"
 import { addCompanyLeave, updateCompanyLeave, deleteCompanyLeave } from "@/lib/actions/company-leaves"
 
@@ -29,8 +29,12 @@ interface CompanyLeave {
 interface LeavesClientProps {
   leaves: Leave[]
   statusFilter: string
+  typeFilter: string
   upcomingLeaves: Leave[]
   availabilityPct: number
+  availableCount: number
+  onLeaveCountToday: number
+  awayCountToday: number
   onLeaveToday: { name: string }[]
   pendingCount: number
   approvedCount: number
@@ -44,12 +48,13 @@ interface LeavesClientProps {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-const STATUS_TABS = [
-  { key: "pending",  label: "Pending",  color: "#F59E0B" },
-  { key: "approved", label: "Approved", color: "#10B981" },
-  { key: "rejected", label: "Rejected", color: "#EF4444" },
-  { key: "all",      label: "All",      color: "#6B7280" },
-  { key: "holidays", label: "🏢 Holidays", color: "#1E40AF" },
+const COMBINED_TABS = [
+  { key: "all",                  label: "All",                  status: "all",      type: "all_types" },
+  { key: "pending",              label: "Pending",              status: "pending",  type: "all_types" },
+  { key: "approved_permission",  label: "Approved Permission",  status: "approved", type: "permission" },
+  { key: "approved_leave",       label: "Approved Leave",       status: "approved", type: "leave" },
+  { key: "rejected",             label: "Rejected",             status: "rejected", type: "all_types" },
+  { key: "holidays",             label: "🏢 Holidays",          status: "holidays", type: "all_types" },
 ]
 
 function daysBetween(from: string, to: string) {
@@ -120,38 +125,6 @@ function getAvatar(name: string, gender: string | undefined, idx: number) {
   if (g === "female" || g === "f") return GIRL_IMGS[idx % GIRL_IMGS.length]
   if (g === "male"   || g === "m") return BOY_IMGS[idx % BOY_IMGS.length]
   return idx % 2 === 0 ? BOY_IMGS[idx % BOY_IMGS.length] : GIRL_IMGS[idx % GIRL_IMGS.length]
-}
-
-// ── Donut Chart (text inside SVG for perfect centering) ────────────────────────
-function AvailabilityDonut({ pct, size = 160 }: { pct: number; size?: number }) {
-  const cx = size / 2, cy = size / 2
-  const r = size * 0.34
-  const circ = 2 * Math.PI * r
-  const sw = size * 0.1
-  const onTrack = (pct / 100) * circ
-  const offTrack = circ - onTrack
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <defs>
-        <linearGradient id="availGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FF6B6B" />
-          <stop offset="100%" stopColor="#FACC15" />
-        </linearGradient>
-      </defs>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth={sw} />
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="url(#availGrad)" strokeWidth={sw}
-        strokeDasharray={`${onTrack} ${offTrack}`} strokeLinecap="round"
-        transform={`rotate(-90 ${cx} ${cy})`}
-        style={{ transition: "stroke-dasharray 0.6s", filter: "drop-shadow(0 2px 8px rgba(255,100,100,0.5))" }} />
-      <text x={cx} y={cy - size * 0.08} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.2} fontWeight="900" fill="#FFFFFF">{pct}%</text>
-      <text x={cx} y={cy + size * 0.08} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.075} fill="rgba(255,255,255,0.7)">Team</text>
-      <text x={cx} y={cy + size * 0.19} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.075} fill="rgba(255,255,255,0.7)">Available</text>
-    </svg>
-  )
 }
 
 // ── Leave Card ─────────────────────────────────────────────────────────────────
@@ -281,7 +254,8 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function LeavesClient({
-  leaves, statusFilter, upcomingLeaves, availabilityPct, onLeaveToday,
+  leaves, statusFilter, typeFilter, upcomingLeaves, availabilityPct,
+  availableCount, onLeaveCountToday, awayCountToday, onLeaveToday,
   pendingCount, approvedCount, rejectedCount, companyLeaves,
   fullDayCount, wfhCount, shootCount, halfDayCount,
 }: LeavesClientProps) {
@@ -336,7 +310,12 @@ export default function LeavesClient({
     router.refresh()
   }
 
-  function navigate(s: string) { router.push(`${pathname}?status=${s}`) }
+  function navigateCombined(tab: { status: string; type: string }) {
+    const params = new URLSearchParams()
+    params.set("status", tab.status)
+    if (tab.type !== "all_types") params.set("type", tab.type)
+    router.push(`${pathname}?${params.toString()}`)
+  }
   function handleApprove(id: string) {
     setActionId(id + "approved")
     setActionError(null)
@@ -358,6 +337,13 @@ export default function LeavesClient({
 
   const vacationItems = upcomingLeaves.length > 0 ? upcomingLeaves : []
   const donutColor = availabilityPct >= 80 ? "#10B981" : availabilityPct >= 60 ? "#F59E0B" : "#EF4444"
+  const totalTeamCount = availableCount + onLeaveCountToday + awayCountToday
+  const availabilityStatus = availabilityPct >= 90
+    ? { label: "All Good!", color: "#10B981", bg: "#ECFDF5" }
+    : availabilityPct >= 70
+    ? { label: "Mostly Available", color: "#F59E0B", bg: "#FEF9EC" }
+    : { label: "Needs Attention", color: "#EF4444", bg: "#FEF2F2" }
+  const pct = (n: number) => totalTeamCount > 0 ? Math.round((n / totalTeamCount) * 100) : 0
 
   const gradBg = "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)"
 
@@ -387,7 +373,7 @@ export default function LeavesClient({
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: 0 }}>Review and manage team leave applications</p>
         </div>
         {/* 6 KPI boxes in 3×2 grid */}
-        <div className="grid grid-cols-3 lg:grid-cols-6 w-fit mx-auto lg:mx-0" style={{ gap: 8, position: "relative", zIndex: 1 }}>
+        <div className="grid grid-cols-3 lg:grid-cols-6 mx-auto lg:mx-0" style={{ gap: 8, position: "relative", zIndex: 1, width: "100%", maxWidth: 420 }}>
           {[
             { label: "Full Day",  value: fullDayCount,  color: "#FCA5A5" },
             { label: "WFH",       value: wfhCount,       color: "#6EE7B7" },
@@ -409,12 +395,14 @@ export default function LeavesClient({
         {/* ── Main Column ─────────────────────────────────────────────────── */}
         <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
 
-          {/* Status tabs */}
+          {/* Combined status + type tabs */}
           <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
-            {STATUS_TABS.map((tab) => {
-              const active = statusFilter === tab.key
+            {COMBINED_TABS.map((tab) => {
+              const active = tab.key === "holidays"
+                ? statusFilter === "holidays"
+                : statusFilter === tab.status && typeFilter === tab.type
               return (
-                <button key={tab.key} onClick={() => navigate(tab.key)} style={{
+                <button key={tab.key} onClick={() => navigateCombined(tab)} style={{
                   padding: "8px 22px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
                   whiteSpace: "nowrap", transition: "all 0.15s", border: "none",
                   background: active ? gradBg : "#FFFFFF",
@@ -559,17 +547,16 @@ export default function LeavesClient({
           {/* Leave Cards */}
           {statusFilter !== "holidays" && (leaves.length === 0 ? (
             <div style={{
-              background: gradBg, borderRadius: 18, padding: "60px 24px", textAlign: "center",
-              position: "relative", overflow: "hidden", boxShadow: "0 8px 32px rgba(180,0,0,0.3)",
+              background: "#FFFFFF", borderRadius: 18, padding: "60px 24px", textAlign: "center",
+              border: "1px solid #F0F0F5", boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
             }}>
-              <div style={{ position: "absolute", top: -30, right: -20, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
-              <div style={{ position: "relative", width: 200, height: 160, margin: "0 auto 20px" }}>
+              <div style={{ position: "relative", width: 280, height: 220, margin: "0 auto 20px", maxWidth: "100%" }}>
                 <Image src="/brand/leave/vacation-hero.png" alt="" fill style={{ objectFit: "contain" }} />
               </div>
-              <p style={{ fontSize: 16, fontWeight: 700, color: "#FFFFFF", margin: "0 0 6px", fontFamily: "var(--font-jakarta)" }}>
+              <p style={{ fontSize: 16, fontWeight: 700, color: "#111827", margin: "0 0 6px", fontFamily: "var(--font-jakarta)" }}>
                 No {statusFilter === "all" ? "" : statusFilter} leave requests
               </p>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: 0 }}>Your team is fully available today.</p>
+              <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>Your team is fully available today.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
@@ -589,29 +576,71 @@ export default function LeavesClient({
 
           {/* Availability */}
           <div style={{
-            background: gradBg, borderRadius: 18, padding: "20px",
-            boxShadow: "0 8px 28px rgba(180,0,0,0.35)",
-            position: "relative", overflow: "hidden",
+            background: "#FFFFFF", borderRadius: 18, padding: "20px",
+            border: "1px solid #F0F0F5", boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
           }}>
-            <div style={{ position: "absolute", top: -30, right: -20, width: 130, height: 130, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
-            <div style={{ position: "relative", zIndex: 1 }}>
-              <p style={{ fontSize: 13, fontWeight: 800, color: "#FFFFFF", margin: "0 0 16px", fontFamily: "var(--font-jakarta)" }}>Team Availability</p>
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-                <AvailabilityDonut pct={availabilityPct} size={160} />
-              </div>
-              {onLeaveToday.length > 0 && (
-                <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 10, padding: "10px 12px", border: "1px solid rgba(255,255,255,0.18)" }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: "#FACC15", margin: "0 0 6px" }}>{onLeaveToday.length} on leave today</p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    {onLeaveToday.map((m, i) => (
-                      <span key={i} style={{ fontSize: 10, color: "#FFFFFF", background: "rgba(255,255,255,0.15)", padding: "2px 8px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.2)" }}>
-                        {m.name.split(" ")[0]}
-                      </span>
-                    ))}
-                  </div>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 14, background: `${donutColor}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Users size={20} style={{ color: donutColor }} />
                 </div>
-              )}
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>Team Availability</p>
+                  <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>Real-time team status overview</p>
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <p style={{ fontSize: 26, fontWeight: 900, color: donutColor, margin: 0, lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{availabilityPct}%</p>
+                <p style={{ fontSize: 11, color: donutColor, fontWeight: 700, margin: "3px 0 0" }}>Available</p>
+              </div>
             </div>
+
+            <div style={{ height: 12, background: "#F3F4F6", borderRadius: 99, overflow: "hidden", marginBottom: 14 }}>
+              <div style={{ height: "100%", width: `${availabilityPct}%`, background: donutColor, borderRadius: 99, transition: "width 0.6s" }} />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 8 }}>
+              <p style={{ fontSize: 13, margin: 0 }}>
+                <span style={{ fontWeight: 900, color: donutColor, fontFamily: "var(--font-jakarta)" }}>{availableCount} / {totalTeamCount}</span>
+                <span style={{ color: "#6B7280", marginLeft: 6 }}>Members Available</span>
+              </p>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, color: availabilityStatus.color, background: availabilityStatus.bg, padding: "5px 12px", borderRadius: 99 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: availabilityStatus.color }} />
+                {availabilityStatus.label}
+              </span>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", position: "relative" }}>
+              <div style={{ position: "absolute", left: "33.33%", top: 4, bottom: 4, width: 1, background: "#F0F0F5" }} />
+              <div style={{ position: "absolute", left: "66.66%", top: 4, bottom: 4, width: 1, background: "#F0F0F5" }} />
+              {[
+                { Icon: UserCheck, value: availableCount, label: "Available", color: "#10B981", bg: "rgba(16,185,129,0.1)" },
+                { Icon: CalendarDays, value: onLeaveCountToday, label: "On Leave", color: "#D97706", bg: "rgba(217,119,6,0.1)" },
+                { Icon: UserX, value: awayCountToday, label: "Away", color: "#EF4444", bg: "rgba(239,68,68,0.1)" },
+              ].map(s => (
+                <div key={s.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "0 8px" }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <s.Icon size={20} style={{ color: s.color }} />
+                  </div>
+                  <p style={{ fontSize: 20, fontWeight: 900, color: s.color, margin: 0, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#111827", margin: 0, textAlign: "center" }}>{s.label}</p>
+                  <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>{pct(s.value)}%</p>
+                </div>
+              ))}
+            </div>
+
+            {onLeaveToday.length > 0 && (
+              <div style={{ marginTop: 18, background: "#FEF9EC", borderRadius: 10, padding: "10px 12px", border: "1px solid #FDE68A" }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: "#D97706", margin: "0 0 6px" }}>{onLeaveToday.length} on leave today</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {onLeaveToday.map((m, i) => (
+                    <span key={i} style={{ fontSize: 10, color: "#92400E", background: "#FFFFFF", padding: "2px 8px", borderRadius: 20, border: "1px solid #FDE68A" }}>
+                      {m.name.split(" ")[0]}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Upcoming Leaves */}

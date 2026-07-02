@@ -16,7 +16,7 @@ function adminClient() {
 export default async function LeavesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ status?: string; type?: string }>
 }) {
   const params = await searchParams
   const supabase = await createServerClient()
@@ -24,6 +24,9 @@ export default async function LeavesPage({
   if (!user) redirect("/login")
 
   const statusFilter = params.status ?? "pending"
+  const typeFilter = params.type ?? "all_types"
+  const PERMISSION_TYPES = ["wfh", "shoot_day"]
+  const LEAVE_TYPES = ["full_day", "half_day", "permission"]
   const today = new Date().toISOString().split("T")[0]
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0]
 
@@ -50,11 +53,18 @@ export default async function LeavesPage({
     leavesQuery = leavesQuery.eq("status", statusFilter)
   }
 
+  if (typeFilter === "permission") {
+    leavesQuery = leavesQuery.in("leave_type", PERMISSION_TYPES)
+  } else if (typeFilter === "leave") {
+    leavesQuery = leavesQuery.in("leave_type", LEAVE_TYPES)
+  }
+
   const [
     { data: leaves },
     { data: upcoming },
     { count: memberCount },
     { count: onLeaveCount },
+    { count: awayTodayCount },
     { data: onLeaveTodayRaw },
     { count: pendingCount },
     { count: approvedCount },
@@ -79,13 +89,24 @@ export default async function LeavesPage({
       .from("users")
       .select("*", { count: "exact", head: true })
       .eq("company_id", cid)
-      .eq("role", "MEMBER"),
+      .eq("role", "MEMBER")
+      .eq("status", "active")
+      .eq("is_management", false)
+      .eq("is_freelancer_login", false),
     admin
       .from("leaves")
       .select("*", { count: "exact", head: true })
       .eq("company_id", cid)
       .eq("status", "approved")
       .in("leave_type", ["full_day", "half_day"])
+      .lte("from_date", today)
+      .gte("to_date", today),
+    admin
+      .from("leaves")
+      .select("*", { count: "exact", head: true })
+      .eq("company_id", cid)
+      .eq("status", "approved")
+      .in("leave_type", ["wfh", "shoot_day"])
       .lte("from_date", today)
       .gte("to_date", today),
     admin
@@ -108,7 +129,9 @@ export default async function LeavesPage({
 
   const total = Math.max(1, memberCount ?? 0)
   const onLeave = onLeaveCount ?? 0
-  const availabilityPct = Math.min(100, Math.max(0, Math.round(((total - onLeave) / total) * 100)))
+  const away = awayTodayCount ?? 0
+  const available = Math.max(0, total - onLeave - away)
+  const availabilityPct = Math.min(100, Math.max(0, Math.round((available / total) * 100)))
 
   const onLeaveToday = (onLeaveTodayRaw ?? []).map((l: any) => {
     const u = Array.isArray(l.users) ? l.users[0] : l.users
@@ -119,8 +142,12 @@ export default async function LeavesPage({
     <LeavesClient
       leaves={leaves ?? []}
       statusFilter={statusFilter}
+      typeFilter={typeFilter}
       upcomingLeaves={upcoming ?? []}
       availabilityPct={availabilityPct}
+      availableCount={available}
+      onLeaveCountToday={onLeave}
+      awayCountToday={away}
       onLeaveToday={onLeaveToday}
       pendingCount={pendingCount ?? 0}
       approvedCount={approvedCount ?? 0}

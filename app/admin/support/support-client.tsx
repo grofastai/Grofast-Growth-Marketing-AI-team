@@ -7,13 +7,14 @@ import { addResponse, updateTicketStatus, createTicket, closeTicket, getSupportH
 import { useToast } from '@/components/ui/useToast'
 import {
   Plus, Search, Send, Loader2, X, Paperclip, ChevronLeft,
-  Inbox, CheckCircle2, XCircle, AlertCircle, Clock, UserPlus, LifeBuoy, Check,
+  Inbox, CheckCircle2, XCircle, AlertCircle, Clock, UserPlus, LifeBuoy, Check, Headphones,
 } from 'lucide-react'
 import {
   statusOf, categoryOf, CATEGORIES, priorityOf, PRIORITY_OPTIONS,
-  HERO_GRADIENT, timeAgo, ticketNum,
+  timeAgo, ticketNum,
 } from '@/lib/support-tokens'
 import { Bubble, StatusRibbon, bodyParts, SUPPORT_ANIM_CSS } from '@/components/support/thread-ui'
+import { PageHero } from '@/components/admin/PageHero'
 
 type Response = { id: string; responder_id: string; responder_name: string; message: string; created_at: string }
 type Ticket = {
@@ -160,80 +161,38 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
       <div style={{ maxWidth: 1240, margin: '0 auto', padding: '16px' }}>
 
         {/* ── HERO ────────────────────────────────────────────────────── */}
-        <div style={{
-          background: 'linear-gradient(120deg, #C01010 0%, #D41515 35%, #C01010 65%, #9B0D0D 100%)',
-          borderRadius: 20, position: 'relative', overflow: 'hidden',
-          boxShadow: '0 8px 32px rgba(180,0,0,0.45)', marginBottom: 14, minHeight: 186,
-        }}>
-          {/* Background depth: subtle dark vignette on edges */}
-          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 30% 50%, rgba(255,60,60,0.18) 0%, transparent 60%)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 80% 40%, rgba(80,0,0,0.35) 0%, transparent 55%)', pointerEvents: 'none' }} />
-          {/* Sparkle dots spread across banner */}
-          <div style={{ position: 'absolute', top: 16, left: '30%', width: 5, height: 5, borderRadius: '50%', background: 'rgba(255,255,255,0.45)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', top: 38, left: '26%', width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.28)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', bottom: 24, left: '34%', width: 4, height: 4, borderRadius: '50%', background: 'rgba(255,200,200,0.35)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', top: 28, right: '22%', width: 4, height: 4, borderRadius: '50%', background: 'rgba(255,255,255,0.3)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', bottom: 40, right: '28%', width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,200,200,0.25)', pointerEvents: 'none' }} />
-
-          {/* ── GIRL — center-right, large, fills full height ── */}
-          <div className="hidden md:block" style={{
-            position: 'absolute',
-            left: '28%', top: '50%',
-            transform: 'translateY(-50%)',
-            width: 520, height: '155%',
-            pointerEvents: 'none', zIndex: 1,
-          }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/support/hero-girl.png" alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center bottom', filter: 'drop-shadow(0 6px 24px rgba(0,0,0,0.25))' }} />
-          </div>
-
-          {/* ── BUTTONS — absolute top-right ── */}
-          <div style={{ position: 'absolute', top: 18, right: 20, display: 'flex', gap: 8, zIndex: 3 }}>
-            {canAssign && (
-              <button onClick={() => setShowAssign(true)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 15px', borderRadius: 12, fontSize: 12.5, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(8px)' }}>
-                <UserPlus size={14} /> Assign handler
-              </button>
-            )}
-            <button onClick={() => setShowNew(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: '#C01010', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.22)', whiteSpace: 'nowrap' }}>
-              <Plus size={14} /> New ticket
-            </button>
-          </div>
-
-          {/* ── LEFT CONTENT: badge top-left, title+chips bottom-left ── */}
-          <div style={{ position: 'relative', zIndex: 2, padding: '18px 22px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', minHeight: 186, maxWidth: 400 }}>
-            {/* Badge — top left */}
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 99, background: 'rgba(0,0,0,0.22)', color: '#fff', border: '1px solid rgba(255,255,255,0.22)', letterSpacing: '0.04em', alignSelf: 'flex-start' }}>
-              🎧 Support Inbox
-            </span>
-
-            {/* Title + subtitle + chips — anchored bottom */}
-            <div>
-              <h1 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 5px', fontFamily: 'var(--font-jakarta)', color: '#fff', lineHeight: 1.18, letterSpacing: '-0.01em' }}>
-                Help Your Team Faster
-              </h1>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: '0 0 14px', lineHeight: 1.55 }}>
-                Manage tickets, reply instantly,<br />and keep every client happy.
-              </p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {[
-                  { emoji: '🎧', value: stats.open,        label: 'Open' },
-                  { emoji: '✅', value: stats.resolved,    label: 'Resolved Today' },
-                  { emoji: '⏱',  value: stats.in_progress, label: 'In Progress' },
-                ].map(chip => (
-                  <div key={chip.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.14)', borderRadius: 12, padding: '7px 13px', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)' }}>
-                    <span style={{ fontSize: 16, lineHeight: 1 }}>{chip.emoji}</span>
-                    <div>
-                      <p style={{ fontSize: 17, fontWeight: 900, color: '#fff', margin: 0, lineHeight: 1, fontFamily: 'var(--font-jakarta)' }}>{chip.value}</p>
-                      <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{chip.label}</p>
-                    </div>
-                  </div>
-                ))}
+        <div style={{ marginBottom: 14 }}>
+          <PageHero
+            eyebrow="SUPPORT INBOX"
+            eyebrowIcon={<Headphones size={14} style={{ color: '#FFD700' }} />}
+            title="Help Your Team Faster"
+            subtitle="Manage tickets, reply instantly, and keep every client happy."
+            maxContentWidth={400}
+            illustration={
+              <div className="hidden md:block" style={{
+                position: 'absolute', left: '28%', top: '50%', transform: 'translateY(-50%)',
+                width: 420, height: '135%', pointerEvents: 'none', zIndex: 1,
+              }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/brand/support/hero-girl.png" alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center bottom', filter: 'drop-shadow(0 6px 24px rgba(0,0,0,0.25))' }} />
               </div>
-            </div>
-          </div>
+            }
+            actions={
+              <>
+                {canAssign && (
+                  <button onClick={() => setShowAssign(true)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 15px', borderRadius: 12, fontSize: 12.5, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(8px)' }}>
+                    <UserPlus size={14} /> Assign handler
+                  </button>
+                )}
+                <button onClick={() => setShowNew(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: '#C01010', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.22)', whiteSpace: 'nowrap' }}>
+                  <Plus size={14} /> New ticket
+                </button>
+              </>
+            }
+          />
         </div>
 
         {/* ── STAT CARDS ROW ──────────────────────────────────────────── */}
@@ -249,7 +208,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                 {card.icon}
               </div>
               <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: '#B0B5BF', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{card.label}</p>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{card.label}</p>
                 <p style={{ fontSize: 24, fontWeight: 900, color: '#1F2430', margin: 0, lineHeight: 1, fontFamily: 'var(--font-jakarta)' }}>{card.value}</p>
                 <p style={{ fontSize: 10.5, color: card.dot, margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: card.dot, display: 'inline-block', flexShrink: 0 }} />
@@ -305,19 +264,20 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                   const preview = last ? bodyParts(last.message).text || '📎 Attachment' : bodyParts(t.description).text
                   return (
                     <button key={t.id} onClick={() => openTicket(t.id)} className="sd-row"
-                      style={{ animationDelay: `${Math.min(i * 26, 220)}ms`, width: '100%', textAlign: 'left', display: 'flex', gap: 11, padding: 11, borderRadius: 13, border: 'none', cursor: 'pointer', marginBottom: 2,
-                        background: isActive ? 'rgba(222,26,26,0.06)' : 'transparent',
-                        boxShadow: isActive ? 'inset 0 0 0 1.5px rgba(222,26,26,0.28)' : 'none' }}>
-                      <div style={{ width: 38, height: 38, borderRadius: 11, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: '#F4F5F8', position: 'relative' }}>
+                      style={{ animationDelay: `${Math.min(i * 26, 220)}ms`, width: '100%', textAlign: 'left', display: 'flex', gap: 11, padding: 11, borderRadius: 13, cursor: 'pointer', marginBottom: 6,
+                        background: isActive ? 'linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)' : '#F9FAFB',
+                        border: isActive ? 'none' : '1px solid #EDEEF1',
+                        boxShadow: isActive ? '0 4px 16px rgba(139,18,18,0.35)' : '0 1px 3px rgba(0,0,0,0.03)' }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 11, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: isActive ? 'rgba(255,255,255,0.15)' : '#FFFFFF', position: 'relative' }}>
                         {cat.emoji}
                         <span style={{ position: 'absolute', bottom: -1, right: -1, width: 11, height: 11, borderRadius: '50%', background: tok.ring, border: '2px solid #fff' }} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#1F2430', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.title}</span>
-                          <span style={{ fontSize: 10, color: '#B6BAC2', flexShrink: 0 }}>{timeAgo(t.updated_at)}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: isActive ? '#FFFFFF' : '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.title}</span>
+                          <span style={{ fontSize: 10, color: isActive ? 'rgba(255,255,255,0.6)' : '#6B7280', flexShrink: 0 }}>{timeAgo(t.updated_at)}</span>
                         </div>
-                        <p style={{ margin: '2px 0 0', fontSize: 11.5, color: '#8A8F99', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ margin: '2px 0 0', fontSize: 11.5, color: isActive ? 'rgba(255,255,255,0.75)' : '#4B5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {requesterName(t)} · {preview}
                         </p>
                         <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>
@@ -457,7 +417,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                         )}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                           <div style={{ width: 40, height: 40, borderRadius: 12, background: step.bg, border: `1.5px solid ${step.color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, boxShadow: `0 2px 8px ${step.color}18` }}>{step.emoji}</div>
-                          <span style={{ fontSize: 9, color: '#B0B5BF', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{step.label}</span>
+                          <span style={{ fontSize: 9, color: '#6B7280', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{step.label}</span>
                         </div>
                       </div>
                     ))}

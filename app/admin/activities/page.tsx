@@ -53,6 +53,8 @@ export default async function ActivitiesPage({
       .eq("company_id", companyId)
       .eq("role", "MEMBER")
       .eq("status", "active")
+      .eq("is_management", false)
+      .eq("is_freelancer_login", false)
       .order("name"),
     (async () => {
       let q = admin

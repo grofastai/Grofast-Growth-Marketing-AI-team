@@ -10,6 +10,10 @@ import {
   runPayroll,
   saveBonusAdvance,
 } from "@/lib/actions/payroll"
+import { savePayrollSettings } from "@/lib/actions/payroll-settings"
+import type { PayrollSettings } from "@/lib/payroll-settings-defaults"
+import { useToast } from "@/components/ui/useToast"
+import { PageHero } from "@/components/admin/PageHero"
 
 type PayrollRow = {
   id: string; name: string; employee_id: string; team: string | null
@@ -213,9 +217,11 @@ const DEF_TEAM = { bg: "#F3F4F6", color: "#6B7280" }
 // ── Expandable Employee Card ────────────────────────────────────────────────
 function EmployeeCard({
   r, month, year, mon, workDays, isExpanded, onToggle,
+  selectMode = false, selected = false, onToggleSelect,
 }: {
   r: PayrollRow; month: string; year: number; mon: number; workDays: number
   isExpanded: boolean; onToggle: () => void
+  selectMode?: boolean; selected?: boolean; onToggleSelect?: () => void
 }) {
   const [isPending, startTransition] = useTransition()
   const [savingBonus, setSavingBonus] = useState(false)
@@ -268,6 +274,12 @@ function EmployeeCard({
     }}>
       {/* ── Card header row ── */}
       <div style={{ padding: "16px 22px", display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+
+        {/* Select checkbox — only in Bulk Update select mode */}
+        {selectMode && (
+          <input type="checkbox" checked={selected} onChange={onToggleSelect}
+            style={{ width: 20, height: 20, flexShrink: 0, cursor: "pointer", accentColor: "#E53935" }} />
+        )}
 
         {/* Avatar */}
         <div style={{
@@ -532,6 +544,7 @@ function EmployeeCard({
 export default function PayrollClient({
   rows, month, workDays,
   pendingCollabCount, pendingLeaveCount, pendingUpdateCount,
+  payrollSettings,
 }: {
   rows: PayrollRow[]
   month: string
@@ -539,12 +552,30 @@ export default function PayrollClient({
   pendingCollabCount: number
   pendingLeaveCount: number
   pendingUpdateCount: number
+  payrollSettings: PayrollSettings
 }) {
   const router   = useRouter()
   const pathname = usePathname()
+  const { toastEl, showToast } = useToast()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [isRunning, startRunTransition] = useTransition()
   const [showConfirm, setShowConfirm] = useState(false)
+
+  // Bulk Update — select-multiple-then-mark-paid. Fully separate from the
+  // existing Run Payroll flow above (different state, different confirm
+  // modal) so it can't interfere with that flow.
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false)
+  const [isBulkRunning, startBulkTransition] = useTransition()
+
+  // Payroll Settings — separate modal + form state, saves via
+  // savePayrollSettings unchanged. Opening the modal seeds the form from
+  // payrollSettings (the values page.tsx already fetched and used to
+  // compute the rows currently on screen).
+  const [showSettings, setShowSettings] = useState(false)
+  const [settingsForm, setSettingsForm] = useState<PayrollSettings>(payrollSettings)
+  const [isSavingSettings, setIsSavingSettings] = useState(false)
 
   const [year, mon] = month.split("-").map(Number)
   const monthName   = new Date(year, mon - 1).toLocaleString("en-IN", { month: "long", year: "numeric" })
@@ -591,6 +622,130 @@ export default function PayrollClient({
     })
   }
 
+  // Opens each employee's existing, unmodified payslip URL in its own tab —
+  // reuses /api/payslip exactly as the per-row download button already does,
+  // just for every configured employee in one click instead of one at a time.
+  function handleBulkPayslip() {
+    const configured = rows.filter(r => r.basePay > 0)
+    if (configured.length === 0) {
+      showToast("No employees with payroll configured for this month yet.", "error")
+      return
+    }
+    showToast(`Opening ${configured.length} payslip${configured.length > 1 ? "s" : ""} — allow pop-ups if your browser blocks them.`, "info")
+    configured.forEach((r, i) => {
+      setTimeout(() => {
+        window.open(`/api/payslip?userId=${r.id}&month=${month}`, "_blank", "noopener,noreferrer")
+      }, i * 400)
+    })
+  }
+
+  // Bulk Update — toggle select mode; picking employees then confirming
+  // reuses the existing runPayroll(month, ids, netPayMap) action unchanged,
+  // just scoped to whichever ids the admin picked instead of "all unpaid".
+  function handleToggleSelectMode() {
+    setSelectMode(v => !v)
+    setSelectedIds(new Set())
+  }
+  function toggleSelectId(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  function handleBulkMarkPaid() {
+    if (selectedIds.size === 0) {
+      showToast("Select at least one employee first.", "error")
+      return
+    }
+    setShowBulkConfirm(true)
+  }
+  function confirmBulkMarkPaid() {
+    setShowBulkConfirm(false)
+    const selectedRows = rows.filter(r => selectedIds.has(r.id) && !r.isPaid)
+    startBulkTransition(async () => {
+      const netPayMap = Object.fromEntries(selectedRows.map(r => [r.id, r.finalNetPay]))
+      await runPayroll(month, selectedRows.map(r => r.id), netPayMap)
+      setSelectMode(false)
+      setSelectedIds(new Set())
+    })
+  }
+
+  function handleOpenSettings() {
+    setSettingsForm(payrollSettings)
+    setShowSettings(true)
+  }
+  async function handleSaveSettings() {
+    setIsSavingSettings(true)
+    try {
+      const res = await savePayrollSettings(settingsForm)
+      if (res.success) {
+        showToast("Payroll settings saved. Recalculating with the new values…", "success")
+        setShowSettings(false)
+        router.refresh()
+      } else {
+        showToast(res.error ?? "Could not save settings", "error")
+      }
+    } finally {
+      setIsSavingSettings(false)
+    }
+  }
+
+  // Builds a printable summary report entirely client-side from the rows
+  // already computed and on screen — no new API route, no re-running any
+  // salary calculation, so it can't drift from what's actually displayed.
+  function handleGenerateReport() {
+    if (rows.length === 0) {
+      showToast("No payroll rows to report for this month.", "error")
+      return
+    }
+    const win = window.open("", "_blank", "noopener,noreferrer")
+    if (!win) {
+      showToast("Pop-up blocked — allow pop-ups to view the report.", "error")
+      return
+    }
+    const tableRows = rows.map(r => `
+      <tr>
+        <td>${r.name}</td>
+        <td>#${r.employee_id}</td>
+        <td style="text-align:right">${fmt(r.basePay)}</td>
+        <td style="text-align:right">${fmt(r.deduction)}</td>
+        <td style="text-align:right">${fmt(r.otPay)}</td>
+        <td style="text-align:right">${fmt(r.bonus)}</td>
+        <td style="text-align:right">${fmt(r.advance)}</td>
+        <td style="text-align:right;font-weight:700">${fmt(r.finalNetPay)}</td>
+        <td>${r.isPaid ? "Paid" : "Pending"}</td>
+      </tr>`).join("")
+    win.document.write(`<!DOCTYPE html><html><head><title>Payroll Report — ${monthName}</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:32px;color:#111}
+        h1{font-size:20px;margin:0 0 4px}
+        p.sub{color:#6B7280;margin:0 0 20px;font-size:13px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{padding:8px 10px;border-bottom:1px solid #E5E7EB;text-align:left}
+        th{background:#F9FAFB;font-weight:700;color:#374151}
+        .totals{display:flex;gap:24px;margin-bottom:20px}
+        .totals div{background:#F9FAFB;border-radius:10px;padding:10px 16px}
+        .totals strong{display:block;font-size:16px}
+        @media print{ body{padding:0} }
+      </style></head>
+      <body>
+        <h1>Payroll Report — ${monthName}</h1>
+        <p class="sub">${rows.length} employees · ${paidCount} paid · Generated ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+        <div class="totals">
+          <div>Total Base Pay<strong>${fmt(totalBase)}</strong></div>
+          <div>Total OT Pay<strong>${fmt(totalOT)}</strong></div>
+          <div>Total Deductions<strong>${fmt(totalDed)}</strong></div>
+          <div>Total Net Payroll<strong>${fmt(totalFinal)}</strong></div>
+        </div>
+        <table>
+          <thead><tr><th>Name</th><th>ID</th><th>Base</th><th>Deduction</th><th>OT Pay</th><th>Bonus</th><th>Advance</th><th>Net Pay</th><th>Status</th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </body></html>`)
+    win.document.close()
+  }
+
   const SUMMARY = [
     { label: "Total Payroll",    value: fmtK(totalFinal), sub: `${paidCount} of ${rows.length} paid`,    color: "#E53935", bg: "#FFF5F5", idx: 0 },
     { label: "Total OT Pay",     value: fmtK(totalOT),    sub: `${rows.filter(r => r.otPay > 0).length} with OT`,   color: "#F97316", bg: "#FFF7ED", idx: 1 },
@@ -602,6 +757,7 @@ export default function PayrollClient({
 
   return (
     <div style={{ padding: "20px 24px", maxWidth: 1400, margin: "0 auto" }}>
+      {toastEl}
 
       {/* ── Pre-Payroll Checklist Banner ── */}
       {hasPreCheckIssues && (
@@ -670,48 +826,148 @@ export default function PayrollClient({
         </div>
       )}
 
+      {showBulkConfirm && (() => {
+        const selectedRows = rows.filter(r => selectedIds.has(r.id) && !r.isPaid)
+        return (
+          <div style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+          }}>
+            <div style={{ background: "#fff", borderRadius: 22, padding: "32px 36px", maxWidth: 420, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+              <div style={{ fontSize: 36, textAlign: "center", marginBottom: 16 }}>✅</div>
+              <h2 style={{ fontSize: 20, fontWeight: 900, color: "#111", textAlign: "center", margin: "0 0 8px", fontFamily: "var(--font-jakarta)" }}>
+                Mark Selected as Paid
+              </h2>
+              <p style={{ fontSize: 13, color: "#6B7280", textAlign: "center", margin: "0 0 20px", lineHeight: 1.6 }}>
+                Mark <strong>{selectedRows.length} employee{selectedRows.length !== 1 ? "s" : ""}</strong> as paid for <strong>{monthName}</strong>?<br />
+                Total payout: <strong style={{ color: "#16A34A" }}>{fmt(selectedRows.reduce((s, r) => s + r.finalNetPay, 0))}</strong>
+              </p>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  onClick={() => setShowBulkConfirm(false)}
+                  style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1.5px solid #E5E7EB", background: "#F9FAFB", fontSize: 13, fontWeight: 700, color: "#374151", cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBulkMarkPaid}
+                  style={{ flex: 1, padding: "12px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #16A34A, #15803D)", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer", boxShadow: "0 4px 16px rgba(22,163,74,0.35)" }}
+                >
+                  Confirm &amp; Mark Paid
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {showSettings && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+        }}>
+          <div style={{ background: "#fff", borderRadius: 22, padding: "28px 32px", maxWidth: 480, width: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <h2 style={{ fontSize: 18, fontWeight: 900, color: "#111", margin: "0 0 4px", fontFamily: "var(--font-jakarta)" }}>
+              Payroll Settings
+            </h2>
+            <p style={{ fontSize: 12, color: "#9CA3AF", margin: "0 0 20px" }}>
+              Changes apply from the next calculation onward — past paid months are not recalculated.
+            </p>
+
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Attendance Rules</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
+              {([
+                ["ot_threshold_hrs", "OT Threshold (hrs/day)"],
+                ["half_day_threshold_hrs", "Half-Day Threshold (hrs)"],
+                ["salary_basis_days", "Salary Basis (days/month)"],
+              ] as const).map(([key, label]) => (
+                <label key={key} style={{ display: "block" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>{label}</span>
+                  <input type="number" step="0.1" value={settingsForm[key]}
+                    onChange={e => setSettingsForm(prev => ({ ...prev, [key]: Number(e.target.value) }))}
+                    style={{ width: "100%", padding: "9px 10px", borderRadius: 10, border: "1.5px solid #E5E7EB", fontSize: 13 }} />
+                </label>
+              ))}
+            </div>
+
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Salary Breakdown (payslip only)</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 6 }}>
+              {([
+                ["basic_pct", "Basic (% of gross)"],
+                ["hra_pct", "HRA (% of basic)"],
+                ["travel_pct", "Travel (% of gross)"],
+                ["medical_pct", "Medical (% of gross)"],
+              ] as const).map(([key, label]) => (
+                <label key={key} style={{ display: "block" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>{label}</span>
+                  <input type="number" step="0.5" value={settingsForm[key]}
+                    onChange={e => setSettingsForm(prev => ({ ...prev, [key]: Number(e.target.value) }))}
+                    style={{ width: "100%", padding: "9px 10px", borderRadius: 10, border: "1.5px solid #E5E7EB", fontSize: 13 }} />
+                </label>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 20px" }}>
+              Whatever remains of gross salary after Basic + Travel + Medical is deducted shows on the payslip as &quot;Other Allowance&quot;.
+            </p>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setShowSettings(false)}
+                style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1.5px solid #E5E7EB", background: "#F9FAFB", fontSize: 13, fontWeight: 700, color: "#374151", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveSettings}
+                disabled={isSavingSettings}
+                style={{ flex: 1, padding: "12px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #16A34A, #15803D)", fontSize: 13, fontWeight: 700, color: "#fff", cursor: isSavingSettings ? "wait" : "pointer", boxShadow: "0 4px 16px rgba(22,163,74,0.35)" }}
+              >
+                {isSavingSettings ? "Saving…" : "Save Settings"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Page header ── */}
       <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12,
-        background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
-        borderRadius: 20, padding: "20px 24px",
-        boxShadow: "0 8px 32px rgba(180,0,0,0.35)",
-        position: "relative", overflow: "hidden",
+        marginBottom: 20,
       }}>
-        <div style={{ position: "absolute", top: -30, right: 120, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
-        <div style={{ position: "relative", zIndex: 1 }}>
-          <h1 style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", margin: 0, fontFamily: "var(--font-jakarta)" }}>Payroll</h1>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: "4px 0 0" }}>Monthly salary breakdown for your team</p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 12, background: "#fff", border: "1.5px solid #E5E7EB" }}>
-            <span style={{ fontSize: 14 }}>📅</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{monthName}</span>
-            <button onClick={() => changeMonth(-1)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>‹</button>
-            <button onClick={() => changeMonth(1)}  style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>›</button>
-          </div>
-          <button
-            onClick={handleRunPayroll}
-            disabled={isRunning || unpaidRows.length === 0}
-            style={{
-              display: "flex", alignItems: "center", gap: 8,
-              padding: "10px 22px", borderRadius: 12,
-              background: unpaidRows.length === 0
-                ? "rgba(255,255,255,0.15)"
-                : "linear-gradient(135deg, #16A34A, #15803D)",
-              color: "#fff", border: "none", cursor: unpaidRows.length === 0 ? "default" : "pointer",
-              fontSize: 13, fontWeight: 700,
-              boxShadow: unpaidRows.length === 0 ? "none" : "0 4px 18px rgba(22,163,74,0.45)",
-              opacity: isRunning ? 0.7 : 1,
-            }}
-          >
-            {isRunning
-              ? "Processing…"
-              : unpaidRows.length === 0
-                ? <><CheckCircle2 size={14} /> All Paid</>
-                : <><Zap size={14} /> Run Payroll ({unpaidRows.length})</>}
-          </button>
-        </div>
+        <PageHero
+          title="Payroll"
+          subtitle="Monthly salary breakdown for your team"
+          actions={
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 12, background: "#fff", border: "1.5px solid #E5E7EB" }}>
+                <span style={{ fontSize: 14 }}>📅</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{monthName}</span>
+                <button onClick={() => changeMonth(-1)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>‹</button>
+                <button onClick={() => changeMonth(1)}  style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>›</button>
+              </div>
+              <button
+                onClick={handleRunPayroll}
+                disabled={isRunning || unpaidRows.length === 0}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "10px 22px", borderRadius: 12,
+                  background: unpaidRows.length === 0
+                    ? "rgba(255,255,255,0.15)"
+                    : "linear-gradient(135deg, #16A34A, #15803D)",
+                  color: "#fff", border: "none", cursor: unpaidRows.length === 0 ? "default" : "pointer",
+                  fontSize: 13, fontWeight: 700,
+                  boxShadow: unpaidRows.length === 0 ? "none" : "0 4px 18px rgba(22,163,74,0.45)",
+                  opacity: isRunning ? 0.7 : 1,
+                }}
+              >
+                {isRunning
+                  ? "Processing…"
+                  : unpaidRows.length === 0
+                    ? <><CheckCircle2 size={14} /> All Paid</>
+                    : <><Zap size={14} /> Run Payroll ({unpaidRows.length})</>}
+              </button>
+            </>
+          }
+        />
       </div>
 
       {/* ── 2-col layout ── */}
@@ -820,13 +1076,27 @@ export default function PayrollClient({
 
           {/* Employee Payroll Cards */}
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
               <h2 style={{ fontSize: 17, fontWeight: 800, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>
                 Employee Payroll
               </h2>
-              <span style={{ fontSize: 12, color: "#9CA3AF" }}>
-                {paidCount} paid · {unpaidRows.length} pending
-              </span>
+              {selectMode ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{selectedIds.size} selected</span>
+                  <button onClick={handleBulkMarkPaid} disabled={selectedIds.size === 0 || isBulkRunning} style={{
+                    padding: "7px 16px", borderRadius: 10, border: "none",
+                    background: selectedIds.size === 0 ? "#E5E7EB" : "linear-gradient(135deg, #16A34A, #15803D)",
+                    color: selectedIds.size === 0 ? "#9CA3AF" : "#fff",
+                    fontSize: 12, fontWeight: 700, cursor: selectedIds.size === 0 ? "not-allowed" : "pointer",
+                  }}>
+                    {isBulkRunning ? "Marking…" : "Mark Selected as Paid"}
+                  </button>
+                </div>
+              ) : (
+                <span style={{ fontSize: 12, color: "#9CA3AF" }}>
+                  {paidCount} paid · {unpaidRows.length} pending
+                </span>
+              )}
             </div>
 
             {rows.length === 0 ? (
@@ -847,6 +1117,9 @@ export default function PayrollClient({
                     workDays={workDays}
                     isExpanded={expandedId === r.id}
                     onToggle={() => setExpandedId(expandedId === r.id ? null : r.id)}
+                    selectMode={selectMode}
+                    selected={selectedIds.has(r.id)}
+                    onToggleSelect={() => toggleSelectId(r.id)}
                   />
                 ))}
               </div>
@@ -899,47 +1172,25 @@ export default function PayrollClient({
             </div>
           </div>
 
-          {/* Upcoming Payouts */}
-          <div style={{ borderRadius: 20, background: "#fff", border: "1.5px solid #EBEBEB", padding: "18px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-            <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: "0 0 14px", fontFamily: "var(--font-jakarta)" }}>Upcoming Payouts</h3>
-            {[
-              { icon: "📅", label: "Salary Payout",  date: `03 ${payDate.toLocaleString("en-IN", { month: "short", year: "numeric" })}`, color: "#3B82F6" },
-              { icon: "🎁", label: "Bonus Payout",    date: `05 ${payDate.toLocaleString("en-IN", { month: "long", year: "numeric" })}`,  color: "#8B5CF6" },
-              { icon: "📊", label: "Reimbursement",   date: `07 ${payDate.toLocaleString("en-IN", { month: "long", year: "numeric" })}`,  color: "#F97316" },
-            ].map((item, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", gap: 12,
-                paddingBottom: i < 2 ? 12 : 0, marginBottom: i < 2 ? 12 : 0,
-                borderBottom: i < 2 ? "1px solid #F5F5F5" : "none",
-              }}>
-                <div style={{ width: 38, height: 38, borderRadius: 11, background: `${item.color}12`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, border: `1px solid ${item.color}20` }}>
-                  {item.icon}
-                </div>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111" }}>{item.label}</div>
-                  <div style={{ fontSize: 10, color: "#9CA3AF" }}>{item.date}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
           {/* Quick Actions */}
           <div style={{ borderRadius: 20, background: "#fff", border: "1.5px solid #EBEBEB", padding: "18px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
             <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: "0 0 14px", fontFamily: "var(--font-jakarta)" }}>Quick Actions</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {[
-                { emoji: "📄", label: "Generate Payslip" },
-                { emoji: "📋", label: "Bulk Update" },
-                { emoji: "⚙️", label: "Payroll Settings" },
-                { emoji: "📊", label: "Reports" },
+                { emoji: "📄", label: "Generate Payslip", action: handleBulkPayslip, active: false },
+                { emoji: "📋", label: selectMode ? "Cancel Select" : "Bulk Update", action: handleToggleSelectMode, active: selectMode },
+                { emoji: "⚙️", label: "Payroll Settings", action: handleOpenSettings, active: false },
+                { emoji: "📊", label: "Reports", action: handleGenerateReport, active: false },
               ].map((action) => (
-                <button key={action.label} style={{
-                  padding: "12px 8px", borderRadius: 14, background: "#F9FAFB",
-                  border: "1.5px solid #EBEBEB", cursor: "pointer",
+                <button key={action.label} onClick={action.action} style={{
+                  padding: "12px 8px", borderRadius: 14,
+                  background: action.active ? "rgba(229,57,53,0.08)" : "#F9FAFB",
+                  border: action.active ? "1.5px solid rgba(229,57,53,0.3)" : "1.5px solid #EBEBEB",
+                  cursor: "pointer",
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 7,
                 }}>
                   <span style={{ fontSize: 22 }}>{action.emoji}</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: "#374151", textAlign: "center" }}>{action.label}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: action.active ? "#E53935" : "#374151", textAlign: "center" }}>{action.label}</span>
                 </button>
               ))}
             </div>

@@ -1615,7 +1615,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
                                 style={m.status === "active" ? { background: "rgba(34,197,94,0.1)", color: "#16A34A" } : { background: "rgba(107,114,128,0.1)", color: "#6B7280" }}>
                                 <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: m.status === "active" ? "#16A34A" : "#9CA3AF" }} />
-                                {m.status === "active" ? "Active" : "Inactive"}
+                                {m.status === "active" ? "Active" : "Deactivated"}
                               </span>
                             </td>
                             <td className="px-5 py-3">
@@ -1785,7 +1785,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
               {([
                 { key: "ALL", label: "All" },
                 { key: "active", label: "Active" },
-                { key: "inactive", label: "Inactive" },
+                { key: "inactive", label: "Deactivated" },
               ] as const).map(({ key, label }) => (
                 <button key={key} onClick={() => setTabFilter(key)}
                   className="px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
@@ -1884,7 +1884,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                             : { background: "#F3F4F6", color: "#9CA3AF", border: "1px solid #E5E7EB" }
                           }>
                           <span className="w-1.5 h-1.5 rounded-full" style={{ background: member.status === "active" ? "#22C55E" : "#D1D5DB" }} />
-                          {member.status === "active" ? "Active" : "Inactive"}
+                          {member.status === "active" ? "Active" : "Deactivated"}
                         </span>
                       </td>
 
@@ -2043,7 +2043,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
             boxShadow: "0 8px 32px rgba(79,46,229,0.25)",
           }}>
             <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 70% 50%, rgba(139,92,246,0.3) 0%, transparent 65%)" }} />
-            <div style={{ position: "absolute", right: 0, bottom: 0, width: 160, height: 170, pointerEvents: "none" }}>
+            <div className="absolute right-0 bottom-0 pointer-events-none w-[220px] h-[230px] md:w-[160px] md:h-[170px]">
               <Image src="/brand/team-image.png" alt="Team" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
             </div>
             <div style={{ position: "relative", zIndex: 1, padding: "22px 20px" }}>

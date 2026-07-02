@@ -5,12 +5,11 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   Plus, X, Trash2, Loader2, Calendar, Users, Columns, Target,
-  TrendingUp, CheckSquare, Clock, BarChart3, Sparkles, Archive, ChevronDown, ChevronUp,
+  TrendingUp, CheckSquare, Clock, Sparkles, Archive, ChevronDown, ChevronUp,
   Paperclip, Link2, FileText, ExternalLink,
 } from "lucide-react"
 import { createTask, updateTaskStatus, deleteTask } from "@/lib/actions/tasks"
 import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
-import { syncClientsNow } from "@/lib/actions/sync"
 
 interface TaskAttachment { type: 'link' | 'file'; url: string; name?: string }
 
@@ -244,8 +243,6 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [movingId, setMovingId] = useState<string | null>(null)
   const [archiveOpen, setArchiveOpen] = useState(false)
-  const [syncing, setSyncing] = useState(false)
-  const [syncMsg, setSyncMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [mediaClientType, setMediaClientType] = useState("")
   const [mediaBrand, setMediaBrand] = useState("")
   const [mediaCustomClient, setMediaCustomClient] = useState("")
@@ -357,11 +354,10 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
               Assign, track & manage your team's work
             </p>
             {/* Mini stats row */}
-            <div style={{ display: "flex", gap: 10, marginTop: 16, overflowX: "auto", flexWrap: "nowrap" }}>
+            <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
               {[
                 { icon: <CheckSquare size={12} />, label: `${done} Done` },
                 { icon: <Clock size={12} />, label: `${inprog} Active` },
-                { icon: <BarChart3 size={12} />, label: `${members.length} Members` },
               ].map(s => (
                 <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 12px", flexShrink: 0, whiteSpace: "nowrap" }}>
                   <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
@@ -372,12 +368,13 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
           </div>
 
           {/* Right: controls */}
-          <div className="flex items-center flex-wrap justify-center sm:justify-end" style={{ gap: 10, flexShrink: 0 }}>
-            <div style={{ display: "flex", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: 4, gap: 3 }}>
+          <div className="flex flex-col sm:flex-row sm:items-center w-full sm:w-auto" style={{ gap: 10, flexShrink: 0 }}>
+            <div className="w-full sm:w-auto" style={{ display: "flex", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: 4, gap: 3 }}>
               {([["member", <Users size={13} key="u" />, "By Member"], ["status", <Columns size={13} key="c" />, "By Status"]] as const).map(([mode, icon, label]) => (
                 <button key={mode} onClick={() => setViewMode(mode as "member" | "status")}
+                  className="flex-1 sm:flex-initial"
                   style={{
-                    display: "flex", alignItems: "center", gap: 6,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                     padding: "8px 16px", borderRadius: 10, fontSize: 12, fontWeight: 700,
                     border: "none", cursor: "pointer", transition: "all 0.15s",
                     background: viewMode === mode ? "#FFFFFF" : "transparent",
@@ -388,33 +385,8 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                 </button>
               ))}
             </div>
-            <button
-              onClick={async () => {
-                setSyncing(true); setSyncMsg(null)
-                const res = await syncClientsNow()
-                setSyncing(false)
-                if (res.success) {
-                  setSyncMsg({ ok: true, text: `✓ Synced ${res.active} active + ${res.past} past clients` })
-                  router.refresh()
-                } else {
-                  setSyncMsg({ ok: false, text: res.error ?? "Sync failed" })
-                }
-                setTimeout(() => setSyncMsg(null), 4000)
-              }}
-              disabled={syncing}
-              title="Sync clients from Google Sheet"
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "11px 16px", borderRadius: 14, fontSize: 12, fontWeight: 700,
-                border: "1.5px solid rgba(255,255,255,0.3)", cursor: syncing ? "wait" : "pointer",
-                background: "rgba(255,255,255,0.15)", color: "#FFFFFF",
-                opacity: syncing ? 0.7 : 1,
-              }}>
-              {syncing ? <Loader2 size={13} className="animate-spin" /> : <TrendingUp size={13} />}
-              {syncing ? "Syncing…" : "Sync Clients"}
-            </button>
-            <button onClick={() => openForm()} style={{
-              display: "flex", alignItems: "center", gap: 8,
+            <button onClick={() => openForm()} className="w-full sm:w-auto" style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               padding: "11px 22px", borderRadius: 14, fontSize: 13, fontWeight: 800,
               border: "none", cursor: "pointer",
               background: "#FFFFFF", color: "#de1a1a",
@@ -422,16 +394,6 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
             }}>
               <Plus size={16} /> Create Task
             </button>
-            {syncMsg && (
-              <div style={{
-                position: "fixed", bottom: 24, right: 24, zIndex: 9999,
-                background: syncMsg.ok ? "#10B981" : "#EF4444", color: "#fff",
-                padding: "12px 20px", borderRadius: 12, fontSize: 13, fontWeight: 700,
-                boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-              }}>
-                {syncMsg.text}
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -683,24 +645,23 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
       </div>
 
       {/* ── BOTTOM BANNER ───────────────────────────────────────────────────── */}
-      <div style={{
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between" style={{
         marginTop: 24, borderRadius: 24, overflow: "hidden",
         background: "linear-gradient(135deg, #1E1B4B 0%, #312E81 40%, #4C1D95 100%)",
         boxShadow: "0 8px 32px rgba(49,46,129,0.35)",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        minHeight: 180, position: "relative",
+        position: "relative",
       }}>
         {/* Decorative circles */}
         <div style={{ position: "absolute", top: -30, left: 260, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", bottom: -20, left: 380, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
 
         {/* Left — team image */}
-        <div style={{ position: "relative", width: 320, height: 180, flexShrink: 0 }}>
+        <div className="w-full md:w-[320px]" style={{ position: "relative", height: 180, flexShrink: 0 }}>
           <Image src="/brand/task-assign/teamfordown.png" alt="" fill style={{ objectFit: "cover", objectPosition: "center top" }} />
         </div>
 
         {/* Text */}
-        <div style={{ flex: 1, padding: "28px 36px", position: "relative", zIndex: 1 }}>
+        <div className="px-6 py-6 md:px-9 md:py-7" style={{ flex: 1, position: "relative", zIndex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <TrendingUp size={16} style={{ color: "#A78BFA" }} />
             <span style={{ fontSize: 11, fontWeight: 700, color: "#A78BFA", textTransform: "uppercase", letterSpacing: "0.12em" }}>Team Productivity</span>
@@ -713,8 +674,8 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
           </p>
         </div>
 
-        {/* Right — lamp illustration */}
-        <div style={{ position: "relative", width: 170, height: 170, flexShrink: 0, marginRight: 16 }}>
+        {/* Right — lamp illustration, desktop only (no room on mobile alongside image+text) */}
+        <div className="hidden md:block" style={{ position: "relative", width: 170, height: 170, flexShrink: 0, marginRight: 16 }}>
           <Image src="/brand/task-assign/studyfortitle.png" alt="" fill style={{ objectFit: "contain", objectPosition: "right center" }} />
         </div>
       </div>

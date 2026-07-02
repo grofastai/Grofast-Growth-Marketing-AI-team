@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation"
 import {
   IndianRupee, Plus, Trash2, X, Pencil,
   Car, Megaphone, Monitor, MoreHorizontal, Building2,
-  Receipt, Layers, CheckCircle2, AlertCircle,
+  Receipt, Layers, CheckCircle2, AlertCircle, Wallet,
 } from "lucide-react"
+import { PageHero } from "@/components/admin/PageHero"
 import {
   upsertTravelCost,
   addClientExpense,
@@ -523,15 +524,18 @@ export default function ExpensesClient({
       <div className="p-4 md:p-6 xl:p-8 max-w-[1300px] mx-auto space-y-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 flex-wrap"
-          style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius: 20, padding: "22px 24px", boxShadow: "0 8px 32px rgba(180,0,0,0.35)" }}>
-          <h1 className="text-[28px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>Expenses</h1>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.12)" }}>
-            <button onClick={() => goMonth(-1)} className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-lg hover:bg-white/10 transition-colors">‹</button>
-            <span className="text-[14px] font-black text-white px-2">{MONTHS_SHORT[mo - 1]} {yr}</span>
-            <button onClick={() => goMonth(1)} className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-lg hover:bg-white/10 transition-colors">›</button>
-          </div>
-        </div>
+        <PageHero
+          eyebrowIcon={<Wallet size={14} style={{ color: "#FFD700" }} />}
+          title="Expenses"
+          subtitle="Track client direct, common shared & overhead costs"
+          rightSlot={
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.12)" }}>
+              <button onClick={() => goMonth(-1)} className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-lg hover:bg-white/10 transition-colors">‹</button>
+              <span className="text-[14px] font-black text-white px-2">{MONTHS_SHORT[mo - 1]} {yr}</span>
+              <button onClick={() => goMonth(1)} className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-lg hover:bg-white/10 transition-colors">›</button>
+            </div>
+          }
+        />
 
         {/* 4 Summary Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

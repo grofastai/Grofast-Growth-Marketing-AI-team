@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, CalendarDays, Sparkles, BookOpen, FolderOpen } from 'lucide-react'
+import { Plus, Search, CalendarDays, BookOpen, FolderOpen } from 'lucide-react'
 import { FolderSidebar } from './folder-sidebar'
 import { NotesList } from './notes-list'
 import { NoteEditor } from './note-editor'
@@ -11,6 +11,7 @@ import { filterNotes, type HubView, type FilterNote } from '@/lib/notes/filter'
 import { canEditNote } from '@/lib/notes/access'
 import { createNote, updateNote, createFolder, deleteNote, deleteFolder } from '@/lib/actions/notes'
 import { useToast } from '@/components/ui/useToast'
+import { PageHero } from '@/components/admin/PageHero'
 import type { HubNote, Folder, TeamMember, NoteScope } from './types'
 
 export default function NotesHub({ initialNotes, folders, teamMembers, viewer }: {
@@ -92,41 +93,26 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#F8F9FC' }}>
       {toastEl}
       {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
-      <div style={{ flexShrink: 0, margin: '16px 16px 0', borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)', boxShadow: '0 8px 32px rgba(222,26,26,0.35)', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
-        <div style={{ position: 'absolute', bottom: -20, right: 160, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
-        <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, position: 'relative', zIndex: 1 }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '5px 7px', display: 'flex', alignItems: 'center' }}>
-                <Sparkles size={14} style={{ color: '#FFD700' }} />
-              </div>
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Admin Dashboard</span>
+      <div style={{ flexShrink: 0, margin: '16px 16px 0' }}>
+        <PageHero
+          title="Notes"
+          subtitle="Create, organize and collaborate on company knowledge"
+          chips={[
+            { icon: <BookOpen size={11} />, label: `${initialNotes.length} Notes` },
+            { icon: <FolderOpen size={11} />, label: `${folders.length} Folders` },
+          ]}
+          rightSlot={
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <BookOpen size={18} style={{ color: '#FFFFFF' }} />
             </div>
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: '#FFFFFF', margin: '0 0 4px', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>Notes</h1>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', margin: 0 }}>Create, organize and collaborate on company knowledge</p>
-            <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-              {[
-                { icon: <BookOpen size={11} />, label: `${initialNotes.length} Notes` },
-                { icon: <FolderOpen size={11} />, label: `${folders.length} Folders` },
-              ].map(s => (
-                <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '3px 10px' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.8)' }}>{s.icon}</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: '#FFFFFF' }}>{s.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <BookOpen size={18} style={{ color: '#FFFFFF' }} />
-          </div>
-        </div>
+          }
+        />
       </div>
       {/* Search + action bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3" style={{ padding: '12px 20px', borderBottom: '1px solid #F1F1F4', background: '#fff', flexShrink: 0 }}>
         <div style={{ flex: 1, minWidth: 0 }} />
         <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-        <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search notes..."
             style={{ padding: '8px 12px 8px 30px', borderRadius: 10, border: '1px solid #E5E7EB', fontSize: 13, width: '100%', minWidth: 150 }} />
@@ -142,8 +128,8 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
         </div>
       </div>
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* Folder sidebar — full width on mobile step 1, fixed width on desktop */}
-        <div className={mobileStep !== 'folders' ? 'hidden md:flex md:flex-col' : 'flex flex-col w-full md:w-auto'}>
+        {/* Folder sidebar — full width on mobile step 1, fixed width on desktop. Always hidden on mobile in calendar mode so the calendar isn't squeezed into a sliver. */}
+        <div className={(calendar || mobileStep !== 'folders') ? 'hidden md:flex md:flex-col' : 'flex flex-col w-full md:w-auto'}>
           <FolderSidebar folders={folders} view={view} activeFolderId={folderId}
             onView={v => { setView(v); setFolderId(null); setMobileStep('notes') }}
             onFolder={id => { setFolderId(id); setView('all'); setMobileStep('notes') }}

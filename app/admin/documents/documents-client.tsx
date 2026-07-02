@@ -4,6 +4,7 @@ import { useState, useTransition, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { deleteDocument } from "@/lib/actions/documents"
 import Image from "next/image"
+import { PageHero } from "@/components/admin/PageHero"
 import {
   FileText, Upload, Trash2, FolderOpen, Loader2, X, Download,
   Phone, Mail, Briefcase, Calendar, Shield, HeartPulse, MapPin,
@@ -388,8 +389,8 @@ export default function DocumentsClient({
   const totalFiles    = documents.length
   const verifiedCount = documents.filter(d => d.doc_type !== "Other").length
   const pendingKYC    = members.filter(m => !kycRecords.find(k => k.user_id === m.id && k.bank_account)).length
-  const totalBytes    = documents.reduce((a, d) => a + (d.file_size ?? 0), 0)
-  const storageGB     = (totalBytes / (1024 * 1024 * 1024)).toFixed(1)
+  const membersWithDocs = members.filter(m => documents.some(d => d.user_id === m.id)).length
+  const coveragePct     = members.length > 0 ? Math.round((membersWithDocs / members.length) * 100) : 0
 
   // Profile completion
   const completionPct = useMemo(() => {
@@ -496,51 +497,33 @@ export default function DocumentsClient({
       )}
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <div style={{
-        margin: "16px 16px 0", borderRadius: 20, overflow: "hidden",
-        background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
-        boxShadow: "0 8px 32px rgba(180,0,0,0.45)", position: "relative", minHeight: 200,
-      }}>
-        {/* Decorative circles */}
-        <div style={{ position: "absolute", top: -50, left: -50, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: -30, right: 220, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
-
-        {/* ── Photo cover — right 56%, objectFit cover, fades left ── */}
-        <div className="hidden md:block" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "56%", zIndex: 1, opacity: 0.9 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/documents/hero-boy.png" alt=""
-            style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 15%", display: "block" }} />
-          {/* Fade left edge into red */}
-          <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "60%", background: "linear-gradient(to right, #8B1212 0%, rgba(139,18,18,0.55) 50%, transparent 100%)", zIndex: 2, pointerEvents: "none" }} />
-        </div>
-
-        {/* ── Buttons — absolute top-right ── */}
-        <div style={{ position: "absolute", top: 18, right: 20, display: "flex", flexDirection: "column", gap: 8, zIndex: 4, alignItems: "flex-end" }}>
-          <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}
-            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: "1.5px solid rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.22)", color: "#fff", backdropFilter: "blur(12px)", whiteSpace: "nowrap", boxShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
-            <Upload size={13} /> Upload Document
-          </button>
-          <a href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8" target="_blank" rel="noopener noreferrer"
-            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: "#C01010", background: "#FFFFFF", textDecoration: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.35)", whiteSpace: "nowrap", border: "none" }}>
-            <ExternalLink size={13} /> Drive Backup
-          </a>
-        </div>
-
-        {/* ── Left content: badge top, title+chips bottom ── */}
-        <div style={{ position: "relative", zIndex: 3, padding: "22px 28px 24px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 200, maxWidth: "46%" }}>
-          {/* Badge — top left */}
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.22)", letterSpacing: "0.04em", alignSelf: "flex-start" }}>
-            📄 Admin Dashboard
-          </span>
-
-          {/* Title + subtitle + stat chips — bottom */}
-          <div>
-            <h1 style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", margin: "0 0 5px", fontFamily: "var(--font-jakarta)", lineHeight: 1.15, letterSpacing: "-0.01em" }}>
-              Documents
-            </h1>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.68)", margin: "0 0 14px", lineHeight: 1.55 }}>
-              Manage employee documents<br />securely in one place
-            </p>
+      <div style={{ margin: "16px 16px 0" }}>
+        <PageHero
+          eyebrowIcon={<span style={{ fontSize: 14 }}>📄</span>}
+          title="Documents"
+          subtitle="Manage employee documents securely in one place"
+          maxContentWidth="46%"
+          illustration={
+            <div className="hidden md:block" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "56%", zIndex: 1, opacity: 0.9 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/documents/hero-boy.png" alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 15%", display: "block" }} />
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "60%", background: "linear-gradient(to right, #8B1212 0%, rgba(139,18,18,0.55) 50%, transparent 100%)", zIndex: 2, pointerEvents: "none" }} />
+            </div>
+          }
+          actions={
+            <>
+              <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: "1.5px solid rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.22)", color: "#fff", backdropFilter: "blur(12px)", whiteSpace: "nowrap", boxShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
+                <Upload size={13} /> Upload Document
+              </button>
+              <a href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8" target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: "#C01010", background: "#FFFFFF", textDecoration: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.35)", whiteSpace: "nowrap", border: "none" }}>
+                <ExternalLink size={13} /> Drive Backup
+              </a>
+            </>
+          }
+          belowSubtitle={
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {[
                 { emoji: "👥", value: members.length, label: "Members" },
@@ -556,8 +539,8 @@ export default function DocumentsClient({
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+          }
+        />
       </div>
 
       {/* ── MOBILE STAT CARDS (visible < md, hidden on desktop where hero shows them) ── */}
@@ -565,7 +548,7 @@ export default function DocumentsClient({
         <HeroStatCard label="Total Files"        value={String(totalFiles)}    sub="16.4%" icon="📄" color="#6366F1" up />
         <HeroStatCard label="Verified Documents" value={String(verifiedCount)} sub="22.1%" icon="✅" color="#16A34A" up />
         <HeroStatCard label="Pending KYC"        value={String(pendingKYC)}    sub="5.6%"  icon="⏳" color="#F59E0B" up={false} />
-        <HeroStatCard label="Cloud Storage"      value={`${storageGB} GB`}     sub="32.4 GB / 50 GB" icon="☁️" color="#0EA5E9" up={false} />
+        <HeroStatCard label="Doc Coverage"        value={`${coveragePct}%`}     sub={`${membersWithDocs}/${members.length} members`} icon="📁" color="#0EA5E9" up={coveragePct >= 50} />
       </div>
 
       {/* ── MAIN 3-COLUMN GRID ──────────────────────────────────────────────── */}
@@ -644,6 +627,22 @@ export default function DocumentsClient({
 
         {/* ── CENTER: Document Explorer ────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Mobile/tablet employee switcher — the Employees list is desktop-only (lg:flex), so this is the
+              only way to change whose documents are shown below lg */}
+          <div className="lg:hidden" style={{ position: "relative" }}>
+            <Users size={13} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+            <select
+              value={selectedId}
+              onChange={e => { setSelectedId(e.target.value); setActiveTab("documents"); setDocFilter("All"); setDocSearch("") }}
+              style={{
+                width: "100%", padding: "10px 12px 10px 34px", borderRadius: 14, fontSize: 13, fontWeight: 700,
+                border: "1px solid #E5E7EB", outline: "none", color: "#111", background: "#fff",
+                boxSizing: "border-box", appearance: "none",
+              }}>
+              {members.map(m => <option key={m.id} value={m.id}>{m.name} (#{m.employee_id})</option>)}
+            </select>
+            <ChevronRight size={13} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%) rotate(90deg)", color: "#9CA3AF", pointerEvents: "none" }} />
+          </div>
           {selectedMember ? (
             <>
               {/* Profile header card */}
@@ -958,25 +957,20 @@ export default function DocumentsClient({
         </div>
       </div>
 
-      {/* ── BOTTOM: Cloud Storage + Recent Uploads ───────────────────────────── */}
+      {/* ── BOTTOM: Document Coverage + Recent Uploads ───────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 px-4 md:px-5 pb-6 pt-3.5">
-        {/* Cloud Storage */}
+        {/* Document Coverage — % of members who've uploaded at least one document */}
         <div style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", padding: "18px", display: "flex", alignItems: "center", gap: 16 }}>
-          <Image src="/brand/documents/hero-boy.png" alt="Cloud" width={80} height={80} style={{ objectFit: "contain", flexShrink: 0 }} />
+          <Image src="/brand/documents/hero-boy.png" alt="Documents" width={80} height={80} style={{ objectFit: "contain", flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <div className="flex items-center justify-between mb-2">
-              <p style={{ fontSize: 13, fontWeight: 800, color: "#111" }}>Cloud Storage</p>
-              <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "rgba(249,115,22,0.1)", color: "#EA580C" }}>72%</span>
+              <p style={{ fontSize: 13, fontWeight: 800, color: "#111" }}>Document Coverage</p>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "rgba(249,115,22,0.1)", color: "#EA580C" }}>{coveragePct}%</span>
             </div>
             <div style={{ height: 8, borderRadius: 99, background: "#F3F4F6", overflow: "hidden", marginBottom: 8 }}>
-              <div style={{ height: "100%", width: "72%", borderRadius: 99, background: "linear-gradient(90deg, #3B82F6, #0EA5E9)" }} />
+              <div style={{ height: "100%", width: `${coveragePct}%`, borderRadius: 99, background: "linear-gradient(90deg, #3B82F6, #0EA5E9)" }} />
             </div>
-            <div className="flex items-center justify-between">
-              <p style={{ fontSize: 11, color: "#6B7280" }}>32.4 GB / 50 GB used</p>
-              <button style={{ fontSize: 11, fontWeight: 700, padding: "5px 14px", borderRadius: 8, background: "linear-gradient(135deg, #F59E0B, #D97706)", color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                ✨ Upgrade Plan
-              </button>
-            </div>
+            <p style={{ fontSize: 11, color: "#6B7280" }}>{membersWithDocs} of {members.length} members have uploaded documents</p>
           </div>
         </div>
 

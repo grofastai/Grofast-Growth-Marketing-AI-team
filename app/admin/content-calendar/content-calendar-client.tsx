@@ -6,9 +6,11 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, Plus, X, Camera,
   Loader2, CheckCircle2, Clock,
   PlayCircle, Image, Film, Layers, Send, Trash2, Pencil,
+  UploadCloud, ClipboardList, Lightbulb,
 } from "lucide-react"
 import { createContentPost, updateContentPost, updateContentPostStatus, deleteContentPost } from "@/lib/actions/content-calendar"
 import { useToast } from "@/components/ui/useToast"
+import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
@@ -390,96 +392,75 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     <div style={{ background: "#F9FAFB", minHeight: "100vh", padding: isMobile ? "12px" : "24px" }}>
       {toastEl}
 
-      {/* ── Hero Header — double-colour banner ── */}
-      <div style={{
-        background: "linear-gradient(105deg, #E8000A 0%, #C00008 28%, #7B0000 58%, #1A0000 100%)",
-        borderRadius: 24, marginBottom: 24, position: "relative", overflow: "hidden",
-        padding: isMobile ? "0 16px" : "0 32px",
-        boxShadow: "0 12px 48px rgba(139,0,0,0.55)",
-        minHeight: isMobile ? 130 : 160,
-        display: "flex", alignItems: "center", flexWrap: "wrap",
-      }}>
-        {/* Left radial glow (bright side) */}
-        <div style={{ position: "absolute", top: "50%", left: -60, transform: "translateY(-50%)", width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,80,80,0.18) 0%, transparent 65%)", pointerEvents: "none" }} />
-        {/* Right radial glow (dark side) */}
-        <div style={{ position: "absolute", top: "50%", right: -40, transform: "translateY(-50%)", width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%)", pointerEvents: "none" }} />
-
-        {/* ── LEFT: badge + title + controls ── */}
-        <div style={{ flex: 1, position: "relative", zIndex: 3, paddingTop: 28, paddingBottom: 28 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", borderRadius: 20, padding: "4px 12px 4px 8px", marginBottom: 10, border: "1px solid rgba(255,255,255,0.25)" }}>
-            <span style={{ fontSize: 14 }}>⭐</span>
-            <span style={{ fontSize: 11, fontWeight: 800, color: "#FFF", letterSpacing: "0.04em" }}>Content Calendar</span>
-          </div>
-          <h1 style={{ fontSize: isMobile ? 22 : 36, fontWeight: 900, color: "#FFFFFF", margin: "0 0 4px", lineHeight: 1.1, textShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
-            Content Calendar
-          </h1>
-          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: isMobile ? 11 : 13, margin: "0 0 20px", fontWeight: 500 }}>
-            {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-          </p>
-          {/* Toggle row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={() => { resetForm(); setSchedDates([today]); setModalMode("add") }}
-              style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 20px", background: "rgba(255,255,255,0.22)", backdropFilter: "blur(8px)", color: "#FFF", borderRadius: 12, border: "1.5px solid rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>
-              <Plus size={14} strokeWidth={3} /> Add Content
-            </button>
-            <div style={{ display: "flex", background: "rgba(0,0,0,0.25)", backdropFilter: "blur(8px)", borderRadius: 10, padding: 3, gap: 2, border: "1px solid rgba(255,255,255,0.12)" }}>
-              {([
-                { v: "calendar" as const, label: "📅 Calendar" },
-                { v: "list"     as const, label: "☰ List" },
-              ]).map(({ v, label }) => (
-                <button key={v} onClick={() => setView(v)} style={{
-                  padding: "6px 13px", borderRadius: 8, border: "none", cursor: "pointer",
-                  fontSize: 11, fontWeight: 700, transition: "all 0.15s",
-                  background: view === v ? "rgba(255,255,255,0.22)" : "transparent",
-                  color: view === v ? "#FFF" : "rgba(255,255,255,0.5)",
-                  boxShadow: view === v ? "0 2px 8px rgba(0,0,0,0.3)" : "none",
-                  outline: "none",
-                  borderWidth: 1, borderStyle: "solid",
-                  borderColor: view === v ? "rgba(255,255,255,0.25)" : "transparent",
-                }}>{label}</button>
-              ))}
+      {/* ── Hero Header ── */}
+      <div style={{ marginBottom: 24 }}>
+        <PageHero
+          eyebrow="CONTENT CALENDAR"
+          eyebrowIcon={<span style={{ fontSize: 14 }}>⭐</span>}
+          title="Content Calendar"
+          subtitle={new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+          actions={
+            <>
+              <button onClick={() => { resetForm(); setSchedDates([today]); setModalMode("add") }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 20px", background: "rgba(255,255,255,0.22)", backdropFilter: "blur(8px)", color: "#FFF", borderRadius: 12, border: "1.5px solid rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>
+                <Plus size={14} strokeWidth={3} /> Add Content
+              </button>
+              <div style={{ display: "flex", background: "rgba(0,0,0,0.25)", backdropFilter: "blur(8px)", borderRadius: 10, padding: 3, gap: 2, border: "1px solid rgba(255,255,255,0.12)" }}>
+                {([
+                  { v: "calendar" as const, label: "📅 Calendar" },
+                  { v: "list"     as const, label: "☰ List" },
+                ]).map(({ v, label }) => (
+                  <button key={v} onClick={() => setView(v)} style={{
+                    padding: "6px 13px", borderRadius: 8, border: "none", cursor: "pointer",
+                    fontSize: 11, fontWeight: 700, transition: "all 0.15s",
+                    background: view === v ? "rgba(255,255,255,0.22)" : "transparent",
+                    color: view === v ? "#FFF" : "rgba(255,255,255,0.5)",
+                    boxShadow: view === v ? "0 2px 8px rgba(0,0,0,0.3)" : "none",
+                    outline: "none",
+                    borderWidth: 1, borderStyle: "solid",
+                    borderColor: view === v ? "rgba(255,255,255,0.25)" : "transparent",
+                  }}>{label}</button>
+                ))}
+              </div>
+            </>
+          }
+          rightSlot={
+            <div className="hidden md:flex" style={{ alignItems: "center", gap: 16 }}>
+              {/* Character + greeting card */}
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 16 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/brand/content-cal-hero-girl.png" alt=""
+                  style={{ height: 130, width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
+                <div style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "12px 16px", border: "1px solid rgba(255,255,255,0.2)", minWidth: 180 }}>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: "#FFF", margin: "0 0 4px" }}>Plan your content! 📅</p>
+                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", margin: 0 }}>What are you scheduling today?</p>
+                </div>
+              </div>
+              {/* Date + stat glass cards */}
+              <div style={{ display: "flex", gap: 10 }}>
+                <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "12px 16px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 80 }}>
+                  <p style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.1em" }}>
+                    {MONTHS[month].slice(0,3).toUpperCase()} {year}
+                  </p>
+                  <p style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{new Date().getDate()}</p>
+                  <p style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>
+                    {new Date().toLocaleDateString("en-US", { weekday: "long" })}
+                  </p>
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "12px 16px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 80 }}>
+                  <p style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>TOTAL</p>
+                  <p style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{totalContent}</p>
+                  <p style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Posts</p>
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "12px 16px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 80 }}>
+                  <p style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>UPLOADED</p>
+                  <p style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{postedCount}</p>
+                  <p style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Done ✓</p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-
-        {/* ── CENTER: Character + greeting card ── */}
-        <div style={{ position: "relative", zIndex: 3, display: isMobile ? "none" : "flex", alignItems: "flex-end", gap: 16, padding: "0 32px" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/content-cal-hero-girl.png" alt=""
-            style={{ height: 160, width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
-          <div style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "14px 18px", border: "1px solid rgba(255,255,255,0.2)", minWidth: 200, marginBottom: 16 }}>
-            <p style={{ fontSize: 15, fontWeight: 800, color: "#FFF", margin: "0 0 4px" }}>Plan your content! 📅</p>
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", margin: 0 }}>What are you scheduling today?</p>
-          </div>
-        </div>
-
-        {/* ── RIGHT: Date card + Stats glass cards ── */}
-        <div style={{ display: isMobile ? "none" : "flex", gap: 12, position: "relative", zIndex: 3, flexShrink: 0 }}>
-          {/* Date card */}
-          <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 90 }}>
-            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.1em" }}>
-              {MONTHS[month].slice(0,3).toUpperCase()} {year}
-            </p>
-            <p style={{ fontSize: 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>
-              {new Date().getDate()}
-            </p>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>
-              {new Date().toLocaleDateString("en-US", { weekday: "long" })}
-            </p>
-          </div>
-          {/* Posts this month card */}
-          <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 90 }}>
-            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>TOTAL</p>
-            <p style={{ fontSize: 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{totalContent}</p>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Posts</p>
-          </div>
-          {/* Posted card */}
-          <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 90 }}>
-            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>UPLOADED</p>
-            <p style={{ fontSize: 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{postedCount}</p>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Done ✓</p>
-          </div>
-        </div>
+          }
+        />
       </div>
 
       {/* ── Mode Tabs + Member Filter ── */}
@@ -487,20 +468,24 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         {/* Post / Shoot tabs */}
         <div style={{ flex: 1, minWidth: 260, display: "flex", gap: 4, background: "#FFFFFF", borderRadius: 18, padding: 4, border: "1px solid #E5E7EB", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
           {([
-            { mode: "post"  as const, icon: "📄", label: "Post Schedule",  desc: "Reels, posters, stories", grad: "linear-gradient(135deg, #C41230 0%, #8B0000 100%)", shadow: "rgba(139,0,0,0.35)" },
-            { mode: "shoot" as const, icon: "📹", label: "Shoot Schedule", desc: "Video shoots & locations",  grad: "linear-gradient(135deg, #1D4ED8 0%, #4D8CFF 100%)", shadow: "rgba(29,78,216,0.35)" },
-          ]).map(({ mode, icon, label, desc, grad, shadow }) => (
+            { mode: "post"  as const, label: "Post Schedule",  desc: "Reels, posters, stories", grad: "linear-gradient(135deg, #C41230 0%, #8B0000 100%)", shadow: "rgba(139,0,0,0.35)", img: "/post-illustration.png" },
+            { mode: "shoot" as const, label: "Shoot Schedule", desc: "Video shoots & locations",  grad: "linear-gradient(135deg, #1D4ED8 0%, #4D8CFF 100%)", shadow: "rgba(29,78,216,0.35)", img: "/shoot-illustration.png" },
+          ]).map(({ mode, label, desc, grad, shadow, img }) => (
             <button key={mode} onClick={() => setContentMode(mode)} style={{
-              flex: 1, padding: isMobile ? "12px 14px" : "16px 20px", borderRadius: 14, border: "none", cursor: "pointer",
+              flex: 1, padding: isMobile ? "10px 10px 10px 14px" : "12px 14px 12px 20px", borderRadius: 14, border: "none", cursor: "pointer",
               background: contentMode === mode ? grad : "transparent",
               color: contentMode === mode ? "#FFF" : "#6B7280",
               textAlign: "left", transition: "all 0.18s",
               boxShadow: contentMode === mode ? `0 4px 20px ${shadow}` : "none",
+              display: "flex", alignItems: "center", gap: 8,
             }}>
-              <p style={{ fontSize: isMobile ? 13 : 14, fontWeight: 800, margin: "0 0 2px", display: "flex", alignItems: "center", gap: 6 }}>
-                <span>{icon}</span> {label}
-              </p>
-              <p style={{ fontSize: isMobile ? 10 : 11, opacity: contentMode === mode ? 0.75 : 0.6, margin: 0, fontWeight: 500 }}>{desc}</p>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: isMobile ? 13 : 14, fontWeight: 800, margin: "0 0 2px", whiteSpace: "nowrap" }}>{label}</p>
+                <p style={{ fontSize: isMobile ? 10 : 11, opacity: contentMode === mode ? 0.75 : 0.6, margin: 0, fontWeight: 500 }}>{desc}</p>
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={img} alt="" aria-hidden="true"
+                style={{ height: isMobile ? 40 : 52, width: "auto", objectFit: "contain", flexShrink: 0, opacity: contentMode === mode ? 1 : 0.45, filter: contentMode === mode ? "none" : "grayscale(40%)" }} />
             </button>
           ))}
         </div>
@@ -734,16 +719,24 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 12px" }}>Quick Actions</h3>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10 }}>
               {[
-                { icon: "✏️", label: "Create Post",   sub: "Design & plan", color: "#DE1A1A", bg: "rgba(222,26,26,0.07)",  action: () => { resetForm(); setSchedDates([selectedDate]); setModalMode("add") } },
-                { icon: "☁️", label: "Upload Media",  sub: "Images/Videos", color: "#C41230", bg: "rgba(196,18,48,0.07)",  action: () => setView("list") },
-                { icon: "📋", label: "View Posts",    sub: "All scheduled", color: "#8B0000", bg: "rgba(139,0,0,0.07)",    action: () => setView("list") },
-                { icon: "💡", label: "Content Ideas", sub: "AI Suggestions",color: "#B71C1C", bg: "rgba(183,28,28,0.07)", action: () => {} },
+                { Icon: Pencil,        label: "Create Post",   sub: "Design & plan", from: "#DE1A1A", to: "#F97316", action: () => { resetForm(); setSchedDates([selectedDate]); setModalMode("add") } },
+                { Icon: UploadCloud,   label: "Upload Media",  sub: "Images/Videos", from: "#1D4ED8", to: "#3B82F6", action: () => { resetForm(); setSchedDates([selectedDate]); setModalMode("add") } },
+                { Icon: ClipboardList, label: "View Posts",    sub: "All scheduled", from: "#7C3AED", to: "#A855F7", action: () => setView("list") },
+                { Icon: Lightbulb,     label: "Content Ideas", sub: "AI Suggestions",from: "#D97706", to: "#F59E0B", action: () => {} },
               ].map(a => (
                 <button key={a.label} onClick={a.action}
-                  style={{ padding: "12px 10px", borderRadius: 14, background: a.bg, border: `1.5px solid ${a.color}22`, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 18, flexShrink: 0 }}>{a.icon}</span>
+                  style={{
+                    padding: "12px 10px", borderRadius: 14, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 10,
+                    background: `linear-gradient(135deg, ${a.from}14, ${a.to}0D)`, border: `1.5px solid ${a.from}25`,
+                  }}>
+                  <div style={{
+                    width: 34, height: 34, borderRadius: 10, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                    background: `linear-gradient(135deg, ${a.from}, ${a.to})`, boxShadow: `0 4px 10px ${a.from}40`,
+                  }}>
+                    <a.Icon size={16} style={{ color: "#FFFFFF" }} />
+                  </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 11, fontWeight: 800, color: a.color, margin: 0 }}>{a.label}</p>
+                    <p style={{ fontSize: 11, fontWeight: 800, color: a.from, margin: 0 }}>{a.label}</p>
                     <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.sub}</p>
                   </div>
                 </button>
@@ -880,12 +873,12 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             </div>
 
             {/* Motivational card */}
-            <div style={{ background: "linear-gradient(135deg, #1A0000 0%, #5B0000 50%, #8B0000 100%)", borderRadius: 20, padding: "18px 18px 18px", position: "relative", overflow: "hidden", border: "1px solid rgba(222,26,26,0.3)", boxShadow: "0 8px 32px rgba(90,0,0,0.4)" }}>
+            <div style={{ background: "linear-gradient(135deg, #1A0000 0%, #5B0000 50%, #8B0000 100%)", borderRadius: 20, padding: "20px 18px 0", position: "relative", overflow: "hidden", minHeight: 155, border: "1px solid rgba(222,26,26,0.3)", boxShadow: "0 8px 32px rgba(90,0,0,0.4)" }}>
               <div style={{ position: "absolute", top: -30, right: -30, width: 110, height: 110, borderRadius: "50%", background: "radial-gradient(circle,rgba(255,75,75,0.3) 0%,transparent 70%)", pointerEvents: "none" }} />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/content-cal-boy-sidebar.png" alt=""
-                style={{ position: "absolute", right: 0, bottom: 0, height: "80%", maxHeight: 110, width: "auto", objectFit: "contain", objectPosition: "right bottom", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))", pointerEvents: "none" }} />
-              <div style={{ paddingRight: 90, position: "relative", zIndex: 1 }}>
+                style={{ position: "absolute", right: -4, bottom: 0, height: 140, maxWidth: 120, objectFit: "contain", objectPosition: "right bottom", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))", pointerEvents: "none" }} />
+              <div style={{ paddingRight: 130, paddingBottom: 20, position: "relative", zIndex: 1 }}>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(222,26,26,0.85)", borderRadius: 20, padding: "3px 10px", marginBottom: 10 }}>
                   <span style={{ fontSize: 10, fontWeight: 800, color: "#FFF", letterSpacing: "0.05em" }}>🔥 PRO TIP</span>
                 </div>

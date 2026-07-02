@@ -1241,29 +1241,36 @@ export default function FreelancersMemberClient({
             return (
               <div>
                 {/* HERO BANNER */}
-                <div style={{ margin: "16px 16px 0", position: "relative", minHeight: 210, maxHeight: "clamp(210px, 38vw, 320px)", overflow: "hidden", borderRadius: 24, boxShadow: `0 10px 38px rgba(0,0,0,0.4)` }}>
+                <div className="sm:min-h-[210px] sm:max-h-[320px]" style={{ margin: "16px 16px 0", position: "relative", overflow: "hidden", borderRadius: 24, boxShadow: `0 10px 38px rgba(0,0,0,0.4)` }}>
                   {/* Background clipped to rounded corners via inner div — keeps overflow:visible on the outer so image can extend below */}
                   <div style={{ position: "absolute", inset: 0, borderRadius: 24, background: cfg.heroBg, overflow: "hidden", zIndex: 0 }}>
                     <div style={{ position: "absolute", top: -50, right: -50, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.07)" }} />
                     <div style={{ position: "absolute", bottom: -30, left: 140, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
                     <div style={{ position: "absolute", top: 20, left: 220, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
-                    {/* RJ Voiceover: soundwave inside background clip */}
+                    {/* RJ Voiceover: soundwave inside background clip — desktop compact layout only */}
                     {selectedFreelancer.team === "Freelance RJ Voiceover" && (
-                      <svg viewBox="0 0 320 80" style={{ position: "absolute", bottom: 24, right: 160, width: 220, height: 56, opacity: 0.22, pointerEvents: "none" }} preserveAspectRatio="none">
+                      <svg className="hidden sm:block" viewBox="0 0 320 80" style={{ position: "absolute", bottom: 24, right: 160, width: 220, height: 56, opacity: 0.22, pointerEvents: "none" }} preserveAspectRatio="none">
                         {[4,12,28,8,20,36,14,42,10,26,38,6,30,16,44,22,32,8,18,40,12,34,24,10,46,20,8,30].map((h, i) => (
                           <rect key={i} x={i * 11 + 2} y={(80 - h) / 2} width={7} height={h} rx={3} fill="#A855F7" />
                         ))}
                       </svg>
                     )}
                   </div>
-                  {/* Character image — on the outer container (overflow:visible), hangs below card */}
+                  {/* Character image (desktop) — anchored bottom-right inside the banner, beside the text */}
                   {selectedFreelancer.team === "Freelance RJ Voiceover" && (
                     <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
+                      className="hidden sm:block"
                       style={{ position: "absolute", bottom: 0, right: 16, height: "88%", maxHeight: 260, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    {/* Character image (mobile) — flows above the text instead of overlapping it */}
+                    {selectedFreelancer.team === "Freelance RJ Voiceover" && (
+                      <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
+                        className="block sm:hidden mx-auto"
+                        style={{ height: 120, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", marginBottom: 12 }} />
+                    )}
+                    <div className="flex flex-col items-center text-center gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:text-left">
+                      <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-[14px]">
                         <div style={{ width: 56, height: 56, borderRadius: 18, background: "rgba(255,255,255,0.25)", border: "2.5px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
                           <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)" }}>{getInitials(selectedFreelancer.name)}</span>
                         </div>
@@ -1272,7 +1279,7 @@ export default function FreelancersMemberClient({
                             {cfg.emoji} {cfg.shortLabel}
                           </span>
                           <h2 style={{ fontSize: "clamp(18px,4vw,24px)", fontWeight: 900, color: "#fff", margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{selectedFreelancer.name}</h2>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                          <div className="justify-center sm:justify-start" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                               <Star size={12} fill="#FACC15" color="#FACC15" />
                               <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{selectedFreelancer.rating.toFixed(1)}</span>
@@ -1282,7 +1289,7 @@ export default function FreelancersMemberClient({
                           {selectedFreelancer.team === "Freelance RJ Voiceover" && (
                             <div style={{ marginTop: 10 }}>
                               <p style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>🎙️ Giving Voice to Every Brand</p>
-                              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: "3px 0 0", maxWidth: 320, lineHeight: 1.55 }}>Professional RJ Voiceover artist delivering engaging, expressive &amp; impactful voice for your brand, ads, podcasts &amp; more.</p>
+                              <p className="mx-auto sm:mx-0 max-w-[280px] sm:max-w-[320px]" style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: "3px 0 0", lineHeight: 1.55 }}>Professional RJ Voiceover artist delivering engaging, expressive &amp; impactful voice for your brand, ads, podcasts &amp; more.</p>
                             </div>
                           )}
                         </div>

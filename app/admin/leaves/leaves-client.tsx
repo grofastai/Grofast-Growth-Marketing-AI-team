@@ -125,7 +125,7 @@ function getAvatar(name: string, gender: string | undefined, idx: number) {
 }
 
 // ── Donut Chart (text inside SVG for perfect centering) ────────────────────────
-function AvailabilityDonut({ pct, size = 160 }: { pct: number; size?: number }) {
+function AvailabilityDonut({ pct, size = 160, color = "#10B981" }: { pct: number; size?: number; color?: string }) {
   const cx = size / 2, cy = size / 2
   const r = size * 0.34
   const circ = 2 * Math.PI * r
@@ -135,23 +135,17 @@ function AvailabilityDonut({ pct, size = 160 }: { pct: number; size?: number }) 
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <defs>
-        <linearGradient id="availGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FF6B6B" />
-          <stop offset="100%" stopColor="#FACC15" />
-        </linearGradient>
-      </defs>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth={sw} />
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="url(#availGrad)" strokeWidth={sw}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F3F4F6" strokeWidth={sw} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={sw}
         strokeDasharray={`${onTrack} ${offTrack}`} strokeLinecap="round"
         transform={`rotate(-90 ${cx} ${cy})`}
-        style={{ transition: "stroke-dasharray 0.6s", filter: "drop-shadow(0 2px 8px rgba(255,100,100,0.5))" }} />
+        style={{ transition: "stroke-dasharray 0.6s" }} />
       <text x={cx} y={cy - size * 0.08} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.2} fontWeight="900" fill="#FFFFFF">{pct}%</text>
+        fontSize={size * 0.2} fontWeight="900" fill="#111827">{pct}%</text>
       <text x={cx} y={cy + size * 0.08} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.075} fill="rgba(255,255,255,0.7)">Team</text>
+        fontSize={size * 0.075} fill="#9CA3AF">Team</text>
       <text x={cx} y={cy + size * 0.19} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.075} fill="rgba(255,255,255,0.7)">Available</text>
+        fontSize={size * 0.075} fill="#9CA3AF">Available</text>
     </svg>
   )
 }
@@ -597,29 +591,25 @@ export default function LeavesClient({
 
           {/* Availability */}
           <div style={{
-            background: gradBg, borderRadius: 18, padding: "20px",
-            boxShadow: "0 8px 28px rgba(180,0,0,0.35)",
-            position: "relative", overflow: "hidden",
+            background: "#FFFFFF", borderRadius: 18, padding: "20px",
+            border: "1px solid #F0F0F5", boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
           }}>
-            <div style={{ position: "absolute", top: -30, right: -20, width: 130, height: 130, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
-            <div style={{ position: "relative", zIndex: 1 }}>
-              <p style={{ fontSize: 13, fontWeight: 800, color: "#FFFFFF", margin: "0 0 16px", fontFamily: "var(--font-jakarta)" }}>Team Availability</p>
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-                <AvailabilityDonut pct={availabilityPct} size={160} />
-              </div>
-              {onLeaveToday.length > 0 && (
-                <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 10, padding: "10px 12px", border: "1px solid rgba(255,255,255,0.18)" }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: "#FACC15", margin: "0 0 6px" }}>{onLeaveToday.length} on leave today</p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    {onLeaveToday.map((m, i) => (
-                      <span key={i} style={{ fontSize: 10, color: "#FFFFFF", background: "rgba(255,255,255,0.15)", padding: "2px 8px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.2)" }}>
-                        {m.name.split(" ")[0]}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+            <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 16px", fontFamily: "var(--font-jakarta)" }}>Team Availability</p>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+              <AvailabilityDonut pct={availabilityPct} size={160} color={donutColor} />
             </div>
+            {onLeaveToday.length > 0 && (
+              <div style={{ background: "#FEF9EC", borderRadius: 10, padding: "10px 12px", border: "1px solid #FDE68A" }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: "#D97706", margin: "0 0 6px" }}>{onLeaveToday.length} on leave today</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {onLeaveToday.map((m, i) => (
+                    <span key={i} style={{ fontSize: 10, color: "#92400E", background: "#FFFFFF", padding: "2px 8px", borderRadius: 20, border: "1px solid #FDE68A" }}>
+                      {m.name.split(" ")[0]}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Upcoming Leaves */}

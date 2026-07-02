@@ -511,7 +511,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, position: "relative" }}>
-          <Link href="/admin/reports"
+          <Link href="/admin/activities"
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 18px", borderRadius: 10, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", textDecoration: "none" }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>View Reports</span>
             <ArrowRight size={13} style={{ color: "#FFFFFF" }} />

@@ -334,7 +334,6 @@ export async function submitDailyUpdate(
       revalidatePath('/member/update')
       revalidatePath('/member/dashboard')
       revalidatePath('/admin/activities')
-      revalidatePath('/admin/reports')
       return { success: true }
     }
     const { data: adminPhone } = await admin
@@ -374,7 +373,6 @@ export async function submitDailyUpdate(
   revalidatePath('/member/update')
   revalidatePath('/member/dashboard')
   revalidatePath('/admin/activities')
-  revalidatePath('/admin/reports')
   return { success: true }
 }
 

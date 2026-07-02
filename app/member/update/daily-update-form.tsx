@@ -3179,6 +3179,7 @@ export default function DailyUpdateForm({
                 {tab === "break"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>
                   {isMediaTeam ? `${mediaBreaks.length} break${mediaBreaks.length !== 1 ? "s" : ""} · ${mediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h` : `${nonMediaBreaks.length} break${nonMediaBreaks.length !== 1 ? "s" : ""} · ${nonMediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h`}
                 </p>}
+                {error && <p style={{ fontSize:12, fontWeight:700, color:"#DE1A1A", margin:"4px 0 0" }}>⚠ {error}</p>}
               </div>
               <button onClick={handleSubmit} disabled={isPending || submitted || breakSubmitting}
                 style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor: isPending || submitted || breakSubmitting ? "not-allowed" : "pointer", transition:"all 0.2s", opacity: isPending || breakSubmitting ? 0.7 : 1,

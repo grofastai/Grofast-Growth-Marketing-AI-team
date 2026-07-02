@@ -527,13 +527,27 @@ export default function HistoryClient({
 
   async function saveEntry(updateId: string, allEntries: WorkEntry[], entryIdx: number) {
     const key = `${updateId}:${entryIdx}`
+    // Common: client and title required for all non-break types
+    if (editDraft.task_type !== "break") {
+      const clientVal = (editDraft.client_names && editDraft.client_names.length > 0) ? editDraft.client_names[0] : editDraft.client_name
+      if (!clientVal || clientVal === "Internal" || clientVal === "") { showToast("Select a client before saving."); return }
+      if (editDraft.task_type !== "shoot" && !editDraft.title?.trim()) { showToast("Enter a title / video name before saving."); return }
+    }
     if (editDraft.task_type === "edit" && isMedia) {
+      if (!editDraft.video_type) { showToast("Select a video type before saving."); return }
       if (!editDraft.date_given) { showToast("Please set Date Given before saving."); return }
       if (!editDraft.date_finished) { showToast("Please set Date Finished before saving."); return }
       if (!editDraft.start_time || !editDraft.end_time) { showToast("Please set Edit Start & End Time before saving."); return }
       if (editDraft.start_time >= (editDraft.end_time ?? "")) { showToast("Edit End Time must be after Start Time."); return }
       if (!editDraft.video_duration) { showToast("Please select the video Duration before saving."); return }
     } else if (editDraft.task_type === "edit" && !isMedia) {
+      if (!editDraft.video_type) { showToast("Select a video type before saving."); return }
+      if (!editDraft.start_time || !editDraft.end_time) { showToast("Please set Start & End Time before saving."); return }
+      if (editDraft.start_time >= (editDraft.end_time ?? "")) { showToast("End time must be after Start time."); return }
+    } else if (editDraft.task_type === "other") {
+      if (!editDraft.start_time || !editDraft.end_time) { showToast("Please set Working Time before saving."); return }
+      if (editDraft.start_time >= (editDraft.end_time ?? "")) { showToast("End time must be after Start time."); return }
+    } else if (editDraft.task_type === "voiceover" || editDraft.task_type === "poster") {
       if (!editDraft.start_time || !editDraft.end_time) { showToast("Please set Start & End Time before saving."); return }
       if (editDraft.start_time >= (editDraft.end_time ?? "")) { showToast("End time must be after Start time."); return }
     }

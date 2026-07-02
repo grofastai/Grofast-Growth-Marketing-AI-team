@@ -304,9 +304,9 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                   return (
                     <button key={t.id} onClick={() => openTicket(t.id)} className="sd-row"
                       style={{ animationDelay: `${Math.min(i * 26, 220)}ms`, width: '100%', textAlign: 'left', display: 'flex', gap: 11, padding: 11, borderRadius: 13, cursor: 'pointer', marginBottom: 6,
-                        background: isActive ? 'rgba(222,26,26,0.06)' : '#F9FAFB',
-                        border: isActive ? '1.5px solid rgba(222,26,26,0.28)' : '1px solid #EDEEF1',
-                        boxShadow: isActive ? 'none' : '0 1px 3px rgba(0,0,0,0.03)' }}>
+                        background: isActive ? 'rgba(222,26,26,0.14)' : '#F9FAFB',
+                        border: isActive ? '1.5px solid #DE1A1A' : '1px solid #EDEEF1',
+                        boxShadow: isActive ? '0 2px 10px rgba(222,26,26,0.15)' : '0 1px 3px rgba(0,0,0,0.03)' }}>
                       <div style={{ width: 38, height: 38, borderRadius: 11, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, background: '#FFFFFF', position: 'relative' }}>
                         {cat.emoji}
                         <span style={{ position: 'absolute', bottom: -1, right: -1, width: 11, height: 11, borderRadius: '50%', background: tok.ring, border: '2px solid #fff' }} />

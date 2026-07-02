@@ -230,21 +230,6 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                   <Plus size={14} /> New ticket
                 </button>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {[
-                  { emoji: '🎧', value: stats.open,        label: 'Open' },
-                  { emoji: '✅', value: stats.resolved,    label: 'Resolved Today' },
-                  { emoji: '⏱',  value: stats.in_progress, label: 'In Progress' },
-                ].map(chip => (
-                  <div key={chip.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.14)', borderRadius: 12, padding: '7px 13px', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)' }}>
-                    <span style={{ fontSize: 16, lineHeight: 1 }}>{chip.emoji}</span>
-                    <div>
-                      <p style={{ fontSize: 17, fontWeight: 900, color: '#fff', margin: 0, lineHeight: 1, fontFamily: 'var(--font-jakarta)' }}>{chip.value}</p>
-                      <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{chip.label}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </div>

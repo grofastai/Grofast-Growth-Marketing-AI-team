@@ -188,8 +188,9 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
               style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center bottom', filter: 'drop-shadow(0 6px 24px rgba(0,0,0,0.25))' }} />
           </div>
 
-          {/* ── BUTTONS — absolute top-right ── */}
-          <div style={{ position: 'absolute', top: 18, right: 20, display: 'flex', gap: 8, zIndex: 3 }}>
+          {/* ── BUTTONS — absolute top-right on desktop; below the badge in normal flow on mobile, since
+                absolute positioning collided with the badge on narrow screens ── */}
+          <div className="hidden md:flex" style={{ position: 'absolute', top: 18, right: 20, gap: 8, zIndex: 3 }}>
             {canAssign && (
               <button onClick={() => setShowAssign(true)}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 15px', borderRadius: 12, fontSize: 12.5, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(8px)' }}>
@@ -204,10 +205,24 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
 
           {/* ── LEFT CONTENT: badge top-left, title+chips bottom-left ── */}
           <div style={{ position: 'relative', zIndex: 2, padding: '18px 22px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', minHeight: 186, maxWidth: 400 }}>
-            {/* Badge — top left */}
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 99, background: 'rgba(0,0,0,0.22)', color: '#fff', border: '1px solid rgba(255,255,255,0.22)', letterSpacing: '0.04em', alignSelf: 'flex-start' }}>
-              🎧 Support Inbox
-            </span>
+            {/* Badge — top left; buttons wrap alongside it on mobile instead of overlapping */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 99, background: 'rgba(0,0,0,0.22)', color: '#fff', border: '1px solid rgba(255,255,255,0.22)', letterSpacing: '0.04em' }}>
+                🎧 Support Inbox
+              </span>
+              <div className="flex md:hidden flex-wrap" style={{ gap: 8 }}>
+                {canAssign && (
+                  <button onClick={() => setShowAssign(true)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 15px', borderRadius: 12, fontSize: 12.5, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(8px)' }}>
+                    <UserPlus size={14} /> Assign handler
+                  </button>
+                )}
+                <button onClick={() => setShowNew(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: '#C01010', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.22)', whiteSpace: 'nowrap' }}>
+                  <Plus size={14} /> New ticket
+                </button>
+              </div>
+            </div>
 
             {/* Title + subtitle + chips — anchored bottom */}
             <div>

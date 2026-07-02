@@ -4,7 +4,7 @@ import type { CSSProperties } from "react"
 import { cacheGet, cacheSet } from "@/lib/cache"
 import {
   Users, FolderOpen, Target, CalendarOff, Clock, CheckCircle2,
-  Plus, Megaphone, Bell, UserX, UmbrellaOff,
+  Plus, Megaphone, UserX, UmbrellaOff,
   ArrowRight, ListTodo, CalendarDays, BarChart3, Handshake,
 } from "lucide-react"
 import Link from "next/link"
@@ -41,7 +41,7 @@ type TodayLeaveRow = {
 type CalLeaveRow = {
   from_date: string
   to_date: string
-  users: { name: string } | { name: string }[] | null
+  users: { id: string; name: string } | { id: string; name: string }[] | null
 }
 
 type UpdateRow = {
@@ -77,8 +77,10 @@ export default async function DashboardPage() {
 
   if (!statCounts) {
     const [p, a, c, l, tc, ti, tt, to] = await Promise.all([
-      admin.from("attendance_logs").select("*", { count: "exact", head: true })
-        .eq("company_id", cid).eq("date", today).eq("status", "present"),
+      admin.from("attendance_logs").select("*, users!inner(role, status, is_management, is_freelancer_login)", { count: "exact", head: true })
+        .eq("company_id", cid).eq("date", today).eq("status", "present")
+        .eq("users.role", "MEMBER").eq("users.status", "active")
+        .eq("users.is_management", false).eq("users.is_freelancer_login", false),
       admin.from("tasks").select("*", { count: "exact", head: true })
         .eq("company_id", cid).neq("status", "completed"),
       admin.from("clients").select("*", { count: "exact", head: true })
@@ -128,7 +130,7 @@ export default async function DashboardPage() {
       .eq("company_id", cid).eq("date", today)
       .order("created_at", { ascending: false }).limit(6),
     admin.from("leaves")
-      .select("from_date, to_date, users(name)")
+      .select("from_date, to_date, users(id, name)")
       .eq("company_id", cid).eq("status", "approved")
       .lte("from_date", monthEnd).gte("to_date", monthStart),
     cid ? getAlerts(cid) : Promise.resolve({ notUpdatedCount: 0, notUpdatedNames: [], overdueTaskCount: 0, overdueProjectCount: 0, total: 0 }),
@@ -165,16 +167,17 @@ export default async function DashboardPage() {
     .map((m: { name: string }) => m.name)
 
   // Build leave calendar map
-  const leaveCalMap: Record<string, string[]> = {}
+  const leaveCalMap: Record<string, { id: string; name: string }[]> = {}
   for (const leave of (monthLeavesRaw ?? []) as unknown as CalLeaveRow[]) {
     const u    = Array.isArray(leave.users) ? leave.users[0] : leave.users
+    const id   = u?.id ?? ""
     const name = u?.name ?? "?"
     const curr = new Date(leave.from_date + "T12:00:00")
     const end  = new Date(leave.to_date   + "T12:00:00")
     while (curr <= end) {
       const ds = curr.toISOString().split("T")[0]
       if (!leaveCalMap[ds]) leaveCalMap[ds] = []
-      leaveCalMap[ds].push(name)
+      leaveCalMap[ds].push({ id, name })
       curr.setDate(curr.getDate() + 1)
     }
   }
@@ -224,7 +227,7 @@ export default async function DashboardPage() {
     { label: "Add Member",       href: "/admin/team",          icon: Plus,        color: "#16A34A", bg: "rgba(22,163,74,0.08)"   },
     { label: "Assign Task",      href: "/admin/goals",         icon: ListTodo,    color: "#DE1A1A", bg: "rgba(222,26,26,0.06)"   },
     { label: "Announcement",     href: "/admin/announcements", icon: Megaphone,   color: "#D97706", bg: "rgba(217,119,6,0.06)"   },
-    { label: "View Reports",     href: "/admin/reports",       icon: BarChart3,   color: "#6366F1", bg: "rgba(99,102,241,0.06)"  },
+    { label: "View Reports",     href: "/admin/activities",    icon: BarChart3,   color: "#6366F1", bg: "rgba(99,102,241,0.06)"  },
     { label: "Leave Requests",   href: "/admin/leaves",        icon: CalendarOff, color: "#DE1A1A", bg: "rgba(222,26,26,0.06)"   },
     { label: "Attendance",       href: "/admin/attendance",    icon: CalendarDays,color: "#0EA5E9", bg: "rgba(14,165,233,0.06)"  },
   ]
@@ -246,18 +249,6 @@ export default async function DashboardPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
           <div className="hidden sm:flex" style={{ alignItems: "center", gap: 8, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "7px 12px", backdropFilter: "blur(8px)" }}>
             <DashboardSearch />
-          </div>
-          <div style={{ position: "relative", width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Bell size={15} style={{ color: "#FFFFFF" }} />
-            {(alerts.total > 0) && (
-              <div style={{ position: "absolute", top: 7, right: 7, width: 7, height: 7, borderRadius: "50%", background: "#FCA5A5", border: "1.5px solid #9B1C1C" }} />
-            )}
-          </div>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {profile?.photo_url
-              ? <Image src={profile.photo_url} alt={adminName} width={36} height={36} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-              : <span style={{ fontSize: 14, fontWeight: 800, color: "#FFFFFF" }}>{adminName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}</span>
-            }
           </div>
         </div>
       </div>

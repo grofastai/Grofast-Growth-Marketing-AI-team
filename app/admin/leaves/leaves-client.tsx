@@ -29,6 +29,7 @@ interface CompanyLeave {
 interface LeavesClientProps {
   leaves: Leave[]
   statusFilter: string
+  typeFilter: string
   upcomingLeaves: Leave[]
   availabilityPct: number
   onLeaveToday: { name: string }[]
@@ -50,6 +51,12 @@ const STATUS_TABS = [
   { key: "rejected", label: "Rejected", color: "#EF4444" },
   { key: "all",      label: "All",      color: "#6B7280" },
   { key: "holidays", label: "🏢 Holidays", color: "#1E40AF" },
+]
+
+const TYPE_TABS = [
+  { key: "all_types",  label: "All Types" },
+  { key: "permission", label: "Permission" },
+  { key: "leave",      label: "Leave" },
 ]
 
 function daysBetween(from: string, to: string) {
@@ -281,7 +288,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function LeavesClient({
-  leaves, statusFilter, upcomingLeaves, availabilityPct, onLeaveToday,
+  leaves, statusFilter, typeFilter, upcomingLeaves, availabilityPct, onLeaveToday,
   pendingCount, approvedCount, rejectedCount, companyLeaves,
   fullDayCount, wfhCount, shootCount, halfDayCount,
 }: LeavesClientProps) {
@@ -336,7 +343,18 @@ export default function LeavesClient({
     router.refresh()
   }
 
-  function navigate(s: string) { router.push(`${pathname}?status=${s}`) }
+  function navigate(s: string) {
+    const params = new URLSearchParams()
+    params.set("status", s)
+    if (typeFilter !== "all_types") params.set("type", typeFilter)
+    router.push(`${pathname}?${params.toString()}`)
+  }
+  function navigateType(type: string) {
+    const params = new URLSearchParams()
+    if (statusFilter !== "pending") params.set("status", statusFilter)
+    if (type !== "all_types") params.set("type", type)
+    router.push(`${pathname}?${params.toString()}`)
+  }
   function handleApprove(id: string) {
     setActionId(id + "approved")
     setActionError(null)
@@ -415,6 +433,24 @@ export default function LeavesClient({
               const active = statusFilter === tab.key
               return (
                 <button key={tab.key} onClick={() => navigate(tab.key)} style={{
+                  padding: "8px 22px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  whiteSpace: "nowrap", transition: "all 0.15s", border: "none",
+                  background: active ? gradBg : "#FFFFFF",
+                  color: active ? "#FFFFFF" : "#6B7280",
+                  boxShadow: active ? "0 4px 16px rgba(180,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
+                }}>
+                  {tab.label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Type tabs */}
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+            {TYPE_TABS.map((tab) => {
+              const active = typeFilter === tab.key
+              return (
+                <button key={tab.key} onClick={() => navigateType(tab.key)} style={{
                   padding: "8px 22px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
                   whiteSpace: "nowrap", transition: "all 0.15s", border: "none",
                   background: active ? gradBg : "#FFFFFF",

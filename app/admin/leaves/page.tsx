@@ -16,7 +16,7 @@ function adminClient() {
 export default async function LeavesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ status?: string; type?: string }>
 }) {
   const params = await searchParams
   const supabase = await createServerClient()
@@ -24,6 +24,9 @@ export default async function LeavesPage({
   if (!user) redirect("/login")
 
   const statusFilter = params.status ?? "pending"
+  const typeFilter = params.type ?? "all_types"
+  const PERMISSION_TYPES = ["wfh", "shoot_day"]
+  const LEAVE_TYPES = ["full_day", "half_day", "permission"]
   const today = new Date().toISOString().split("T")[0]
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0]
 
@@ -48,6 +51,12 @@ export default async function LeavesPage({
 
   if (statusFilter !== "all") {
     leavesQuery = leavesQuery.eq("status", statusFilter)
+  }
+
+  if (typeFilter === "permission") {
+    leavesQuery = leavesQuery.in("leave_type", PERMISSION_TYPES)
+  } else if (typeFilter === "leave") {
+    leavesQuery = leavesQuery.in("leave_type", LEAVE_TYPES)
   }
 
   const [
@@ -119,6 +128,7 @@ export default async function LeavesPage({
     <LeavesClient
       leaves={leaves ?? []}
       statusFilter={statusFilter}
+      typeFilter={typeFilter}
       upcomingLeaves={upcoming ?? []}
       availabilityPct={availabilityPct}
       onLeaveToday={onLeaveToday}

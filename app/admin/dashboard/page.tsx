@@ -76,11 +76,22 @@ export default async function DashboardPage() {
   let statCounts = await cacheGet<StatCache>(statsKey)
 
   if (!statCounts) {
+    // attendance_logs.user_id has no FK constraint to users.id in this schema, so
+    // PostgREST can't resolve an embedded users!inner(...) join — fetch the filtered
+    // member id list first, then scope the attendance_logs count to it.
+    const { data: realMembersForCount } = await admin
+      .from("users")
+      .select("id")
+      .eq("company_id", cid).eq("role", "MEMBER").eq("status", "active")
+      .eq("is_management", false).eq("is_freelancer_login", false)
+    const realMemberIds = (realMembersForCount ?? []).map(m => m.id)
+
     const [p, a, c, l, tc, ti, tt, to] = await Promise.all([
-      admin.from("attendance_logs").select("*, users!inner(role, status, is_management, is_freelancer_login)", { count: "exact", head: true })
-        .eq("company_id", cid).eq("date", today).eq("status", "present")
-        .eq("users.role", "MEMBER").eq("users.status", "active")
-        .eq("users.is_management", false).eq("users.is_freelancer_login", false),
+      realMemberIds.length > 0
+        ? admin.from("attendance_logs").select("*", { count: "exact", head: true })
+            .eq("company_id", cid).eq("date", today).eq("status", "present")
+            .in("user_id", realMemberIds)
+        : Promise.resolve({ count: 0 }),
       admin.from("tasks").select("*", { count: "exact", head: true })
         .eq("company_id", cid).neq("status", "completed"),
       admin.from("clients").select("*", { count: "exact", head: true })

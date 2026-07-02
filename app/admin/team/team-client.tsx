@@ -2043,7 +2043,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
             boxShadow: "0 8px 32px rgba(79,46,229,0.25)",
           }}>
             <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 70% 50%, rgba(139,92,246,0.3) 0%, transparent 65%)" }} />
-            <div style={{ position: "absolute", right: 0, bottom: 0, width: 160, height: 170, pointerEvents: "none" }}>
+            <div className="absolute right-0 bottom-0 pointer-events-none w-[220px] h-[230px] md:w-[160px] md:h-[170px]">
               <Image src="/brand/team-image.png" alt="Team" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
             </div>
             <div style={{ position: "relative", zIndex: 1, padding: "22px 20px" }}>

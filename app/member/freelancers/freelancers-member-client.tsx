@@ -11,9 +11,9 @@ export type FreelancerTeam =
   | "Freelance RJ Voiceover"
   | "Freelance Graphics Designer"
   | "Freelance Content Writer"
-  | "Freelance Development & Automation"
+  | "Freelance Software Development & Automation"
   | "Freelance Marketing & Operations"
-  | "Freelance IT Technology & Media"
+  | "Freelance AI Development & Creative Production"
   | "Freelance Video Editing"
   | "Freelance Videography"
 
@@ -55,9 +55,9 @@ const TEAM_CFG: Record<FreelancerTeam, {
   "Freelance RJ Voiceover":            { color: "#A855F7", bg: "rgba(168,85,247,0.07)", border: "rgba(168,85,247,0.2)", shortLabel: "RJ Voiceover",  entryLabel: "Voice",     emoji: "🎙️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #2D1B69 0%, #6D28D9 45%, #1E1040 100%)" },
   "Freelance Graphics Designer":        { color: "#F97316", bg: "rgba(249,115,22,0.07)",  border: "rgba(249,115,22,0.2)",  shortLabel: "Graphics",      entryLabel: "Design",    emoji: "🎨", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #431407 0%, #C2410C 45%, #1C0A00 100%)" },
   "Freelance Content Writer":           { color: "#14B8A6", bg: "rgba(20,184,166,0.07)",  border: "rgba(20,184,166,0.2)",  shortLabel: "Content",       entryLabel: "Content",   emoji: "✍️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #042F2E 0%, #0F766E 45%, #021B1A 100%)" },
-  "Freelance Development & Automation": { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Dev & Auto",    entryLabel: "Task",      emoji: "💻", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1E1B4B 0%, #3730A3 45%, #0F0D2E 100%)" },
+  "Freelance Software Development & Automation": { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "SW Dev & Auto", entryLabel: "Task",      emoji: "💻", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1E1B4B 0%, #3730A3 45%, #0F0D2E 100%)" },
   "Freelance Marketing & Operations":   { color: "#10B981", bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.2)",  shortLabel: "Marketing",     entryLabel: "Task",      emoji: "📊", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #022C22 0%, #047857 45%, #011A14 100%)" },
-  "Freelance IT Technology & Media":    { color: "#8B5CF6", bg: "rgba(139,92,246,0.07)",  border: "rgba(139,92,246,0.2)",  shortLabel: "IT & Media",    entryLabel: "Task",      emoji: "🖥️", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1A0533 0%, #7C3AED 45%, #0D0020 100%)" },
+  "Freelance AI Development & Creative Production": { color: "#8B5CF6", bg: "rgba(139,92,246,0.07)",  border: "rgba(139,92,246,0.2)",  shortLabel: "AI & Creative", entryLabel: "Task",      emoji: "🖥️", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1A0533 0%, #7C3AED 45%, #0D0020 100%)" },
   "Freelance Video Editing":            { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Video Editing", entryLabel: "Edit",      emoji: "🎬", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #0F1547 0%, #1D4ED8 45%, #060B2A 100%)" },
   "Freelance Videography":              { color: "#0EA5E9", bg: "rgba(14,165,233,0.07)",  border: "rgba(14,165,233,0.2)",  shortLabel: "Videography",   entryLabel: "Shoot",     emoji: "📹", costLabel: "Cost (INR)",            heroBg: "linear-gradient(135deg, #082F49 0%, #0369A1 45%, #041520 100%)" },
 }
@@ -180,17 +180,17 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
     !!entry.client_name && !activeClients.includes(entry.client_name) && !pastClients.includes(entry.client_name)
   )
   const cfg = TEAM_CFG[team]
-  const isITMedia = team === "Freelance IT Technology & Media"
+  const isITMedia = team === "Freelance AI Development & Creative Production"
   const itCat = isITMedia ? (entry.it_category || "") : ""
 
-  // For IT & Media, effective form type is driven by the chosen sub-category
+  // For AI Dev & Creative Production, effective form type is driven by the chosen sub-category
   const isVoiceover = team === "Freelance RJ Voiceover" || (isITMedia && itCat === "voiceover")
-  const isDevType = team === "Freelance Development & Automation" || team === "Freelance Marketing & Operations" || (isITMedia && itCat === "technical")
+  const isDevType = team === "Freelance Software Development & Automation" || team === "Freelance Marketing & Operations" || (isITMedia && itCat === "technical")
   const isVideoEditing = team === "Freelance Video Editing"
   const isVideography = team === "Freelance Videography"
   const showNotes = isITMedia
     ? (itCat === "voiceover" || itCat === "poster")
-    : (team !== "Freelance Development & Automation")
+    : (team !== "Freelance Software Development & Automation")
 
   // For IT & Media, use sub-category-specific display config
   const IT_CAT_CFG = {
@@ -592,7 +592,7 @@ function WorkEntrySheet({ freelancer, activeClients, pastClients, onClose, onSav
   function handleSave() {
     setError("")
     for (const [i, e] of entries.entries()) {
-      if (freelancer.team === "Freelance IT Technology & Media" && !e.it_category) {
+      if (freelancer.team === "Freelance AI Development & Creative Production" && !e.it_category) {
         setError(`Entry #${i + 1}: Please select a work type (Voiceover, Posters, or Technical)`); return
       }
       if (!e.date_given) { setError(`Entry #${i + 1}: Date is required`); return }
@@ -620,7 +620,7 @@ function WorkEntrySheet({ freelancer, activeClients, pastClients, onClose, onSav
             ? JSON.stringify({ video_type: e.video_type, revisions: e.revisions, hooks: e.hooks_completed, start: e.edit_start_time, end: e.edit_end_time, drive_updated: e.drive_updated })
             : freelancer.team === "Freelance Videography"
             ? JSON.stringify({ travel_time: e.travel_time, location: e.location, video_uploaded: e.video_uploaded })
-            : freelancer.team === "Freelance IT Technology & Media"
+            : freelancer.team === "Freelance AI Development & Creative Production"
             ? JSON.stringify({ category: e.it_category, ...(e.task_description ? { description: e.task_description } : {}) })
             : e.task_description || null,
           payment_status: e.payment_status,
@@ -828,7 +828,7 @@ function EditEntrySheet({ entry, activeClients, pastClients, onClose, onSaved }:
     video_type: "", revisions: "0", hooks_completed: "0", edit_start_time: "", edit_end_time: "", drive_updated: "no",
     time_from: "", time_to: "", travel_time: "", location: "", video_uploaded: "no",
     it_category: (() => {
-      if (entry.team !== "Freelance IT Technology & Media") return ""
+      if (entry.team !== "Freelance AI Development & Creative Production") return ""
       try { return JSON.parse(entry.task_description ?? "{}").category ?? "" } catch { return "" }
     })(),
   })

@@ -45,9 +45,9 @@ const FL_TYPE_CFG: Record<string, { label: string; color: string; bg: string; em
   "Freelance Video Shooter":            { label: "Video Shooter",   color: "#10B981", bg: "rgba(16,185,129,0.08)",  emoji: "📹" },
   "Freelance Graphics Designer":        { label: "Graphics Design", color: "#F97316", bg: "rgba(249,115,22,0.08)",  emoji: "🎨" },
   "Freelance Content Writer":           { label: "Content Writer",  color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  emoji: "✍️" },
-  "Freelance Development & Automation": { label: "Dev & Automation",color: "#6366F1", bg: "rgba(99,102,241,0.08)",  emoji: "💻" },
+  "Freelance Software Development & Automation": { label: "SW Dev & Automation",color: "#6366F1", bg: "rgba(99,102,241,0.08)",  emoji: "💻" },
   "Freelance Marketing & Operations":   { label: "Marketing & Ops", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  emoji: "📊" },
-  "Freelance IT Technology & Media":    { label: "IT & Media",      color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🖥️" },
+  "Freelance AI Development & Creative Production": { label: "AI & Creative Production", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🖥️" },
 }
 
 function getFreelancerTeamKey(f: FreelancerBasic): string {
@@ -57,9 +57,9 @@ function getFreelancerTeamKey(f: FreelancerBasic): string {
 const FULL_TIME_TEAMS = [
   "Media Production Team",
   "Creative Studio",
-  "AI Development & Automation",
+  "Software Development & Automation",
   "Performance Marketing & Operations",
-  "AI Development & Media",
+  "AI Development & Creative Production",
 ] as const
 
 const FREELANCER_TEAMS = [
@@ -69,9 +69,9 @@ const FREELANCER_TEAMS = [
   "Freelance RJ Voiceover",
   "Freelance Graphics Designer",
   "Freelance Content Writer",
-  "Freelance Development & Automation",
+  "Freelance Software Development & Automation",
   "Freelance Marketing & Operations",
-  "Freelance IT Technology & Media",
+  "Freelance AI Development & Creative Production",
 ] as const
 
 interface Member {
@@ -140,9 +140,9 @@ function teamColor(team: string | null): { bg: string; color: string } {
   if (!team) return { bg: "#F3F4F6", color: "#6B7280" }
   if (team === "Media Production Team" || team === "Freelance Media Production" || team === "Media Team" || team === "Media") return { bg: "rgba(236,72,153,0.1)", color: "#EC4899" }
   if (team === "Creative Studio" || team === "Creative Team" || team === "Creative") return { bg: "rgba(245,158,11,0.1)", color: "#F59E0B" }
-  if (team === "AI Development & Automation" || team === "Freelance Development & Automation") return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
+  if (team === "Software Development & Automation" || team === "Freelance Software Development & Automation") return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
   if (team === "Performance Marketing & Operations" || team === "Freelance Marketing & Operations" || team === "Technology & Operation Team" || team.includes("Tech & Ops")) return { bg: "rgba(16,185,129,0.1)", color: "#10B981" }
-  if (team === "AI Development & Media" || team === "Freelance IT Technology & Media" || team.includes("Media & Tech")) return { bg: "rgba(139,92,246,0.1)", color: "#8B5CF6" }
+  if (team === "AI Development & Creative Production" || team === "Freelance AI Development & Creative Production" || team.includes("Media & Tech")) return { bg: "rgba(139,92,246,0.1)", color: "#8B5CF6" }
   if (team === "Freelance Video Editing") return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
   if (team === "Freelance Videography") return { bg: "rgba(239,68,68,0.1)", color: "#EF4444" }
   if (team === "Freelance RJ Voiceover") return { bg: "rgba(168,85,247,0.1)", color: "#A855F7" }
@@ -155,18 +155,18 @@ function teamShort(team: string | null) {
   if (!team) return "—"
   if (team === "Media Production Team" || team === "Media Team" || team === "Media") return "Media Production"
   if (team === "Creative Studio" || team === "Creative Team" || team === "Creative") return "Creative Studio"
-  if (team === "AI Development & Automation") return "AI Dev & Auto"
+  if (team === "Software Development & Automation") return "SW Dev & Auto"
   if (team === "Performance Marketing & Operations" || team.includes("Tech & Ops") || team === "Technology & Operation Team") return "Perf. Marketing"
-  if (team === "AI Development & Media" || team.includes("Media & Tech")) return "AI Dev & Media"
+  if (team === "AI Development & Creative Production" || team.includes("Media & Tech")) return "AI & Creative Prod"
   if (team === "Freelance Media Production") return "FL Media"
   if (team === "Freelance Video Editing") return "FL Editing"
   if (team === "Freelance Videography") return "FL Videography"
   if (team === "Freelance RJ Voiceover") return "FL Voiceover"
   if (team === "Freelance Graphics Designer") return "FL Graphics"
   if (team === "Freelance Content Writer") return "FL Content"
-  if (team === "Freelance Development & Automation") return "FL Dev & Auto"
+  if (team === "Freelance Software Development & Automation") return "FL SW Dev & Auto"
   if (team === "Freelance Marketing & Operations") return "FL Marketing"
-  if (team === "Freelance IT Technology & Media") return "FL IT & Media"
+  if (team === "Freelance AI Development & Creative Production") return "FL AI & Creative"
   return team
 }
 
@@ -207,9 +207,9 @@ const NO_LOGIN_TEAMS = new Set([
   "Freelance RJ Voiceover",
   "Freelance Graphics Designer",
   "Freelance Content Writer",
-  "Freelance Development & Automation",
+  "Freelance Software Development & Automation",
   "Freelance Marketing & Operations",
-  "Freelance IT Technology & Media",
+  "Freelance AI Development & Creative Production",
 ])
 
 function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps) {
@@ -504,7 +504,7 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                               {(["Freelance Media Production"] as const).map(t => <option key={t} value={t}>{t}</option>)}
                             </optgroup>
                             <optgroup label="── No Login (manager enters work)">
-                              {(["Freelance Video Editing","Freelance Videography","Freelance RJ Voiceover","Freelance Graphics Designer","Freelance Content Writer","Freelance Development & Automation","Freelance Marketing & Operations","Freelance IT Technology & Media"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                              {(["Freelance Video Editing","Freelance Videography","Freelance RJ Voiceover","Freelance Graphics Designer","Freelance Content Writer","Freelance Software Development & Automation","Freelance Marketing & Operations","Freelance AI Development & Creative Production"] as const).map(t => <option key={t} value={t}>{t}</option>)}
                             </optgroup>
                           </>
                         )}
@@ -874,9 +874,9 @@ const NO_LOGIN_FL_TYPES = [
   { key: "Freelance RJ Voiceover",             label: "RJ Voiceover",    emoji: "🎙️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.3)" },
   { key: "Freelance Graphics Designer",        label: "Graphics Design", emoji: "🎨", color: "#F97316", bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.3)" },
   { key: "Freelance Content Writer",           label: "Content Writer",  emoji: "✍️", color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  border: "rgba(20,184,166,0.3)" },
-  { key: "Freelance Development & Automation", label: "Dev & Auto",      emoji: "💻", color: "#6366F1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.3)" },
+  { key: "Freelance Software Development & Automation", label: "SW Dev & Auto",   emoji: "💻", color: "#6366F1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.3)" },
   { key: "Freelance Marketing & Operations",   label: "Marketing & Ops", emoji: "📊", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  border: "rgba(236,72,153,0.3)" },
-  { key: "Freelance IT Technology & Media",    label: "IT & Media",      emoji: "🖥️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  border: "rgba(139,92,246,0.3)" },
+  { key: "Freelance AI Development & Creative Production", label: "AI & Creative", emoji: "🖥️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  border: "rgba(139,92,246,0.3)" },
 ]
 
 function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {

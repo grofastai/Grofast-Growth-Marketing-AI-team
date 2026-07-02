@@ -193,7 +193,7 @@ function freelancerTaskType(team: string, taskDescription: string | null): 'shoo
   if (team === 'Freelance Media Production')   return 'edit'
   if (team === 'Freelance RJ Voiceover')       return 'voiceover'
   if (team === 'Freelance Graphics Designer')  return 'poster'
-  if (team === 'Freelance IT Technology & Media') {
+  if (team === 'Freelance AI Development & Creative Production') {
     try {
       const cat = JSON.parse(taskDescription ?? '{}').category ?? ''
       if (cat === 'voiceover') return 'voiceover'

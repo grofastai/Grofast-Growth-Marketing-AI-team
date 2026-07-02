@@ -186,8 +186,8 @@ export default async function ClientsUnifiedPage({
       'Freelance Media Production',
       'Freelance Video Editing', 'Freelance Videography', 'Freelance RJ Voiceover',
       'Freelance Graphics Designer', 'Freelance Content Writer',
-      'Freelance Development & Automation', 'Freelance Marketing & Operations',
-      'Freelance IT Technology & Media',
+      'Freelance Software Development & Automation', 'Freelance Marketing & Operations',
+      'Freelance AI Development & Creative Production',
     ]
 
     const [

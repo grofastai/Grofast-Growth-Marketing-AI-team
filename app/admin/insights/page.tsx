@@ -94,7 +94,7 @@ export type InsightsKPIs  = {
 
 function isMediaTeam(team: string | null): boolean {
   const t = (team ?? '').toLowerCase().trim()
-  // Only exact media production teams — "AI Development & Media" is NOT media
+  // Only exact media production teams — "AI Development & Creative Production" is NOT media
   return t === 'media production team' || t === 'media team'
 }
 

@@ -528,7 +528,7 @@ export default function ClientsUnifiedClient({
               {/* Quick buttons — All Time first, then This Month, then Custom */}
               {([
                 { key: 'all',    label: 'All Time'   },
-                { key: 'this',   label: 'This Month' },
+                { key: 'this',   label: 'Month'       },
                 { key: 'custom', label: 'Custom'     },
               ] as const).map(({ key, label }) => (
                 <button key={key} onClick={() => setQuick(key)} style={{

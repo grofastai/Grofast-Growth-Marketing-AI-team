@@ -64,6 +64,7 @@ export default async function LeavesPage({
     { data: upcoming },
     { count: memberCount },
     { count: onLeaveCount },
+    { count: awayTodayCount },
     { data: onLeaveTodayRaw },
     { count: pendingCount },
     { count: approvedCount },
@@ -88,13 +89,24 @@ export default async function LeavesPage({
       .from("users")
       .select("*", { count: "exact", head: true })
       .eq("company_id", cid)
-      .eq("role", "MEMBER"),
+      .eq("role", "MEMBER")
+      .eq("status", "active")
+      .eq("is_management", false)
+      .eq("is_freelancer_login", false),
     admin
       .from("leaves")
       .select("*", { count: "exact", head: true })
       .eq("company_id", cid)
       .eq("status", "approved")
       .in("leave_type", ["full_day", "half_day"])
+      .lte("from_date", today)
+      .gte("to_date", today),
+    admin
+      .from("leaves")
+      .select("*", { count: "exact", head: true })
+      .eq("company_id", cid)
+      .eq("status", "approved")
+      .in("leave_type", ["wfh", "shoot_day"])
       .lte("from_date", today)
       .gte("to_date", today),
     admin
@@ -117,7 +129,9 @@ export default async function LeavesPage({
 
   const total = Math.max(1, memberCount ?? 0)
   const onLeave = onLeaveCount ?? 0
-  const availabilityPct = Math.min(100, Math.max(0, Math.round(((total - onLeave) / total) * 100)))
+  const away = awayTodayCount ?? 0
+  const available = Math.max(0, total - onLeave - away)
+  const availabilityPct = Math.min(100, Math.max(0, Math.round((available / total) * 100)))
 
   const onLeaveToday = (onLeaveTodayRaw ?? []).map((l: any) => {
     const u = Array.isArray(l.users) ? l.users[0] : l.users
@@ -131,6 +145,9 @@ export default async function LeavesPage({
       typeFilter={typeFilter}
       upcomingLeaves={upcoming ?? []}
       availabilityPct={availabilityPct}
+      availableCount={available}
+      onLeaveCountToday={onLeave}
+      awayCountToday={away}
       onLeaveToday={onLeaveToday}
       pendingCount={pendingCount ?? 0}
       approvedCount={approvedCount ?? 0}

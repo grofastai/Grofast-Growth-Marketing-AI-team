@@ -32,6 +32,9 @@ interface LeavesClientProps {
   typeFilter: string
   upcomingLeaves: Leave[]
   availabilityPct: number
+  availableCount: number
+  onLeaveCountToday: number
+  awayCountToday: number
   onLeaveToday: { name: string }[]
   pendingCount: number
   approvedCount: number
@@ -122,32 +125,6 @@ function getAvatar(name: string, gender: string | undefined, idx: number) {
   if (g === "female" || g === "f") return GIRL_IMGS[idx % GIRL_IMGS.length]
   if (g === "male"   || g === "m") return BOY_IMGS[idx % BOY_IMGS.length]
   return idx % 2 === 0 ? BOY_IMGS[idx % BOY_IMGS.length] : GIRL_IMGS[idx % GIRL_IMGS.length]
-}
-
-// ── Donut Chart (text inside SVG for perfect centering) ────────────────────────
-function AvailabilityDonut({ pct, size = 160, color = "#10B981" }: { pct: number; size?: number; color?: string }) {
-  const cx = size / 2, cy = size / 2
-  const r = size * 0.34
-  const circ = 2 * Math.PI * r
-  const sw = size * 0.1
-  const onTrack = (pct / 100) * circ
-  const offTrack = circ - onTrack
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F3F4F6" strokeWidth={sw} />
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={sw}
-        strokeDasharray={`${onTrack} ${offTrack}`} strokeLinecap="round"
-        transform={`rotate(-90 ${cx} ${cy})`}
-        style={{ transition: "stroke-dasharray 0.6s" }} />
-      <text x={cx} y={cy - size * 0.08} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.2} fontWeight="900" fill="#111827">{pct}%</text>
-      <text x={cx} y={cy + size * 0.08} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.075} fill="#9CA3AF">Team</text>
-      <text x={cx} y={cy + size * 0.19} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.075} fill="#9CA3AF">Available</text>
-    </svg>
-  )
 }
 
 // ── Leave Card ─────────────────────────────────────────────────────────────────
@@ -277,7 +254,8 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function LeavesClient({
-  leaves, statusFilter, typeFilter, upcomingLeaves, availabilityPct, onLeaveToday,
+  leaves, statusFilter, typeFilter, upcomingLeaves, availabilityPct,
+  availableCount, onLeaveCountToday, awayCountToday, onLeaveToday,
   pendingCount, approvedCount, rejectedCount, companyLeaves,
   fullDayCount, wfhCount, shootCount, halfDayCount,
 }: LeavesClientProps) {
@@ -594,12 +572,29 @@ export default function LeavesClient({
             background: "#FFFFFF", borderRadius: 18, padding: "20px",
             border: "1px solid #F0F0F5", boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
           }}>
-            <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 16px", fontFamily: "var(--font-jakarta)" }}>Team Availability</p>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-              <AvailabilityDonut pct={availabilityPct} size={160} color={donutColor} />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>Team Availability</p>
+              <span style={{ fontSize: 20, fontWeight: 900, color: donutColor, fontFamily: "var(--font-jakarta)" }}>{availabilityPct}%</span>
+            </div>
+            <div style={{ height: 10, background: "#F3F4F6", borderRadius: 99, overflow: "hidden", marginBottom: 16 }}>
+              <div style={{ height: "100%", width: `${availabilityPct}%`, background: donutColor, borderRadius: 99, transition: "width 0.6s" }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: 15, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>{availableCount}</p>
+                <p style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, margin: "2px 0 0" }}>Available</p>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: 15, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>{onLeaveCountToday}</p>
+                <p style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, margin: "2px 0 0" }}>Leave</p>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: 15, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>{awayCountToday}</p>
+                <p style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, margin: "2px 0 0" }}>Away</p>
+              </div>
             </div>
             {onLeaveToday.length > 0 && (
-              <div style={{ background: "#FEF9EC", borderRadius: 10, padding: "10px 12px", border: "1px solid #FDE68A" }}>
+              <div style={{ marginTop: 14, background: "#FEF9EC", borderRadius: 10, padding: "10px 12px", border: "1px solid #FDE68A" }}>
                 <p style={{ fontSize: 11, fontWeight: 700, color: "#D97706", margin: "0 0 6px" }}>{onLeaveToday.length} on leave today</p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                   {onLeaveToday.map((m, i) => (

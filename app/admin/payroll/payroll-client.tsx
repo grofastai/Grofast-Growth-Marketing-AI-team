@@ -10,6 +10,7 @@ import {
   runPayroll,
   saveBonusAdvance,
 } from "@/lib/actions/payroll"
+import { useToast } from "@/components/ui/useToast"
 
 type PayrollRow = {
   id: string; name: string; employee_id: string; team: string | null
@@ -542,6 +543,7 @@ export default function PayrollClient({
 }) {
   const router   = useRouter()
   const pathname = usePathname()
+  const { toastEl, showToast } = useToast()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [isRunning, startRunTransition] = useTransition()
   const [showConfirm, setShowConfirm] = useState(false)
@@ -591,6 +593,23 @@ export default function PayrollClient({
     })
   }
 
+  // Opens each employee's existing, unmodified payslip URL in its own tab —
+  // reuses /api/payslip exactly as the per-row download button already does,
+  // just for every configured employee in one click instead of one at a time.
+  function handleBulkPayslip() {
+    const configured = rows.filter(r => r.basePay > 0)
+    if (configured.length === 0) {
+      showToast("No employees with payroll configured for this month yet.", "error")
+      return
+    }
+    showToast(`Opening ${configured.length} payslip${configured.length > 1 ? "s" : ""} — allow pop-ups if your browser blocks them.`, "info")
+    configured.forEach((r, i) => {
+      setTimeout(() => {
+        window.open(`/api/payslip?userId=${r.id}&month=${month}`, "_blank", "noopener,noreferrer")
+      }, i * 400)
+    })
+  }
+
   const SUMMARY = [
     { label: "Total Payroll",    value: fmtK(totalFinal), sub: `${paidCount} of ${rows.length} paid`,    color: "#E53935", bg: "#FFF5F5", idx: 0 },
     { label: "Total OT Pay",     value: fmtK(totalOT),    sub: `${rows.filter(r => r.otPay > 0).length} with OT`,   color: "#F97316", bg: "#FFF7ED", idx: 1 },
@@ -602,6 +621,7 @@ export default function PayrollClient({
 
   return (
     <div style={{ padding: "20px 24px", maxWidth: 1400, margin: "0 auto" }}>
+      {toastEl}
 
       {/* ── Pre-Payroll Checklist Banner ── */}
       {hasPreCheckIssues && (
@@ -904,15 +924,16 @@ export default function PayrollClient({
             <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: "0 0 14px", fontFamily: "var(--font-jakarta)" }}>Quick Actions</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {[
-                { emoji: "📄", label: "Generate Payslip" },
-                { emoji: "📋", label: "Bulk Update" },
-                { emoji: "⚙️", label: "Payroll Settings" },
-                { emoji: "📊", label: "Reports" },
+                { emoji: "📄", label: "Generate Payslip", action: handleBulkPayslip },
+                { emoji: "📋", label: "Bulk Update", action: undefined },
+                { emoji: "⚙️", label: "Payroll Settings", action: undefined },
+                { emoji: "📊", label: "Reports", action: undefined },
               ].map((action) => (
-                <button key={action.label} style={{
+                <button key={action.label} onClick={action.action} disabled={!action.action} style={{
                   padding: "12px 8px", borderRadius: 14, background: "#F9FAFB",
-                  border: "1.5px solid #EBEBEB", cursor: "pointer",
+                  border: "1.5px solid #EBEBEB", cursor: action.action ? "pointer" : "not-allowed",
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 7,
+                  opacity: action.action ? 1 : 0.5,
                 }}>
                   <span style={{ fontSize: 22 }}>{action.emoji}</span>
                   <span style={{ fontSize: 10, fontWeight: 600, color: "#374151", textAlign: "center" }}>{action.label}</span>

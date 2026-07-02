@@ -899,30 +899,6 @@ export default function PayrollClient({
             </div>
           </div>
 
-          {/* Upcoming Payouts */}
-          <div style={{ borderRadius: 20, background: "#fff", border: "1.5px solid #EBEBEB", padding: "18px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-            <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: "0 0 14px", fontFamily: "var(--font-jakarta)" }}>Upcoming Payouts</h3>
-            {[
-              { icon: "📅", label: "Salary Payout",  date: `03 ${payDate.toLocaleString("en-IN", { month: "short", year: "numeric" })}`, color: "#3B82F6" },
-              { icon: "🎁", label: "Bonus Payout",    date: `05 ${payDate.toLocaleString("en-IN", { month: "long", year: "numeric" })}`,  color: "#8B5CF6" },
-              { icon: "📊", label: "Reimbursement",   date: `07 ${payDate.toLocaleString("en-IN", { month: "long", year: "numeric" })}`,  color: "#F97316" },
-            ].map((item, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", gap: 12,
-                paddingBottom: i < 2 ? 12 : 0, marginBottom: i < 2 ? 12 : 0,
-                borderBottom: i < 2 ? "1px solid #F5F5F5" : "none",
-              }}>
-                <div style={{ width: 38, height: 38, borderRadius: 11, background: `${item.color}12`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, border: `1px solid ${item.color}20` }}>
-                  {item.icon}
-                </div>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111" }}>{item.label}</div>
-                  <div style={{ fontSize: 10, color: "#9CA3AF" }}>{item.date}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
           {/* Quick Actions */}
           <div style={{ borderRadius: 20, background: "#fff", border: "1.5px solid #EBEBEB", padding: "18px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
             <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: "0 0 14px", fontFamily: "var(--font-jakarta)" }}>Quick Actions</h3>

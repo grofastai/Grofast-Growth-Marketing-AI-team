@@ -48,7 +48,9 @@ export default async function PayrollPage({
       .from("users")
       .select("id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, paid_leave_days")
       .eq("company_id", cid)
+      .eq("role", "MEMBER")
       .eq("status", "active")
+      .eq("is_freelancer_login", false)
       .is("deleted_at", null)
       .order("name"),
     admin

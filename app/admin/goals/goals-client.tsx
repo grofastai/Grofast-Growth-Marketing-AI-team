@@ -5,12 +5,11 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   Plus, X, Trash2, Loader2, Calendar, Users, Columns, Target,
-  TrendingUp, CheckSquare, Clock, BarChart3, Sparkles, Archive, ChevronDown, ChevronUp,
+  TrendingUp, CheckSquare, Clock, Sparkles, Archive, ChevronDown, ChevronUp,
   Paperclip, Link2, FileText, ExternalLink,
 } from "lucide-react"
 import { createTask, updateTaskStatus, deleteTask } from "@/lib/actions/tasks"
 import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
-import { syncClientsNow } from "@/lib/actions/sync"
 
 interface TaskAttachment { type: 'link' | 'file'; url: string; name?: string }
 
@@ -244,8 +243,6 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [movingId, setMovingId] = useState<string | null>(null)
   const [archiveOpen, setArchiveOpen] = useState(false)
-  const [syncing, setSyncing] = useState(false)
-  const [syncMsg, setSyncMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [mediaClientType, setMediaClientType] = useState("")
   const [mediaBrand, setMediaBrand] = useState("")
   const [mediaCustomClient, setMediaCustomClient] = useState("")
@@ -357,11 +354,10 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
               Assign, track & manage your team's work
             </p>
             {/* Mini stats row */}
-            <div style={{ display: "flex", gap: 10, marginTop: 16, overflowX: "auto", flexWrap: "nowrap" }}>
+            <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
               {[
                 { icon: <CheckSquare size={12} />, label: `${done} Done` },
                 { icon: <Clock size={12} />, label: `${inprog} Active` },
-                { icon: <BarChart3 size={12} />, label: `${members.length} Members` },
               ].map(s => (
                 <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 12px", flexShrink: 0, whiteSpace: "nowrap" }}>
                   <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
@@ -388,31 +384,6 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                 </button>
               ))}
             </div>
-            <button
-              onClick={async () => {
-                setSyncing(true); setSyncMsg(null)
-                const res = await syncClientsNow()
-                setSyncing(false)
-                if (res.success) {
-                  setSyncMsg({ ok: true, text: `✓ Synced ${res.active} active + ${res.past} past clients` })
-                  router.refresh()
-                } else {
-                  setSyncMsg({ ok: false, text: res.error ?? "Sync failed" })
-                }
-                setTimeout(() => setSyncMsg(null), 4000)
-              }}
-              disabled={syncing}
-              title="Sync clients from Google Sheet"
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "11px 16px", borderRadius: 14, fontSize: 12, fontWeight: 700,
-                border: "1.5px solid rgba(255,255,255,0.3)", cursor: syncing ? "wait" : "pointer",
-                background: "rgba(255,255,255,0.15)", color: "#FFFFFF",
-                opacity: syncing ? 0.7 : 1,
-              }}>
-              {syncing ? <Loader2 size={13} className="animate-spin" /> : <TrendingUp size={13} />}
-              {syncing ? "Syncing…" : "Sync Clients"}
-            </button>
             <button onClick={() => openForm()} style={{
               display: "flex", alignItems: "center", gap: 8,
               padding: "11px 22px", borderRadius: 14, fontSize: 13, fontWeight: 800,
@@ -422,16 +393,6 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
             }}>
               <Plus size={16} /> Create Task
             </button>
-            {syncMsg && (
-              <div style={{
-                position: "fixed", bottom: 24, right: 24, zIndex: 9999,
-                background: syncMsg.ok ? "#10B981" : "#EF4444", color: "#fff",
-                padding: "12px 20px", borderRadius: 12, fontSize: 13, fontWeight: 700,
-                boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
-              }}>
-                {syncMsg.text}
-              </div>
-            )}
           </div>
         </div>
       </div>

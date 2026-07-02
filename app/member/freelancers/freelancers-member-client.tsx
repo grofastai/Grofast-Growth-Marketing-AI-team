@@ -1263,14 +1263,8 @@ export default function FreelancersMemberClient({
                       style={{ position: "absolute", bottom: 0, right: 16, height: "88%", maxHeight: 260, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
-                    {/* Character image (mobile) — flows above the text instead of overlapping it */}
-                    {selectedFreelancer.team === "Freelance RJ Voiceover" && (
-                      <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
-                        className="block sm:hidden mx-auto"
-                        style={{ height: 120, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", marginBottom: 12 }} />
-                    )}
-                    <div className="flex flex-col items-center text-center gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:text-left">
-                      <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-[14px]">
+                    <div className="flex flex-col items-start text-left gap-3 sm:flex-row sm:flex-wrap sm:justify-between">
+                      <div className="flex items-center gap-3 sm:gap-[14px]">
                         <div style={{ width: 56, height: 56, borderRadius: 18, background: "rgba(255,255,255,0.25)", border: "2.5px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
                           <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)" }}>{getInitials(selectedFreelancer.name)}</span>
                         </div>
@@ -1279,7 +1273,7 @@ export default function FreelancersMemberClient({
                             {cfg.emoji} {cfg.shortLabel}
                           </span>
                           <h2 style={{ fontSize: "clamp(18px,4vw,24px)", fontWeight: 900, color: "#fff", margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{selectedFreelancer.name}</h2>
-                          <div className="justify-center sm:justify-start" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                               <Star size={12} fill="#FACC15" color="#FACC15" />
                               <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{selectedFreelancer.rating.toFixed(1)}</span>
@@ -1294,12 +1288,24 @@ export default function FreelancersMemberClient({
                           )}
                         </div>
                       </div>
-                      <button onClick={() => setAddWorkFor(selectedFreelancer)} style={{ padding: "9px 16px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0, transition: "all 0.15s" }}
+                      <button onClick={() => setAddWorkFor(selectedFreelancer)}
+                        className={selectedFreelancer.team === "Freelance RJ Voiceover" ? "hidden sm:flex" : "flex"}
+                        style={{ padding: "9px 16px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0, transition: "all 0.15s" }}
                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.3)"}
                         onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.2)"}>
                         <Plus size={14} /> Add Work
                       </button>
                     </div>
+                    {/* Mobile-only: character sits beside Add Work in its own row instead of behind the text above */}
+                    {selectedFreelancer.team === "Freelance RJ Voiceover" && (
+                      <div className="flex sm:hidden items-center justify-between" style={{ marginTop: 16 }}>
+                        <button onClick={() => setAddWorkFor(selectedFreelancer)} style={{ padding: "9px 16px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0 }}>
+                          <Plus size={14} /> Add Work
+                        </button>
+                        <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
+                          style={{ height: 100, width: "auto", maxWidth: 130, objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 20px rgba(168,85,247,0.5))" }} />
+                      </div>
+                    )}
                     {/* KPI glass strip */}
                     <div style={{ display: "flex", gap: 10, marginTop: 22, paddingBottom: 24, overflowX: "auto" }}>
                       {[

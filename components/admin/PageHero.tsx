@@ -59,7 +59,15 @@ export function PageHero({
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between"
         style={{ padding: "clamp(16px,4vw,24px) clamp(18px,5vw,28px)", gap: 16, position: "relative", zIndex: 2 }}>
-        <div style={{ minWidth: 0, maxWidth: maxContentWidth }}>
+        <div
+          className={maxContentWidth ? "sm:max-w-[var(--hero-content-max)]" : undefined}
+          style={{
+            minWidth: 0,
+            ...(maxContentWidth
+              ? ({ "--hero-content-max": typeof maxContentWidth === "number" ? `${maxContentWidth}px` : maxContentWidth } as React.CSSProperties)
+              : {}),
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
             <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "5px 7px", display: "flex", alignItems: "center" }}>
               {eyebrowIcon ?? <Sparkles size={14} style={{ color: "#FFD700" }} />}

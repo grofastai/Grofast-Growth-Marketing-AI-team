@@ -390,6 +390,8 @@ export default function DocumentsClient({
   const pendingKYC    = members.filter(m => !kycRecords.find(k => k.user_id === m.id && k.bank_account)).length
   const totalBytes    = documents.reduce((a, d) => a + (d.file_size ?? 0), 0)
   const storageGB     = (totalBytes / (1024 * 1024 * 1024)).toFixed(1)
+  const STORAGE_CAP_GB = 50
+  const storagePct    = Math.min(100, Math.round((totalBytes / (STORAGE_CAP_GB * 1024 * 1024 * 1024)) * 100))
 
   // Profile completion
   const completionPct = useMemo(() => {
@@ -982,17 +984,12 @@ export default function DocumentsClient({
           <div style={{ flex: 1 }}>
             <div className="flex items-center justify-between mb-2">
               <p style={{ fontSize: 13, fontWeight: 800, color: "#111" }}>Cloud Storage</p>
-              <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "rgba(249,115,22,0.1)", color: "#EA580C" }}>72%</span>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "rgba(249,115,22,0.1)", color: "#EA580C" }}>{storagePct}%</span>
             </div>
             <div style={{ height: 8, borderRadius: 99, background: "#F3F4F6", overflow: "hidden", marginBottom: 8 }}>
-              <div style={{ height: "100%", width: "72%", borderRadius: 99, background: "linear-gradient(90deg, #3B82F6, #0EA5E9)" }} />
+              <div style={{ height: "100%", width: `${storagePct}%`, borderRadius: 99, background: "linear-gradient(90deg, #3B82F6, #0EA5E9)" }} />
             </div>
-            <div className="flex items-center justify-between">
-              <p style={{ fontSize: 11, color: "#6B7280" }}>32.4 GB / 50 GB used</p>
-              <button style={{ fontSize: 11, fontWeight: 700, padding: "5px 14px", borderRadius: 8, background: "linear-gradient(135deg, #F59E0B, #D97706)", color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                ✨ Upgrade Plan
-              </button>
-            </div>
+            <p style={{ fontSize: 11, color: "#6B7280" }}>{storageGB} GB / {STORAGE_CAP_GB} GB used</p>
           </div>
         </div>
 

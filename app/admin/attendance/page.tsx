@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import Image from "next/image"
 import Link from "next/link"
 import {
-  CalendarDays, Users, FileBarChart, ClipboardList,
+  Users,
   ArrowRight, Clock, TrendingUp, CheckCircle2, XCircle,
   AlertCircle, Sparkles, UserCheck, BarChart3,
 } from "lucide-react"
@@ -136,7 +136,6 @@ export default async function AttendancePage({
     count: weekCountMap[date] ?? 0,
   }))
 
-  const adminName  = profile?.name ?? "Admin"
   const displayDate = new Date(selectedDate + "T12:00:00Z").toLocaleDateString("en-IN", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   })
@@ -174,13 +173,6 @@ export default async function AttendancePage({
       pct: 100, sub: "Active team size",
       icon: <Users size={16} style={{ color: "#6366F1" }} />,
     },
-  ]
-
-  const quickActions = [
-    { label: "Attendance Report", href: "/admin/reports",    icon: FileBarChart,  from: "#6366F1", to: "#8B5CF6" },
-    { label: "Manage Leaves",     href: "/admin/leaves",     icon: ClipboardList, from: "#F59E0B", to: "#EF4444" },
-    { label: "Team Overview",     href: "/admin/team",       icon: Users,         from: "#10B981", to: "#06B6D4" },
-    { label: "Daily Updates",     href: "/admin/activities", icon: BarChart3,     from: "#de1a1a", to: "#F97316" },
   ]
 
   return (
@@ -226,13 +218,10 @@ export default async function AttendancePage({
             </div>
           </div>
 
-          {/* Right: date nav + avatar */}
+          {/* Right: date nav */}
           <div className="flex items-center gap-3 mt-3 sm:mt-0" style={{ flexShrink: 0 }}>
             <div style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: "4px 6px" }}>
               <AttendanceDateNav selectedDate={selectedDate} today={today} />
-            </div>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <span style={{ fontSize: 15, fontWeight: 900, color: "#FFFFFF" }}>{(adminName[0] ?? "A").toUpperCase()}</span>
             </div>
           </div>
         </div>
@@ -375,7 +364,7 @@ export default async function AttendancePage({
           {/* Footer */}
           <div style={{ padding: "14px 22px", borderTop: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 11, color: "#9CA3AF" }}>{(members ?? []).length} employees total</span>
-            <Link href="/admin/reports" style={{ fontSize: 12, fontWeight: 800, color: "#de1a1a", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 16px", borderRadius: 10, background: "rgba(222,26,26,0.07)" }}>
+            <Link href="/admin/activities" style={{ fontSize: 12, fontWeight: 800, color: "#de1a1a", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 16px", borderRadius: 10, background: "rgba(222,26,26,0.07)" }}>
               Full Report <ArrowRight size={13} />
             </Link>
           </div>
@@ -412,40 +401,6 @@ export default async function AttendancePage({
                 <span style={{ fontSize: 10, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 8, padding: "3px 10px" }}>This Week</span>
               </div>
               <WeeklyTrendChart data={weeklyData} />
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div style={{ background: "#FFFFFF", borderRadius: 22, border: "1px solid #EBEDF2", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", overflow: "hidden" }}>
-            <div style={{ height: 4, background: "linear-gradient(90deg, #F59E0B, #EF4444)" }} />
-            <div style={{ padding: "18px 20px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                <div style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(245,158,11,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <CalendarDays size={14} style={{ color: "#F59E0B" }} />
-                </div>
-                <h3 style={{ fontSize: 14, fontWeight: 900, color: "#111827", margin: 0 }}>Quick Actions</h3>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {quickActions.map(a => {
-                  const Icon = a.icon
-                  return (
-                    <Link key={a.label} href={a.href} style={{ textDecoration: "none" }}>
-                      <div style={{
-                        display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-                        padding: "14px 10px", borderRadius: 14,
-                        background: `linear-gradient(135deg, ${a.from}12, ${a.to}12)`,
-                        border: `1px solid ${a.from}20`,
-                        cursor: "pointer", transition: "all 0.15s",
-                      }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, ${a.from}, ${a.to})`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 4px 10px ${a.from}30` }}>
-                          <Icon size={16} style={{ color: "#FFFFFF" }} />
-                        </div>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: a.from, textAlign: "center", lineHeight: 1.3 }}>{a.label}</span>
-                      </div>
-                    </Link>
-                  )
-                })}
-              </div>
             </div>
           </div>
         </div>

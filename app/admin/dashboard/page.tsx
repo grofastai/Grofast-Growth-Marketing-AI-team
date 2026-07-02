@@ -41,6 +41,7 @@ type TodayLeaveRow = {
 type CalLeaveRow = {
   from_date: string
   to_date: string
+  leave_type: string | null
   users: { id: string; name: string } | { id: string; name: string }[] | null
 }
 
@@ -141,7 +142,7 @@ export default async function DashboardPage() {
       .eq("company_id", cid).eq("date", today)
       .order("created_at", { ascending: false }).limit(6),
     admin.from("leaves")
-      .select("from_date, to_date, users(id, name)")
+      .select("from_date, to_date, leave_type, users(id, name)")
       .eq("company_id", cid).eq("status", "approved")
       .lte("from_date", monthEnd).gte("to_date", monthStart),
     cid ? getAlerts(cid) : Promise.resolve({ notUpdatedCount: 0, notUpdatedNames: [], overdueTaskCount: 0, overdueProjectCount: 0, total: 0 }),
@@ -177,9 +178,10 @@ export default async function DashboardPage() {
       !m.is_management && !m.is_freelancer_login && !yesterdayUpdatedIds.has(m.id) && !yesterdayOnLeaveIds.has(m.id))
     .map((m: { name: string }) => m.name)
 
-  // Build leave calendar map
+  // Build leave calendar map — excludes WFH/Shoot Day, those members are working, not absent
   const leaveCalMap: Record<string, { id: string; name: string }[]> = {}
   for (const leave of (monthLeavesRaw ?? []) as unknown as CalLeaveRow[]) {
+    if (leave.leave_type === "wfh" || leave.leave_type === "shoot_day") continue
     const u    = Array.isArray(leave.users) ? leave.users[0] : leave.users
     const id   = u?.id ?? ""
     const name = u?.name ?? "?"

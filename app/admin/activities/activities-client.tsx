@@ -286,7 +286,7 @@ export default function ActivitiesClient({
   const [showCustom, setShowCustom] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
-  void onLeaveIds; void leaveDays; void clockInDays; void pendingLeaves; void pendingCollabs
+  void onLeaveIds; void pendingLeaves; void pendingCollabs
 
   const todayDate        = new Date()
   const todayStr         = todayDate.toISOString().split("T")[0]
@@ -331,24 +331,36 @@ export default function ActivitiesClient({
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const presentSet = new Set<string>()
-    const onLeaveSet = new Set<string>()
-    let totalHours = 0
+    const activeMembers = members.filter(m => m.role !== "ADMIN")
+    const activeMemberIds = new Set(activeMembers.map(m => m.id))
 
+    // Present/on-leave come from the same clock-in / approved-leave data the
+    // Dashboard and Attendance pages use — not from each update's own
+    // attendance_status flag, which only exists if that member happened to
+    // submit a daily update (independent of whether they actually clocked in).
+    const presentSet = new Set<string>()
+    for (const key of clockInDays ?? []) {
+      const sep = key.lastIndexOf(":")
+      const userId = key.slice(0, sep)
+      if (activeMemberIds.has(userId)) presentSet.add(userId)
+    }
+
+    const onLeaveSet = new Set<string>()
+    for (const key of leaveDays ?? []) {
+      const sep = key.lastIndexOf(":")
+      const userId = key.slice(0, sep)
+      if (activeMemberIds.has(userId)) onLeaveSet.add(userId)
+    }
+
+    let totalHours = 0
     for (const u of updates) {
       const user = Array.isArray(u.users) ? u.users[0] : u.users
       if (!user) continue
+      if (u.attendance_status !== "present") continue
       const collabH = collabHoursMap[`${user.id}:${u.date}`] ?? 0
-      const hrs = getUpdateHours(u) + collabH
-      if (u.attendance_status === "present") {
-        presentSet.add(user.id)
-        totalHours += hrs
-      } else if (u.attendance_status === "leave") {
-        onLeaveSet.add(user.id)
-      }
+      totalHours += getUpdateHours(u) + collabH
     }
 
-    const activeMembers = members.filter(m => m.role !== "ADMIN")
     const updatedIds = new Set(updates.map(u => {
       const user = Array.isArray(u.users) ? u.users[0] : u.users
       return user?.id
@@ -363,7 +375,7 @@ export default function ActivitiesClient({
       notUpdated: notUpdated.length,
       notUpdatedMembers: notUpdated,
     }
-  }, [updates, members, collabHoursMap])
+  }, [updates, members, collabHoursMap, clockInDays, leaveDays])
 
   const donutData = useMemo(() => {
     const total = members.filter(m => m.role !== "ADMIN").length || 1

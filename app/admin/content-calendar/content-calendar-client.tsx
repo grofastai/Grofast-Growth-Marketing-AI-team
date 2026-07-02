@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, Plus, X, Camera,
   Loader2, CheckCircle2, Clock,
   PlayCircle, Image, Film, Layers, Send, Trash2, Pencil,
+  UploadCloud, ClipboardList, Lightbulb,
 } from "lucide-react"
 import { createContentPost, updateContentPost, updateContentPostStatus, deleteContentPost } from "@/lib/actions/content-calendar"
 import { useToast } from "@/components/ui/useToast"
@@ -738,16 +739,24 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 12px" }}>Quick Actions</h3>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10 }}>
               {[
-                { icon: "✏️", label: "Create Post",   sub: "Design & plan", color: "#DE1A1A", bg: "rgba(222,26,26,0.07)",  action: () => { resetForm(); setSchedDates([selectedDate]); setModalMode("add") } },
-                { icon: "☁️", label: "Upload Media",  sub: "Images/Videos", color: "#C41230", bg: "rgba(196,18,48,0.07)",  action: () => setView("list") },
-                { icon: "📋", label: "View Posts",    sub: "All scheduled", color: "#8B0000", bg: "rgba(139,0,0,0.07)",    action: () => setView("list") },
-                { icon: "💡", label: "Content Ideas", sub: "AI Suggestions",color: "#B71C1C", bg: "rgba(183,28,28,0.07)", action: () => {} },
+                { Icon: Pencil,        label: "Create Post",   sub: "Design & plan", from: "#DE1A1A", to: "#F97316", action: () => { resetForm(); setSchedDates([selectedDate]); setModalMode("add") } },
+                { Icon: UploadCloud,   label: "Upload Media",  sub: "Images/Videos", from: "#1D4ED8", to: "#3B82F6", action: () => setView("list") },
+                { Icon: ClipboardList, label: "View Posts",    sub: "All scheduled", from: "#7C3AED", to: "#A855F7", action: () => setView("list") },
+                { Icon: Lightbulb,     label: "Content Ideas", sub: "AI Suggestions",from: "#D97706", to: "#F59E0B", action: () => {} },
               ].map(a => (
                 <button key={a.label} onClick={a.action}
-                  style={{ padding: "12px 10px", borderRadius: 14, background: a.bg, border: `1.5px solid ${a.color}22`, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 18, flexShrink: 0 }}>{a.icon}</span>
+                  style={{
+                    padding: "12px 10px", borderRadius: 14, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 10,
+                    background: `linear-gradient(135deg, ${a.from}14, ${a.to}0D)`, border: `1.5px solid ${a.from}25`,
+                  }}>
+                  <div style={{
+                    width: 34, height: 34, borderRadius: 10, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                    background: `linear-gradient(135deg, ${a.from}, ${a.to})`, boxShadow: `0 4px 10px ${a.from}40`,
+                  }}>
+                    <a.Icon size={16} style={{ color: "#FFFFFF" }} />
+                  </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 11, fontWeight: 800, color: a.color, margin: 0 }}>{a.label}</p>
+                    <p style={{ fontSize: 11, fontWeight: 800, color: a.from, margin: 0 }}>{a.label}</p>
                     <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.sub}</p>
                   </div>
                 </button>

@@ -387,7 +387,7 @@ export default function LeavesClient({
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: 0 }}>Review and manage team leave applications</p>
         </div>
         {/* 6 KPI boxes in 3×2 grid */}
-        <div className="grid grid-cols-3 lg:grid-cols-6 w-fit mx-auto lg:mx-0" style={{ gap: 8, position: "relative", zIndex: 1 }}>
+        <div className="grid grid-cols-3 lg:grid-cols-6 mx-auto lg:mx-0" style={{ gap: 8, position: "relative", zIndex: 1, width: "100%", maxWidth: 420 }}>
           {[
             { label: "Full Day",  value: fullDayCount,  color: "#FCA5A5" },
             { label: "WFH",       value: wfhCount,       color: "#6EE7B7" },
@@ -559,17 +559,16 @@ export default function LeavesClient({
           {/* Leave Cards */}
           {statusFilter !== "holidays" && (leaves.length === 0 ? (
             <div style={{
-              background: gradBg, borderRadius: 18, padding: "60px 24px", textAlign: "center",
-              position: "relative", overflow: "hidden", boxShadow: "0 8px 32px rgba(180,0,0,0.3)",
+              background: "#FFFFFF", borderRadius: 18, padding: "60px 24px", textAlign: "center",
+              border: "1px solid #F0F0F5", boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
             }}>
-              <div style={{ position: "absolute", top: -30, right: -20, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
-              <div style={{ position: "relative", width: 200, height: 160, margin: "0 auto 20px" }}>
+              <div style={{ position: "relative", width: 280, height: 220, margin: "0 auto 20px", maxWidth: "100%" }}>
                 <Image src="/brand/leave/vacation-hero.png" alt="" fill style={{ objectFit: "contain" }} />
               </div>
-              <p style={{ fontSize: 16, fontWeight: 700, color: "#FFFFFF", margin: "0 0 6px", fontFamily: "var(--font-jakarta)" }}>
+              <p style={{ fontSize: 16, fontWeight: 700, color: "#111827", margin: "0 0 6px", fontFamily: "var(--font-jakarta)" }}>
                 No {statusFilter === "all" ? "" : statusFilter} leave requests
               </p>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: 0 }}>Your team is fully available today.</p>
+              <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>Your team is fully available today.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">

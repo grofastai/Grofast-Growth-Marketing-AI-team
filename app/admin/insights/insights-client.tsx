@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Sparkles, Users, TrendingUp, BarChart3 } from 'lucide-react'
+import { Sparkles, Users, TrendingUp } from 'lucide-react'
 import type { MemberUtilization, ClientHour, InsightsKPIs, DailyTrend, SpendCategory } from './page'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -168,7 +168,6 @@ export default function InsightsClient({
             {[
               { icon: <Users size={11} />, label: `${memberUtilization.length} Members` },
               { icon: <TrendingUp size={11} />, label: `${kpis.avgEfficiency}% Efficiency` },
-              { icon: <BarChart3 size={11} />, label: `${kpis.totalTrackedHours.toFixed(0)}h Tracked` },
             ].map(s => (
               <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '4px 10px' }}>
                 <span style={{ color: 'rgba(255,255,255,0.8)' }}>{s.icon}</span>

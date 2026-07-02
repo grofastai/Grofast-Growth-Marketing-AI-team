@@ -660,7 +660,7 @@ export default function DailyUpdateForm({
   ) / 100
   const learningSummaryTopic = learningBlocks.find(b => b.topic.trim())?.topic ?? ""
   const filledLearningBlocks = learningBlocks.filter(
-    b => b.topic.trim() && b.from && b.to && calcLearningHours(b.from, b.to) > 0
+    b => b.client.trim() && b.topic.trim() && b.from && b.to && calcLearningHours(b.from, b.to) > 0
   )
   const [learningParticipantIds, setLearningParticipantIds] = useState<string[]>(
     existingUpdate?.active_tab === "learning" ? ((existingUpdate?.participant_ids as string[]) ?? []) : []
@@ -865,7 +865,7 @@ export default function DailyUpdateForm({
       const label = voiceovers.length > 1 ? `Voiceover ${i + 1}: ` : "Voiceover: "
       const client = v.clientName === "__custom__" ? v.customClient.trim() : v.clientName
       if (!client) { setWorkingError(`${label}Select a client.`); return }
-      if (!v.title.trim()) { setWorkingError(`${label}Enter a title / project name.`); return }
+      if (!v.title.trim()) { setWorkingError(`${label}Enter a script name.`); return }
       if (!v.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!v.endTime)   { setWorkingError(`${label}Enter end time.`); return }
       if (toMins(v.endTime) <= toMins(v.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
@@ -1003,7 +1003,7 @@ export default function DailyUpdateForm({
   function handleMediaSubmit() {
     setError(null)
     if (requiresClockIn && !todayClockedIn && selectedDate === todayStr) { setError("Please clock in on the Attendance page before submitting today's work log."); return }
-    if (tab !== "break" && shoots.length === 0 && edits.length === 0 && voiceovers.length === 0 && posters.length === 0) { setError("Add at least one shoot, edit, voiceover, or poster entry."); return }
+    if (tab !== "break" && shoots.length === 0 && edits.length === 0) { setError("Add at least one shoot or edit entry."); return }
 
     // Overlap check: all new entries vs saved + within batch + leave windows (today AND past dates)
     {
@@ -1011,8 +1011,6 @@ export default function DailyUpdateForm({
       const newEntries: OverlapEntry[] = [
         ...shoots.map(s => ({ id: s.id, start: s.startTime, end: s.endTime, title: s.title || 'Shoot' })),
         ...edits.map(e => ({ id: e.id, start: e.startTime, end: e.endTime, title: e.title || 'Edit' })),
-        ...voiceovers.map(v => ({ id: v.id, start: v.startTime, end: v.endTime, title: v.title || 'Voiceover' })),
-        ...posters.map(p => ({ id: p.id, start: p.startTime, end: p.endTime, title: p.title || 'Poster' })),
       ]
       const overlapErr = findOverlapError(newEntries, existingEntries, activeLeavesList, selectedDate, collabWindows)
       if (overlapErr) { setError(overlapErr); return }
@@ -1023,7 +1021,7 @@ export default function DailyUpdateForm({
       const s = shoots[i]
       const label = shoots.length > 1 ? `Shoot ${i + 1}: ` : "Shoot: "
       if (!s.clientName || s.clientName === "") { setError(`${label}Select a client.`); return }
-      if (!s.title.trim()) { setError(`${label}Enter a shoot title.`); return }
+      if (!s.title.trim()) { setError(`${label}Enter a shoot name.`); return }
       if (!s.startTime || !s.endTime) { setError(`${label}Set start and end time.`); return }
       if (toMins(s.endTime) <= toMins(s.startTime)) { setError(`${label}End time must be after start time.`); return }
     }
@@ -1035,27 +1033,12 @@ export default function DailyUpdateForm({
       if (!e.videoType || e.videoType === "") { setError(`${label}Select a video type.`); return }
       if (!e.dateGiven) { setError(`${label}Set the Date Given.`); return }
       if (!e.dateFinished) { setError(`${label}Set the Date Finished.`); return }
-      if (!e.videoDuration) { setError(`${label}Select the video duration.`); return }
+      if (!e.videoDuration) { setError(`${label}Select the video length.`); return }
       if (e.revisions === null || e.revisions === undefined || isNaN(Number(e.revisions)) || !Number.isInteger(Number(e.revisions)) || Number(e.revisions) < 0) { setError(`${label}Revisions must be a whole number (0, 1, 2…).`); return }
       if (e.hooksCompleted === null || e.hooksCompleted === undefined || isNaN(Number(e.hooksCompleted)) || !Number.isInteger(Number(e.hooksCompleted)) || Number(e.hooksCompleted) < 0) { setError(`${label}Hooks Completed must be a whole number (0, 1, 2…).`); return }
       if (!e.startTime || !e.endTime) { setError(`${label}Set start and end time.`); return }
       if (toMins(e.endTime) <= toMins(e.startTime)) { setError(`${label}End time must be after start time.`); return }
-    }
-    for (let i = 0; i < voiceovers.length; i++) {
-      const v = voiceovers[i]
-      const label = voiceovers.length > 1 ? `Voiceover ${i + 1}: ` : "Voiceover: "
-      if (!v.clientName || v.clientName === "") { setError(`${label}Select a client.`); return }
-      if (!v.title.trim()) { setError(`${label}Enter a title / project name.`); return }
-      if (!v.startTime || !v.endTime) { setError(`${label}Set start and end time.`); return }
-      if (toMins(v.endTime) <= toMins(v.startTime)) { setError(`${label}End time must be after start time.`); return }
-    }
-    for (let i = 0; i < posters.length; i++) {
-      const p = posters[i]
-      const label = posters.length > 1 ? `Poster ${i + 1}: ` : "Poster: "
-      if (!p.clientName || p.clientName === "") { setError(`${label}Select a client.`); return }
-      if (!p.title.trim()) { setError(`${label}Enter a poster name.`); return }
-      if (!p.startTime || !p.endTime) { setError(`${label}Set start and end time.`); return }
-      if (toMins(p.endTime) <= toMins(p.startTime)) { setError(`${label}End time must be after start time.`); return }
+      if (!e.videoLink?.trim()) { setError(`${label}Add the Drive / Video link.`); return }
     }
 
     const work_entries = [
@@ -1088,29 +1071,7 @@ export default function DailyUpdateForm({
           is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
         }
       }),
-      ...voiceovers.map(e => ({
-        id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
-        task_type: "voiceover" as const,
-        title: e.title || "Voiceover", start_time: e.startTime, end_time: e.endTime,
-        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
-        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
-        _client_type: e.clientName, _custom_client: e.customClient,
-        participant_ids: [...new Set([...participantIds, ...e.participantIds])],
-        is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
-      })),
-      ...posters.map(e => ({
-        id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
-        task_type: "poster" as const,
-        title: e.title || "Poster", start_time: e.startTime, end_time: e.endTime,
-        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
-        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
-        _client_type: e.clientName, _custom_client: e.customClient,
-        participant_ids: [...new Set([...participantIds, ...e.participantIds])],
-        is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
-      })),
-      ...mediaBreaks.filter(b => b.durationHours > 0).map(b => ({
+      ...mediaBreaks.map(b => ({
         id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
         task_type: "break" as const,
         title: b.label || "Break", start_time: b.startTime, end_time: b.endTime,
@@ -1124,8 +1085,6 @@ export default function DailyUpdateForm({
       ...participantIds,
       ...shoots.flatMap(s => s.participantIds),
       ...edits.flatMap(e => e.participantIds),
-      ...voiceovers.flatMap(e => e.participantIds),
-      ...posters.flatMap(e => e.participantIds),
     ])]
     startTransition(async () => {
       const res = await submitDailyUpdate({
@@ -1140,7 +1099,7 @@ export default function DailyUpdateForm({
         if (isPastDate) {
           setSubmitted(true)
           setSuccessPopup("media")
-          setShoots([]); setEdits([]); setVoiceovers([]); setPosters([])
+          setShoots([]); setEdits([])
           router.refresh()
         } else {
           setSuccessPopup("media")
@@ -1161,7 +1120,7 @@ export default function DailyUpdateForm({
       if (!shootEntry.clientName || shootEntry.clientName === "")
         return setEntryErrors(p => ({ ...p, [entryId]: "Select a client before saving." }))
       if (!shootEntry.title.trim())
-        return setEntryErrors(p => ({ ...p, [entryId]: "Enter a shoot title before saving." }))
+        return setEntryErrors(p => ({ ...p, [entryId]: "Enter a shoot name before saving." }))
       if (!shootEntry.startTime || !shootEntry.endTime)
         return setEntryErrors(p => ({ ...p, [entryId]: "Set start and end time before saving." }))
       if (toMins(shootEntry.endTime) <= toMins(shootEntry.startTime))
@@ -1195,7 +1154,9 @@ export default function DailyUpdateForm({
       if (toMins(editEntry.endTime) <= toMins(editEntry.startTime))
         return setEntryErrors(p => ({ ...p, [entryId]: "End time must be after start time." }))
       if (!editEntry.videoDuration)
-        return setEntryErrors(p => ({ ...p, [entryId]: "Select the video duration (e.g. 30 sec, 1 min) before saving." }))
+        return setEntryErrors(p => ({ ...p, [entryId]: "Select the video length (e.g. 30 sec, 1 min) before saving." }))
+      if (!editEntry.videoLink?.trim())
+        return setEntryErrors(p => ({ ...p, [entryId]: "Add the Drive / Video link before saving." }))
       if (editEntry.revisions === null || editEntry.revisions === undefined || isNaN(Number(editEntry.revisions)) || !Number.isInteger(Number(editEntry.revisions)) || Number(editEntry.revisions) < 0)
         return setEntryErrors(p => ({ ...p, [entryId]: "Revisions must be a whole number (0, 1, 2…)." }))
       if (editEntry.hooksCompleted === null || editEntry.hooksCompleted === undefined || isNaN(Number(editEntry.hooksCompleted)) || !Number.isInteger(Number(editEntry.hooksCompleted)) || Number(editEntry.hooksCompleted) < 0)
@@ -1239,28 +1200,6 @@ export default function DailyUpdateForm({
           is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
         }
       }),
-      ...voiceovers.map(e => ({
-        id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
-        task_type: "voiceover" as const,
-        title: e.title || "Voiceover", start_time: e.startTime, end_time: e.endTime,
-        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
-        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
-        _client_type: e.clientName, _custom_client: e.customClient,
-        participant_ids: [...new Set([...participantIds, ...e.participantIds])],
-        is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
-      })),
-      ...posters.map(e => ({
-        id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
-        task_type: "poster" as const,
-        title: e.title || "Poster", start_time: e.startTime, end_time: e.endTime,
-        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
-        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
-        _client_type: e.clientName, _custom_client: e.customClient,
-        participant_ids: [...new Set([...participantIds, ...e.participantIds])],
-        is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
-      })),
     ]
     const saveOverlapHours = edits.reduce((acc, e) => acc + calcOverlapHours(e.startTime, e.endTime, shoots), 0)
     const saveValidEditHours = Math.max(0, totalEditHours - saveOverlapHours)
@@ -1268,8 +1207,6 @@ export default function DailyUpdateForm({
       ...participantIds,
       ...shoots.flatMap(s => s.participantIds),
       ...edits.flatMap(e => e.participantIds),
-      ...voiceovers.flatMap(e => e.participantIds),
-      ...posters.flatMap(e => e.participantIds),
     ])]
     startTransition(async () => {
       const res = await submitDailyUpdate({
@@ -1287,11 +1224,17 @@ export default function DailyUpdateForm({
   // ── Submit: learning ─────────────────────────────────────────────────────
   function handleLearningSubmit() {
     setLearningError(null)
-    const incomplete = learningBlocks.find(b => b.topic.trim() || b.from || b.to)
+    for (let i = 0; i < learningBlocks.length; i++) {
+      const b = learningBlocks[i]
+      const hasAny = b.client.trim() || b.topic.trim() || calcLearningHours(b.from, b.to) > 0
+      if (!hasAny) continue
+      const label = learningBlocks.length > 1 ? `Learning ${i + 1}: ` : ""
+      if (!b.client.trim()) { setLearningError(`${label}Select a client.`); return }
+      if (!b.topic.trim()) { setLearningError(`${label}Enter what you learned (Topic / Course).`); return }
+      if (!b.from || !b.to || calcLearningHours(b.from, b.to) <= 0) { setLearningError(`${label}Set a valid From and To time.`); return }
+    }
     if (filledLearningBlocks.length === 0) {
-      if (incomplete && !incomplete.topic.trim()) { setLearningError("Enter what you learned today."); return }
-      if (incomplete && (!incomplete.from || !incomplete.to)) { setLearningError("Set the From and To time."); return }
-      setLearningError("Add at least one learning block with a topic and time."); return
+      setLearningError("Add at least one learning block with client, topic, and time."); return
     }
     startTransition(async () => {
       const res = await submitDailyUpdate({
@@ -1322,22 +1265,21 @@ export default function DailyUpdateForm({
 
   function handleBreakSubmit() {
     setError(null)
-    const breakEntries = isMediaTeam
-      ? mediaBreaks.filter(b => b.durationHours > 0).map(b => ({
-          id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
-          task_type: "break" as const,
-          title: b.label === "__other__" ? (b.customLabel || "Break") : (b.label || "Break"), start_time: b.startTime, end_time: b.endTime,
-          duration_hours: b.durationHours, notes: undefined,
-          video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
-        }))
-      : nonMediaBreaks.filter(b => b.durationHours > 0).map(b => ({
-          id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
-          task_type: "break" as const,
-          title: b.label === "__other__" ? (b.customLabel || "Break") : (b.label || "Break"), start_time: b.startTime, end_time: b.endTime,
-          duration_hours: b.durationHours, notes: undefined,
-          video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
-        }))
-    if (breakEntries.length === 0) { setError("Add at least one break with a duration."); return }
+    const breaks = isMediaTeam ? mediaBreaks : nonMediaBreaks
+    if (breaks.length === 0) { setError("Add at least one break."); return }
+    for (let i = 0; i < breaks.length; i++) {
+      const b = breaks[i]
+      const label = breaks.length > 1 ? `Break ${i + 1}: ` : ""
+      if (!b.startTime || !b.endTime) { setError(`${label}Set start and end time.`); return }
+      if (b.durationHours <= 0) { setError(`${label}End time must be after start time.`); return }
+    }
+    const breakEntries = breaks.map(b => ({
+      id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
+      task_type: "break" as const,
+      title: b.label === "__other__" ? (b.customLabel || "Break") : (b.label || "Break"), start_time: b.startTime, end_time: b.endTime,
+      duration_hours: b.durationHours, notes: undefined,
+      video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
+    }))
 
     // For non-media team: also include filled working entries so they're not lost
     // when the user submits from the Break tab without having submitted Working first
@@ -2593,7 +2535,7 @@ export default function DailyUpdateForm({
 
                       <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:10, marginBottom:10, alignItems:"end" }}>
                         <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🚗 Travel Time</label>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🚗 Travel Time *</label>
                           <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                             <input
                               type="number" min={0} max={12} placeholder="0"
@@ -2880,9 +2822,9 @@ export default function DailyUpdateForm({
                       </div>
                       <div style={{ marginBottom:10 }}>
                         <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>
-                          <Link2 size={9} style={{ display:"inline", marginRight:4 }} />Drive / Video Link
+                          <Link2 size={9} style={{ display:"inline", marginRight:4 }} />Drive / Video Link *
                         </label>
-                        <input value={e.videoLink} onChange={ev => patchEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/… (optional)" style={F} />
+                        <input value={e.videoLink} onChange={ev => patchEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
                       </div>
                       <div>
                         <button onClick={() => patchEdit(e.id, { driveUpdated: !e.driveUpdated })}

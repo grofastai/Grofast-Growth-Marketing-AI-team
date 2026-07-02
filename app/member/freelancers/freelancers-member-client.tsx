@@ -1306,7 +1306,7 @@ export default function FreelancersMemberClient({
                     {/* Mobile-only layout for RJ Voiceover — no avatar (the character image already carries identity),
                         generous spacing between sections, button flows under the heading instead of sitting top-right */}
                     {isRJ && (
-                      <div className="flex sm:hidden flex-col" style={{ maxWidth: "58%" }}>
+                      <div className="flex sm:hidden flex-col" style={{ maxWidth: "70%" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", alignSelf: "flex-start" }}>
                           {cfg.emoji} {cfg.shortLabel}
                         </span>
@@ -1318,7 +1318,7 @@ export default function FreelancersMemberClient({
                           </div>
                           {joinedDate && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Since {joinedDate}</span>}
                         </div>
-                        <p style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: "16px 0 0", letterSpacing: "-0.01em" }}>🎙️ Giving Voice to Every Brand</p>
+                        <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", margin: "16px 0 0", letterSpacing: "-0.01em", lineHeight: 1.3 }}>Giving Voice to Every Brand</p>
                         <button onClick={() => setAddWorkFor(selectedFreelancer)}
                           style={{ marginTop: 16, padding: "9px 16px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0, alignSelf: "flex-start" }}>
                           <Plus size={14} /> Add Work

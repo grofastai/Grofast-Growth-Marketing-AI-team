@@ -1241,7 +1241,7 @@ export default function FreelancersMemberClient({
             return (
               <div>
                 {/* HERO BANNER */}
-                <div style={{ margin: "16px 16px 0", position: "relative", minHeight: 210, borderRadius: 24, boxShadow: `0 10px 38px rgba(0,0,0,0.4)` }}>
+                <div style={{ margin: "16px 16px 0", position: "relative", minHeight: 210, maxHeight: "clamp(210px, 38vw, 320px)", overflow: "hidden", borderRadius: 24, boxShadow: `0 10px 38px rgba(0,0,0,0.4)` }}>
                   {/* Background clipped to rounded corners via inner div — keeps overflow:visible on the outer so image can extend below */}
                   <div style={{ position: "absolute", inset: 0, borderRadius: 24, background: cfg.heroBg, overflow: "hidden", zIndex: 0 }}>
                     <div style={{ position: "absolute", top: -50, right: -50, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.07)" }} />
@@ -1259,7 +1259,7 @@ export default function FreelancersMemberClient({
                   {/* Character image — on the outer container (overflow:visible), hangs below card */}
                   {selectedFreelancer.team === "Freelance RJ Voiceover" && (
                     <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
-                      style={{ position: "absolute", bottom: -50, right: 16, height: 270, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
+                      style={{ position: "absolute", bottom: 0, right: 16, height: "88%", maxHeight: 260, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>

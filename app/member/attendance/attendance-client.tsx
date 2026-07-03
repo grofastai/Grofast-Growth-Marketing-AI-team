@@ -429,26 +429,28 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
           <p style={{ fontSize:10, color:"rgba(255,255,255,0.55)", margin:"2px 0 0" }}>Shift: 9:30 AM – 7:00 PM</p>
         </div>
 
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", position:"relative", zIndex:1 }}>
-          <div className="w-2 h-2 rounded-full" style={{ background: statusGreen ? "#22C55E" : isAbsent ? "#F87171" : "rgba(255,255,255,0.5)" }} />
-          <span className="text-[13px] font-bold" style={{ color: statusGreen ? "#4ADE80" : isAbsent ? "#F87171" : "rgba(255,255,255,0.8)" }}>{statusLabel}</span>
-        </div>
-
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, flexShrink:0, position:"relative", zIndex:1 }}>
-          <div style={{ position:"relative", width:80, height:80 }}>
-            <svg viewBox="0 0 80 80" width="80" height="80">
-              <circle cx="40" cy="40" r={attRingR} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
-              <circle cx="40" cy="40" r={attRingR} fill="none" stroke="#FACC15" strokeWidth="8"
-                strokeDasharray={`${attRingFilled} ${attRingCirc}`} strokeLinecap="round"
-                transform="rotate(-90 40 40)" style={{ transition:"stroke-dasharray 0.5s ease" }} />
-            </svg>
-            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <span style={{ fontSize:15, fontWeight:900, color:"#fff" }}>{attPct}%</span>
-            </div>
+        <div className="flex items-center gap-4" style={{ marginLeft:"auto", position:"relative", zIndex:1 }}>
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
+            <div className="w-2 h-2 rounded-full" style={{ background: statusGreen ? "#22C55E" : isAbsent ? "#F87171" : "rgba(255,255,255,0.5)" }} />
+            <span className="text-[13px] font-bold" style={{ color: statusGreen ? "#4ADE80" : isAbsent ? "#F87171" : "rgba(255,255,255,0.8)" }}>{statusLabel}</span>
           </div>
-          <div style={{ textAlign:"center" }}>
-            <p style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.85)", margin:"0 0 1px" }}>Day Progress</p>
-            <p style={{ fontSize:9, color:"rgba(255,255,255,0.55)", margin:0 }}>{fmtHoursShort(hoursWorked)}/{SHIFT_HOURS} hrs</p>
+
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, flexShrink:0 }}>
+            <div style={{ position:"relative", width:80, height:80 }}>
+              <svg viewBox="0 0 80 80" width="80" height="80">
+                <circle cx="40" cy="40" r={attRingR} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
+                <circle cx="40" cy="40" r={attRingR} fill="none" stroke="#FACC15" strokeWidth="8"
+                  strokeDasharray={`${attRingFilled} ${attRingCirc}`} strokeLinecap="round"
+                  transform="rotate(-90 40 40)" style={{ transition:"stroke-dasharray 0.5s ease" }} />
+              </svg>
+              <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <span style={{ fontSize:15, fontWeight:900, color:"#fff" }}>{attPct}%</span>
+              </div>
+            </div>
+            <div style={{ textAlign:"center" }}>
+              <p style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.85)", margin:"0 0 1px" }}>Day Progress</p>
+              <p style={{ fontSize:9, color:"rgba(255,255,255,0.55)", margin:0 }}>{fmtHoursShort(hoursWorked)}/{SHIFT_HOURS} hrs</p>
+            </div>
           </div>
         </div>
       </div>

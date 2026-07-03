@@ -1643,7 +1643,7 @@ export default function HistoryClient({
                   </div>
 
                   {/* Work entries */}
-                  {entries.length === 0 && u.learning_topic ? (
+                  {entries.length === 0 && collabForDate.length === 0 && u.learning_topic ? (
                     <div>
                       <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
                         <div style={{ width:34, height:34, borderRadius:10, background:"rgba(5,150,105,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -1771,7 +1771,7 @@ export default function HistoryClient({
                       </div>
                       <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>Approved</span>
                     </div>
-                  ) : entries.length === 0 ? (() => {
+                  ) : entries.length === 0 && collabForDate.length === 0 ? (() => {
                     const leaveForDay = u.attendance_status === "leave"
                       ? approvedLeaves.find(l => u.date >= l.from_date && u.date <= l.to_date)
                       : undefined

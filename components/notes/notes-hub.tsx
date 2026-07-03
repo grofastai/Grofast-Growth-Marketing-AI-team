@@ -97,13 +97,19 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
         <PageHero
           title="Notes"
           subtitle="Create, organize and collaborate on company knowledge"
+          maxContentWidth={400}
           chips={[
             { icon: <BookOpen size={11} />, label: `${initialNotes.length} Notes` },
             { icon: <FolderOpen size={11} />, label: `${folders.length} Folders` },
           ]}
-          rightSlot={
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <BookOpen size={18} style={{ color: '#FFFFFF' }} />
+          illustration={
+            <div className="hidden md:block" style={{
+              position: 'absolute', right: 40, top: '50%', transform: 'translateY(-50%)',
+              width: 150, height: '120%', pointerEvents: 'none', zIndex: 1,
+            }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/notes-hero.png" alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', filter: 'drop-shadow(0 6px 24px rgba(0,0,0,0.25))' }} />
             </div>
           }
         />

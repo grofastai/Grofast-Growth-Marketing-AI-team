@@ -80,8 +80,8 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
           <div style={{ position: "absolute", bottom: -40, left: 80, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }}/>
         </div>
 
-        {/* Illustration — centered in the space to the right of the text column, above the fold everywhere */}
-        <div className="hidden md:block" style={{ position: "absolute", right: 70, top: "50%", transform: "translateY(-50%)", zIndex: 1, pointerEvents: "none" }}>
+        {/* Illustration — horizontally centered in the space to the right of the text column, feet flush with the banner's bottom edge */}
+        <div className="hidden md:flex" style={{ position: "absolute", left: "45%", right: 20, top: 0, bottom: 0, zIndex: 1, pointerEvents: "none", alignItems: "flex-end", justifyContent: "center" }}>
           <Image src="/brand/announcement-hero.png" alt="" width={330} height={220}
             style={{ objectFit: "contain", display: "block", maxHeight: 190 }} priority />
         </div>

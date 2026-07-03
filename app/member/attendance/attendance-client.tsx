@@ -406,21 +406,50 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     return sum + Math.max(0, raw - (l.break_total_mins ?? 0) / 60 - activeBreakHrs - safePaused - perm)
   }, 0)
 
+  const attPct  = Math.max(0, Math.min(100, Math.round((hoursWorked / SHIFT_HOURS) * 100)))
+  const attRingR = 32, attRingCirc = 2 * Math.PI * attRingR
+  const attRingFilled = (attPct / 100) * attRingCirc
+
   return (
     <>
     <div className="p-5 md:p-6 xl:p-8 max-w-[1400px]" style={{ background: "#F1F2F6", minHeight: "100vh" }}>
 
       {/* ── Header ── */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1 className="text-[32px] font-black leading-tight" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Attendance</h1>
-          <p className="text-[13px] font-medium mt-1" style={{ color: "#6B7280" }}>{dateStr}</p>
-          <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>Shift: 9:30 AM – 7:00 PM</p>
+      <div className="flex flex-wrap items-center justify-between mb-6"
+        style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:20, padding:"16px 18px", gap:14, boxShadow:"0 8px 32px rgba(180,0,0,0.35)", position:"relative", overflow:"hidden" }}>
+        <div style={{ position:"absolute", top:-50, right:-30, width:200, height:200, borderRadius:"50%", background:"rgba(255,255,255,0.05)", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", bottom:-40, left:60, width:150, height:150, borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }} />
+
+        <div style={{ position:"relative", zIndex:1 }}>
+          <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(255,255,255,0.15)", color:"#fff", marginBottom:10, border:"1px solid rgba(255,255,255,0.2)", letterSpacing:"0.04em" }}>
+            🕐 Attendance
+          </span>
+          <h1 className="text-[26px] font-black leading-tight" style={{ color: "#fff", fontFamily: "var(--font-jakarta)", margin: "0 0 3px" }}>Attendance</h1>
+          <p style={{ fontSize:11, color:"rgba(255,255,255,0.65)", margin:0 }}>{dateStr}</p>
+          <p style={{ fontSize:10, color:"rgba(255,255,255,0.55)", margin:"2px 0 0" }}>Shift: 9:30 AM – 7:00 PM</p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full mt-2"
-          style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-          <div className="w-2 h-2 rounded-full" style={{ background: statusGreen ? "#22C55E" : isAbsent ? "#EF4444" : "#9CA3AF" }} />
-          <span className="text-[13px] font-bold" style={{ color: statusGreen ? "#16A34A" : isAbsent ? "#EF4444" : "#6B7280" }}>{statusLabel}</span>
+
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", position:"relative", zIndex:1 }}>
+          <div className="w-2 h-2 rounded-full" style={{ background: statusGreen ? "#22C55E" : isAbsent ? "#F87171" : "rgba(255,255,255,0.5)" }} />
+          <span className="text-[13px] font-bold" style={{ color: statusGreen ? "#4ADE80" : isAbsent ? "#F87171" : "rgba(255,255,255,0.8)" }}>{statusLabel}</span>
+        </div>
+
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, flexShrink:0, position:"relative", zIndex:1 }}>
+          <div style={{ position:"relative", width:80, height:80 }}>
+            <svg viewBox="0 0 80 80" width="80" height="80">
+              <circle cx="40" cy="40" r={attRingR} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
+              <circle cx="40" cy="40" r={attRingR} fill="none" stroke="#FACC15" strokeWidth="8"
+                strokeDasharray={`${attRingFilled} ${attRingCirc}`} strokeLinecap="round"
+                transform="rotate(-90 40 40)" style={{ transition:"stroke-dasharray 0.5s ease" }} />
+            </svg>
+            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <span style={{ fontSize:15, fontWeight:900, color:"#fff" }}>{attPct}%</span>
+            </div>
+          </div>
+          <div style={{ textAlign:"center" }}>
+            <p style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.85)", margin:"0 0 1px" }}>Day Progress</p>
+            <p style={{ fontSize:9, color:"rgba(255,255,255,0.55)", margin:0 }}>{fmtHoursShort(hoursWorked)}/{SHIFT_HOURS} hrs</p>
+          </div>
         </div>
       </div>
 

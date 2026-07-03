@@ -398,7 +398,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
           return (
             <div key={s.label} className="rounded-2xl p-4 flex flex-col"
               style={{
-                background: "linear-gradient(135deg, #1a0000 0%, #b3161a 100%)",
+                background: "linear-gradient(135deg, #7a1010 0%, #e0201f 100%)",
                 boxShadow: "0 4px 20px rgba(222,26,26,0.18)",
               }}>
 
@@ -466,7 +466,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
       {/* ── This Month ────────────────────────────────────────── */}
       <div className="rounded-2xl p-5 mb-5"
-        style={{ background: "linear-gradient(135deg, #1a0000 0%, #b3161a 100%)" }}>
+        style={{ background: "linear-gradient(135deg, #7a1010 0%, #e0201f 100%)" }}>
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center"
             style={{ background: "rgba(255,255,255,0.16)" }}>

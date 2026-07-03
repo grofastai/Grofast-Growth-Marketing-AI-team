@@ -1075,7 +1075,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               <div style={{ position: "absolute", top: -30, right: -30, width: 110, height: 110, borderRadius: "50%", background: "radial-gradient(circle,rgba(255,75,75,0.3) 0%,transparent 70%)", pointerEvents: "none" }} />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/content-cal-boy-sidebar.png" alt=""
-                style={{ position: "absolute", right: -4, bottom: 0, height: 140, objectFit: "contain", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))" }} />
+                style={{ position: "absolute", right: -4, bottom: 0, height: 140, maxWidth: 120, objectFit: "contain", objectPosition: "right bottom", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))", pointerEvents: "none" }} />
               <div style={{ paddingRight: 130, paddingBottom: 20, position: "relative", zIndex: 1 }}>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(222,26,26,0.85)", borderRadius: 20, padding: "3px 10px", marginBottom: 10 }}>
                   <span style={{ fontSize: 10, fontWeight: 800, color: "#FFF", letterSpacing: "0.05em" }}>🔥 PRO TIP</span>

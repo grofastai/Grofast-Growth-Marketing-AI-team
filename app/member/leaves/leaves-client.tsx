@@ -336,7 +336,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
           <div style={{ position: "absolute", bottom: -40, right: 260, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
           {/* Left: text */}
-          <div style={{ position: "absolute", left: 32, top: 26, zIndex: 2 }}>
+          <div className="max-w-[62%] sm:max-w-none" style={{ position: "absolute", left: 32, top: 26, zIndex: 2 }}>
             {/* Badge */}
             <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "5px 14px", marginBottom: 14, border: "1px solid rgba(255,255,255,0.2)" }}>
               <span style={{ fontSize: 13 }}>⭐</span>
@@ -351,10 +351,14 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
             </p>
           </div>
 
-          {/* Center: large illustration — anchored bottom, visible on all screens */}
-          <div style={{ position: "absolute", left: "50%", transform: "translateX(-46%)", bottom: 0, zIndex: 1 }}>
+          {/* Illustration — desktop: centered. Mobile: anchored right + width-capped so it can't collide with the text column. */}
+          <div className="hidden sm:block" style={{ position: "absolute", left: "50%", transform: "translateX(-46%)", bottom: 0, zIndex: 1 }}>
             <Image src="/brand/leave-hero.png" alt="" width={500} height={260}
               style={{ objectFit: "contain", objectPosition: "bottom center", display: "block", maxHeight: "clamp(120px,30vw,260px)" }} priority />
+          </div>
+          <div className="block sm:hidden" style={{ position: "absolute", right: 0, bottom: 0, zIndex: 1, maxWidth: "38%" }}>
+            <Image src="/brand/leave-hero.png" alt="" width={500} height={260}
+              style={{ objectFit: "contain", objectPosition: "bottom right", display: "block", width: "100%", height: "auto", maxHeight: 130 }} priority />
           </div>
 
           {/* Apply Leave CTA — desktop only (top-right corner) */}

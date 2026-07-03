@@ -74,8 +74,8 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
           <div style={{ position: "absolute", top: -50, right: -50, width: 240, height: 240, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }}/>
           <div style={{ position: "absolute", bottom: -40, left: 80, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }}/>
         </div>
-        <div className="p-4 md:p-[20px_28px]" style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-          <div style={{ textAlign: "center", width: "100%" }}>
+        <div className="p-4 md:p-[20px_28px]" style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
+          <div style={{ textAlign: "left", width: "100%" }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", marginBottom: 10, border: "1px solid rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
               ⭐ Announcements
             </span>
@@ -85,7 +85,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: "3px 0 0" }}>Updates and notices from your team</p>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-start" }}>
             {/* Search */}
             <div style={{ position: "relative" }}>
               <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.6)" }} />

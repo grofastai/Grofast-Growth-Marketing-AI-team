@@ -946,8 +946,8 @@ export default function MemberTasksClient({
           </div>
 
           {/* RIGHT: search + assign + stat pills */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center", position: "relative", zIndex: 3, paddingTop: 0, paddingBottom: 20, width: "100%" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start", position: "relative", zIndex: 3, paddingTop: 0, paddingBottom: 20, width: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 12, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)" }}>
                 <Search size={12} style={{ color: "rgba(255,255,255,0.6)" }} />
                 <input value={search} onChange={e => setSearch(e.target.value)}
@@ -964,7 +964,7 @@ export default function MemberTasksClient({
               </button>
             </div>
             {/* Multi-color stat pills */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "nowrap", justifyContent: "center", overflowX: "auto", maxWidth: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "nowrap", justifyContent: "flex-start", overflowX: "auto", maxWidth: "100%" }}>
               {[
                 { icon: Clock,        color: "#FF6B6B", bg: "rgba(255,107,107,0.18)", val: todayHours > 0 ? `${todayHours}h` : "—", lbl: "Worked"  },
                 { icon: Zap,          color: "#6BCB77", bg: "rgba(107,203,119,0.18)", val: String(activeCount),                      lbl: "Active"  },

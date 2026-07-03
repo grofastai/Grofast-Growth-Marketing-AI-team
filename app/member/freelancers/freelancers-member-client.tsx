@@ -1263,11 +1263,11 @@ export default function FreelancersMemberClient({
                       className="hidden sm:block"
                       style={{ position: "absolute", bottom: 0, right: 16, height: "88%", maxHeight: 260, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
-                  {/* Character image (mobile) — fixed, width-capped box so it can never grow wide enough to reach the text column */}
+                  {/* Character image (mobile) — anchored to the header zone only (top, not bottom), so it can't stretch down and bleed through the gaps in the KPI strip below it */}
                   {isRJ && (
                     <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
                       className="block sm:hidden"
-                      style={{ position: "absolute", bottom: 0, right: -6, width: 130, height: 190, objectFit: "contain", objectPosition: "bottom right", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", zIndex: 1 }} />
+                      style={{ position: "absolute", top: 8, right: -6, width: 120, height: 150, objectFit: "contain", objectPosition: "top right", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
                     {/* Desktop layout (all teams) — for RJ, hidden on mobile in favor of the dedicated stacked block below */}

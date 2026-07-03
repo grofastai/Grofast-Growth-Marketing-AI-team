@@ -438,7 +438,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             style={{ position:"relative", height: 164, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 10px 18px rgba(0,0,0,0.3))" }} />
         </div>
 
-        <div className="flex items-center gap-4" style={{ position:"relative", zIndex:1 }}>
+        <div className="flex items-center gap-4" style={{ position:"relative", zIndex:1, marginRight:"6%" }}>
           <div className="flex items-center gap-2 px-4 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
             <div className="w-2 h-2 rounded-full" style={{ background: statusGreen ? "#22C55E" : isAbsent ? "#F87171" : "rgba(255,255,255,0.5)" }} />
             <span className="text-[13px] font-bold" style={{ color: statusGreen ? "#4ADE80" : isAbsent ? "#F87171" : "rgba(255,255,255,0.8)" }}>{statusLabel}</span>

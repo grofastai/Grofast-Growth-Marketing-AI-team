@@ -946,7 +946,7 @@ export default function MemberTasksClient({
           </div>
 
           {/* RIGHT: search + assign + stat pills */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center", position: "relative", zIndex: 3, paddingTop: 20, paddingBottom: 20, width: "100%" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center", position: "relative", zIndex: 3, paddingTop: 0, paddingBottom: 20, width: "100%" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 12, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)" }}>
                 <Search size={12} style={{ color: "rgba(255,255,255,0.6)" }} />

@@ -326,9 +326,11 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
       <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
 
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
+        <div className="px-4 md:px-7 pt-5">
         <div style={{
           background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
           position: "relative", overflow: "hidden", height: "clamp(160px,35vw,260px)",
+          borderRadius: 20,
           boxShadow: "0 8px 32px rgba(180,0,0,0.35)",
         }}>
           {/* Glows */}
@@ -368,6 +370,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
               <Plus size={16} strokeWidth={2.5} /> Apply Leave
             </button>
           </div>
+        </div>
         </div>
 
         {/* Mobile Apply Leave button — shown only on mobile, below hero */}

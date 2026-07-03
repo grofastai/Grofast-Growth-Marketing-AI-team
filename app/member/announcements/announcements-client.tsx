@@ -68,9 +68,10 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
     <div style={{ background: "#F8F9FC", minHeight: "100vh" }}>
 
       {/* ── HERO BANNER ─────────────────────────────────────────────────────── */}
-      <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", position: "relative", boxShadow: "0 8px 32px rgba(180,0,0,0.35)" }}>
+      <div className="px-4 md:px-7 pt-5">
+      <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius: 20, position: "relative", boxShadow: "0 8px 32px rgba(180,0,0,0.35)" }}>
         {/* Decorative circles clipped in their own layer so the dropdown can escape */}
-        <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: 20, pointerEvents: "none" }}>
           <div style={{ position: "absolute", top: -50, right: -50, width: 240, height: 240, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }}/>
           <div style={{ position: "absolute", bottom: -40, left: 80, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }}/>
         </div>
@@ -118,6 +119,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       <div className="p-4 md:p-[20px_28px_40px]">

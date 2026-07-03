@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { useState, useMemo, useTransition } from "react"
+import Image from "next/image"
 import { X, Plus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Star, Link2, FileText, IndianRupee, Users, Pencil, CheckCircle2, Trash2 } from "lucide-react"
 import { saveFreelancerWorkEntry, toggleFreelancerPaymentStatus, updateFreelancerWorkEntry, deleteFreelancerWorkEntry } from "@/lib/actions/freelancer-work"
 import { buildClientOptions } from "@/lib/utils/client-options"
@@ -1018,10 +1019,17 @@ export default function FreelancersMemberClient({
       {/* Hero — admin embeds this component inside its own gradient hero already, so skip it here to avoid stacking two */}
       {!isEmbedded && (
         <div style={{ flexShrink: 0, margin: "14px 14px 0" }}>
-          <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius: 20, padding: "16px 18px", boxShadow: "0 8px 32px rgba(180,0,0,0.35)", position: "relative", overflow: "hidden" }}>
+          <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius: 20, padding: "16px 18px", boxShadow: "0 8px 32px rgba(180,0,0,0.35)", position: "relative", overflow: "hidden", minHeight: 150 }}>
             <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
             <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
-            <div style={{ position: "relative", zIndex: 1 }}>
+
+            {/* Illustration — desktop only, right side */}
+            <div className="hidden lg:block" style={{ position: "absolute", right: 24, bottom: 0, zIndex: 1, pointerEvents: "none" }}>
+              <Image src="/brand/freelancers-hero.png" alt="" width={380} height={253}
+                style={{ objectFit: "contain", objectPosition: "bottom right", display: "block", maxHeight: 150 }} priority />
+            </div>
+
+            <div style={{ position: "relative", zIndex: 2 }} className="max-w-full lg:max-w-[55%]">
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", marginBottom: 10, border: "1px solid rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
                 👥 Freelancers
               </span>

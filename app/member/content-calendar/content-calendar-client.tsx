@@ -406,16 +406,16 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
 
       {/* ── Hero Header — double-colour banner ── */}
       <div style={{
-        background: "linear-gradient(105deg, #E8000A 0%, #C00008 28%, #7B0000 58%, #1A0000 100%)",
+        background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
         borderRadius: 24, marginBottom: 24, position: "relative", overflow: "hidden",
         padding: isMobile ? "0 16px" : "0 32px",
-        boxShadow: "0 12px 48px rgba(139,0,0,0.55)",
+        boxShadow: "0 8px 32px rgba(180,0,0,0.35)",
         minHeight: isMobile ? 130 : 160,
         display: "flex", alignItems: "center", flexWrap: "wrap",
       }}>
-        {/* Radial glows */}
-        <div style={{ position: "absolute", top: "50%", left: -60, transform: "translateY(-50%)", width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,80,80,0.18) 0%, transparent 65%)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", top: "50%", right: -40, transform: "translateY(-50%)", width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%)", pointerEvents: "none" }} />
+        {/* Glows */}
+        <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
         {/* ── LEFT: badge + title + controls ── */}
         <div style={{ flex: 1, position: "relative", zIndex: 3, paddingTop: 28, paddingBottom: 28 }}>

@@ -327,33 +327,26 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
         <div style={{
-          background: "#FFFFFF",
+          background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
           position: "relative", overflow: "hidden", height: "clamp(160px,35vw,260px)",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
-          borderBottom: "1px solid #EBEDF2",
+          boxShadow: "0 8px 32px rgba(180,0,0,0.35)",
         }}>
-          {/* Red radial glow — top left */}
-          <div style={{ position: "absolute", top: -70, left: -70, width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(222,26,26,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
-          {/* Blue radial glow — top right */}
-          <div style={{ position: "absolute", top: -60, right: -60, width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
-          {/* Subtle bottom fade */}
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 70, background: "linear-gradient(to top, rgba(248,249,252,0.7), transparent)", pointerEvents: "none" }} />
+          {/* Glows */}
+          <div style={{ position: "absolute", top: -50, right: -30, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: -40, right: 260, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
           {/* Left: text */}
           <div style={{ position: "absolute", left: 32, top: 26, zIndex: 2 }}>
-            {/* Badge — red gradient */}
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)", borderRadius: 20, padding: "5px 14px", marginBottom: 14, boxShadow: "0 4px 14px rgba(222,26,26,0.3)" }}>
+            {/* Badge */}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "5px 14px", marginBottom: 14, border: "1px solid rgba(255,255,255,0.2)" }}>
               <span style={{ fontSize: 13 }}>⭐</span>
               <span style={{ fontSize: 12, fontWeight: 700, color: "#FFFFFF" }}>Leave Management</span>
             </div>
-            <p style={{ fontSize: 12, color: "#6B7280", fontWeight: 600, margin: "0 0 6px" }}>Hello, {userName}! 👋</p>
-            <h1 style={{ fontSize: "clamp(26px,3vw,40px)", fontWeight: 900, letterSpacing: "-0.025em", lineHeight: 1.05, fontFamily: "var(--font-jakarta)", margin: "0 0 10px", color: "#111111" }}>
-              Leave{" "}
-              <span style={{ color: "#DE1A1A" }}>
-                Requests
-              </span>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", fontWeight: 600, margin: "0 0 6px" }}>Hello, {userName}! 👋</p>
+            <h1 style={{ fontSize: "clamp(26px,3vw,40px)", fontWeight: 900, letterSpacing: "-0.025em", lineHeight: 1.05, fontFamily: "var(--font-jakarta)", margin: "0 0 10px", color: "#FFFFFF" }}>
+              Leave Requests
             </h1>
-            <p style={{ fontSize: 13, color: "#6B7280", margin: 0, lineHeight: 1.65, maxWidth: 260 }}>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: 0, lineHeight: 1.65, maxWidth: 260 }}>
               Apply for leave and track your requests<br />in one beautiful place.
             </p>
           </div>
@@ -367,7 +360,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
           {/* Apply Leave CTA — desktop only (top-right corner) */}
           <div className="hidden md:flex" style={{ position: "absolute", right: 28, top: 20, zIndex: 3, flexDirection: "column", alignItems: "flex-end", gap: 18 }}>
             <button onClick={() => { setIsExceptional(false); setShowForm(true) }}
-              style={{ display: "flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 14, background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)", color: "#FFFFFF", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 6px 24px rgba(222,26,26,0.35)", whiteSpace: "nowrap" }}>
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 14, background: "#FFFFFF", color: "#B91212", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 6px 24px rgba(0,0,0,0.22)", whiteSpace: "nowrap" }}>
               <Plus size={16} strokeWidth={2.5} /> Apply Leave
             </button>
           </div>

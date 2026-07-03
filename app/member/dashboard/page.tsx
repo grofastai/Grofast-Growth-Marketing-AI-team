@@ -368,18 +368,27 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     <div className="p-5 md:p-6 xl:p-8 max-w-[1600px]" style={{ background: "#F1F2F6", minHeight: "100vh" }}>
 
       {/* ── Top Header ────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4 mb-7">
-        <div>
-          <h1 className="text-[26px] md:text-[30px] font-black leading-tight" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
-            {greeting},&nbsp;<span style={{ color: "#de1a1a" }}>{firstName}</span>&nbsp;👋
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-7"
+        style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius: 20, padding: "20px 24px", position: "relative", overflow: "hidden", boxShadow: "0 8px 32px rgba(180,0,0,0.35)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -30, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", marginBottom: 10, border: "1px solid rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
+            ⭐ Dashboard
+          </span>
+          <h1 className="text-[26px] md:text-[30px] font-black leading-tight" style={{ color: "#FFFFFF", fontFamily: "var(--font-jakarta)" }}>
+            {greeting},&nbsp;{firstName}&nbsp;👋
           </h1>
-          <p className="text-[13px] mt-1 font-medium" style={{ color: "#6B7280" }}>{dateStr}</p>
+          <p className="text-[13px] mt-1 font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>{dateStr}</p>
         </div>
 
-        <DashboardHeaderControls
-          pendingLeaves={pendingLeaves}
-          employeeId={profile?.employee_id ?? ""}
-        />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <DashboardHeaderControls
+            pendingLeaves={pendingLeaves}
+            employeeId={profile?.employee_id ?? ""}
+          />
+        </div>
       </div>
 
       {/* ── 5 Stat Cards ─────────────────────────────────────── */}

@@ -326,8 +326,8 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { label: "Avg Working Hrs",      value: avgWorkingHrs > 0 ? `${avgWorkingHrs}h` : "—",   color: "#111111", sub: undefined },
     { label: "Office Days",          value: officeDays,                                       color: "#de1a1a",  sub: undefined },
     { label: isMedia ? "Shoot Days" : "WFH Days", value: isMedia ? shootDays : wfhDays,      color: "#6366F1",  sub: undefined },
-    { label: "Leave Taken This Month", value: leaveDays,                                      color: leaveDays > 0 ? "#FBBF24" : "rgba(255,255,255,0.4)", sub: `${Math.max(0, 5 - leaveDays)} days left` },
-    { label: "Overtime Hrs",         value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",       color: overtimeHrs > 0 ? "#FDBA74" : "rgba(255,255,255,0.4)", sub: overtimeHrs > 0 ? `above 212.5h target` : undefined },
+    { label: "Leave Taken This Month", value: leaveDays,                                      color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: `${Math.max(0, 5 - leaveDays)} days left` },
+    { label: "Overtime Hrs",         value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",       color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeHrs > 0 ? `above 212.5h target` : undefined },
   ]
 
   // Top 5 stat cards — work-entry based for freelancer-media
@@ -480,16 +480,17 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
           {monthlyStats.map((stat) => (
             <div key={stat.label} className="rounded-xl p-3.5 text-center"
-              style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.14)" }}>
+              style={{ background: "#FFFFFF", border: "1px solid rgba(255,255,255,0.5)" }}>
               <p className="text-[22px] font-black leading-none mb-1"
-                style={{ fontFamily: "var(--font-jakarta)", color: stat.label === "Leave Taken This Month" || stat.label === "Overtime Hrs" ? stat.color : "#FFFFFF" }}>
+                style={{ fontFamily: "var(--font-jakarta)", color: stat.color }}>
                 {stat.value}
               </p>
-              <p className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: "rgba(255,255,255,0.68)" }}>
+              <p className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: "#6B7280" }}>
                 {stat.label}
               </p>
               {stat.sub && (
-                <p className="text-[9px] mt-1 font-semibold" style={{ color: "rgba(255,255,255,0.55)" }}>
+                <p className="text-[9px] mt-1 font-semibold"
+                  style={{ color: stat.label === "Leave Taken This Month" ? "#D97706" : stat.label === "Overtime Hrs" ? "#EA580C" : "#6B7280" }}>
                   {stat.sub}
                 </p>
               )}

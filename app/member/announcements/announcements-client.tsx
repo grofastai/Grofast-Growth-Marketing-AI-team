@@ -75,7 +75,14 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
           <div style={{ position: "absolute", top: -50, right: -50, width: 240, height: 240, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }}/>
           <div style={{ position: "absolute", bottom: -40, left: 80, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }}/>
         </div>
-        <div className="p-4 md:p-[20px_28px]" style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
+
+        {/* Illustration — desktop only, anchored bottom-right so it never collides with the text/search column */}
+        <div className="hidden lg:block" style={{ position: "absolute", right: 12, bottom: 0, zIndex: 1, pointerEvents: "none" }}>
+          <Image src="/brand/announcement-hero.png" alt="" width={330} height={220}
+            style={{ objectFit: "contain", objectPosition: "bottom right", display: "block", maxHeight: 190 }} priority />
+        </div>
+
+        <div className="p-4 md:p-[20px_28px] w-full lg:max-w-[68%]" style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
           <div style={{ textAlign: "left", width: "100%" }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", marginBottom: 10, border: "1px solid rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
               ⭐ Announcements

@@ -419,20 +419,24 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:20, padding:"16px 18px", gap:14, boxShadow:"0 8px 32px rgba(180,0,0,0.35)", position:"relative", overflow:"hidden" }}>
         <div style={{ position:"absolute", top:-50, right:-30, width:200, height:200, borderRadius:"50%", background:"rgba(255,255,255,0.05)", pointerEvents:"none" }} />
         <div style={{ position:"absolute", bottom:-40, left:60, width:150, height:150, borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", top:"30%", left:"38%", width:90, height:90, borderRadius:"50%", background:"rgba(255,255,255,0.03)", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", bottom:-60, right:120, width:180, height:180, borderRadius:"50%", background:"rgba(255,255,255,0.03)", pointerEvents:"none" }} />
 
         <div style={{ position:"relative", zIndex:1 }}>
           <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(255,255,255,0.15)", color:"#fff", marginBottom:10, border:"1px solid rgba(255,255,255,0.2)", letterSpacing:"0.04em" }}>
-            🕐 Attendance
+            📍 Attendance Today
           </span>
           <h1 className="text-[26px] font-black leading-tight" style={{ color: "#fff", fontFamily: "var(--font-jakarta)", margin: "0 0 3px" }}>Attendance</h1>
-          <p style={{ fontSize:11, color:"rgba(255,255,255,0.65)", margin:0 }}>{dateStr}</p>
-          <p style={{ fontSize:10, color:"rgba(255,255,255,0.55)", margin:"2px 0 0" }}>Shift: 9:30 AM – 7:00 PM</p>
+          <p style={{ fontSize:12, color:"rgba(255,255,255,0.7)", margin:0, display:"flex", alignItems:"center", gap:5 }}>📅 {dateStr}</p>
+          <p style={{ fontSize:11, color:"rgba(255,255,255,0.55)", margin:"3px 0 0", display:"flex", alignItems:"center", gap:5 }}>🕒 9:30 AM – 7:00 PM</p>
         </div>
 
         {/* Illustration — desktop only, sits in the flex gap between title and status/ring so it can't overlap either */}
-        <img src="/brand/attendance-boy.png" alt="" aria-hidden="true"
-          className="hidden lg:block"
-          style={{ height: 128, width: "auto", objectFit: "contain", flexShrink: 0, position: "relative", zIndex: 1, pointerEvents: "none", filter: "drop-shadow(0 8px 20px rgba(0,0,0,0.35))" }} />
+        <div className="hidden lg:flex" style={{ alignSelf:"flex-end", flexShrink:0, position:"relative", zIndex:1 }}>
+          <div style={{ position:"absolute", bottom:2, left:"50%", transform:"translateX(-50%)", width:100, height:20, borderRadius:"50%", background:"radial-gradient(ellipse, rgba(0,0,0,0.4) 0%, transparent 72%)", filter:"blur(2px)", pointerEvents:"none" }} />
+          <img src="/brand/attendance-boy.png" alt="" aria-hidden="true"
+            style={{ position:"relative", height: 164, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 10px 18px rgba(0,0,0,0.3))" }} />
+        </div>
 
         <div className="flex items-center gap-4 sm:ml-auto" style={{ position:"relative", zIndex:1 }}>
           <div className="flex items-center gap-2 px-4 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
@@ -454,7 +458,10 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             </div>
             <div style={{ textAlign:"center" }}>
               <p style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.85)", margin:"0 0 1px" }}>Day Progress</p>
-              <p style={{ fontSize:9, color:"rgba(255,255,255,0.55)", margin:0 }}>{fmtHoursShort(hoursWorked)}/{SHIFT_HOURS} hrs</p>
+              <p style={{ fontSize:9, color:"rgba(255,255,255,0.55)", margin:0 }}>{fmtHoursShort(hoursWorked)} / {fmtHoursShort(SHIFT_HOURS)}</p>
+              <p style={{ fontSize:9, color:"rgba(250,204,21,0.9)", fontWeight:700, margin:"1px 0 0" }}>
+                {remainingHours > 0 ? `${fmtHoursShort(remainingHours)} left` : "Target reached ✓"}
+              </p>
             </div>
           </div>
         </div>

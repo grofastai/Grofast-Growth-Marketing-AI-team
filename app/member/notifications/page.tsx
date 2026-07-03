@@ -3,6 +3,7 @@ import { NotificationItem } from './notification-item'
 import type { NotificationRow } from './notification-item'
 import { Bell, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 function groupNotifications(rows: NotificationRow[]) {
   const now = new Date()
@@ -54,6 +55,12 @@ export default async function NotificationsPage() {
       <div style={{ background: 'linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)', borderRadius: 20, marginBottom: 20, position: 'relative', overflow: 'hidden', padding: '22px 24px', boxShadow: '0 8px 32px rgba(180,0,0,0.35)' }}>
         <div style={{ position: 'absolute', top: -40, right: -40, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', bottom: -30, left: 60, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+
+        {/* Illustration — centered in the banner, behind the text/button row */}
+        <div className="hidden md:block" style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 0, pointerEvents: 'none', opacity: 0.9 }}>
+          <Image src="/brand/notifications-hero.png" alt="" width={100} height={100}
+            style={{ objectFit: 'contain', display: 'block', filter: 'drop-shadow(0 6px 20px rgba(0,0,0,0.3))' }} priority />
+        </div>
 
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>

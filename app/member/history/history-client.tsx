@@ -1050,10 +1050,10 @@ export default function HistoryClient({
               {/* Background illustration — right 56% */}
               <div style={{ position:"absolute", right:0, top:0, bottom:0, width:"56%", zIndex:1, opacity:0.85 }}>
                 <Image
-                  src="/brand/history-girl.png"
+                  src="/brand/history-boy.png"
                   alt=""
                   fill
-                  style={{ objectFit:"cover", objectPosition:"center center" }}
+                  style={{ objectFit:"cover", objectPosition:"left center" }}
                   priority
                 />
                 {/* Fade left edge to blend with gradient */}

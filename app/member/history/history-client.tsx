@@ -575,9 +575,16 @@ export default function HistoryClient({
 
     if (editDraftDate && editDraftDate !== editOrigDate) {
       // Move entry to a different date
+      const movedEntryId = (allEntries[entryIdx] as unknown as Record<string, unknown>)?.id as string | undefined
       const withoutEntry = (allEntries as unknown as Record<string, unknown>[]).filter((_, i) => i !== entryIdx)
       const r1 = await updatePastDailyUpdate(updateId, withoutEntry)
       if (!r1.success) { showToast("Failed to move entry: " + r1.error); setSavingKey(null); return }
+      // Drop the old date's collab confirmation for this entry — addEntryToDate below
+      // creates a fresh one under the new date, so leaving the old one would double it up.
+      if (movedEntryId) {
+        deleteCollaborationsByEntry(updateId, movedEntryId).catch(console.error)
+        setCollabConfirms(prev => prev.filter(c => !(c.daily_update_id === updateId && c.entry_id === movedEntryId)))
+      }
       const r2 = await addEntryToDate(editDraftDate, updatedEntry)
       if (!r2.success) { showToast("Entry removed from old date but failed to add to new date: " + r2.error); setSavingKey(null); return }
     } else {

@@ -423,7 +423,7 @@ export async function updatePastDailyUpdate(
 
   const admin = adminSupabase()
   const [{ data: record }, { data: uProfile }] = await Promise.all([
-    admin.from('daily_updates').select('date, company_id, work_entries').eq('id', id).eq('user_id', userId).single(),
+    admin.from('daily_updates').select('date, company_id, work_entries, participant_ids').eq('id', id).eq('user_id', userId).single(),
     admin.from('users').select('work_layout').eq('id', userId).single(),
   ])
   const updateLayout = (uProfile?.work_layout ?? undefined) as 'media' | 'non_media' | 'freelance_media' | undefined
@@ -438,6 +438,14 @@ export async function updatePastDailyUpdate(
     finalEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10
   ) / 10
 
+  // Keep the record-level participant_ids in sync with whatever entries carry a tag —
+  // the History page's "who's tagged in me" query filters on this top-level column,
+  // so if it drifts out of sync the collaborator's copy silently disappears. Merge with
+  // (never drop) the existing column value since it may also hold learning-tab tags.
+  const existingParticipants = (record as Record<string, unknown> | null)?.participant_ids as string[] ?? []
+  const entryParticipants = finalEntries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)
+  const mergedParticipants = Array.from(new Set([...existingParticipants, ...entryParticipants]))
+
   const { error } = await admin
     .from('daily_updates')
     .update({
@@ -447,11 +455,16 @@ export async function updatePastDailyUpdate(
       // UNIQUE COUNT RULE: skip is_rework=true — revisions are not new unique deliverables
       editing_count:  finalEntries.filter(e => e.task_type === 'edit' && !(e as Record<string,unknown>).is_rework).length,
       learning_hours: finalLearnHours,
+      participant_ids: mergedParticipants,
     })
     .eq('id', id)
     .eq('user_id', userId)
 
   if (error) return { success: false, error: error.message }
+
+  if (record?.company_id && record?.date) {
+    await syncCollaborationConfirmations(admin, id, userId, record.company_id, record.date, finalEntries)
+  }
 
   // Sync break total to attendance_logs based on remaining entries
   if (record?.date) {
@@ -497,7 +510,25 @@ export async function updateDailyUpdateLearning(
     learning_end_time:   data.learning_end_time   ?? null,
   }
   if (data.participant_ids !== undefined) {
-    updatePayload.participant_ids = data.participant_ids
+    // Merge with (never overwrite/drop) whatever's already tagged on this record's
+    // work entries — this form only edits the learning tag, so blindly writing
+    // data.participant_ids here would wipe out unrelated work-entry collaborator tags
+    // (including null when no learning participant is selected).
+    const { data: existingRecord } = await admin
+      .from('daily_updates')
+      .select('participant_ids, work_entries')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single()
+    const existingParticipants = (existingRecord as Record<string, unknown> | null)?.participant_ids as string[] ?? []
+    const entryParticipants = (Array.isArray(existingRecord?.work_entries) ? existingRecord.work_entries as Record<string, unknown>[] : [])
+      .flatMap(e => e.participant_ids as string[] ?? [])
+      .filter(Boolean)
+    updatePayload.participant_ids = Array.from(new Set([
+      ...existingParticipants,
+      ...entryParticipants,
+      ...(data.participant_ids ?? []),
+    ]))
   }
   const { error } = await admin
     .from('daily_updates')
@@ -531,7 +562,7 @@ export async function addEntryToDate(
 
   const { data: existing } = await admin
     .from('daily_updates')
-    .select('id, work_entries')
+    .select('id, work_entries, participant_ids')
     .eq('user_id', userId)
     .eq('date', newDate)
     .eq('company_id', profile.company_id)
@@ -543,13 +574,21 @@ export async function addEntryToDate(
     entry,
   ]
 
+  // Merge with (never drop) the existing column value — see updatePastDailyUpdate above.
+  const existingParticipants = (existing as Record<string, unknown> | null)?.participant_ids as string[] ?? []
+  const entryParticipants = allEntries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)
+  const mergedParticipants = Array.from(new Set([...existingParticipants, ...entryParticipants]))
+
   const aggregates = {
     work_entries: allEntries,
     working_hours: calcNetWorkHours(allEntries as Parameters<typeof calcNetWorkHours>[0], addLayout) || null,
     shoot_count: allEntries.filter(e => e.task_type === 'shoot').length,
     // UNIQUE COUNT RULE: skip is_rework=true — revisions are not new unique deliverables
     editing_count: allEntries.filter(e => e.task_type === 'edit' && !(e as Record<string,unknown>).is_rework).length,
+    participant_ids: mergedParticipants,
   }
+
+  let recordId = existing?.id as string | undefined
 
   if (existing) {
     const { error } = await admin
@@ -558,7 +597,7 @@ export async function addEntryToDate(
       .eq('id', existing.id)
     if (error) return { success: false, error: error.message }
   } else {
-    const { error } = await admin
+    const { data: inserted, error } = await admin
       .from('daily_updates')
       .insert({
         user_id: userId,
@@ -567,7 +606,14 @@ export async function addEntryToDate(
         attendance_status: 'present',
         ...aggregates,
       })
+      .select('id')
+      .single()
     if (error) return { success: false, error: error.message }
+    recordId = inserted?.id
+  }
+
+  if (recordId) {
+    await syncCollaborationConfirmations(admin, recordId, userId, profile.company_id, newDate, allEntries)
   }
 
   // Sync break totals to attendance_logs for the new date

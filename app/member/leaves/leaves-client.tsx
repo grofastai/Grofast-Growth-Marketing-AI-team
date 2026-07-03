@@ -353,11 +353,11 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
           {/* Illustration — desktop: centered. Mobile: anchored right + width-capped so it can't collide with the text column. */}
           <div className="hidden sm:block" style={{ position: "absolute", left: "50%", transform: "translateX(-46%)", bottom: 0, zIndex: 1 }}>
-            <Image src="/brand/leave-hero.png" alt="" width={500} height={260}
+            <Image src="/brand/leave-hero.png" alt="" width={500} height={333}
               style={{ objectFit: "contain", objectPosition: "bottom center", display: "block", maxHeight: "clamp(120px,30vw,260px)" }} priority />
           </div>
           <div className="block sm:hidden" style={{ position: "absolute", right: 0, bottom: 0, zIndex: 1, maxWidth: "38%" }}>
-            <Image src="/brand/leave-hero.png" alt="" width={500} height={260}
+            <Image src="/brand/leave-hero.png" alt="" width={500} height={333}
               style={{ objectFit: "contain", objectPosition: "bottom right", display: "block", width: "100%", height: "auto", maxHeight: 130 }} priority />
           </div>
 

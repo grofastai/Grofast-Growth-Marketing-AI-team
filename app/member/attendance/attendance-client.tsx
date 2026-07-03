@@ -429,7 +429,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
           <p style={{ fontSize:10, color:"rgba(255,255,255,0.55)", margin:"2px 0 0" }}>Shift: 9:30 AM – 7:00 PM</p>
         </div>
 
-        <div className="flex items-center gap-4" style={{ marginLeft:"auto", position:"relative", zIndex:1 }}>
+        <div className="flex items-center gap-4 sm:ml-auto" style={{ position:"relative", zIndex:1 }}>
           <div className="flex items-center gap-2 px-4 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
             <div className="w-2 h-2 rounded-full" style={{ background: statusGreen ? "#22C55E" : isAbsent ? "#F87171" : "rgba(255,255,255,0.5)" }} />
             <span className="text-[13px] font-bold" style={{ color: statusGreen ? "#4ADE80" : isAbsent ? "#F87171" : "rgba(255,255,255,0.8)" }}>{statusLabel}</span>

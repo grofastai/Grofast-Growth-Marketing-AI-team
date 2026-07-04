@@ -1320,17 +1320,17 @@ export default function FreelancersMemberClient({
                       </svg>
                     )}
                   </div>
-                  {/* Character image (desktop) — anchored bottom-right, leaves clearance at the top for the Add Work button */}
+                  {/* Character image (desktop) — anchored bottom-right, enlarged; a right-side gap keeps it inside the banner outline and clear of the top-right Add Work button */}
                   {isRJ && (
                     <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
                       className="hidden sm:block"
-                      style={{ position: "absolute", bottom: 0, right: 16, height: "88%", maxHeight: 260, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
+                      style={{ position: "absolute", bottom: 0, right: 24, height: "94%", maxHeight: 278, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
-                  {/* Character image (mobile) — anchored to the header zone only (top, not bottom), so it can't stretch down and bleed through the gaps in the KPI strip below it */}
+                  {/* Character image (mobile) — enlarged, with a real right-side gap (no longer bleeding off the edge), anchored to the header zone only so it can't stretch down through the KPI strip below */}
                   {isRJ && (
                     <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
                       className="block sm:hidden"
-                      style={{ position: "absolute", top: 6, right: -10, width: 155, height: 185, objectFit: "contain", objectPosition: "top right", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", zIndex: 1 }} />
+                      style={{ position: "absolute", top: 4, right: 10, width: 172, height: 205, objectFit: "contain", objectPosition: "top right", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
                     {/* Desktop layout (all teams) — for RJ, hidden on mobile in favor of the dedicated stacked block below */}
@@ -1369,7 +1369,7 @@ export default function FreelancersMemberClient({
                     {/* Mobile-only layout for RJ Voiceover — no avatar (the character image already carries identity),
                         generous spacing between sections, button flows under the heading instead of sitting top-right */}
                     {isRJ && (
-                      <div className="flex sm:hidden flex-col" style={{ maxWidth: "56%" }}>
+                      <div className="flex sm:hidden flex-col" style={{ maxWidth: "52%" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", alignSelf: "flex-start" }}>
                           {cfg.emoji} {cfg.shortLabel}
                         </span>

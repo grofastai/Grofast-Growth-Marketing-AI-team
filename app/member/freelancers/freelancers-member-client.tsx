@@ -1023,8 +1023,8 @@ export default function FreelancersMemberClient({
             <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
             <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
-            <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-              <div style={{ flexShrink: 0 }} className="max-w-full lg:max-w-[36%]">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4" style={{ position: "relative", zIndex: 2 }}>
+              <div className="max-w-full lg:max-w-[34%]" style={{ flexShrink: 0 }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", marginBottom: 10, border: "1px solid rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
                   👥 Freelancers
                 </span>
@@ -1032,14 +1032,16 @@ export default function FreelancersMemberClient({
                 <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{activeFreelancers.length} active · {new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
               </div>
 
-              {/* Illustration — desktop only, centered */}
-              <div className="hidden lg:block" style={{ flexShrink: 0, pointerEvents: "none" }}>
-                <Image src="/brand/freelancers-hero.png" alt="" width={380} height={253}
-                  style={{ objectFit: "contain", objectPosition: "center", display: "block", maxHeight: 150 }} priority />
+              {/* Illustration — always visible, scales down on smaller screens */}
+              <div className="flex justify-center lg:justify-start w-full lg:w-auto" style={{ pointerEvents: "none" }}>
+                <div className="w-[150px] sm:w-[190px] lg:w-[380px]">
+                  <Image src="/brand/freelancers-hero.png" alt="" width={380} height={253}
+                    style={{ objectFit: "contain", objectPosition: "center", display: "block", width: "100%", height: "auto", maxHeight: 150 }} priority />
+                </div>
               </div>
 
               {/* Metrics — right side */}
-              <div className="hidden md:flex" style={{ flexWrap: "wrap", gap: 6, flexShrink: 0, maxWidth: 190, justifyContent: "flex-end" }}>
+              <div className="flex flex-wrap justify-center lg:justify-end gap-2.5" style={{ flexShrink: 0 }}>
                 {([
                   { label: "Freelancers", value: String(globalStats.total), color: "#A5B4FC" },
                   { label: "Works", value: String(globalStats.totalWorks), color: "#7DD3FC" },
@@ -1047,9 +1049,9 @@ export default function FreelancersMemberClient({
                   { label: "Paid", value: fmt(globalStats.paidCost), color: "#6EE7B7" },
                   { label: "Unpaid", value: fmt(globalStats.unpaidCost), color: "#FCA5A5" },
                 ] as const).map(s => (
-                  <div key={s.label} style={{ padding: "5px 11px", borderRadius: 10, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
-                    <p style={{ fontSize: 13, fontWeight: 900, color: s.color, margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{s.value}</p>
-                    <p style={{ fontSize: 8, color: "rgba(255,255,255,0.6)", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>{s.label}</p>
+                  <div key={s.label} style={{ padding: "8px 16px", borderRadius: 12, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                    <p style={{ fontSize: 17, fontWeight: 900, color: s.color, margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{s.value}</p>
+                    <p style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>{s.label}</p>
                   </div>
                 ))}
               </div>

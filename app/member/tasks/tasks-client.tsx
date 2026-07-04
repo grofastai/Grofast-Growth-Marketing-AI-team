@@ -11,7 +11,7 @@ import {
 import { useDraggable, useDroppable } from "@dnd-kit/core"
 import {
   Search, Calendar, Clock, Sparkles, Target,
-  TrendingUp, CheckCircle2, ChevronDown, Zap,
+  CheckCircle2, ChevronDown,
   Flame, AlertCircle, GripVertical, Plus, X, User,
   Trash2, MessageSquare, Send, Loader2, Pencil, Layers,
   ChevronLeft, Check, FileText, Upload, ExternalLink,
@@ -953,10 +953,11 @@ export default function MemberTasksClient({
           {/* RIGHT: search + assign + stat pills */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start", position: "relative", zIndex: 3, paddingTop: 0, paddingBottom: 20, width: "100%" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 12, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)" }}>
-                <Search size={12} style={{ color: "rgba(255,255,255,0.6)" }} />
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", borderRadius: 12, background: "rgba(0,0,0,0.22)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.28)" }}>
+                <Search size={12} style={{ color: "rgba(255,255,255,0.85)" }} />
                 <input value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search tasks..."
+                  className="placeholder:text-white/70"
                   style={{ background: "transparent", outline: "none", fontSize: 12, color: "#FFFFFF", width: 140, border: "none" }}
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   onFocus={e => (e.target as any).placeholder = ""}
@@ -967,23 +968,6 @@ export default function MemberTasksClient({
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 12, background: "rgba(255,255,255,0.22)", backdropFilter: "blur(8px)", border: "1.5px solid rgba(255,255,255,0.35)", color: "#FFFFFF", fontSize: 12, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>
                 <Plus size={13} strokeWidth={3} /> Assign Task
               </button>
-            </div>
-            {/* Multi-color stat pills */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "nowrap", justifyContent: "flex-start", overflowX: "auto", maxWidth: "100%" }}>
-              {[
-                { icon: Clock,        color: "#FF6B6B", bg: "rgba(255,107,107,0.18)", val: todayHours > 0 ? `${todayHours}h` : "—", lbl: "Worked"  },
-                { icon: Zap,          color: "#6BCB77", bg: "rgba(107,203,119,0.18)", val: String(activeCount),                      lbl: "Active"  },
-                { icon: CheckCircle2, color: "#9B6BFF", bg: "rgba(155,107,255,0.18)", val: String(doneTasks.length),                 lbl: "Done"    },
-                { icon: TrendingUp,   color: "#FFD93D", bg: "rgba(255,217,61,0.18)",  val: `${productivity}%`,                       lbl: "Rate"    },
-              ].map(s => (
-                <div key={s.lbl} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 11, background: s.bg, border: `1px solid ${s.color}40`, flexShrink: 0 }}>
-                  <s.icon size={12} style={{ color: s.color }} />
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 900, color: s.color, margin: 0, lineHeight: 1 }}>{s.val}</p>
-                    <p style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", margin: 0 }}>{s.lbl}</p>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>

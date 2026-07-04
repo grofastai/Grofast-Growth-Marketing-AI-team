@@ -1023,21 +1023,23 @@ export default function FreelancersMemberClient({
             <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
             <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
-            {/* Illustration — desktop only, right side, vertically centered */}
-            <div className="hidden lg:block" style={{ position: "absolute", right: 24, top: "50%", transform: "translateY(-50%)", zIndex: 1, pointerEvents: "none" }}>
-              <Image src="/brand/freelancers-hero.png" alt="" width={380} height={253}
-                style={{ objectFit: "contain", objectPosition: "center", display: "block", maxHeight: 150 }} priority />
-            </div>
+            <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+              <div style={{ flexShrink: 0 }} className="max-w-full lg:max-w-[36%]">
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", marginBottom: 10, border: "1px solid rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
+                  👥 Freelancers
+                </span>
+                <h1 style={{ fontSize: 26, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)", margin: "0 0 4px" }}>Freelancers</h1>
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{activeFreelancers.length} active · {new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
+              </div>
 
-            <div style={{ position: "relative", zIndex: 2 }} className="max-w-full lg:max-w-[55%]">
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", marginBottom: 10, border: "1px solid rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
-                👥 Freelancers
-              </span>
-              <h1 style={{ fontSize: 26, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)", margin: "0 0 4px" }}>Freelancers</h1>
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: "0 0 10px" }}>{activeFreelancers.length} active · {new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
+              {/* Illustration — desktop only, centered */}
+              <div className="hidden lg:block" style={{ flexShrink: 0, pointerEvents: "none" }}>
+                <Image src="/brand/freelancers-hero.png" alt="" width={380} height={253}
+                  style={{ objectFit: "contain", objectPosition: "center", display: "block", maxHeight: 150 }} priority />
+              </div>
 
-              {/* Metrics — moved into banner */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {/* Metrics — right side */}
+              <div className="hidden md:flex" style={{ flexWrap: "wrap", gap: 6, flexShrink: 0, maxWidth: 190, justifyContent: "flex-end" }}>
                 {([
                   { label: "Freelancers", value: String(globalStats.total), color: "#A5B4FC" },
                   { label: "Works", value: String(globalStats.totalWorks), color: "#7DD3FC" },

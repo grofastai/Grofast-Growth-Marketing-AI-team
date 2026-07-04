@@ -922,16 +922,19 @@ export default function MemberTasksClient({
 
         {/* ── Hero Banner ── */}
         <div style={{
-          background: "linear-gradient(110deg, #DE1A1A 0%, #8B0000 28%, #1A0000 58%, #0D0D0D 100%)",
+          background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
           borderRadius: 24, marginBottom: 24, position: "relative", overflow: "hidden",
           padding: "0 28px", minHeight: 148, display: "flex", alignItems: "center",
-          boxShadow: "0 12px 48px rgba(139,0,0,0.55)", flexWrap: "wrap",
+          boxShadow: "0 8px 32px rgba(180,0,0,0.35)", flexWrap: "wrap",
         }}>
           {/* Glows */}
-          <div style={{ position: "absolute", top: "50%", left: -50, transform: "translateY(-50%)", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,80,80,0.2) 0%, transparent 65%)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", top: "50%", right: -40, transform: "translateY(-50%)", width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
-          {/* Purple streak accent */}
-          <div style={{ position: "absolute", bottom: -30, left: "38%", width: 180, height: 80, borderRadius: "50%", background: "radial-gradient(circle, rgba(155,107,255,0.22) 0%, transparent 70%)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+
+          {/* Illustration — top-right corner of the title row only; the search/assign/pills row always wraps to its own full-width line below, so this can't reach it */}
+          <img src="/brand/task-board-hero.png" alt="" aria-hidden="true"
+            className="hidden md:block"
+            style={{ position: "absolute", top: 14, right: 28, height: 108, width: "auto", objectFit: "contain", zIndex: 2, pointerEvents: "none", filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.35))" }} />
 
           {/* LEFT: badge + title + subtitle */}
           <div style={{ flex: 1, position: "relative", zIndex: 3, paddingTop: 24, paddingBottom: 24 }}>
@@ -939,12 +942,8 @@ export default function MemberTasksClient({
               <span style={{ fontSize: 13 }}>⭐</span>
               <span style={{ fontSize: 11, fontWeight: 800, color: "#FFF", letterSpacing: "0.04em" }}>My Tasks</span>
             </div>
-            <h1 style={{ fontSize: 30, fontWeight: 900, margin: "0 0 6px", lineHeight: 1.1, display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span style={{ color: "#FFFFFF", textShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>Task</span>
-              <span style={{
-                background: "linear-gradient(135deg, #FF6B6B 0%, #FFD93D 35%, #6BCB77 65%, #9B6BFF 100%)",
-                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-              }}>Board</span>
+            <h1 style={{ fontSize: 30, fontWeight: 900, margin: "0 0 6px", lineHeight: 1.1, color: "#FFFFFF", textShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
+              Task Board
             </h1>
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 500 }}>
               {activeCount > 0 ? `${activeCount} active · drag cards between columns to update status` : "You're all caught up 🎉"}
@@ -952,8 +951,8 @@ export default function MemberTasksClient({
           </div>
 
           {/* RIGHT: search + assign + stat pills */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center", position: "relative", zIndex: 3, paddingTop: 20, paddingBottom: 20, width: "100%" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start", position: "relative", zIndex: 3, paddingTop: 0, paddingBottom: 20, width: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 12, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)" }}>
                 <Search size={12} style={{ color: "rgba(255,255,255,0.6)" }} />
                 <input value={search} onChange={e => setSearch(e.target.value)}
@@ -970,7 +969,7 @@ export default function MemberTasksClient({
               </button>
             </div>
             {/* Multi-color stat pills */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "nowrap", justifyContent: "center", overflowX: "auto", maxWidth: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "nowrap", justifyContent: "flex-start", overflowX: "auto", maxWidth: "100%" }}>
               {[
                 { icon: Clock,        color: "#FF6B6B", bg: "rgba(255,107,107,0.18)", val: todayHours > 0 ? `${todayHours}h` : "—", lbl: "Worked"  },
                 { icon: Zap,          color: "#6BCB77", bg: "rgba(107,203,119,0.18)", val: String(activeCount),                      lbl: "Active"  },

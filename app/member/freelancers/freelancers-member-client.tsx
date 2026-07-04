@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { useState, useMemo, useTransition } from "react"
+import Image from "next/image"
 import { X, Plus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Star, Link2, FileText, IndianRupee, Users, Pencil, CheckCircle2, Trash2 } from "lucide-react"
 import { saveFreelancerWorkEntry, toggleFreelancerPaymentStatus, updateFreelancerWorkEntry, deleteFreelancerWorkEntry } from "@/lib/actions/freelancer-work"
 import { buildClientOptions } from "@/lib/utils/client-options"
@@ -1015,13 +1016,40 @@ export default function FreelancersMemberClient({
   return (
     <div style={{ ...(isEmbedded ? { flex: 1, minHeight: 0 } : { height: "100vh" }), display: "flex", flexDirection: "column", background: "#F5F6FA", overflow: "hidden" }}>
 
+      {/* Hero — admin embeds this component inside its own gradient hero already, so skip it here to avoid stacking two */}
+      {!isEmbedded && (
+        <div style={{ flexShrink: 0, margin: "14px 14px 0" }}>
+          <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius: 20, padding: "16px 18px", boxShadow: "0 8px 32px rgba(180,0,0,0.35)", position: "relative", overflow: "hidden", minHeight: 150 }}>
+            <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+
+            {/* Illustration — desktop only, right side */}
+            <div className="hidden lg:block" style={{ position: "absolute", right: 24, bottom: 0, zIndex: 1, pointerEvents: "none" }}>
+              <Image src="/brand/freelancers-hero.png" alt="" width={380} height={253}
+                style={{ objectFit: "contain", objectPosition: "bottom right", display: "block", maxHeight: 150 }} priority />
+            </div>
+
+            <div style={{ position: "relative", zIndex: 2 }} className="max-w-full lg:max-w-[55%]">
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", marginBottom: 10, border: "1px solid rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
+                👥 Freelancers
+              </span>
+              <h1 style={{ fontSize: 26, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)", margin: "0 0 4px" }}>Freelancers</h1>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{activeFreelancers.length} active · {new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top header */}
       <div style={{ background: "#FFFFFF", borderBottom: "1px solid #EBEBEB", padding: "12px 20px", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 900, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>Freelancers</h1>
-            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{activeFreelancers.length} active · {new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
-          </div>
+          {/* Standalone member view shows the title in the gradient hero above instead */}
+          {isEmbedded && (
+            <div>
+              <h1 style={{ fontSize: 20, fontWeight: 900, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>Freelancers</h1>
+              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{activeFreelancers.length} active · {new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
+            </div>
+          )}
           <div style={{ display: "flex", background: "#F9FAFB", borderRadius: 14, border: "1px solid #EBEBEB", overflowX: "auto" }}>
             {([
               { label: "Freelancers", value: String(globalStats.total), color: "#6366F1" },
@@ -1263,11 +1291,11 @@ export default function FreelancersMemberClient({
                       className="hidden sm:block"
                       style={{ position: "absolute", bottom: 0, right: 16, height: "88%", maxHeight: 260, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
-                  {/* Character image (mobile) — bigger, hangs slightly past the bottom edge for a premium look; no button up top to clear on mobile */}
+                  {/* Character image (mobile) — anchored to the header zone only (top, not bottom), so it can't stretch down and bleed through the gaps in the KPI strip below it */}
                   {isRJ && (
                     <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
                       className="block sm:hidden"
-                      style={{ position: "absolute", bottom: -10, right: 16, height: "100%", maxHeight: 320, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", zIndex: 1 }} />
+                      style={{ position: "absolute", top: 6, right: -10, width: 155, height: 185, objectFit: "contain", objectPosition: "top right", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
                     {/* Desktop layout (all teams) — for RJ, hidden on mobile in favor of the dedicated stacked block below */}
@@ -1306,7 +1334,7 @@ export default function FreelancersMemberClient({
                     {/* Mobile-only layout for RJ Voiceover — no avatar (the character image already carries identity),
                         generous spacing between sections, button flows under the heading instead of sitting top-right */}
                     {isRJ && (
-                      <div className="flex sm:hidden flex-col" style={{ maxWidth: "70%" }}>
+                      <div className="flex sm:hidden flex-col" style={{ maxWidth: "56%" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", alignSelf: "flex-start" }}>
                           {cfg.emoji} {cfg.shortLabel}
                         </span>

@@ -368,18 +368,27 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     <div className="p-5 md:p-6 xl:p-8 max-w-[1600px]" style={{ background: "#F1F2F6", minHeight: "100vh" }}>
 
       {/* ── Top Header ────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4 mb-7">
-        <div>
-          <h1 className="text-[26px] md:text-[30px] font-black leading-tight" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
-            {greeting},&nbsp;<span style={{ color: "#de1a1a" }}>{firstName}</span>&nbsp;👋
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-7"
+        style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius: 20, padding: "20px 24px", position: "relative", overflow: "hidden", boxShadow: "0 8px 32px rgba(180,0,0,0.35)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -30, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", marginBottom: 10, border: "1px solid rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
+            ⭐ Dashboard
+          </span>
+          <h1 className="text-[26px] md:text-[30px] font-black leading-tight" style={{ color: "#FFFFFF", fontFamily: "var(--font-jakarta)" }}>
+            {greeting},&nbsp;{firstName}&nbsp;👋
           </h1>
-          <p className="text-[13px] mt-1 font-medium" style={{ color: "#6B7280" }}>{dateStr}</p>
+          <p className="text-[13px] mt-1 font-medium" style={{ color: "rgba(255,255,255,0.7)" }}>{dateStr}</p>
         </div>
 
-        <DashboardHeaderControls
-          pendingLeaves={pendingLeaves}
-          employeeId={profile?.employee_id ?? ""}
-        />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <DashboardHeaderControls
+            pendingLeaves={pendingLeaves}
+            employeeId={profile?.employee_id ?? ""}
+          />
+        </div>
       </div>
 
       {/* ── 5 Stat Cards ─────────────────────────────────────── */}
@@ -388,20 +397,23 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
           const Icon = s.icon
           return (
             <div key={s.label} className="rounded-2xl p-4 flex flex-col"
-              style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+              style={{
+                background: "linear-gradient(135deg, #7a1010 0%, #e0201f 100%)",
+                boxShadow: "0 4px 20px rgba(222,26,26,0.18)",
+              }}>
 
               {/* Icon + label */}
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: s.iconBg }}>
-                  <Icon size={15} style={{ color: s.iconColor }} />
+                  style={{ background: "rgba(255,255,255,0.16)" }}>
+                  <Icon size={15} style={{ color: "#FFFFFF" }} />
                 </div>
-                <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{s.label}</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.72)" }}>{s.label}</p>
               </div>
 
               {/* Big value */}
               <p className="text-[30px] font-black leading-none"
-                style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+                style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
                 {s.value}
               </p>
             </div>
@@ -453,22 +465,23 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
       )}
 
       {/* ── This Month ────────────────────────────────────────── */}
-      <div className="rounded-2xl p-5 mb-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>
+      <div className="rounded-2xl p-5 mb-5"
+        style={{ background: "linear-gradient(135deg, #7a1010 0%, #e0201f 100%)" }}>
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(222,26,26,0.08)" }}>
-            <Calendar size={14} style={{ color: "#de1a1a" }} />
+            style={{ background: "rgba(255,255,255,0.16)" }}>
+            <Calendar size={14} style={{ color: "#FFFFFF" }} />
           </div>
-          <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>
+          <h3 className="text-[13px] font-bold" style={{ color: "#FFFFFF" }}>
             {monthMode === "last" ? "Last Month" : monthMode === "all" ? "All Time" : monthMode === "custom" ? "Custom" : "This Month"}
           </h3>
-          <span className="text-[11px]" style={{ color: "#6B7280" }}>{monthName}</span>
+          <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.65)" }}>{monthName}</span>
 
           <MonthFilterTabs mode={monthMode} customParam={monthMode === "custom" ? monthParam : undefined} />
 
           {holidayDays > 0 && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>
+              style={{ background: "rgba(255,255,255,0.16)", color: "#FFFFFF" }}>
               {holidayDays} holiday{holidayDays !== 1 ? "s" : ""}
             </span>
           )}
@@ -476,7 +489,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
           {monthlyStats.map((stat) => (
             <div key={stat.label} className="rounded-xl p-3.5 text-center"
-              style={{ background: "#F9FAFB", border: "1px solid #E8E9EF" }}>
+              style={{ background: "#FFFFFF", border: "1px solid rgba(255,255,255,0.5)" }}>
               <p className="text-[22px] font-black leading-none mb-1"
                 style={{ fontFamily: "var(--font-jakarta)", color: stat.color }}>
                 {stat.value}
@@ -486,7 +499,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
               </p>
               {stat.sub && (
                 <p className="text-[9px] mt-1 font-semibold"
-                  style={{ color: stat.label === "Leave Days" ? "#D97706" : stat.label === "Overtime Hrs" ? "#EA580C" : "#6B7280" }}>
+                  style={{ color: stat.label === "Leave Taken This Month" ? "#D97706" : stat.label === "Overtime Hrs" ? "#EA580C" : "#6B7280" }}>
                   {stat.sub}
                 </p>
               )}

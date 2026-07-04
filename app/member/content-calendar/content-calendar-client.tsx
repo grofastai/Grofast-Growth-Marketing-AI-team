@@ -406,16 +406,16 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
 
       {/* ── Hero Header — double-colour banner ── */}
       <div style={{
-        background: "linear-gradient(105deg, #E8000A 0%, #C00008 28%, #7B0000 58%, #1A0000 100%)",
+        background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
         borderRadius: 24, marginBottom: 24, position: "relative", overflow: "hidden",
         padding: isMobile ? "0 16px" : "0 32px",
-        boxShadow: "0 12px 48px rgba(139,0,0,0.55)",
+        boxShadow: "0 8px 32px rgba(180,0,0,0.35)",
         minHeight: isMobile ? 130 : 160,
         display: "flex", alignItems: "center", flexWrap: "wrap",
       }}>
-        {/* Radial glows */}
-        <div style={{ position: "absolute", top: "50%", left: -60, transform: "translateY(-50%)", width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,80,80,0.18) 0%, transparent 65%)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", top: "50%", right: -40, transform: "translateY(-50%)", width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%)", pointerEvents: "none" }} />
+        {/* Glows */}
+        <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
         {/* ── LEFT: badge + title + controls ── */}
         <div style={{ flex: 1, position: "relative", zIndex: 3, paddingTop: 28, paddingBottom: 28 }}>
@@ -1071,17 +1071,19 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             </div>
 
             {/* Motivational card */}
-            <div style={{ background: "linear-gradient(135deg, #1A0000 0%, #5B0000 50%, #8B0000 100%)", borderRadius: 20, padding: "20px 18px 0", position: "relative", overflow: "hidden", minHeight: 155, border: "1px solid rgba(222,26,26,0.3)", boxShadow: "0 8px 32px rgba(90,0,0,0.4)" }}>
+            <div style={{ background: "linear-gradient(135deg, #1A0000 0%, #5B0000 50%, #8B0000 100%)", borderRadius: 20, padding: "20px 20px", position: "relative", overflow: "hidden", minHeight: 155, border: "1px solid rgba(222,26,26,0.3)", boxShadow: "0 8px 32px rgba(90,0,0,0.4)", display: "flex", alignItems: "center", gap: 24 }}>
               <div style={{ position: "absolute", top: -30, right: -30, width: 110, height: 110, borderRadius: "50%", background: "radial-gradient(circle,rgba(255,75,75,0.3) 0%,transparent 70%)", pointerEvents: "none" }} />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/content-cal-boy-sidebar.png" alt=""
-                style={{ position: "absolute", right: -4, bottom: 0, height: 140, objectFit: "contain", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))" }} />
-              <div style={{ paddingRight: 130, paddingBottom: 20, position: "relative", zIndex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 1 }}>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(222,26,26,0.85)", borderRadius: 20, padding: "3px 10px", marginBottom: 10 }}>
                   <span style={{ fontSize: 10, fontWeight: 800, color: "#FFF", letterSpacing: "0.05em" }}>🔥 PRO TIP</span>
                 </div>
                 <p style={{ fontSize: 13, fontWeight: 900, color: "#FFFFFF", margin: "0 0 5px", lineHeight: 1.4 }}>Consistent content = consistent growth!</p>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Post daily across all platforms 🚀</p>
+              </div>
+              <div style={{ flexShrink: 0, width: "38%", maxWidth: 210, position: "relative", zIndex: 1 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/brand/content-cal-boy-sidebar.png" alt=""
+                  style={{ width: "100%", height: "auto", display: "block", objectFit: "contain", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))", pointerEvents: "none" }} />
               </div>
             </div>
           </div>

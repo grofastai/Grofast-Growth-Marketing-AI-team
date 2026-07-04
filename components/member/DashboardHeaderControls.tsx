@@ -194,8 +194,8 @@ export default function DashboardHeaderControls({
       <div className="relative">
         <form onSubmit={handleSubmit}
           className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all"
-          style={{ background: "#FFFFFF", border: `1px solid ${open ? "#de1a1a" : "#E5E7EB"}`, minWidth: open ? 200 : undefined }}>
-          <Search size={14} style={{ color: open ? "#de1a1a" : "#9CA3AF", flexShrink: 0 }} />
+          style={{ background: "rgba(255,255,255,0.14)", backdropFilter: "blur(8px)", border: `1px solid ${open ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.25)"}`, minWidth: open ? 200 : undefined }}>
+          <Search size={14} style={{ color: "rgba(255,255,255,0.75)", flexShrink: 0 }} />
           <input
             ref={inputRef}
             value={query}
@@ -203,12 +203,12 @@ export default function DashboardHeaderControls({
             onFocus={() => setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 150)}
             placeholder="Search..."
-            className="bg-transparent outline-none text-[13px] w-[120px] sm:w-[180px] placeholder:text-[#9CA3AF]"
-            style={{ color: "#111111" }}
+            className="bg-transparent outline-none text-[13px] w-[120px] sm:w-[180px] placeholder:text-white/50"
+            style={{ color: "#FFFFFF" }}
           />
           {query && (
             <button type="button" onClick={() => { setQuery(""); inputRef.current?.focus() }}>
-              <X size={12} style={{ color: "#9CA3AF" }} />
+              <X size={12} style={{ color: "rgba(255,255,255,0.75)" }} />
             </button>
           )}
         </form>
@@ -236,10 +236,10 @@ export default function DashboardHeaderControls({
       {/* ── Notification Bell ── */}
       <div className="relative" ref={notifRef}>
         <button onClick={openPanel}
-          style={{ position: "relative", width: 38, height: 38, borderRadius: 12, background: "#FFFFFF", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-          <Bell size={16} style={{ color: notifOpen ? "#de1a1a" : "#6B7280" }} />
+          style={{ position: "relative", width: 38, height: 38, borderRadius: 12, background: "rgba(255,255,255,0.14)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+          <Bell size={16} style={{ color: notifOpen ? "#fff" : "rgba(255,255,255,0.75)" }} />
           {unread > 0 && (
-            <span style={{ position: "absolute", top: -4, right: -4, minWidth: 17, height: 17, borderRadius: 99, background: "#de1a1a", color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", border: "2px solid #F1F2F6" }}>
+            <span style={{ position: "absolute", top: -4, right: -4, minWidth: 17, height: 17, borderRadius: 99, background: "#fff", color: "#de1a1a", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", border: "2px solid #8B1212" }}>
               {unread > 9 ? "9+" : unread}
             </span>
           )}
@@ -321,8 +321,8 @@ export default function DashboardHeaderControls({
 
       {/* ── Employee ID (hidden on very small screens) ── */}
       <div className="text-right hidden xs:block">
-        <p className="text-[9px] uppercase tracking-[0.2em] font-bold" style={{ color: "#9CA3AF" }}>Employee ID</p>
-        <p className="text-[15px] font-black" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+        <p className="text-[9px] uppercase tracking-[0.2em] font-bold" style={{ color: "rgba(255,255,255,0.6)" }}>Employee ID</p>
+        <p className="text-[15px] font-black" style={{ color: "#FFFFFF", fontFamily: "var(--font-jakarta)" }}>
           {employeeId ? `#${employeeId}` : "—"}
         </p>
       </div>

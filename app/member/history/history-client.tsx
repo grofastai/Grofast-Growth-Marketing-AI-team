@@ -589,9 +589,16 @@ export default function HistoryClient({
 
     if (editDraftDate && editDraftDate !== editOrigDate) {
       // Move entry to a different date
+      const movedEntryId = (allEntries[entryIdx] as unknown as Record<string, unknown>)?.id as string | undefined
       const withoutEntry = (allEntries as unknown as Record<string, unknown>[]).filter((_, i) => i !== entryIdx)
       const r1 = await updatePastDailyUpdate(updateId, withoutEntry)
       if (!r1.success) { showToast("Failed to move entry: " + r1.error); setSavingKey(null); return }
+      // Drop the old date's collab confirmation for this entry — addEntryToDate below
+      // creates a fresh one under the new date, so leaving the old one would double it up.
+      if (movedEntryId) {
+        deleteCollaborationsByEntry(updateId, movedEntryId).catch(console.error)
+        setCollabConfirms(prev => prev.filter(c => !(c.daily_update_id === updateId && c.entry_id === movedEntryId)))
+      }
       const r2 = await addEntryToDate(editDraftDate, updatedEntry)
       if (!r2.success) { showToast("Entry removed from old date but failed to add to new date: " + r2.error); setSavingKey(null); return }
     } else {
@@ -928,14 +935,30 @@ export default function HistoryClient({
 
       {toastEl}
 
-      {/* ── TOPBAR ────────────────────────────────────────────────────────── */}
-      <div style={{ background:"#fff", borderBottom:"1px solid #EBEDF2" }} className="px-4 md:px-7 py-3 flex flex-wrap items-center gap-3">
-        <div>
-          <h1 style={{ fontSize:26, fontWeight:900, color:"#111111", fontFamily:"var(--font-jakarta)", margin:0 }}>
-            Update <span style={{ color:"#DE1A1A" }}>History</span>
-          </h1>
-        </div>
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
+      <div className="px-4 md:px-7 pt-5">
+        <div style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:20, padding:"20px 24px", boxShadow:"0 8px 32px rgba(180,0,0,0.35)", position:"relative", overflow:"hidden", minHeight:150 }}>
+          <div style={{ position:"absolute", top:-50, right:-30, width:200, height:200, borderRadius:"50%", background:"rgba(255,255,255,0.05)", pointerEvents:"none" }} />
+          <div style={{ position:"absolute", bottom:-40, left:60, width:150, height:150, borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }} />
 
+          {/* Illustration — desktop only, right side */}
+          <div className="hidden lg:block" style={{ position:"absolute", right:24, bottom:0, zIndex:1, pointerEvents:"none" }}>
+            <Image src="/brand/history-hero.png" alt="" width={340} height={227}
+              style={{ objectFit:"contain", objectPosition:"bottom right", display:"block", maxHeight:150 }} priority />
+          </div>
+
+          <div style={{ position:"relative", zIndex:2 }} className="max-w-full lg:max-w-[55%]">
+            <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(255,255,255,0.15)", color:"#fff", marginBottom:10, border:"1px solid rgba(255,255,255,0.2)", letterSpacing:"0.04em" }}>
+              📋 History
+            </span>
+            <h1 style={{ fontSize:26, fontWeight:900, color:"#fff", fontFamily:"var(--font-jakarta)", margin:"0 0 4px" }}>Update History</h1>
+            <p style={{ fontSize:12, color:"rgba(255,255,255,0.7)", margin:0 }}>Your personal work diary — every submission, all in one place.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── TOOLBAR ──────────────────────────────────────────────────────── */}
+      <div style={{ background:"#fff", borderBottom:"1px solid #EBEDF2" }} className="px-4 md:px-7 py-3 mt-4 flex flex-wrap items-center gap-3">
         {/* Search */}
         <div style={{ flex:"1 1 200px", maxWidth:340, position:"relative" }}>
           <Search size={14} style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF" }}/>
@@ -1650,7 +1673,7 @@ export default function HistoryClient({
                   </div>
 
                   {/* Work entries */}
-                  {entries.length === 0 && u.learning_topic ? (
+                  {entries.length === 0 && collabForDate.length === 0 && u.learning_topic ? (
                     <div>
                       <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
                         <div style={{ width:34, height:34, borderRadius:10, background:"rgba(5,150,105,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -1778,7 +1801,7 @@ export default function HistoryClient({
                       </div>
                       <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>Approved</span>
                     </div>
-                  ) : entries.length === 0 ? (() => {
+                  ) : entries.length === 0 && collabForDate.length === 0 ? (() => {
                     const leaveForDay = u.attendance_status === "leave"
                       ? approvedLeaves.find(l => u.date >= l.from_date && u.date <= l.to_date)
                       : undefined

@@ -46,6 +46,8 @@ export default function MemberSupportChat({ tickets, currentUserId = '' }: { tic
   const [closeConfirm, setCloseConfirm] = useState<string | null>(null)
 
   const [reply, setReply]           = useState('')
+  const [replyFile, setReplyFile]       = useState<File | null>(null)
+  const [replyPreview, setReplyPreview] = useState<string | null>(null)
   const [uploading, setUploading]   = useState(false)
   const [pending, startTransition]  = useTransition()
   const replyFileRef = useRef<HTMLInputElement>(null)
@@ -97,31 +99,38 @@ export default function MemberSupportChat({ tickets, currentUserId = '' }: { tic
 
   function sendReply() {
     const msg = reply.trim()
-    if (!msg || !active) return
-    setReply('')
+    if ((!msg && !replyFile) || !active) return
+    const fileToSend = replyFile
+    setReply(''); setReplyFile(null); setReplyPreview(null)
     startTransition(async () => {
-      await addResponse({ ticket_id: active.id, message: msg })
+      let imgUrl: string | undefined
+      if (fileToSend) {
+        setUploading(true)
+        const ext = fileToSend.name.split('.').pop() ?? 'jpg'
+        const path = `${active.id}/${Date.now()}.${ext}`
+        const { data, error } = await supabase.storage.from('support-attachments').upload(path, fileToSend)
+        setUploading(false)
+        if (error || !data) { showToast('Upload failed'); return }
+        imgUrl = supabase.storage.from('support-attachments').getPublicUrl(data.path).data.publicUrl
+      }
+      const message = imgUrl ? (msg ? `${msg}\n[img]${imgUrl}` : `[img]${imgUrl}`) : msg
+      await addResponse({ ticket_id: active.id, message })
       router.refresh()
     })
   }
 
-  async function uploadReplyImage(e: React.ChangeEvent<HTMLInputElement>) {
+  function pickReplyImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file || !active) return
-    if (file.size > 5 * 1024 * 1024) { showToast('Max image size is 5 MB'); return }
-    setUploading(true)
-    try {
-      const ext = file.name.split('.').pop() ?? 'jpg'
-      const path = `${active.id}/${Date.now()}.${ext}`
-      const { data, error } = await supabase.storage.from('support-attachments').upload(path, file)
-      if (error || !data) { showToast('Upload failed'); return }
-      const { data: { publicUrl } } = supabase.storage.from('support-attachments').getPublicUrl(data.path)
-      await addResponse({ ticket_id: active.id, message: `[img]${publicUrl}` })
-      router.refresh()
-    } finally {
-      setUploading(false)
-      if (replyFileRef.current) replyFileRef.current.value = ''
-    }
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { showToast('Max image size is 5 MB'); if (replyFileRef.current) replyFileRef.current.value = ''; return }
+    setReplyFile(file)
+    setReplyPreview(URL.createObjectURL(file))
+    if (replyFileRef.current) replyFileRef.current.value = ''
+  }
+
+  function removeReplyImage() {
+    setReplyFile(null)
+    setReplyPreview(null)
   }
 
   function handleClose(id: string) {
@@ -270,21 +279,32 @@ export default function MemberSupportChat({ tickets, currentUserId = '' }: { tic
 
                   {/* composer */}
                   {active.status !== 'closed' && active.status !== 'resolved' ? (
-                    <div style={{ padding: '12px 14px', borderTop: '1px solid #F1F2F5', display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-                      <input ref={replyFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={uploadReplyImage} />
-                      <button onClick={() => replyFileRef.current?.click()} disabled={uploading || pending}
-                        title="Attach image"
-                        style={{ width: 40, height: 40, borderRadius: 11, border: '1px solid #EDEFF3', background: '#F6F7F9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-                        {uploading ? <Loader2 size={15} className="animate-spin" color="#9CA3AF" /> : <Paperclip size={15} color="#9CA3AF" />}
-                      </button>
-                      <textarea value={reply} onChange={e => setReply(e.target.value)} rows={1} placeholder="Write a reply…"
-                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
-                        style={{ flex: 1, resize: 'none', maxHeight: 120, padding: '11px 14px', borderRadius: 13, fontSize: 13.5, background: '#F6F7F9', border: '1px solid #EDEFF3', color: '#1F2430', outline: 'none', fontFamily: 'inherit', lineHeight: 1.4 }} />
-                      <button onClick={sendReply} disabled={pending || uploading || !reply.trim()}
-                        style={{ height: 40, padding: '0 16px', borderRadius: 13, background: 'linear-gradient(135deg,#DE1A1A,#9B0F0F)', color: '#fff', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, flexShrink: 0, opacity: (!reply.trim() || pending || uploading) ? 0.5 : 1, boxShadow: '0 4px 12px rgba(222,26,26,0.28)' }}>
-                        {pending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                        <span className="hidden sm:inline">Send</span>
-                      </button>
+                    <div style={{ padding: '12px 14px', borderTop: '1px solid #F1F2F5', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {replyPreview && (
+                        <div style={{ position: 'relative', display: 'inline-block', alignSelf: 'flex-start' }}>
+                          <img src={replyPreview} alt="attachment preview" style={{ maxHeight: 90, maxWidth: 160, borderRadius: 11, border: '1px solid #EDEFF3', display: 'block' }} />
+                          <button onClick={removeReplyImage} title="Remove image"
+                            style={{ position: 'absolute', top: -7, right: -7, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                            <X size={12} color="#fff" />
+                          </button>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+                        <input ref={replyFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={pickReplyImage} />
+                        <button onClick={() => replyFileRef.current?.click()} disabled={uploading || pending}
+                          title="Attach image"
+                          style={{ width: 40, height: 40, borderRadius: 11, border: '1px solid #EDEFF3', background: replyPreview ? 'rgba(222,26,26,0.06)' : '#F6F7F9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                          <Paperclip size={15} color={replyPreview ? '#DE1A1A' : '#9CA3AF'} />
+                        </button>
+                        <textarea value={reply} onChange={e => setReply(e.target.value)} rows={1} placeholder="Write a reply…"
+                          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
+                          style={{ flex: 1, resize: 'none', maxHeight: 120, padding: '11px 14px', borderRadius: 13, fontSize: 13.5, background: '#F6F7F9', border: '1px solid #EDEFF3', color: '#1F2430', outline: 'none', fontFamily: 'inherit', lineHeight: 1.4 }} />
+                        <button onClick={sendReply} disabled={pending || uploading || (!reply.trim() && !replyFile)}
+                          style={{ height: 40, padding: '0 16px', borderRadius: 13, background: 'linear-gradient(135deg,#DE1A1A,#9B0F0F)', color: '#fff', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, flexShrink: 0, opacity: (!reply.trim() && !replyFile) || pending || uploading ? 0.5 : 1, boxShadow: '0 4px 12px rgba(222,26,26,0.28)' }}>
+                          {pending || uploading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                          <span className="hidden sm:inline">Send</span>
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div style={{ padding: '14px', borderTop: '1px solid #F1F2F5', textAlign: 'center', fontSize: 12.5, color: '#9CA3AF' }}>

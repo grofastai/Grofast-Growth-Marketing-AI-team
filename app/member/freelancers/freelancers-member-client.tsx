@@ -1324,13 +1324,13 @@ export default function FreelancersMemberClient({
                   {isRJ && (
                     <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
                       className="hidden sm:block"
-                      style={{ position: "absolute", bottom: 0, right: 24, height: "104%", maxHeight: 310, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
+                      style={{ position: "absolute", bottom: 0, right: 22, height: "112%", maxHeight: 330, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
                   {/* Character image (mobile) — enlarged to fill the right side, with a real right-side gap (no edge bleed), anchored to the header zone so it can't stretch down through the KPI strip below */}
                   {isRJ && (
                     <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
                       className="block sm:hidden"
-                      style={{ position: "absolute", top: 2, right: 8, width: 196, height: 234, objectFit: "contain", objectPosition: "top right", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", zIndex: 1 }} />
+                      style={{ position: "absolute", top: 2, right: 6, width: 222, height: 265, objectFit: "contain", objectPosition: "top right", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
                     {/* Desktop layout (all teams) — for RJ, hidden on mobile in favor of the dedicated stacked block below */}
@@ -1369,7 +1369,7 @@ export default function FreelancersMemberClient({
                     {/* Mobile-only layout for RJ Voiceover — no avatar (the character image already carries identity),
                         generous spacing between sections, button flows under the heading instead of sitting top-right */}
                     {isRJ && (
-                      <div className="flex sm:hidden flex-col" style={{ maxWidth: "46%" }}>
+                      <div className="flex sm:hidden flex-col" style={{ maxWidth: "42%" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", alignSelf: "flex-start" }}>
                           {cfg.emoji} {cfg.shortLabel}
                         </span>

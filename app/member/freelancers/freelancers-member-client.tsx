@@ -1023,10 +1023,10 @@ export default function FreelancersMemberClient({
             <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
             <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
-            {/* Illustration — desktop only, right side */}
-            <div className="hidden lg:block" style={{ position: "absolute", right: 24, bottom: 0, zIndex: 1, pointerEvents: "none" }}>
+            {/* Illustration — desktop only, right side, vertically centered */}
+            <div className="hidden lg:block" style={{ position: "absolute", right: 24, top: "50%", transform: "translateY(-50%)", zIndex: 1, pointerEvents: "none" }}>
               <Image src="/brand/freelancers-hero.png" alt="" width={380} height={253}
-                style={{ objectFit: "contain", objectPosition: "bottom right", display: "block", maxHeight: 150 }} priority />
+                style={{ objectFit: "contain", objectPosition: "center", display: "block", maxHeight: 150 }} priority />
             </div>
 
             <div style={{ position: "relative", zIndex: 2 }} className="max-w-full lg:max-w-[55%]">
@@ -1034,7 +1034,23 @@ export default function FreelancersMemberClient({
                 👥 Freelancers
               </span>
               <h1 style={{ fontSize: 26, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)", margin: "0 0 4px" }}>Freelancers</h1>
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{activeFreelancers.length} active · {new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: "0 0 10px" }}>{activeFreelancers.length} active · {new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
+
+              {/* Metrics — moved into banner */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {([
+                  { label: "Freelancers", value: String(globalStats.total), color: "#A5B4FC" },
+                  { label: "Works", value: String(globalStats.totalWorks), color: "#7DD3FC" },
+                  { label: "Total", value: fmt(globalStats.totalCost), color: "#FFFFFF" },
+                  { label: "Paid", value: fmt(globalStats.paidCost), color: "#6EE7B7" },
+                  { label: "Unpaid", value: fmt(globalStats.unpaidCost), color: "#FCA5A5" },
+                ] as const).map(s => (
+                  <div key={s.label} style={{ padding: "5px 11px", borderRadius: 10, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                    <p style={{ fontSize: 13, fontWeight: 900, color: s.color, margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{s.value}</p>
+                    <p style={{ fontSize: 8, color: "rgba(255,255,255,0.6)", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>{s.label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -1050,20 +1066,22 @@ export default function FreelancersMemberClient({
               <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{activeFreelancers.length} active · {new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
             </div>
           )}
-          <div style={{ display: "flex", background: "#F9FAFB", borderRadius: 14, border: "1px solid #EBEBEB", overflowX: "auto" }}>
-            {([
-              { label: "Freelancers", value: String(globalStats.total), color: "#6366F1" },
-              { label: "Works", value: String(globalStats.totalWorks), color: "#0EA5E9" },
-              { label: "Total", value: fmt(globalStats.totalCost), color: "#111" },
-              { label: "Paid", value: fmt(globalStats.paidCost), color: "#10B981" },
-              { label: "Unpaid", value: fmt(globalStats.unpaidCost), color: "#EF4444" },
-            ] as const).map((s, i) => (
-              <div key={s.label} style={{ padding: "8px 14px", borderRight: i < 4 ? "1px solid #EBEBEB" : "none", textAlign: "center", flexShrink: 0 }}>
-                <p style={{ fontSize: 14, fontWeight: 900, color: s.color, margin: 0, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
-                <p style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700, margin: "1px 0 0", textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>{s.label}</p>
-              </div>
-            ))}
-          </div>
+          {isEmbedded && (
+            <div style={{ display: "flex", background: "#F9FAFB", borderRadius: 14, border: "1px solid #EBEBEB", overflowX: "auto" }}>
+              {([
+                { label: "Freelancers", value: String(globalStats.total), color: "#6366F1" },
+                { label: "Works", value: String(globalStats.totalWorks), color: "#0EA5E9" },
+                { label: "Total", value: fmt(globalStats.totalCost), color: "#111" },
+                { label: "Paid", value: fmt(globalStats.paidCost), color: "#10B981" },
+                { label: "Unpaid", value: fmt(globalStats.unpaidCost), color: "#EF4444" },
+              ] as const).map((s, i) => (
+                <div key={s.label} style={{ padding: "8px 14px", borderRight: i < 4 ? "1px solid #EBEBEB" : "none", textAlign: "center", flexShrink: 0 }}>
+                  <p style={{ fontSize: 14, fontWeight: 900, color: s.color, margin: 0, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
+                  <p style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700, margin: "1px 0 0", textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <button onClick={() => setGlobalAllTime(v => !v)} style={{ padding: "4px 12px", borderRadius: 99, fontSize: 11, fontWeight: 700, border: "1px solid #EBEBEB", cursor: "pointer", background: globalAllTime ? "#111" : "#F9FAFB", color: globalAllTime ? "#fff" : "#6B7280", transition: "all 0.15s" }}>All Time</button>
             <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#F9FAFB", border: "1px solid #EBEBEB", borderRadius: 10, padding: "4px 7px" }}>

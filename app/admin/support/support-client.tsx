@@ -169,9 +169,9 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
             subtitle="Manage tickets, reply instantly, and keep every client happy."
             maxContentWidth={400}
             illustration={
-              <div className="hidden md:block" style={{
+              <div style={{
                 position: 'absolute', left: '28%', top: '50%', transform: 'translateY(-50%)',
-                width: 420, height: '135%', pointerEvents: 'none', zIndex: 1,
+                width: 'clamp(150px,45vw,420px)', height: '135%', pointerEvents: 'none', zIndex: 1,
               }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/brand/support/hero-girl.png" alt=""

@@ -239,8 +239,8 @@ export default async function AttendancePage({
           }}>
             {/* Soft bg circle */}
             <div style={{ position: "absolute", top: -20, right: -20, width: 90, height: 90, borderRadius: "50%", background: s.accentBg }} />
-            {/* Character image */}
-            <div className="hidden sm:block" style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 130, pointerEvents: "none" }}>
+            {/* Character image — visible at every width, narrower on small cards */}
+            <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: "clamp(70px,26vw,130px)", pointerEvents: "none" }}>
               <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right center" }} />
             </div>
             <div style={{ position: "relative" }}>

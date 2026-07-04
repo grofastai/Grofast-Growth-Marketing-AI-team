@@ -504,7 +504,7 @@ export default function DocumentsClient({
           subtitle="Manage employee documents securely in one place"
           maxContentWidth="46%"
           illustration={
-            <div className="hidden md:block" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "56%", zIndex: 1, opacity: 0.9 }}>
+            <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "56%", zIndex: 1, opacity: 0.9 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/documents/hero-boy.png" alt=""
                 style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 15%", display: "block" }} />

@@ -103,9 +103,9 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
             { icon: <FolderOpen size={11} />, label: `${folders.length} Folders` },
           ]}
           illustration={
-            <div className="hidden md:block" style={{
-              position: 'absolute', right: 40, top: '50%', transform: 'translateY(-50%)',
-              width: 150, height: '120%', pointerEvents: 'none', zIndex: 1,
+            <div style={{
+              position: 'absolute', right: 'clamp(8px,4vw,40px)', top: '50%', transform: 'translateY(-50%)',
+              width: 'clamp(70px,20vw,150px)', height: '120%', pointerEvents: 'none', zIndex: 1,
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/notes-hero.png" alt=""

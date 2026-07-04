@@ -425,12 +425,12 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             </>
           }
           rightSlot={
-            <div className="hidden md:flex" style={{ alignItems: "center", gap: 16 }}>
+            <div className="flex flex-wrap" style={{ alignItems: "center", gap: 16 }}>
               {/* Character + greeting card */}
               <div style={{ display: "flex", alignItems: "flex-end", gap: 16 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/brand/content-cal-hero-girl.png" alt=""
-                  style={{ height: 130, width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
+                  style={{ height: "clamp(80px,22vw,130px)", width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
                 <div style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "12px 16px", border: "1px solid rgba(255,255,255,0.2)", minWidth: 180 }}>
                   <p style={{ fontSize: 14, fontWeight: 800, color: "#FFF", margin: "0 0 4px" }}>Plan your content! 📅</p>
                   <p style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", margin: 0 }}>What are you scheduling today?</p>

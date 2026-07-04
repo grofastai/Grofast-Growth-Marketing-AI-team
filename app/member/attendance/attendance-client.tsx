@@ -431,11 +431,11 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
           <p style={{ fontSize:11, color:"rgba(255,255,255,0.55)", margin:"3px 0 0", display:"flex", alignItems:"center", gap:5 }}>🕒 9:30 AM – 7:00 PM</p>
         </div>
 
-        {/* Illustration — desktop only, sits in the flex gap between title and status/ring so it can't overlap either */}
-        <div className="hidden lg:flex" style={{ alignSelf:"flex-end", flexShrink:0, position:"relative", zIndex:1 }}>
+        {/* Illustration — visible at every width; sits in the flex gap between title and status/ring on desktop, wraps to its own centered row on mobile */}
+        <div className="flex justify-center w-full lg:w-auto lg:justify-start" style={{ alignSelf:"flex-end", flexShrink:0, position:"relative", zIndex:1 }}>
           <div style={{ position:"absolute", bottom:2, left:"50%", transform:"translateX(-50%)", width:100, height:20, borderRadius:"50%", background:"radial-gradient(ellipse, rgba(0,0,0,0.4) 0%, transparent 72%)", filter:"blur(2px)", pointerEvents:"none" }} />
           <img src="/brand/attendance-boy.png" alt="" aria-hidden="true"
-            style={{ position:"relative", height: 164, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 10px 18px rgba(0,0,0,0.3))" }} />
+            style={{ position:"relative", height: "clamp(90px,24vw,164px)", width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 10px 18px rgba(0,0,0,0.3))" }} />
         </div>
 
         <div className="flex items-center gap-4" style={{ position:"relative", zIndex:1, marginRight:"6%" }}>

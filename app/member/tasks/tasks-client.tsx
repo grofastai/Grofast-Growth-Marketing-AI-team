@@ -931,10 +931,10 @@ export default function MemberTasksClient({
           <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
           <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
-          {/* Illustration — top-right corner of the title row only; the search/assign/pills row always wraps to its own full-width line below, so this can't reach it */}
+          {/* Illustration — subtle background atmosphere: low opacity + no drop-shadow so it reads as texture, not a pasted PNG; enlarged and bled off the right edge so the card's overflow:hidden crops it in */}
           <img src="/brand/task-board-hero.png" alt="" aria-hidden="true"
             className="hidden md:block"
-            style={{ position: "absolute", top: 14, right: 28, height: 108, width: "auto", objectFit: "contain", zIndex: 2, pointerEvents: "none", filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.35))" }} />
+            style={{ position: "absolute", top: "50%", right: -44, transform: "translateY(-50%)", height: 210, width: "auto", objectFit: "contain", zIndex: 1, pointerEvents: "none", opacity: 0.22 }} />
 
           {/* LEFT: badge + title + subtitle */}
           <div style={{ flex: 1, position: "relative", zIndex: 3, paddingTop: 24, paddingBottom: 24 }}>

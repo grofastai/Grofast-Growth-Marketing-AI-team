@@ -931,10 +931,10 @@ export default function MemberTasksClient({
           <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
           <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
-          {/* Illustration — top-right corner of the title row only; the search/assign/pills row always wraps to its own full-width line below, so this can't reach it */}
+          {/* Illustration — enlarged, nudged left, and vertically centered on the right side of the hero */}
           <img src="/brand/task-board-hero.png" alt="" aria-hidden="true"
             className="hidden md:block"
-            style={{ position: "absolute", top: 4, right: 48, height: 148, width: "auto", objectFit: "contain", zIndex: 2, pointerEvents: "none", filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.35))" }} />
+            style={{ position: "absolute", top: "50%", right: 84, transform: "translateY(-50%)", height: 188, width: "auto", objectFit: "contain", zIndex: 2, pointerEvents: "none", filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.35))" }} />
 
           {/* LEFT: badge + title + subtitle */}
           <div style={{ flex: 1, position: "relative", zIndex: 3, paddingTop: 24, paddingBottom: 24 }}>

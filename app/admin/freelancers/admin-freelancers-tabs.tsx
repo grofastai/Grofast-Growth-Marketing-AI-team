@@ -66,6 +66,7 @@ export default function AdminFreelancersTabs({
 }) {
   const [selected, setSelected] = useState<{ type: "media" | "fl"; id: string } | null>(null)
   const [mobileShowRight, setMobileShowRight] = useState(false)
+  const [teamFilter, setTeamFilter] = useState<string | "all">("all")
 
   const flMediaTotals = useMemo(() => {
     const map: Record<string, number> = {}
@@ -103,6 +104,17 @@ export default function AdminFreelancersTabs({
     }
   }, [workEntries, flEntries, totalCount])
 
+  const teamsPresent = useMemo(() => {
+    const set = new Set<string>()
+    for (const f of activeFreelancers) set.add(f.team)
+    return Array.from(set)
+  }, [activeFreelancers])
+
+  const visibleFreelancers = useMemo(
+    () => teamFilter === "all" ? activeFreelancers : activeFreelancers.filter(f => f.team === teamFilter),
+    [activeFreelancers, teamFilter]
+  )
+
   const loginMemberEntries = useMemo(() => flEntries.map(e => ({
     id: e.entry_id,
     user_id: e.user_id,
@@ -139,6 +151,25 @@ export default function AdminFreelancersTabs({
         <div className={(selected || mobileShowRight) ? "hidden md:flex md:flex-col md:w-[220px]" : "flex flex-col w-full md:w-[220px]"}
           style={{ flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", overflowY: "auto" }}>
 
+          {teamsPresent.length > 0 && (
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", padding: "8px 14px 4px" }}>
+              <button onClick={() => setTeamFilter("all")} title="All teams"
+                style={{ width: 28, height: 28, borderRadius: 9, border: "none", cursor: "pointer", background: teamFilter === "all" ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.04)", backdropFilter: teamFilter === "all" ? "blur(6px)" : undefined, boxShadow: teamFilter === "all" ? "0 2px 8px rgba(0,0,0,0.1)" : "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
+                ✨
+              </button>
+              {teamsPresent.map(t => {
+                const color = TEAM_COLOR[t] ?? "#6B7280"
+                const emoji = TEAM_EMOJI[t] ?? "👤"
+                const active = teamFilter === t
+                return (
+                  <button key={t} onClick={() => setTeamFilter(active ? "all" : t)} title={TEAM_SHORT[t] ?? t}
+                    style={{ width: 28, height: 28, borderRadius: 9, border: "none", cursor: "pointer", background: active ? `${color}22` : "rgba(0,0,0,0.04)", boxShadow: active ? `0 2px 8px ${color}30` : "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, transition: "all 0.15s" }}>
+                    {emoji}
+                  </button>
+                )
+              })}
+            </div>
+          )}
           <button onClick={() => { setSelected(null); setMobileShowRight(true) }} style={{ width: "100%", padding: "10px 14px 6px", display: "flex", alignItems: "center", justifyContent: "space-between", background: !selected ? "rgba(99,102,241,0.06)" : "transparent", border: "none", borderLeft: `3px solid ${!selected ? "#6366F1" : "transparent"}`, cursor: "pointer", textAlign: "left" }}>
             <span style={{ fontSize: 9, fontWeight: 700, color: !selected ? "#6366F1" : "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em" }}>All Members</span>
             <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", background: "#F0F0F5", borderRadius: 99, padding: "1px 7px" }}>{totalCount}</span>
@@ -174,12 +205,12 @@ export default function AdminFreelancersTabs({
         )}
 
         {/* Regular freelancers */}
-        {activeFreelancers.length > 0 && (
+        {visibleFreelancers.length > 0 && (
           <>
             <div style={{ padding: "2px 14px 2px", fontSize: 8, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.7 }}>
               Freelancers
             </div>
-            {activeFreelancers.map(f => {
+            {visibleFreelancers.map(f => {
               const isActive = selected?.type === "fl" && selected.id === f.id
               const total = flTotals[f.id] ?? 0
               const color = TEAM_COLOR[f.team] ?? "#6B7280"
@@ -187,7 +218,7 @@ export default function AdminFreelancersTabs({
               const short = TEAM_SHORT[f.team] ?? f.team
               return (
                 <button key={f.id} onClick={() => setSelected(s => s?.id === f.id ? null : { type: "fl", id: f.id })}
-                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", background: isActive ? `${color}12` : "transparent", border: "none", borderLeft: `3px solid ${isActive ? color : "transparent"}`, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", background: isActive ? `${color}14` : "transparent", backdropFilter: isActive ? "blur(6px)" : undefined, border: "none", borderLeft: `3px solid ${isActive ? color : "transparent"}`, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
                   <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, background: isActive ? `linear-gradient(135deg, ${color}, ${color}CC)` : `${color}15`, border: `1.5px solid ${isActive ? "transparent" : `${color}30`}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: isActive ? "#fff" : color, boxShadow: isActive ? `0 4px 10px ${color}40` : "none" }}>
                     {getInitials(f.name)}
                   </div>

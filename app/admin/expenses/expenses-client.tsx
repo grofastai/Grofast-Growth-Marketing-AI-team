@@ -9,6 +9,8 @@ import {
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import { GlassCard } from "@/components/ui/GlassCard"
+import { SegmentedControl } from "@/components/ui/SegmentedControl"
+import { DrawerPanel } from "@/components/ui/DrawerPanel"
 import {
   upsertTravelCost,
   addClientExpense,
@@ -114,34 +116,9 @@ const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct
 const INTERNAL_BRANDS = 3
 const INTERNAL_BRAND_NAMES = new Set(["GROFAST DIGITAL", "GROFAST AI", "KARTHICK BRANDS"])
 
-// ── Modal wrapper ─────────────────────────────────────────────────────────────
-
-function Modal({ title, onClose, children }: {
-  title: string
-  onClose: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.45)" }}
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full max-w-md rounded-2xl overflow-hidden"
-        style={{ background: "#FFFFFF", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
-        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
-          <h2 className="text-[15px] font-black" style={{ color: "#111111" }}>{title}</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
-            <X size={16} style={{ color: "#6B7280" }} />
-          </button>
-        </div>
-        <div className="p-6">{children}</div>
-      </div>
-    </div>
-  )
-}
-
 // ── Client Expense Modal ──────────────────────────────────────────────────────
 
-function ClientExpenseModal({ clients, selectedMonth, editing, onClose }: {
+function ClientExpenseModalBody({ clients, selectedMonth, editing, onClose }: {
   clients: string[]
   selectedMonth: string
   editing?: ClientExpense
@@ -173,7 +150,6 @@ function ClientExpenseModal({ clients, selectedMonth, editing, onClose }: {
   }
 
   return (
-    <Modal title={editing ? "Edit Client Expense" : "Add Client Expense"} onClose={onClose}>
       <div className="space-y-4">
         <div>
           <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6B7280" }}>Client</label>
@@ -225,13 +201,12 @@ function ClientExpenseModal({ clients, selectedMonth, editing, onClose }: {
           {done ? <><CheckCircle2 size={14} /> Saved!</> : isPending ? "Saving…" : <><Plus size={14} /> Add Expense</>}
         </button>
       </div>
-    </Modal>
   )
 }
 
 // ── Common Expense Modal ──────────────────────────────────────────────────────
 
-function CommonExpenseModal({ selectedMonth, overheadDivisor, editing, onClose }: {
+function CommonExpenseModalBody({ selectedMonth, overheadDivisor, editing, onClose }: {
   selectedMonth: string
   overheadDivisor: number
   editing?: CommonExpense
@@ -259,7 +234,6 @@ function CommonExpenseModal({ selectedMonth, overheadDivisor, editing, onClose }
   }
 
   return (
-    <Modal title={editing ? "Edit Common Expense" : "Add Common Expense"} onClose={onClose}>
       <div className="space-y-4">
         <div>
           <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6B7280" }}>Expense Name</label>
@@ -298,16 +272,14 @@ function CommonExpenseModal({ selectedMonth, overheadDivisor, editing, onClose }
           {done ? <><CheckCircle2 size={14} /> Saved!</> : isPending ? "Saving…" : <><Plus size={14} /> Add Expense</>}
         </button>
       </div>
-    </Modal>
   )
 }
 
 // ── Travel Table Modal ────────────────────────────────────────────────────────
 
-function TravelTableModal({ shoots, savedTravel, onClose }: {
+function TravelTableModalBody({ shoots, savedTravel }: {
   shoots: ShootRow[]
   savedTravel: Record<string, number>
-  onClose: () => void
 }) {
   const [localAmounts, setLocal] = useState<Record<string, string>>(() => {
     const m: Record<string, string> = {}
@@ -333,27 +305,13 @@ function TravelTableModal({ shoots, savedTravel, onClose }: {
   const totalEntered = Object.values(localAmounts).reduce((s, v) => s + (parseFloat(v) || 0), 0)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
-      style={{ background: "rgba(0,0,0,0.45)" }}
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="w-full md:max-w-3xl rounded-t-3xl md:rounded-2xl overflow-hidden flex flex-col"
-        style={{ background: "#FFFFFF", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", maxHeight: "90vh" }}>
-        {/* header */}
-        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid #F3F4F6" }}>
-          <div>
-            <h2 className="text-[15px] font-black" style={{ color: "#111111" }}>Travel Costs — Shoots</h2>
-            {totalEntered > 0 && (
-              <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
-                Total entered: <strong style={{ color: "#3B82F6" }}>₹{Math.round(totalEntered).toLocaleString("en-IN")}</strong>
-              </p>
-            )}
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
-            <X size={16} style={{ color: "#6B7280" }} />
-          </button>
-        </div>
-        {/* table */}
-        <div className="overflow-y-auto flex-1">
+    <div>
+      {totalEntered > 0 && (
+        <p className="text-[12px] mb-3" style={{ color: "#6B7280" }}>
+          Total entered: <strong style={{ color: "#3B82F6" }}>₹{Math.round(totalEntered).toLocaleString("en-IN")}</strong>
+        </p>
+      )}
+      <div>
           {shoots.length === 0 ? (
             <div className="flex flex-col items-center py-16">
               <Car size={32} style={{ color: "#E5E7EB" }} className="mb-3" />
@@ -403,7 +361,6 @@ function TravelTableModal({ shoots, savedTravel, onClose }: {
               </tbody>
             </table>
           )}
-        </div>
       </div>
     </div>
   )
@@ -564,30 +521,19 @@ export default function ExpensesClient({
           </div>
         </GlassCard>
 
-        {/* 3 Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {[
-            { key: "travel", label: "ADD TRAVEL COST",     icon: <Car size={16} />,      color: "#3B82F6", shadow: "rgba(59,130,246,0.4)",   grad: "linear-gradient(135deg,#3B82F6,#1D4ED8)" },
-            { key: "client", label: "ADD CLIENT EXPENSE",  icon: <Megaphone size={16} />, color: "#DE1A1A", shadow: "rgba(222,26,26,0.4)",    grad: "linear-gradient(135deg,#DE1A1A,#991111)" },
-            { key: "common", label: "ADD COMMON EXPENSE",  icon: <Building2 size={16} />, color: "#8B5CF6", shadow: "rgba(139,92,246,0.4)",   grad: "linear-gradient(135deg,#8B5CF6,#6D28D9)" },
-          ].map(b => (
-            <button key={b.key} onClick={() => setModal(b.key as "travel" | "client" | "common")}
-              className="flex items-center justify-center gap-2.5 py-4 px-6 rounded-2xl font-black text-[13px] tracking-widest text-white transition-all active:translate-y-[3px]"
-              style={{
-                background: b.grad,
-                boxShadow: `0 6px 0 ${b.shadow}, 0 8px 20px ${b.shadow}`,
-                letterSpacing: "0.08em",
-              }}
-              onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-2px)")}
-              onMouseLeave={e => (e.currentTarget.style.transform = "translateY(0)")}
-              onMouseDown={e => (e.currentTarget.style.transform = "translateY(4px)")}
-              onMouseUp={e => (e.currentTarget.style.transform = "translateY(-2px)")}
-            >
-              {b.icon}
-              {b.label}
-            </button>
-          ))}
-        </div>
+        {/* Single Add Expense trigger */}
+        <button onClick={() => setModal("travel")}
+          className="flex items-center justify-center gap-2.5 py-4 px-6 rounded-2xl font-black text-[13px] tracking-widest text-white transition-all"
+          style={{
+            background: "linear-gradient(135deg,#DE1A1A,#991111)",
+            boxShadow: "0 6px 0 rgba(222,26,26,0.4), 0 8px 20px rgba(222,26,26,0.4)",
+            letterSpacing: "0.08em",
+            width: "100%",
+          }}
+        >
+          <Plus size={16} />
+          ADD EXPENSE
+        </button>
 
         {/* Expense Lists */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
@@ -779,26 +725,43 @@ export default function ExpensesClient({
 
       </div>
 
-      {/* Modals */}
-      {modal === "travel" && (
-        <TravelTableModal shoots={shootRows} savedTravel={savedTravel} onClose={() => setModal(null)} />
-      )}
-      {modal === "client" && (
-        <ClientExpenseModal
-          clients={clientNames}
-          selectedMonth={selectedMonth}
-          editing={editingClient ?? undefined}
-          onClose={() => { setModal(null); setEditClient(null) }}
-        />
-      )}
-      {modal === "common" && (
-        <CommonExpenseModal
-          selectedMonth={selectedMonth}
-          overheadDivisor={overheadDivisor}
-          editing={editingCommon ?? undefined}
-          onClose={() => { setModal(null); setEditCommon(null) }}
-        />
-      )}
+      {/* Add Expense drawer */}
+      <DrawerPanel
+        open={modal !== null}
+        onClose={() => { setModal(null); setEditClient(null); setEditCommon(null) }}
+        widthClassName="w-full max-w-2xl"
+        header={
+          <SegmentedControl
+            value={modal ?? "travel"}
+            onChange={(v) => { setModal(v); setEditClient(null); setEditCommon(null) }}
+            options={[
+              { value: "travel", label: "Travel", icon: <Car size={13} /> },
+              { value: "client", label: "Client", icon: <Megaphone size={13} /> },
+              { value: "common", label: "Common", icon: <Building2 size={13} /> },
+            ]}
+          />
+        }
+      >
+        {modal === "travel" && (
+          <TravelTableModalBody shoots={shootRows} savedTravel={savedTravel} />
+        )}
+        {modal === "client" && (
+          <ClientExpenseModalBody
+            clients={clientNames}
+            selectedMonth={selectedMonth}
+            editing={editingClient ?? undefined}
+            onClose={() => { setModal(null); setEditClient(null) }}
+          />
+        )}
+        {modal === "common" && (
+          <CommonExpenseModalBody
+            selectedMonth={selectedMonth}
+            overheadDivisor={overheadDivisor}
+            editing={editingCommon ?? undefined}
+            onClose={() => { setModal(null); setEditCommon(null) }}
+          />
+        )}
+      </DrawerPanel>
     </div>
   )
 }

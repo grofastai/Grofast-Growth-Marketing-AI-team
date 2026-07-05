@@ -47,11 +47,11 @@ const mainBottomNav = [
   { label: "Home",       href: "/member/dashboard",  icon: LayoutDashboard },
   { label: "Attendance", href: "/member/attendance", icon: Clock },
   { label: "Update",     href: "/member/update",     icon: ClipboardList },
-  { label: "Tasks",      href: "/member/tasks",      icon: Target },
+  { label: "History",    href: "/member/history",    icon: History },
 ]
 
 const moreNavItems = [
-  { label: "History",        href: "/member/history",          icon: History },
+  { label: "My Tasks",       href: "/member/tasks",            icon: Target },
   { label: "Content Cal",    href: "/member/content-calendar", icon: CalendarDays },
   { label: "Leaves",         href: "/member/leaves",           icon: CalendarOff },
   { label: "Announcements",  href: "/member/announcements",    icon: Megaphone },

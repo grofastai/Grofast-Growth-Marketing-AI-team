@@ -33,12 +33,12 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "GroFast",
-    startupImage: "/apple-icon",
+    startupImage: "/apple-icon.jpg",
   },
   icons: {
-    icon: "/icon",
-    apple: "/apple-icon",
-    shortcut: "/icon",
+    icon: "/icon.jpg",
+    apple: "/apple-icon.jpg",
+    shortcut: "/icon.jpg",
   },
   formatDetection: { telephone: false },
 }

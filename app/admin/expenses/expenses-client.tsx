@@ -384,6 +384,7 @@ export default function ExpensesClient({
   const [editingClient, setEditClient] = useState<ClientExpense | null>(null)
   const [editingCommon, setEditCommon] = useState<CommonExpense | null>(null)
   const [isPending, start]             = useTransition()
+  const [openSection, setOpenSection]  = useState<"summary" | "direct" | "common" | null>("summary")
 
   const [yr, mo] = selectedMonth.split("-").map(Number)
 
@@ -671,57 +672,50 @@ export default function ExpensesClient({
           </div>
         </div>
 
-        {/* Per-Client Summary Table */}
-        <div className="rounded-2xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #F0F0F2", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
-          <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
-            <IndianRupee size={15} style={{ color: "#DE1A1A" }} />
-            <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#DE1A1A" }}>Client & Brand Cost Summary</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table style={{ minWidth: 500 }} className="w-full">
-              <thead>
-                <tr style={{ background: "#FAFAFA", borderBottom: "1px solid #F0F0F2" }}>
-                  <th className="px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Client / Brand</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#059669" }}>Employee Cost</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#6366F1" }}>Direct Exp</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#8B5CF6" }}>Common Share</th>
-                  <th className="px-6 py-3 text-right text-[11px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#DE1A1A" }}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clientSummaryRows.map((row, i) => (
-                  <tr key={row.name} style={{ borderBottom: i < clientSummaryRows.length - 1 ? "1px solid #F9FAFB" : "none" }}
-                    className="hover:bg-gray-50/60 transition-colors">
-                    <td className="px-6 py-3">
-                      <span className="text-[13px] font-bold" style={{ color: "#111111" }}>{row.name}</span>
-                    </td>
-                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: row.empCost > 0 ? "#059669" : "#6B7280" }}>
-                      {row.empCost > 0 ? fmtRupee(row.empCost) : "₹0"}
-                    </td>
-                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: row.direct > 0 ? "#6366F1" : "#6B7280" }}>
-                      {row.direct > 0 ? fmtRupee(row.direct) : "₹0"}
-                    </td>
-                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: "#8B5CF6" }}>
-                      {fmtRupee(row.overhead)}
-                    </td>
-                    <td className="px-6 py-3 text-right">
-                      <span className="text-[14px] font-black" style={{ color: "#DE1A1A" }}>{fmtRupee(row.total)}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr style={{ background: "#FAFAFA", borderTop: "2px solid #F0F0F2" }}>
-                  <td className="px-6 py-3 text-[12px] font-black uppercase tracking-wider" style={{ color: "#374151" }}>TOTAL</td>
-                  <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#059669" }}>{fmtRupee(clientSummaryRows.reduce((s, r) => s + r.empCost, 0))}</td>
-                  <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#6366F1" }}>{fmtRupee(totalClientDirect)}</td>
-                  <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#8B5CF6" }}>{fmtRupee(totalCommon)}</td>
-                  <td className="px-6 py-3 text-right text-[15px] font-black" style={{ color: "#DE1A1A" }}>{fmtRupee(clientSummaryRows.reduce((s, r) => s + r.total, 0))}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
+        {/* Cost Summary — per-client cards, open by default */}
+        <GlassCard>
+          <button onClick={() => setOpenSection(s => s === "summary" ? null : "summary")}
+            className="w-full flex items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-2">
+              <IndianRupee size={15} style={{ color: "#DE1A1A" }} />
+              <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#DE1A1A" }}>Client & Brand Cost Summary</span>
+            </div>
+            <span style={{ color: "#9CA3AF", transform: openSection === "summary" ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▾</span>
+          </button>
+          {openSection === "summary" && (
+            <div className="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {clientSummaryRows.map(row => (
+                <GlassCard key={row.name} className="p-4" style={{ background: "rgba(255,255,255,0.7)" }}>
+                  <p className="text-[13px] font-bold mb-2" style={{ color: "#111111" }}>{row.name}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Employee</p>
+                      <p className="text-[13px] font-black" style={{ color: row.empCost > 0 ? "#059669" : "#6B7280", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(row.empCost)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Direct</p>
+                      <p className="text-[13px] font-black" style={{ color: row.direct > 0 ? "#6366F1" : "#6B7280", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(row.direct)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Common</p>
+                      <p className="text-[13px] font-black" style={{ color: "#8B5CF6", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(row.overhead)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Total</p>
+                      <p className="text-[15px] font-black" style={{ color: "#DE1A1A", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(row.total)}</p>
+                    </div>
+                  </div>
+                </GlassCard>
+              ))}
+              <GlassCard className="p-4 sm:col-span-2" style={{ background: "rgba(255,255,255,0.85)" }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-black uppercase tracking-wider" style={{ color: "#374151" }}>Total — all clients</span>
+                  <span className="text-[16px] font-black" style={{ color: "#DE1A1A", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(clientSummaryRows.reduce((s, r) => s + r.total, 0))}</span>
+                </div>
+              </GlassCard>
+            </div>
+          )}
+        </GlassCard>
 
       </div>
 

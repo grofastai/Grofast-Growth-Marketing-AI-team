@@ -616,12 +616,12 @@ export default function ExpensesClient({
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-[12px] font-bold truncate" style={{ color: "#111111" }}>{e.client_name}</p>
+                        <p className="text-[12px] font-bold break-words" style={{ color: "#111111" }}>{e.client_name}</p>
                         <span className="text-[9px] px-1.5 py-0.5 rounded font-black capitalize flex-shrink-0"
                           style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>{e.type}</span>
                       </div>
                       {(e.shoot_title || e.notes) && (
-                        <p className="text-[10px] truncate" style={{ color: "#9CA3AF" }}>
+                        <p className="text-[10px] break-words" style={{ color: "#9CA3AF" }}>
                           {e.shoot_title ? e.shoot_title : ""}{e.notes ? (e.shoot_title ? ` · ${e.notes}` : e.notes) : ""}
                         </p>
                       )}
@@ -683,8 +683,8 @@ export default function ExpensesClient({
                         <Layers size={12} />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[12px] font-bold truncate" style={{ color: "#111111" }}>{e.name}</p>
-                        <p className="text-[10px] truncate" style={{ color: "#9CA3AF" }}>
+                        <p className="text-[12px] font-bold break-words" style={{ color: "#111111" }}>{e.name}</p>
+                        <p className="text-[10px] break-words" style={{ color: "#9CA3AF" }}>
                           {e.notes ? `${e.notes} · ` : ""}{share > 0 ? `${fmtRupee(share)}/client` : ""}
                         </p>
                       </div>
@@ -727,11 +727,11 @@ export default function ExpensesClient({
             <table style={{ minWidth: 500 }} className="w-full">
               <thead>
                 <tr style={{ background: "#FAFAFA", borderBottom: "1px solid #F0F0F2" }}>
-                  <th className="px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Client / Brand</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider" style={{ color: "#059669" }}>Employee Cost</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6366F1" }}>Direct Exp</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider" style={{ color: "#8B5CF6" }}>Common Share</th>
-                  <th className="px-6 py-3 text-right text-[11px] font-bold uppercase tracking-wider" style={{ color: "#DE1A1A" }}>Total</th>
+                  <th className="px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Client / Brand</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#059669" }}>Employee Cost</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#6366F1" }}>Direct Exp</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#8B5CF6" }}>Common Share</th>
+                  <th className="px-6 py-3 text-right text-[11px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#DE1A1A" }}>Total</th>
                 </tr>
               </thead>
               <tbody>

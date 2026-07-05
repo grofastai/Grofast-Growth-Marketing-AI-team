@@ -517,7 +517,7 @@ export default function ExpensesClient({
 
         {/* Header */}
         <FlatCard className="p-6 md:p-8" style={{ position: "relative", overflow: "hidden" }}>
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-4" style={{ position: "relative", zIndex: 1 }}>
             <div style={{ maxWidth: "60%" }}>
               <div className="flex items-center gap-1.5 mb-2" style={{ fontSize: 12, color: "#9CA3AF", fontWeight: 600 }}>
                 <span>Admin Dashboard</span>

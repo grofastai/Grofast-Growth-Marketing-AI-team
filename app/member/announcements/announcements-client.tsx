@@ -80,8 +80,8 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
           <div style={{ position: "absolute", bottom: -40, left: 80, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }}/>
         </div>
 
-        {/* Illustration — horizontally centered across the full banner width, feet flush with the banner's bottom edge */}
-        <div className="hidden md:flex" style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0, zIndex: 1, pointerEvents: "none", alignItems: "flex-end", justifyContent: "center" }}>
+        {/* Illustration — at tablet width it stays right of the text column (left 45%) so it can't sit behind the title; on lg+ it centers across the full banner. Feet flush with the bottom edge. */}
+        <div className="hidden md:flex left-[45%] lg:left-0" style={{ position: "absolute", right: 0, top: 0, bottom: 0, zIndex: 1, pointerEvents: "none", alignItems: "flex-end", justifyContent: "center" }}>
           <Image src="/brand/announcement-hero.png" alt="" width={330} height={220}
             style={{ objectFit: "contain", display: "block", maxHeight: 190 }} priority />
         </div>

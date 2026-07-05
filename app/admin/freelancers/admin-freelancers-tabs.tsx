@@ -1,11 +1,11 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Sparkles, Users, Briefcase, FileText } from "lucide-react"
 import FlMediaClient from "./fl-media-client"
 import FreelancersMemberClient from "@/app/member/freelancers/freelancers-member-client"
 import type { Freelancer, WorkEntry } from "@/app/member/freelancers/freelancers-member-client"
 import type { FlMediaMember, FlMediaEntry } from "./fl-media-client"
+import { FreelancersHero } from "@/components/freelancers/FreelancersHero"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -86,6 +86,23 @@ export default function AdminFreelancersTabs({
   const activeFreelancers = useMemo(() => freelancers.filter(f => f.status === "active"), [freelancers])
   const totalCount = flMembers.length + activeFreelancers.length
 
+  // Combined hero stats — Login Members' priced entries have no paid/unpaid
+  // split in the data model (just a `price`), so they count toward Total
+  // Works and Total Cost but not the Paid/Unpaid breakdown, which is
+  // sourced only from freelancer `workEntries.payment_status`.
+  const heroStats = useMemo(() => {
+    const totalCost = workEntries.reduce((s, e) => s + (e.amount ?? 0), 0) + flEntries.reduce((s, e) => s + (e.price ?? 0), 0)
+    const paidCost = workEntries.filter(e => e.payment_status === "paid").reduce((s, e) => s + (e.amount ?? 0), 0)
+    const unpaidCost = workEntries.filter(e => e.payment_status === "unpaid").reduce((s, e) => s + (e.amount ?? 0), 0)
+    return {
+      total: totalCount,
+      totalWorks: workEntries.length + flEntries.length,
+      totalCost,
+      paidCost,
+      unpaidCost,
+    }
+  }, [workEntries, flEntries, totalCount])
+
   const loginMemberEntries = useMemo(() => flEntries.map(e => ({
     id: e.entry_id,
     user_id: e.user_id,
@@ -100,35 +117,19 @@ export default function AdminFreelancersTabs({
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: "#F8F9FB" }}>
 
       {/* ── Hero header ──────────────────────────────────────────────────────── */}
-      <div style={{ flexShrink: 0, margin: "14px 14px 0", borderRadius: 18, overflow: "hidden", background: "linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)", boxShadow: "0 6px 24px rgba(222,26,26,0.3)", position: "relative" }}>
-        <div style={{ position: "absolute", top: -30, right: -30, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: -20, right: 140, width: 90, height: 90, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
-        <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, position: "relative", zIndex: 1 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
-              <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 7, padding: "3px 5px", display: "flex", alignItems: "center" }}>
-                <Sparkles size={12} style={{ color: "#FFD700" }} />
-              </div>
-              <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
-            </div>
-            <h1 style={{ fontSize: "clamp(18px,5vw,28px)", fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1.1 }}>Freelancers</h1>
-            <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-              {([
-                { icon: <Users size={9} />, label: `${activeFreelancers.length} Freelancers` },
-                { icon: <Briefcase size={9} />, label: `${workEntries.length} Entries` },
-                { icon: <FileText size={9} />, label: `${flMembers.length} Media` },
-              ] as const).map(s => (
-                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "2px 8px" }}>
-                  <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "#FFFFFF" }}>{s.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Briefcase size={15} style={{ color: "#FFFFFF" }} />
-          </div>
-        </div>
+      <div style={{ flexShrink: 0, margin: "14px 14px 0" }}>
+        <FreelancersHero
+          badgeLabel="Admin · Freelancers"
+          title="Freelancers"
+          subtitle={`${activeFreelancers.length} freelancers · ${flMembers.length} login members`}
+          metrics={[
+            { label: "Members", value: String(heroStats.total), color: "#A5B4FC" },
+            { label: "Works", value: String(heroStats.totalWorks), color: "#7DD3FC" },
+            { label: "Total", value: fmt(heroStats.totalCost), color: "#FFFFFF" },
+            { label: "Paid", value: fmt(heroStats.paidCost), color: "#6EE7B7" },
+            { label: "Unpaid", value: fmt(heroStats.unpaidCost), color: "#FCA5A5" },
+          ]}
+        />
       </div>
 
       {/* ── Two-panel body ───────────────────────────────────────────────────── */}

@@ -540,11 +540,14 @@ export default function ExpensesClient({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
 
           {/* Client Direct */}
-          <div className="rounded-2xl overflow-hidden flex flex-col" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", minHeight: "200px" }}>
-            <div className="flex items-center justify-center gap-2.5 px-5 py-3" style={{ borderBottom: "1px solid #F0F0F2", background: "rgba(59,130,246,0.06)" }}>
+          <GlassCard className="overflow-hidden flex flex-col">
+            <button onClick={() => setOpenSection(s => s === "direct" ? null : "direct")}
+              className="flex items-center justify-center gap-2.5 px-5 py-3 w-full relative">
               <Receipt size={14} style={{ color: "#3B82F6" }} />
               <h2 className="text-[12px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Client Direct</h2>
-            </div>
+              <span style={{ position: "absolute", right: 16, color: "#9CA3AF", transform: openSection === "direct" ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▾</span>
+            </button>
+            {openSection === "direct" && (<>
             {clientExpenses.length > 0 && (
               <div className="grid flex-shrink-0 px-4 py-2" style={{ gridTemplateColumns: "56px 28px 1fr 84px 48px", background: "#F8F9FB", borderBottom: "1px solid #F0F0F2" }}>
                 <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Date</div>
@@ -604,14 +607,18 @@ export default function ExpensesClient({
                 <div />
               </div>
             )}
-          </div>
+            </>)}
+          </GlassCard>
 
           {/* Common / Shared */}
-          <div className="rounded-2xl overflow-hidden flex flex-col" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", minHeight: "200px" }}>
-            <div className="flex items-center justify-center gap-2.5 px-5 py-3" style={{ borderBottom: "1px solid #F0F0F2", background: "rgba(139,92,246,0.06)" }}>
+          <GlassCard className="overflow-hidden flex flex-col">
+            <button onClick={() => setOpenSection(s => s === "common" ? null : "common")}
+              className="flex items-center justify-center gap-2.5 px-5 py-3 w-full relative">
               <Layers size={14} style={{ color: "#8B5CF6" }} />
               <h2 className="text-[12px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Common / Shared</h2>
-            </div>
+              <span style={{ position: "absolute", right: 16, color: "#9CA3AF", transform: openSection === "common" ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▾</span>
+            </button>
+            {openSection === "common" && (<>
             {commonExpenses.length > 0 && (
               <div className="grid flex-shrink-0 px-4 py-2" style={{ gridTemplateColumns: "28px 1fr 84px 48px", background: "#F8F9FB", borderBottom: "1px solid #F0F0F2" }}>
                 <div />
@@ -669,7 +676,8 @@ export default function ExpensesClient({
                 <div />
               </div>
             )}
-          </div>
+            </>)}
+          </GlassCard>
         </div>
 
         {/* Cost Summary — per-client cards, open by default */}

@@ -3,8 +3,8 @@
 import { useState, useMemo, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
-  IndianRupee, Plus, Trash2, X, Pencil,
-  Car, Megaphone, Monitor, MoreHorizontal, Building2,
+  IndianRupee, Plus, Trash2, Pencil,
+  Car, Megaphone, Monitor, Building2,
   Receipt, Layers, CheckCircle2, AlertCircle, Wallet,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"

@@ -8,6 +8,7 @@ import {
   Receipt, Layers, CheckCircle2, AlertCircle, Wallet,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
+import { GlassCard } from "@/components/ui/GlassCard"
 import {
   upsertTravelCost,
   addClientExpense,
@@ -519,8 +520,17 @@ export default function ExpensesClient({
     start(async () => { await deleteCommonExpense(id); router.refresh() })
   }
 
+  const donutPct = grandTotal > 0
+    ? {
+        direct: (totalClientDirect / grandTotal) * 100,
+        common: (totalCommon / grandTotal) * 100,
+      }
+    : { direct: 0, common: 0 }
+
   return (
-    <div className="min-h-screen" style={{ background: "#F8F9FB" }}>
+    <div className="min-h-screen" style={{
+      background: "radial-gradient(circle at 15% 10%, rgba(222,26,26,0.05), transparent 45%), radial-gradient(circle at 90% 85%, rgba(99,102,241,0.05), transparent 45%), #FAFAFA",
+    }}>
       <div className="p-4 md:p-6 xl:p-8 max-w-[1300px] mx-auto space-y-6">
 
         {/* Header */}
@@ -537,24 +547,22 @@ export default function ExpensesClient({
           }
         />
 
-        {/* 4 Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "Total Expenses",   value: fmtRupee(grandTotal),        color: "#de1a1a", bg: "rgba(222,26,26,0.06)",  icon: <IndianRupee size={15} style={{ color: "#de1a1a" }} /> },
-            { label: "Client Direct",    value: fmtRupee(totalClientDirect), color: "#3B82F6", bg: "rgba(59,130,246,0.06)", icon: <Receipt size={15} style={{ color: "#3B82F6" }} /> },
-            { label: "Common Shared",    value: fmtRupee(totalCommon),       color: "#8B5CF6", bg: "rgba(139,92,246,0.06)", icon: <Layers size={15} style={{ color: "#8B5CF6" }} /> },
-            { label: "Per Client/Brand", value: fmtRupee(perClientOverhead), color: "#10B981", bg: "rgba(16,185,129,0.06)", icon: <Building2 size={15} style={{ color: "#10B981" }} /> },
-          ].map(k => (
-            <div key={k.label} className="rounded-2xl py-5 px-4 flex flex-col items-center justify-center text-center gap-2"
-              style={{ background: "#FFFFFF", border: `1.5px solid ${k.color}20`, boxShadow: "0 2px 12px rgba(0,0,0,0.04)", minHeight: "120px" }}>
-              <div className="flex items-center gap-1.5">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: k.bg }}>{k.icon}</div>
-                <p className="text-[11px] font-black uppercase tracking-wider" style={{ color: "#6B7280" }}>{k.label}</p>
-              </div>
-              <p className="text-[24px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: k.color }}>{k.value}</p>
+        {/* Summary strip: total + donut + category chips */}
+        <GlassCard className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+          <div style={{
+            width: 84, height: 84, borderRadius: "50%", flexShrink: 0,
+            background: `conic-gradient(#3B82F6 0% ${donutPct.direct}%, #8B5CF6 ${donutPct.direct}% ${donutPct.direct + donutPct.common}%, #10B981 ${donutPct.direct + donutPct.common}% 100%)`,
+          }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Total · {MONTHS_SHORT[mo - 1]} {yr}</p>
+            <p className="text-[30px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#DE1A1A", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(grandTotal)}</p>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <span style={{ background: "rgba(59,130,246,0.14)", color: "#3B82F6", fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 99 }}>🔵 Client Direct {fmtRupee(totalClientDirect)}</span>
+              <span style={{ background: "rgba(139,92,246,0.14)", color: "#8B5CF6", fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 99 }}>🟣 Common {fmtRupee(totalCommon)}</span>
+              <span style={{ background: "rgba(16,185,129,0.14)", color: "#10B981", fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 99 }}>🟢 Per Client {fmtRupee(perClientOverhead)}</span>
             </div>
-          ))}
-        </div>
+          </div>
+        </GlassCard>
 
         {/* 3 Action Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

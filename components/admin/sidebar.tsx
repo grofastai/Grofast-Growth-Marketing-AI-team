@@ -32,26 +32,28 @@ const navItems = [
   { label: "Profile",       href: "/admin/profile",           icon: UserCircle2 },
 ]
 
+// Mirrors the desktop sidebar: bottom nav = first 4 items, More = the rest in order
 const bottomNavItems = [
-  { label: "Home",    href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Team",    href: "/admin/team",      icon: Users },
-  { label: "Tasks",   href: "/admin/goals",     icon: Target },
-  { label: "Leaves",  href: "/admin/leaves",    icon: CalendarOff },
+  { label: "Home",       href: "/admin/dashboard",  icon: LayoutDashboard },
+  { label: "Attendance", href: "/admin/attendance", icon: Clock },
+  { label: "Clients",    href: "/admin/clients",    icon: Briefcase },
+  { label: "Team",       href: "/admin/team",       icon: Users },
 ]
 
 const moreNavItems = [
-  { label: "Attendance",    href: "/admin/attendance",        icon: Clock },
-  { label: "Clients",       href: "/admin/clients",           icon: Briefcase },
+  { label: "Leaves",        href: "/admin/leaves",            icon: CalendarOff },
   { label: "Activities",    href: "/admin/activities",        icon: Activity },
   { label: "Expenses",      href: "/admin/expenses",          icon: Receipt },
   { label: "Freelancers",   href: "/admin/freelancers",       icon: Film },
   { label: "Team Insights", href: "/admin/insights",          icon: TrendingUp },
+  { label: "Tasks",         href: "/admin/goals",             icon: Target },
   { label: "Content Cal",   href: "/admin/content-calendar",  icon: CalendarDays },
   { label: "Announcements", href: "/admin/announcements",     icon: Megaphone },
   { label: "Notes",         href: "/admin/notes",             icon: StickyNote },
   { label: "Payroll",       href: "/admin/payroll",           icon: IndianRupee },
   { label: "Documents",     href: "/admin/documents",         icon: FolderOpen },
   { label: "Support",       href: "/admin/support",           icon: LifeBuoy },
+  { label: "Profile",       href: "/admin/profile",           icon: UserCircle2 },
 ]
 
 const SIDEBAR_BG = "linear-gradient(160deg, #0a100d 0%, #520000 55%, #de1a1a 100%)"

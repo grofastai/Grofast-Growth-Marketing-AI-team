@@ -1,11 +1,11 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Sparkles, Users, Briefcase, FileText } from "lucide-react"
 import FlMediaClient from "./fl-media-client"
 import FreelancersMemberClient from "@/app/member/freelancers/freelancers-member-client"
 import type { Freelancer, WorkEntry } from "@/app/member/freelancers/freelancers-member-client"
 import type { FlMediaMember, FlMediaEntry } from "./fl-media-client"
+import { FreelancersHero } from "@/components/freelancers/FreelancersHero"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -66,6 +66,7 @@ export default function AdminFreelancersTabs({
 }) {
   const [selected, setSelected] = useState<{ type: "media" | "fl"; id: string } | null>(null)
   const [mobileShowRight, setMobileShowRight] = useState(false)
+  const [teamFilter, setTeamFilter] = useState<string | "all">("all")
 
   const flMediaTotals = useMemo(() => {
     const map: Record<string, number> = {}
@@ -86,6 +87,34 @@ export default function AdminFreelancersTabs({
   const activeFreelancers = useMemo(() => freelancers.filter(f => f.status === "active"), [freelancers])
   const totalCount = flMembers.length + activeFreelancers.length
 
+  // Combined hero stats — Login Members' priced entries have no paid/unpaid
+  // split in the data model (just a `price`), so they count toward Total
+  // Works and Total Cost but not the Paid/Unpaid breakdown, which is
+  // sourced only from freelancer `workEntries.payment_status`.
+  const heroStats = useMemo(() => {
+    const totalCost = workEntries.reduce((s, e) => s + (e.amount ?? 0), 0) + flEntries.reduce((s, e) => s + (e.price ?? 0), 0)
+    const paidCost = workEntries.filter(e => e.payment_status === "paid").reduce((s, e) => s + (e.amount ?? 0), 0)
+    const unpaidCost = workEntries.filter(e => e.payment_status === "unpaid").reduce((s, e) => s + (e.amount ?? 0), 0)
+    return {
+      total: totalCount,
+      totalWorks: workEntries.length + flEntries.length,
+      totalCost,
+      paidCost,
+      unpaidCost,
+    }
+  }, [workEntries, flEntries, totalCount])
+
+  const teamsPresent = useMemo(() => {
+    const set = new Set<string>()
+    for (const f of activeFreelancers) set.add(f.team)
+    return Array.from(set)
+  }, [activeFreelancers])
+
+  const visibleFreelancers = useMemo(
+    () => teamFilter === "all" ? activeFreelancers : activeFreelancers.filter(f => f.team === teamFilter),
+    [activeFreelancers, teamFilter]
+  )
+
   const loginMemberEntries = useMemo(() => flEntries.map(e => ({
     id: e.entry_id,
     user_id: e.user_id,
@@ -100,35 +129,19 @@ export default function AdminFreelancersTabs({
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: "#F8F9FB" }}>
 
       {/* ── Hero header ──────────────────────────────────────────────────────── */}
-      <div style={{ flexShrink: 0, margin: "14px 14px 0", borderRadius: 18, overflow: "hidden", background: "linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)", boxShadow: "0 6px 24px rgba(222,26,26,0.3)", position: "relative" }}>
-        <div style={{ position: "absolute", top: -30, right: -30, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: -20, right: 140, width: 90, height: 90, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
-        <div style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, position: "relative", zIndex: 1 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
-              <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 7, padding: "3px 5px", display: "flex", alignItems: "center" }}>
-                <Sparkles size={12} style={{ color: "#FFD700" }} />
-              </div>
-              <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
-            </div>
-            <h1 style={{ fontSize: "clamp(18px,5vw,28px)", fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1.1 }}>Freelancers</h1>
-            <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-              {([
-                { icon: <Users size={9} />, label: `${activeFreelancers.length} Freelancers` },
-                { icon: <Briefcase size={9} />, label: `${workEntries.length} Entries` },
-                { icon: <FileText size={9} />, label: `${flMembers.length} Media` },
-              ] as const).map(s => (
-                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "2px 8px" }}>
-                  <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "#FFFFFF" }}>{s.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Briefcase size={15} style={{ color: "#FFFFFF" }} />
-          </div>
-        </div>
+      <div style={{ flexShrink: 0, margin: "14px 14px 0" }}>
+        <FreelancersHero
+          badgeLabel="Admin · Freelancers"
+          title="Freelancers"
+          subtitle={`${activeFreelancers.length} freelancers · ${flMembers.length} login members`}
+          metrics={[
+            { label: "Members", value: String(heroStats.total), color: "#A5B4FC" },
+            { label: "Works", value: String(heroStats.totalWorks), color: "#7DD3FC" },
+            { label: "Total", value: fmt(heroStats.totalCost), color: "#FFFFFF" },
+            { label: "Paid", value: fmt(heroStats.paidCost), color: "#6EE7B7" },
+            { label: "Unpaid", value: fmt(heroStats.unpaidCost), color: "#FCA5A5" },
+          ]}
+        />
       </div>
 
       {/* ── Two-panel body ───────────────────────────────────────────────────── */}
@@ -138,6 +151,25 @@ export default function AdminFreelancersTabs({
         <div className={(selected || mobileShowRight) ? "hidden md:flex md:flex-col md:w-[220px]" : "flex flex-col w-full md:w-[220px]"}
           style={{ flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", overflowY: "auto" }}>
 
+          {teamsPresent.length > 0 && (
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", padding: "8px 14px 4px" }}>
+              <button onClick={() => setTeamFilter("all")} title="All teams"
+                style={{ width: 28, height: 28, borderRadius: 9, border: teamFilter === "all" ? "1px solid #EDEDED" : "none", cursor: "pointer", background: teamFilter === "all" ? "#FFFFFF" : "#F5F5F5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
+                ✨
+              </button>
+              {teamsPresent.map(t => {
+                const color = TEAM_COLOR[t] ?? "#6B7280"
+                const emoji = TEAM_EMOJI[t] ?? "👤"
+                const active = teamFilter === t
+                return (
+                  <button key={t} onClick={() => setTeamFilter(active ? "all" : t)} title={TEAM_SHORT[t] ?? t}
+                    style={{ width: 28, height: 28, borderRadius: 9, border: "none", cursor: "pointer", background: active ? `${color}22` : "rgba(0,0,0,0.04)", boxShadow: active ? `0 2px 8px ${color}30` : "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, transition: "all 0.15s" }}>
+                    {emoji}
+                  </button>
+                )
+              })}
+            </div>
+          )}
           <button onClick={() => { setSelected(null); setMobileShowRight(true) }} style={{ width: "100%", padding: "10px 14px 6px", display: "flex", alignItems: "center", justifyContent: "space-between", background: !selected ? "rgba(99,102,241,0.06)" : "transparent", border: "none", borderLeft: `3px solid ${!selected ? "#6366F1" : "transparent"}`, cursor: "pointer", textAlign: "left" }}>
             <span style={{ fontSize: 9, fontWeight: 700, color: !selected ? "#6366F1" : "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em" }}>All Members</span>
             <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", background: "#F0F0F5", borderRadius: 99, padding: "1px 7px" }}>{totalCount}</span>
@@ -173,12 +205,12 @@ export default function AdminFreelancersTabs({
         )}
 
         {/* Regular freelancers */}
-        {activeFreelancers.length > 0 && (
+        {visibleFreelancers.length > 0 && (
           <>
             <div style={{ padding: "2px 14px 2px", fontSize: 8, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.7 }}>
               Freelancers
             </div>
-            {activeFreelancers.map(f => {
+            {visibleFreelancers.map(f => {
               const isActive = selected?.type === "fl" && selected.id === f.id
               const total = flTotals[f.id] ?? 0
               const color = TEAM_COLOR[f.team] ?? "#6B7280"
@@ -186,7 +218,7 @@ export default function AdminFreelancersTabs({
               const short = TEAM_SHORT[f.team] ?? f.team
               return (
                 <button key={f.id} onClick={() => setSelected(s => s?.id === f.id ? null : { type: "fl", id: f.id })}
-                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", background: isActive ? `${color}12` : "transparent", border: "none", borderLeft: `3px solid ${isActive ? color : "transparent"}`, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", background: isActive ? `${color}14` : "transparent", border: "none", borderLeft: `3px solid ${isActive ? color : "transparent"}`, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
                   <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, background: isActive ? `linear-gradient(135deg, ${color}, ${color}CC)` : `${color}15`, border: `1.5px solid ${isActive ? "transparent" : `${color}30`}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: isActive ? "#fff" : color, boxShadow: isActive ? `0 4px 10px ${color}40` : "none" }}>
                     {getInitials(f.name)}
                   </div>

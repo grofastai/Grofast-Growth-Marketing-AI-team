@@ -1,8 +1,8 @@
 ﻿"use client"
 
 import { useState, useMemo, useTransition } from "react"
-import Image from "next/image"
 import { X, Plus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Star, Link2, FileText, IndianRupee, Users, Pencil, CheckCircle2, Trash2 } from "lucide-react"
+import { FreelancersHero } from "@/components/freelancers/FreelancersHero"
 import { saveFreelancerWorkEntry, toggleFreelancerPaymentStatus, updateFreelancerWorkEntry, deleteFreelancerWorkEntry } from "@/lib/actions/freelancer-work"
 import { buildClientOptions } from "@/lib/utils/client-options"
 
@@ -1019,13 +1019,7 @@ export default function FreelancersMemberClient({
     { label: "Total", value: fmt(globalStats.totalCost), color: "#FFFFFF" },
     { label: "Paid", value: fmt(globalStats.paidCost), color: "#6EE7B7" },
     { label: "Unpaid", value: fmt(globalStats.unpaidCost), color: "#FCA5A5" },
-  ] as const
-  const heroPill = (s: typeof heroMetrics[number]) => (
-    <div key={s.label} style={{ padding: "8px 16px", borderRadius: 12, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
-      <p style={{ fontSize: 17, fontWeight: 900, color: s.color, margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{s.value}</p>
-      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>{s.label}</p>
-    </div>
-  )
+  ]
 
   return (
     <div style={{ ...(isEmbedded ? { flex: 1, minHeight: 0 } : { height: "100vh" }), display: "flex", flexDirection: "column", background: "#F5F6FA", overflow: "hidden" }}>
@@ -1033,43 +1027,12 @@ export default function FreelancersMemberClient({
       {/* Hero — admin embeds this component inside its own gradient hero already, so skip it here to avoid stacking two */}
       {!isEmbedded && (
         <div style={{ flexShrink: 0, margin: "14px 14px 0" }}>
-          <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius: 20, padding: "16px 18px", boxShadow: "0 8px 32px rgba(180,0,0,0.35)", position: "relative", overflow: "hidden", minHeight: 150 }}>
-            <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
-
-            <div className="flex flex-col gap-3" style={{ position: "relative", zIndex: 2 }}>
-              {/* Top row: text left, illustration right (mobile) / centered (desktop) */}
-              <div className="flex items-start lg:items-center justify-between gap-4">
-                <div className="max-w-[58%] lg:max-w-[34%]" style={{ flexShrink: 0 }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", marginBottom: 10, border: "1px solid rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
-                    👥 Freelancers
-                  </span>
-                  <h1 style={{ fontSize: 26, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)", margin: "0 0 4px" }}>Freelancers</h1>
-                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0 }}>{activeFreelancers.length} active · {new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
-                </div>
-
-                {/* Illustration — small on the right on mobile, larger + centered on desktop */}
-                <div className="lg:hidden w-[92px] shrink-0" style={{ pointerEvents: "none" }}>
-                  <Image src="/brand/freelancers-hero.png" alt="" width={380} height={253}
-                    style={{ objectFit: "contain", objectPosition: "center", display: "block", width: "100%", height: "auto" }} priority />
-                </div>
-                <div className="hidden lg:block lg:w-[380px] shrink-0" style={{ pointerEvents: "none" }}>
-                  <Image src="/brand/freelancers-hero.png" alt="" width={380} height={253}
-                    style={{ objectFit: "contain", objectPosition: "center", display: "block", width: "100%", height: "auto", maxHeight: 150 }} priority />
-                </div>
-
-                {/* Metrics — desktop only, right side */}
-                <div className="hidden lg:flex flex-wrap justify-end gap-2.5" style={{ flexShrink: 0 }}>
-                  {heroMetrics.map(heroPill)}
-                </div>
-              </div>
-
-              {/* Metrics — mobile/tablet, full-width row below */}
-              <div className="flex lg:hidden flex-wrap gap-2.5">
-                {heroMetrics.map(heroPill)}
-              </div>
-            </div>
-          </div>
+          <FreelancersHero
+            badgeLabel="Freelancers"
+            title="Freelancers"
+            subtitle={`${activeFreelancers.length} active · ${new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}`}
+            metrics={heroMetrics}
+          />
         </div>
       )}
 
@@ -1326,11 +1289,11 @@ export default function FreelancersMemberClient({
                       className="hidden sm:block"
                       style={{ position: "absolute", bottom: 0, right: 22, height: "112%", maxHeight: 330, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
-                  {/* Character image (mobile) — grounded: bottom-anchored to sit just above the KPI strip (~74px tall) so the figure stands in the banner instead of floating at the top */}
+                  {/* Character image (mobile) — grounded & enlarged, shifted ~22px right for breathing room from the text; extra height goes downward behind the KPI card tops so her head keeps the same top clearance inside the fixed-height card */}
                   {isRJ && (
                     <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
                       className="block sm:hidden"
-                      style={{ position: "absolute", bottom: 70, right: 6, height: 210, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", zIndex: 1 }} />
+                      style={{ position: "absolute", bottom: 14, right: -32, height: 286, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
                     {/* Desktop layout (all teams) — for RJ, hidden on mobile in favor of the dedicated stacked block below */}
@@ -1369,7 +1332,7 @@ export default function FreelancersMemberClient({
                     {/* Mobile-only layout for RJ Voiceover — no avatar (the character image already carries identity),
                         generous spacing between sections, button flows under the heading instead of sitting top-right */}
                     {isRJ && (
-                      <div className="flex sm:hidden flex-col" style={{ maxWidth: "46%" }}>
+                      <div className="flex sm:hidden flex-col" style={{ maxWidth: "40%" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", alignSelf: "flex-start" }}>
                           {cfg.emoji} {cfg.shortLabel}
                         </span>

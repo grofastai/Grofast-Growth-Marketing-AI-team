@@ -17,16 +17,15 @@ export function SegmentedControl<T extends string>({
   const activeIndex = Math.max(0, options.findIndex(o => o.value === value))
 
   return (
-    <div style={{ position: "relative", display: "flex", background: "rgba(0,0,0,0.04)", borderRadius: 14, padding: 4 }}>
+    <div style={{ position: "relative", display: "flex", background: "#F5F5F5", border: "1px solid #EDEDED", borderRadius: 12, padding: 4 }}>
       <div style={{
         position: "absolute", top: 4, bottom: 4, left: 4,
         width: `calc(${100 / options.length}% - 4px)`,
         transform: `translateX(${activeIndex * 100}%)`,
         transition: "transform 0.2s ease",
-        background: "rgba(255,255,255,0.85)",
-        backdropFilter: "blur(8px)",
-        borderRadius: 11,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+        background: "#FFFFFF",
+        border: "1px solid #EDEDED",
+        borderRadius: 9,
       }} />
       {options.map(o => (
         <button

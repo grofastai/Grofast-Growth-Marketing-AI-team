@@ -77,3 +77,17 @@ Extracted from the hero JSX currently inline in `freelancers-member-client.tsx` 
 
 ## Verification plan
 Since this is UI-only with no automated UI test suite in this codebase, verification is manual: run the dev server, visit `/admin/expenses` and `/admin/freelancers`, exercise the add-drawer (all 3 segments), expand/collapse all 3 accordions, confirm the Cost Summary cards render correctly for several clients (including the mobile viewport width where the old table used to wrap/truncate), and confirm both Freelancers hero banners (admin + member) render from the same shared component with correct stats. `pnpm typecheck` after implementation to catch any prop-typing issues from the new shared components.
+
+## Revision (same day): "Glass & Gradient" replaced with "Flat & Bordered"
+
+After implementation, the user reviewed the live result and rejected the glass look as "too common" — glassmorphism has become the default look for premium-feeling SaaS templates, so it read as safe rather than distinctive. Two more rounds of visual options (a bolder Neo-Brutalist/Editorial/Duotone set, then a direct translation of a purple fintech-app reference the user shared) were also rejected before converging on specifics through direct questions.
+
+**Final direction — flat, bordered, no shadow:**
+- `components/ui/GlassCard.tsx` renamed to `components/ui/FlatCard.tsx`: solid `#FFFFFF` background, plain `1px solid #EDEDED` border, `border-radius: 16px`, **no box-shadow, no backdrop-filter**. Hover state (where used) changes border color to `#DE1A1A` instead of lifting/shadowing.
+- `SegmentedControl`: track and thumb both flat (`#F5F5F5`/`#FFFFFF` with `1px solid #EDEDED` borders), no blur, no shadow on the thumb.
+- `DrawerPanel`: solid white panel, `1px solid #EDEDED` left border, no backdrop blur, no box-shadow.
+- `FreelancersHero` metric pills: flat semi-opaque white fill (`rgba(255,255,255,0.1)`) with a plain border, no backdrop-filter — since these pills sit on the red gradient hero rather than a white canvas, they keep translucency for legibility but drop the blur.
+- Admin Freelancers sidebar: dropped the `backdropFilter: blur(6px)` on the team-filter "all" pill and the selected-row highlight, added plain borders instead.
+- **Chart:** the CSS `conic-gradient` donut is replaced with a real cumulative line/area chart — daily running total of `client_expenses` for the selected month (data already fetched, no new query). `common_expenses` only has a month-level date, not a day, so it isn't part of this per-day trend and stays in the flat category chips above the chart instead.
+
+Everything else from the original spec (per-client cards replacing the Cost Summary table, single Add Expense drawer, shared `FreelancersHero`, sidebar restyle, team-filter pills) is unchanged in structure — only the visual surface treatment changed.

@@ -154,7 +154,7 @@ export default function AdminFreelancersTabs({
           {teamsPresent.length > 0 && (
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap", padding: "8px 14px 4px" }}>
               <button onClick={() => setTeamFilter("all")} title="All teams"
-                style={{ width: 28, height: 28, borderRadius: 9, border: "none", cursor: "pointer", background: teamFilter === "all" ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.04)", backdropFilter: teamFilter === "all" ? "blur(6px)" : undefined, boxShadow: teamFilter === "all" ? "0 2px 8px rgba(0,0,0,0.1)" : "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
+                style={{ width: 28, height: 28, borderRadius: 9, border: teamFilter === "all" ? "1px solid #EDEDED" : "none", cursor: "pointer", background: teamFilter === "all" ? "#FFFFFF" : "#F5F5F5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
                 ✨
               </button>
               {teamsPresent.map(t => {
@@ -218,7 +218,7 @@ export default function AdminFreelancersTabs({
               const short = TEAM_SHORT[f.team] ?? f.team
               return (
                 <button key={f.id} onClick={() => setSelected(s => s?.id === f.id ? null : { type: "fl", id: f.id })}
-                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", background: isActive ? `${color}14` : "transparent", backdropFilter: isActive ? "blur(6px)" : undefined, border: "none", borderLeft: `3px solid ${isActive ? color : "transparent"}`, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
+                  style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", background: isActive ? `${color}14` : "transparent", border: "none", borderLeft: `3px solid ${isActive ? color : "transparent"}`, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
                   <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, background: isActive ? `linear-gradient(135deg, ${color}, ${color}CC)` : `${color}15`, border: `1.5px solid ${isActive ? "transparent" : `${color}30`}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: isActive ? "#fff" : color, boxShadow: isActive ? `0 4px 10px ${color}40` : "none" }}>
                     {getInitials(f.name)}
                   </div>

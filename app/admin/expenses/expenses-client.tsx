@@ -8,7 +8,7 @@ import {
   Receipt, Layers, CheckCircle2, AlertCircle, Wallet,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
-import { GlassCard } from "@/components/ui/GlassCard"
+import { FlatCard } from "@/components/ui/FlatCard"
 import { SegmentedControl } from "@/components/ui/SegmentedControl"
 import { DrawerPanel } from "@/components/ui/DrawerPanel"
 import {
@@ -478,12 +478,30 @@ export default function ExpensesClient({
     start(async () => { await deleteCommonExpense(id); router.refresh() })
   }
 
-  const donutPct = grandTotal > 0
-    ? {
-        direct: (totalClientDirect / grandTotal) * 100,
-        common: (totalCommon / grandTotal) * 100,
-      }
-    : { direct: 0, common: 0 }
+  // Cumulative client-direct spend by day this month — real data (client_expenses
+  // has per-day dates; common_expenses only has a month, so it can't be charted
+  // day-by-day and is left out of this trend line).
+  const dailyTrend = useMemo(() => {
+    const byDay: Record<number, number> = {}
+    for (const e of clientExpenses) {
+      const day = new Date(e.date + "T00:00:00").getDate()
+      byDay[day] = (byDay[day] ?? 0) + e.amount
+    }
+    const daysInMonth = new Date(yr, mo, 0).getDate()
+    let running = 0
+    const points: number[] = []
+    for (let d = 1; d <= daysInMonth; d++) {
+      running += byDay[d] ?? 0
+      points.push(running)
+    }
+    return points
+  }, [clientExpenses, yr, mo])
+
+  const chartW = 300, chartH = 60
+  const chartMax = Math.max(...dailyTrend, 1)
+  const stepX = dailyTrend.length > 1 ? chartW / (dailyTrend.length - 1) : chartW
+  const linePoints = dailyTrend.map((v, i) => `${(i * stepX).toFixed(1)},${(chartH - (v / chartMax) * chartH).toFixed(1)}`).join(" ")
+  const areaPoints = `0,${chartH} ${linePoints} ${chartW},${chartH}`
 
   return (
     <div className="min-h-screen" style={{
@@ -505,22 +523,34 @@ export default function ExpensesClient({
           }
         />
 
-        {/* Summary strip: total + donut + category chips */}
-        <GlassCard className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-5">
-          <div style={{
-            width: 84, height: 84, borderRadius: "50%", flexShrink: 0,
-            background: `conic-gradient(#3B82F6 0% ${donutPct.direct}%, #8B5CF6 ${donutPct.direct}% ${donutPct.direct + donutPct.common}%, #10B981 ${donutPct.direct + donutPct.common}% 100%)`,
-          }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Total · {MONTHS_SHORT[mo - 1]} {yr}</p>
-            <p className="text-[30px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#DE1A1A", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(grandTotal)}</p>
-            <div className="flex flex-wrap gap-2 mt-3">
-              <span style={{ background: "rgba(59,130,246,0.14)", color: "#3B82F6", fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 99 }}>🔵 Client Direct {fmtRupee(totalClientDirect)}</span>
-              <span style={{ background: "rgba(139,92,246,0.14)", color: "#8B5CF6", fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 99 }}>🟣 Common {fmtRupee(totalCommon)}</span>
-              <span style={{ background: "rgba(16,185,129,0.14)", color: "#10B981", fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 99 }}>🟢 Per Client {fmtRupee(perClientOverhead)}</span>
-            </div>
+        {/* Summary strip: total + category chips */}
+        <FlatCard className="p-5">
+          <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Total · {MONTHS_SHORT[mo - 1]} {yr}</p>
+          <p className="text-[30px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#DE1A1A", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(grandTotal)}</p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <span style={{ background: "rgba(59,130,246,0.1)", color: "#3B82F6", fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(59,130,246,0.2)" }}>🔵 Client Direct {fmtRupee(totalClientDirect)}</span>
+            <span style={{ background: "rgba(139,92,246,0.1)", color: "#8B5CF6", fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(139,92,246,0.2)" }}>🟣 Common {fmtRupee(totalCommon)}</span>
+            <span style={{ background: "rgba(16,185,129,0.1)", color: "#10B981", fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(16,185,129,0.2)" }}>🟢 Per Client {fmtRupee(perClientOverhead)}</span>
           </div>
-        </GlassCard>
+        </FlatCard>
+
+        {/* Spend trend: cumulative client-direct spend across the month */}
+        <FlatCard className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[12px] font-bold" style={{ color: "#111111" }}>Client Direct — cumulative spend this month</span>
+            <span className="text-[10px]" style={{ color: "#9CA3AF" }}>{MONTHS_SHORT[mo - 1]} {yr}</span>
+          </div>
+          <svg viewBox={`0 0 ${chartW} ${chartH}`} width="100%" height="80" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="expenseTrendFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#DE1A1A" stopOpacity="0.16" />
+                <stop offset="100%" stopColor="#DE1A1A" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <polygon points={areaPoints} fill="url(#expenseTrendFill)" />
+            <polyline points={linePoints} fill="none" stroke="#DE1A1A" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+          </svg>
+        </FlatCard>
 
         {/* Single Add Expense trigger */}
         <button onClick={() => setModal("travel")}
@@ -540,7 +570,7 @@ export default function ExpensesClient({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
 
           {/* Client Direct */}
-          <GlassCard className="overflow-hidden flex flex-col">
+          <FlatCard className="overflow-hidden flex flex-col">
             <button onClick={() => setOpenSection(s => s === "direct" ? null : "direct")}
               className="flex items-center justify-center gap-2.5 px-5 py-3 w-full relative">
               <Receipt size={14} style={{ color: "#3B82F6" }} />
@@ -608,10 +638,10 @@ export default function ExpensesClient({
               </div>
             )}
             </>)}
-          </GlassCard>
+          </FlatCard>
 
           {/* Common / Shared */}
-          <GlassCard className="overflow-hidden flex flex-col">
+          <FlatCard className="overflow-hidden flex flex-col">
             <button onClick={() => setOpenSection(s => s === "common" ? null : "common")}
               className="flex items-center justify-center gap-2.5 px-5 py-3 w-full relative">
               <Layers size={14} style={{ color: "#8B5CF6" }} />
@@ -677,11 +707,11 @@ export default function ExpensesClient({
               </div>
             )}
             </>)}
-          </GlassCard>
+          </FlatCard>
         </div>
 
         {/* Cost Summary — per-client cards, open by default */}
-        <GlassCard>
+        <FlatCard>
           <button onClick={() => setOpenSection(s => s === "summary" ? null : "summary")}
             className="w-full flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-2">
@@ -693,7 +723,7 @@ export default function ExpensesClient({
           {openSection === "summary" && (
             <div className="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
               {clientSummaryRows.map(row => (
-                <GlassCard key={row.name} className="p-4" style={{ background: "rgba(255,255,255,0.7)" }}>
+                <FlatCard key={row.name} className="p-4" style={{ background: "#FAFAFA" }}>
                   <p className="text-[13px] font-bold mb-2" style={{ color: "#111111" }}>{row.name}</p>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -713,17 +743,17 @@ export default function ExpensesClient({
                       <p className="text-[15px] font-black" style={{ color: "#DE1A1A", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(row.total)}</p>
                     </div>
                   </div>
-                </GlassCard>
+                </FlatCard>
               ))}
-              <GlassCard className="p-4 sm:col-span-2" style={{ background: "rgba(255,255,255,0.85)" }}>
+              <FlatCard className="p-4 sm:col-span-2" style={{ background: "#F5F5F5" }}>
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] font-black uppercase tracking-wider" style={{ color: "#374151" }}>Total — all clients</span>
                   <span className="text-[16px] font-black" style={{ color: "#DE1A1A", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(clientSummaryRows.reduce((s, r) => s + r.total, 0))}</span>
                 </div>
-              </GlassCard>
+              </FlatCard>
             </div>
           )}
-        </GlassCard>
+        </FlatCard>
 
       </div>
 

@@ -22,8 +22,8 @@ export function FreelancersHero({
   const heroPill = (m: FreelancersHeroMetric) => (
     <div key={m.label} style={{
       padding: "8px 16px", borderRadius: 12,
-      background: "rgba(255,255,255,0.16)", backdropFilter: "blur(8px)",
-      border: "1px solid rgba(255,255,255,0.28)",
+      background: "rgba(255,255,255,0.1)",
+      border: "1px solid rgba(255,255,255,0.25)",
     }}>
       <p style={{ fontSize: 17, fontWeight: 900, color: m.color, margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.2, fontVariantNumeric: "tabular-nums" }}>{m.value}</p>
       <p style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>{m.label}</p>

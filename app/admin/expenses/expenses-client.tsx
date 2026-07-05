@@ -741,10 +741,10 @@ export default function ExpensesClient({
                     <td className="px-6 py-3">
                       <span className="text-[13px] font-bold" style={{ color: "#111111" }}>{row.name}</span>
                     </td>
-                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: row.empCost > 0 ? "#059669" : "#9CA3AF" }}>
+                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: row.empCost > 0 ? "#059669" : "#6B7280" }}>
                       {row.empCost > 0 ? fmtRupee(row.empCost) : "₹0"}
                     </td>
-                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: row.direct > 0 ? "#6366F1" : "#9CA3AF" }}>
+                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: row.direct > 0 ? "#6366F1" : "#6B7280" }}>
                       {row.direct > 0 ? fmtRupee(row.direct) : "₹0"}
                     </td>
                     <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: "#8B5CF6" }}>

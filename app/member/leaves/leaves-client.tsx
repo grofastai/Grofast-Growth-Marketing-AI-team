@@ -198,6 +198,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [halfFrom, setHalfFrom]         = useState("")
   const [halfTo, setHalfTo]             = useState("")
   const [filterStatus, setFilter]   = useState("all")
+  const [filterType, setFilterType] = useState("all_types")
   const [filterOpen, setFilterOpen] = useState(false)
   const [showMore, setShowMore]     = useState(false)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
@@ -314,7 +315,14 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     })
   }
 
-  const filteredLeaves = allEntries.filter(l => filterStatus === "all" || l.status === filterStatus)
+  function matchesTypeFilter(l: { leave_type?: string }) {
+    const t = l.leave_type ?? "full_day"
+    if (filterType === "all_types") return true
+    if (filterType === "leave") return t === "full_day" || t === "half_day"
+    if (filterType === "permission_all") return t === "permission" || t === "wfh" || t === "shoot_day"
+    return t === filterType
+  }
+  const filteredLeaves = allEntries.filter(l => (filterStatus === "all" || l.status === filterStatus) && matchesTypeFilter(l))
   const visibleLeaves  = showMore ? filteredLeaves : filteredLeaves.slice(0, 5)
 
   const FIELD: React.CSSProperties = { background: "#F9FAFB", border: "1.5px solid #E8EAED", color: "#111827", borderRadius: "12px", padding: "11px 14px", fontSize: "13px", outline: "none", width: "100%" }
@@ -446,6 +454,20 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     {s === "all" ? "All" : s}
                   </button>
                 ))}
+                <select
+                  value={filterType}
+                  onChange={e => setFilterType(e.target.value)}
+                  aria-label="Filter by leave type"
+                  style={{ padding: "7px 10px", borderRadius: 10, background: filterType !== "all_types" ? "rgba(222,26,26,0.08)" : "#F5F6FA", border: filterType !== "all_types" ? "1.5px solid rgba(222,26,26,0.3)" : "1px solid #EBEDF2", fontSize: 11, fontWeight: 700, color: filterType !== "all_types" ? "#DE1A1A" : "#374151", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, outline: "none" }}>
+                  <option value="all_types">All Types</option>
+                  <option value="leave">Leave (Full + Half Day)</option>
+                  <option value="full_day">Full Day</option>
+                  <option value="half_day">Half Day</option>
+                  <option value="permission_all">Permission (Hours + WFH + Shoot)</option>
+                  <option value="permission">Hour Permission</option>
+                  <option value="wfh">WFH</option>
+                  <option value="shoot_day">Shoot Day</option>
+                </select>
               </div>
             </div>
 

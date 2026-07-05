@@ -447,11 +447,11 @@ export default function ActivitiesClient({
           title="Activities"
           subtitle="Track real-time updates and progress from your amazing team."
           illustration={
-            <div className="hidden md:block" style={{ position: "absolute", bottom: -85, left: "54%", transform: "translateX(-50%)", zIndex: 1, pointerEvents: "none" }}>
+            <div style={{ position: "absolute", bottom: "clamp(-30px,-9vw,-85px)", left: "54%", transform: "translateX(-50%)", zIndex: 1, pointerEvents: "none" }}>
               <img
                 src="/brand/activities-hero.png"
                 alt=""
-                style={{ height: 300, width: "auto", objectFit: "contain", userSelect: "none" }}
+                style={{ height: "clamp(120px,36vw,300px)", width: "auto", objectFit: "contain", userSelect: "none" }}
               />
             </div>
           }

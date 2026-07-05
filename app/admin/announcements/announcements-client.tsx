@@ -198,8 +198,8 @@ export default function AnnouncementsClient({
         <div>
           {/* Hero Banner — split card: left image | right CTA */}
           <div className="flex flex-col sm:flex-row" style={{ borderRadius: 20, overflow: "hidden", border: "1.5px solid #E5E7EB", background: "#fff", marginBottom: 20, minHeight: 180 }}>
-            {/* Left: team illustration */}
-            <div className="hidden sm:block" style={{ position: "relative", flex: "0 0 55%", background: "linear-gradient(135deg, #FFF8F0 0%, #FFF3E8 50%, #FDEBD0 100%)" }}>
+            {/* Left: team illustration — visible at every width; needs an explicit height on mobile since flex-basis only sizes width once the row layout kicks in at sm+ */}
+            <div style={{ position: "relative", flex: "0 0 55%", height: "clamp(150px,42vw,220px)", background: "linear-gradient(135deg, #FFF8F0 0%, #FFF3E8 50%, #FDEBD0 100%)" }}>
               <Image
                 src="/brand/announcement/hero-team.png"
                 alt="Team announcements"

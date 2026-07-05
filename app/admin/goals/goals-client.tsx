@@ -674,8 +674,8 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
           </p>
         </div>
 
-        {/* Right — lamp illustration, desktop only (no room on mobile alongside image+text) */}
-        <div className="hidden md:block" style={{ position: "relative", width: 170, height: 170, flexShrink: 0, marginRight: 16 }}>
+        {/* Right — lamp illustration, visible at every width, shrinks on mobile */}
+        <div className="mx-auto md:mx-0" style={{ position: "relative", width: "clamp(110px,30vw,170px)", height: "clamp(110px,30vw,170px)", flexShrink: 0, marginRight: 16, marginBottom: 12 }}>
           <Image src="/brand/task-assign/studyfortitle.png" alt="" fill style={{ objectFit: "contain", objectPosition: "right center" }} />
         </div>
       </div>

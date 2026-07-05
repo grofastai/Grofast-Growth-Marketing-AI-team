@@ -941,10 +941,10 @@ export default function HistoryClient({
           <div style={{ position:"absolute", top:-50, right:-30, width:200, height:200, borderRadius:"50%", background:"rgba(255,255,255,0.05)", pointerEvents:"none" }} />
           <div style={{ position:"absolute", bottom:-40, left:60, width:150, height:150, borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }} />
 
-          {/* Illustration — desktop only, right side */}
-          <div className="hidden lg:block" style={{ position:"absolute", right:24, bottom:0, zIndex:1, pointerEvents:"none" }}>
+          {/* Illustration — visible at every width, right side */}
+          <div style={{ position:"absolute", right:12, bottom:0, zIndex:1, pointerEvents:"none" }}>
             <Image src="/brand/history-hero.png" alt="" width={340} height={227}
-              style={{ objectFit:"contain", objectPosition:"bottom right", display:"block", maxHeight:150 }} priority />
+              style={{ objectFit:"contain", objectPosition:"bottom right", display:"block", height:"clamp(80px,26vw,150px)", width:"auto" }} priority />
           </div>
 
           <div style={{ position:"relative", zIndex:2 }} className="max-w-full lg:max-w-[55%]">

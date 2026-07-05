@@ -2250,13 +2250,13 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
       }}>
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 20% 50%, rgba(222,26,26,0.12) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(99,102,241,0.1) 0%, transparent 50%)" }} />
 
-        {/* Boy with laptop illustration */}
-        <div className="absolute right-4 bottom-0 hidden sm:block pointer-events-none" style={{ width: 240, height: 220 }}>
+        {/* Boy with laptop illustration — visible at every width, shrinks on mobile */}
+        <div className="absolute right-4 bottom-0 pointer-events-none" style={{ width: "clamp(130px,36vw,240px)", height: "clamp(120px,33vw,220px)" }}>
           <Image src="/brand/boy-laptop.png" alt="Productivity" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
         </div>
 
         <div style={{ position: "relative", zIndex: 1, padding: "24px 28px" }}>
-          <div className="flex items-start gap-6 flex-wrap sm:pr-56 lg:pr-64 xl:pr-72">
+          <div className="flex items-start gap-6 flex-wrap pr-32 sm:pr-56 lg:pr-64 xl:pr-72">
             <div>
               <h2 className="text-[22px] font-black text-white leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
                 Happy Team,<br />Productive Team!

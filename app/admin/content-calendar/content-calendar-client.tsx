@@ -425,36 +425,37 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             </>
           }
           rightSlot={
-            <div className="flex flex-wrap" style={{ alignItems: "center", gap: 16 }}>
+            /* One scrollable row on mobile (keeps the hero short), wraps naturally on md+ */
+            <div className="flex flex-nowrap overflow-x-auto md:flex-wrap md:overflow-visible" style={{ alignItems: "center", gap: 12, scrollbarWidth: "none", maxWidth: "100%" }}>
               {/* Character + greeting card */}
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 12, flexShrink: 0 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/brand/content-cal-hero-girl.png" alt=""
-                  style={{ height: "clamp(80px,22vw,130px)", width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
+                  style={{ height: "clamp(64px,16vw,130px)", width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
                 <div style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "12px 16px", border: "1px solid rgba(255,255,255,0.2)", minWidth: 180 }}>
                   <p style={{ fontSize: 14, fontWeight: 800, color: "#FFF", margin: "0 0 4px" }}>Plan your content! 📅</p>
                   <p style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", margin: 0 }}>What are you scheduling today?</p>
                 </div>
               </div>
               {/* Date + stat glass cards */}
-              <div style={{ display: "flex", gap: 10 }}>
-                <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "12px 16px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 80 }}>
+              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 14, padding: "clamp(8px,2vw,12px) clamp(10px,2.5vw,16px)", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 72 }}>
                   <p style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.1em" }}>
                     {MONTHS[month].slice(0,3).toUpperCase()} {year}
                   </p>
-                  <p style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{new Date().getDate()}</p>
+                  <p style={{ fontSize: "clamp(22px,5.5vw,30px)", fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{new Date().getDate()}</p>
                   <p style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>
                     {new Date().toLocaleDateString("en-US", { weekday: "long" })}
                   </p>
                 </div>
-                <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "12px 16px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 80 }}>
+                <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 14, padding: "clamp(8px,2vw,12px) clamp(10px,2.5vw,16px)", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 72 }}>
                   <p style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>TOTAL</p>
-                  <p style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{totalContent}</p>
+                  <p style={{ fontSize: "clamp(22px,5.5vw,30px)", fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{totalContent}</p>
                   <p style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Posts</p>
                 </div>
-                <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "12px 16px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 80 }}>
+                <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 14, padding: "clamp(8px,2vw,12px) clamp(10px,2.5vw,16px)", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 72 }}>
                   <p style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>UPLOADED</p>
-                  <p style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{postedCount}</p>
+                  <p style={{ fontSize: "clamp(22px,5.5vw,30px)", fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{postedCount}</p>
                   <p style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Done ✓</p>
                 </div>
               </div>

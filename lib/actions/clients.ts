@@ -57,6 +57,29 @@ export async function updateClientStatus(id: string, status: 'active' | 'past'):
   if (!companyId) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
+
+  // If status is actually changing, log it to client_status_history before
+  // updating — so reports for past months keep showing what the client's
+  // status actually was back then, not today's status.
+  const { data: currentClient } = await admin.from('clients').select('status').eq('id', id).single()
+  const oldStatus = (currentClient as { status?: string } | null)?.status
+  if (oldStatus != null && oldStatus !== status) {
+    const effectiveFrom = new Date().toISOString().split('T')[0]
+    const { data: existing } = await admin
+      .from('client_status_history')
+      .select('id')
+      .eq('client_id', id)
+      .eq('effective_from', effectiveFrom)
+      .maybeSingle()
+    if (existing) {
+      await admin.from('client_status_history').update({ status }).eq('id', (existing as { id: string }).id)
+    } else {
+      await admin.from('client_status_history').insert({
+        company_id: companyId, client_id: id, status, effective_from: effectiveFrom,
+      })
+    }
+  }
+
   const { error } = await admin
     .from('clients')
     .update({ status, updated_at: new Date().toISOString() })

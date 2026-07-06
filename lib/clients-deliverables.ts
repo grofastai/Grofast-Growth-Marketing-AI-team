@@ -1,5 +1,7 @@
 // Shared types and computation logic for the unified clients+deliverables page.
 
+import { hourlyRateOnDate, type SalaryHistoryRow } from './salary'
+
 export type PricingRate = { video_type: string; rate_per_video: number }
 export type MemberUser  = { id: string; name: string; employee_id: string; hourly_rate: number | null; monthly_salary: number | null; team: string | null }
 
@@ -213,6 +215,7 @@ export function computeDeliverables(
   dateFrom: string,
   dateTo: string,
   freelancerEntries: FreelancerWorkEntry[] = [],
+  salaryHistory: SalaryHistoryRow[] = [],
 ): DeliverableResult {
   const userMap  = new Map(users.map(u => [u.id, u]))
   const rateMap: Record<string, number> = {}
@@ -253,7 +256,7 @@ export function computeDeliverables(
     if (row.date < dateFrom || row.date > dateTo) continue
     const user = userMap.get(row.user_id)
     if (!user) continue
-    const hourly  = derivePerHour(user)
+    const hourly  = hourlyRateOnDate(user, row.date, salaryHistory)
     const isMedia = isMediaTeam(user.team)
 
     let rowHasClientEntry = false

@@ -200,6 +200,7 @@ export default async function ClientsUnifiedPage({
       { data: usersRaw },
       { data: pricingRaw },
       { data: freelancerRaw },
+      { data: salaryHistoryRaw },
     ] = await Promise.all([
       admin
         .from('daily_updates')
@@ -223,6 +224,10 @@ export default async function ClientsUnifiedPage({
         .in('team', NO_LOGIN_TEAMS)
         .gte('date_finished', dateFrom)
         .lte('date_finished', dateTo),
+      admin
+        .from('salary_history')
+        .select('user_id, monthly_salary, effective_from')
+        .eq('company_id', cid),
     ])
 
     const freelancerEntries: FreelancerWorkEntry[] = (freelancerRaw ?? []).map((r: Record<string, unknown>) => ({
@@ -245,6 +250,7 @@ export default async function ClientsUnifiedPage({
       dateFrom,
       dateTo,
       freelancerEntries,
+      salaryHistoryRaw ?? [],
     )
   }
 

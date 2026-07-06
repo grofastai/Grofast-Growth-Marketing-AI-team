@@ -233,6 +233,10 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
     gender: (member?.gender ?? "male") as "male" | "female",
     work_layout: (member?.work_layout ?? "non_media") as "media" | "non_media" | "freelance_media",
     is_management: member?.is_management ?? false,
+    salary_effective_month: (() => {
+      const d = new Date(); d.setMonth(d.getMonth() + 1)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+    })(),
   })
   const [error, setError] = useState("")
   const [whatsappWarning, setWhatsappWarning] = useState("")
@@ -285,6 +289,8 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
         date_of_birth: form.date_of_birth || null,
         joined_at: form.joined_at || null,
       }
+      const salaryChanged = isEdit && form.monthly_salary !== (member?.monthly_salary?.toString() ?? "")
+      const salaryEffectiveFrom = salaryChanged ? `${form.salary_effective_month}-01` : undefined
       if (photoFile && isEdit && member) {
         const fd = new FormData()
         fd.append("file", photoFile)
@@ -296,7 +302,7 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
       }
 
       if (isEdit) {
-        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, ...salaryFields, ...dateFields })
+        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, ...salaryFields, ...dateFields, salaryEffectiveFrom })
         if (result.success) { router.refresh(); onClose() }
         else setError(result.error ?? "Something went wrong")
       } else {
@@ -619,6 +625,18 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                           placeholder="5" value={form.paid_leave_days}
                           onChange={(e) => setForm((prev) => ({ ...prev, paid_leave_days: e.target.value }))} />
                       </div>
+                    </div>
+                  )}
+
+                  {/* Effective From — only appears once the salary value is actually changed */}
+                  {isEdit && form.employment_type === "regular" &&
+                    form.monthly_salary !== (member?.monthly_salary?.toString() ?? "") && (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Effective From (salary change)</label>
+                      <input type="month" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }}
+                        value={form.salary_effective_month}
+                        onChange={(e) => setForm((prev) => ({ ...prev, salary_effective_month: e.target.value }))} />
+                      <p className="text-[10px] mt-1.5" style={{ color: "#9CA3AF" }}>Past months stay locked at the old salary.</p>
                     </div>
                   )}
 

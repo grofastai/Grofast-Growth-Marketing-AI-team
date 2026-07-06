@@ -151,7 +151,9 @@ export default function AdminFreelancersTabs({
         <div className={(selected || mobileShowRight) ? "hidden md:flex md:flex-col md:w-[220px]" : "flex flex-col w-full md:w-[220px]"}
           style={{ flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", overflowY: "auto" }}>
 
-          {teamsPresent.length > 0 && (
+          {/* Only worth showing once there's more than one team to actually filter between —
+              with a single team present, toggling it produces the same list every time. */}
+          {teamsPresent.length > 1 && (
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap", padding: "8px 14px 4px" }}>
               <button onClick={() => setTeamFilter("all")} title="All teams"
                 style={{ width: 28, height: 28, borderRadius: 9, border: teamFilter === "all" ? "1px solid #EDEDED" : "none", cursor: "pointer", background: teamFilter === "all" ? "#FFFFFF" : "#F5F5F5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>

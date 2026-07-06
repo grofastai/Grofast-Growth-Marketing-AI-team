@@ -33,11 +33,11 @@ export default async function GoalsPage() {
       .eq("role", "MEMBER")
       .order("name"),
     admin.from("projects")
-      .select("id, business_name, client_name")
+      .select("id, business_name, client_name, created_at")
       .eq("company_id", cid)
       .eq("status", "active")
-      .neq("client_name", "__member_quick__") // internal marker for members' self-created quick projects — not a real admin-assignable project
-      .order("business_name"),
+      .order("business_name")
+      .order("created_at", { ascending: true }),
     admin.from("clients")
       .select("id, name")
       .eq("company_id", cid)
@@ -50,5 +50,20 @@ export default async function GoalsPage() {
       .order("name"),
   ])
 
-  return <GoalsClient tasks={tasks ?? []} members={members ?? []} projects={projects ?? []} clients={(clients ?? []) as { id: string; name: string }[]} pastClients={(pastClients ?? []) as { id: string; name: string }[]} />
+  // Members can self-create a "quick project" for a one-off client/brand (marked
+  // client_name = '__member_quick__') when there's no matching project yet. Each
+  // member creating one for the same brand results in a duplicate row — collapse
+  // to the earliest one per business_name so the dropdown doesn't show the same
+  // brand 4-5 times. Real (non-quick) projects are never deduped.
+  const seenQuickBrands = new Set<string>()
+  const dedupedProjects = (projects ?? [])
+    .filter(p => {
+      if (p.client_name !== "__member_quick__") return true
+      if (seenQuickBrands.has(p.business_name)) return false
+      seenQuickBrands.add(p.business_name)
+      return true
+    })
+    .map(({ id, business_name, client_name }) => ({ id, business_name, client_name }))
+
+  return <GoalsClient tasks={tasks ?? []} members={members ?? []} projects={dedupedProjects} clients={(clients ?? []) as { id: string; name: string }[]} pastClients={(pastClients ?? []) as { id: string; name: string }[]} />
 }

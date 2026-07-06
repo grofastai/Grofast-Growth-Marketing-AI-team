@@ -780,7 +780,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Project</label>
                   <select name="project_id" className="ti">
                     <option value="">No project</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.business_name}{p.client_name ? ` — ${p.client_name}` : ""}</option>)}
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.business_name}{p.client_name && p.client_name !== "__member_quick__" ? ` — ${p.client_name}` : ""}</option>)}
                   </select>
                 </div>
               </div>

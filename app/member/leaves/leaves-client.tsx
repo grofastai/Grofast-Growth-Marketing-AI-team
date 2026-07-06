@@ -6,7 +6,7 @@ import Link from "next/link"
 import Image from "next/image"
 import {
   Plus, X, Loader2, Calendar, CheckCircle2, XCircle,
-  ChevronDown, MoreVertical, Palmtree, CalendarDays,
+  ChevronDown, ChevronLeft, ChevronRight, MoreVertical, Palmtree, CalendarDays,
   Bell, Clock, SlidersHorizontal, Trash2, Pencil, AlertTriangle,
 } from "lucide-react"
 import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest } from "@/lib/actions/leaves"
@@ -197,9 +197,11 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [halfDaySelectedDate, setHalfDaySelectedDate] = useState("")
   const [halfFrom, setHalfFrom]         = useState("")
   const [halfTo, setHalfTo]             = useState("")
-  const [filterStatus, setFilter]   = useState("all")
-  const [filterType, setFilterType] = useState("all_types")
-  const [filterOpen, setFilterOpen] = useState(false)
+  const [filterMode, setFilterMode] = useState<"all" | "leaves" | "permission" | "approved" | "rejected">("all")
+  const [dateMode, setDateMode]     = useState<"month" | "all" | "custom">("month")
+  const [filterMonth, setFilterMonth] = useState(() => new Date().toISOString().slice(0, 7))
+  const [rangeFrom, setRangeFrom]   = useState("")
+  const [rangeTo, setRangeTo]       = useState("")
   const [showMore, setShowMore]     = useState(false)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [deleteId, setDeleteId]     = useState<string | null>(null)
@@ -315,15 +317,38 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     })
   }
 
-  function matchesTypeFilter(l: { leave_type?: string }) {
+  // Single combined filter: Leaves/Permission match by TYPE, Approved/Rejected match by STATUS, All = everything.
+  function matchesMode(l: { leave_type?: string; status: string }) {
     const t = l.leave_type ?? "full_day"
-    if (filterType === "all_types") return true
-    if (filterType === "leave") return t === "full_day" || t === "half_day"
-    if (filterType === "permission_all") return t === "permission" || t === "wfh" || t === "shoot_day"
-    return t === filterType
+    if (filterMode === "all")        return true
+    if (filterMode === "leaves")     return t === "full_day" || t === "half_day" || t === "permission"
+    if (filterMode === "permission") return t === "wfh" || t === "shoot_day"
+    if (filterMode === "approved")   return l.status === "approved"
+    if (filterMode === "rejected")   return l.status === "rejected"
+    return true
   }
-  const filteredLeaves = allEntries.filter(l => (filterStatus === "all" || l.status === filterStatus) && matchesTypeFilter(l))
+  // Date filter: This Month (default) / All Time / Custom range — matched on the leave's start date.
+  function matchesDate(l: { from_date: string }) {
+    if (dateMode === "all")   return true
+    if (dateMode === "month") return (l.from_date ?? "").startsWith(filterMonth)
+    if (!rangeFrom && !rangeTo) return true
+    if (rangeFrom && l.from_date < rangeFrom) return false
+    if (rangeTo   && l.from_date > rangeTo)   return false
+    return true
+  }
+  // allEntries is already sorted recent-date-first (see above), so filtering preserves that order.
+  const filteredLeaves = allEntries.filter(l => matchesMode(l) && matchesDate(l))
   const visibleLeaves  = showMore ? filteredLeaves : filteredLeaves.slice(0, 5)
+
+  const shiftMonth = (ym: string, delta: number) => {
+    const [y, m] = ym.split("-").map(Number)
+    const d = new Date(y, m - 1 + delta, 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+  }
+  const monthLabel = (ym: string) => {
+    const [y, m] = ym.split("-").map(Number)
+    return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })
+  }
 
   const FIELD: React.CSSProperties = { background: "#F9FAFB", border: "1.5px solid #E8EAED", color: "#111827", borderRadius: "12px", padding: "11px 14px", fontSize: "13px", outline: "none", width: "100%" }
 
@@ -446,28 +471,51 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 </div>
               </div>
 
-              {/* Filters — horizontal scroll on mobile */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", flexShrink: 0 }}>
-                {["all", "pending", "approved", "rejected"].map(s => (
-                  <button key={s} onClick={() => setFilter(s)}
-                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "7px 12px", borderRadius: 10, background: filterStatus === s ? "rgba(222,26,26,0.08)" : "#F5F6FA", border: filterStatus === s ? "1.5px solid rgba(222,26,26,0.3)" : "1px solid #EBEDF2", fontSize: 11, fontWeight: 700, color: filterStatus === s ? "#DE1A1A" : "#374151", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, textTransform: "capitalize" as const }}>
-                    {s === "all" ? "All" : s}
-                  </button>
-                ))}
+              {/* Filters — single mode dropdown + date filter; horizontal scroll on mobile */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto", flexShrink: 0, flexWrap: "wrap" }}>
+                {/* Category / status dropdown */}
                 <select
-                  value={filterType}
-                  onChange={e => setFilterType(e.target.value)}
-                  aria-label="Filter by leave type"
-                  style={{ padding: "7px 10px", borderRadius: 10, background: filterType !== "all_types" ? "rgba(222,26,26,0.08)" : "#F5F6FA", border: filterType !== "all_types" ? "1.5px solid rgba(222,26,26,0.3)" : "1px solid #EBEDF2", fontSize: 11, fontWeight: 700, color: filterType !== "all_types" ? "#DE1A1A" : "#374151", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, outline: "none" }}>
-                  <option value="all_types">All Types</option>
-                  <option value="leave">Leave (Full + Half Day)</option>
-                  <option value="full_day">Full Day</option>
-                  <option value="half_day">Half Day</option>
-                  <option value="permission_all">Permission (Hours + WFH + Shoot)</option>
-                  <option value="permission">Hour Permission</option>
-                  <option value="wfh">WFH</option>
-                  <option value="shoot_day">Shoot Day</option>
+                  value={filterMode}
+                  onChange={e => setFilterMode(e.target.value as typeof filterMode)}
+                  aria-label="Filter leaves"
+                  style={{ padding: "8px 12px", borderRadius: 10, background: filterMode !== "all" ? "rgba(222,26,26,0.08)" : "#F5F6FA", border: filterMode !== "all" ? "1.5px solid rgba(222,26,26,0.3)" : "1px solid #EBEDF2", fontSize: 12, fontWeight: 700, color: filterMode !== "all" ? "#DE1A1A" : "#374151", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, outline: "none" }}>
+                  <option value="all">All</option>
+                  <option value="leaves">Leaves</option>
+                  <option value="permission">Permission</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
                 </select>
+
+                {/* Date filter mode */}
+                <select
+                  value={dateMode}
+                  onChange={e => setDateMode(e.target.value as typeof dateMode)}
+                  aria-label="Date filter"
+                  style={{ padding: "8px 12px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 700, color: "#374151", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, outline: "none" }}>
+                  <option value="month">Monthly</option>
+                  <option value="all">All Time</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+
+                {/* Month picker */}
+                {dateMode === "month" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 2, background: "#F5F6FA", border: "1px solid #EBEDF2", borderRadius: 10, padding: "2px 4px", flexShrink: 0 }}>
+                    <button onClick={() => setFilterMonth(m => shiftMonth(m, -1))} aria-label="Previous month" style={{ width: 30, height: 30, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}><ChevronLeft size={15} color="#6B7280" /></button>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#374151", minWidth: 82, textAlign: "center", whiteSpace: "nowrap" }}>{monthLabel(filterMonth)}</span>
+                    <button onClick={() => setFilterMonth(m => shiftMonth(m, 1))} aria-label="Next month" style={{ width: 30, height: 30, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}><ChevronRight size={15} color="#6B7280" /></button>
+                  </div>
+                )}
+
+                {/* Custom range */}
+                {dateMode === "custom" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                    <input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} aria-label="From date"
+                      style={{ padding: "7px 10px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#374151", outline: "none", minHeight: 38 }} />
+                    <span style={{ fontSize: 12, color: "#9CA3AF" }}>–</span>
+                    <input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)} aria-label="To date"
+                      style={{ padding: "7px 10px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#374151", outline: "none", minHeight: 38 }} />
+                  </div>
+                )}
               </div>
             </div>
 

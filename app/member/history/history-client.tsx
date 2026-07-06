@@ -947,7 +947,8 @@ export default function HistoryClient({
               style={{ objectFit:"contain", objectPosition:"bottom right", display:"block", height:"clamp(80px,26vw,150px)", width:"auto" }} priority />
           </div>
 
-          <div style={{ position:"relative", zIndex:2 }} className="max-w-full lg:max-w-[55%]">
+          {/* Text capped at every width so it never runs under the illustration */}
+          <div style={{ position:"relative", zIndex:2 }} className="max-w-[56%] sm:max-w-[62%] lg:max-w-[55%]">
             <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(255,255,255,0.15)", color:"#fff", marginBottom:10, border:"1px solid rgba(255,255,255,0.2)", letterSpacing:"0.04em" }}>
               📋 History
             </span>

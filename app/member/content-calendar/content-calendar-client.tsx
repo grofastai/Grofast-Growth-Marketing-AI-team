@@ -508,15 +508,15 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               display: "flex", alignItems: "center",
             }}>
               {/* Text side */}
-              <div style={{ flex: 1, padding: isMobile ? "14px 12px 14px 16px" : "18px 12px 18px 22px", textAlign: "left", zIndex: 1 }}>
-                <p style={{ fontSize: isMobile ? 13 : 15, fontWeight: 900, margin: "0 0 4px", color: active ? "#FFF" : "#111827", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>{label}</p>
+              <div style={{ flex: 1, minWidth: 0, padding: isMobile ? "12px 8px 12px 12px" : "18px 12px 18px 22px", textAlign: "left", zIndex: 1 }}>
+                <p style={{ fontSize: isMobile ? 12 : 15, fontWeight: 900, margin: "0 0 4px", color: active ? "#FFF" : "#111827", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>{label}</p>
                 <p style={{ fontSize: isMobile ? 10 : 11, margin: 0, fontWeight: 600, color: active ? "rgba(255,255,255,0.7)" : "#9CA3AF" }}>{desc}</p>
                 {active && <div style={{ marginTop: 8, display: "inline-flex", padding: "2px 10px", borderRadius: 20, background: "rgba(255,255,255,0.2)", fontSize: 9, fontWeight: 800, color: "#FFF", letterSpacing: "0.06em" }}>ACTIVE</div>}
               </div>
-              {/* Illustration */}
+              {/* Illustration — width-capped so it scales down inside the card instead of clipping or covering the text */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={img} alt={label}
-                style={{ height: isMobile ? 72 : 88, width: "auto", objectFit: "contain", flexShrink: 0, marginRight: 8, opacity: active ? 1 : 0.45, transition: "opacity 0.2s", filter: active ? "none" : "grayscale(40%)" }} />
+                style={{ height: isMobile ? 48 : 88, width: "auto", maxWidth: isMobile ? "26%" : "40%", objectFit: "contain", flexShrink: 0, marginRight: isMobile ? 4 : 8, opacity: active ? 1 : 0.45, transition: "opacity 0.2s", filter: active ? "none" : "grayscale(40%)" }} />
             </button>
           )
         })}

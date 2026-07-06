@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { useState, useTransition } from "react"
-import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, UserCheck, UserX, XOctagon, Paperclip, Plus, Trash2, Pencil, X, AlertTriangle } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, UserCheck, UserX, XOctagon, Paperclip, Plus, Trash2, Pencil, X, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react"
 import { updateLeaveStatus } from "@/lib/actions/leaves"
 import { addCompanyLeave, updateCompanyLeave, deleteCompanyLeave } from "@/lib/actions/company-leaves"
 
@@ -28,8 +28,7 @@ interface CompanyLeave {
 
 interface LeavesClientProps {
   leaves: Leave[]
-  statusFilter: string
-  typeFilter: string
+  mode: string
   upcomingLeaves: Leave[]
   availabilityPct: number
   availableCount: number
@@ -48,23 +47,15 @@ interface LeavesClientProps {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-const STATUS_TABS = [
-  { key: "all",      label: "All",         status: "all" },
-  { key: "pending",  label: "Pending",     status: "pending" },
-  { key: "approved", label: "Approved",    status: "approved" },
-  { key: "rejected", label: "Rejected",    status: "rejected" },
-  { key: "holidays", label: "🏢 Holidays", status: "holidays" },
-]
-
-const TYPE_OPTIONS = [
-  { value: "all_types",      label: "All Types" },
-  { value: "leave",          label: "Leave (Full + Half Day)" },
-  { value: "full_day",       label: "Full Day" },
-  { value: "half_day",       label: "Half Day" },
-  { value: "permission_all", label: "Permission (Hours + WFH + Shoot)" },
-  { value: "permission",     label: "Hour Permission" },
-  { value: "wfh",            label: "WFH" },
-  { value: "shoot_day",      label: "Shoot Day" },
+// Single combined filter: Leaves/Permission by type, Pending/Approved/Rejected by status,
+// All = every leave, Holidays = the holiday-management view.
+const MODE_OPTIONS = [
+  { value: "pending",    label: "Pending" },
+  { value: "leaves",     label: "Leaves" },
+  { value: "permission", label: "Permission" },
+  { value: "approved",   label: "Approved" },
+  { value: "rejected",   label: "Rejected" },
+  { value: "all",        label: "All" },
 ]
 
 function daysBetween(from: string, to: string) {
@@ -264,7 +255,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function LeavesClient({
-  leaves, statusFilter, typeFilter, upcomingLeaves, availabilityPct,
+  leaves, mode, upcomingLeaves, availabilityPct,
   availableCount, onLeaveCountToday, awayCountToday, onLeaveToday,
   pendingCount, approvedCount, rejectedCount, companyLeaves,
   fullDayCount, wfhCount, shootCount, halfDayCount,
@@ -272,6 +263,30 @@ export default function LeavesClient({
   const router   = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
+
+  // Client-side date filter (default All Time so the approval queue never hides
+  // pending requests from other months). Month picker + custom range available.
+  const [dateMode, setDateMode]     = useState<"all" | "month" | "custom">("all")
+  const [filterMonth, setFilterMonth] = useState(() => new Date().toISOString().slice(0, 7))
+  const [rangeFrom, setRangeFrom]   = useState("")
+  const [rangeTo, setRangeTo]       = useState("")
+  const shiftMonth = (ym: string, delta: number) => {
+    const [y, m] = ym.split("-").map(Number)
+    const d = new Date(y, m - 1 + delta, 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+  }
+  const monthLabel = (ym: string) => {
+    const [y, m] = ym.split("-").map(Number)
+    return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })
+  }
+  const dateFilteredLeaves = leaves.filter(l => {
+    if (dateMode === "all") return true
+    if (dateMode === "month") return (l.from_date ?? "").startsWith(filterMonth)
+    if (!rangeFrom && !rangeTo) return true
+    if (rangeFrom && l.from_date < rangeFrom) return false
+    if (rangeTo   && l.from_date > rangeTo)   return false
+    return true
+  })
   const [actionId, setActionId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -320,17 +335,9 @@ export default function LeavesClient({
     router.refresh()
   }
 
-  function navigateStatus(status: string) {
+  function navigateMode(next: string) {
     const params = new URLSearchParams()
-    params.set("status", status)
-    // Keep the current type filter when switching status (except Holidays)
-    if (status !== "holidays" && typeFilter !== "all_types") params.set("type", typeFilter)
-    router.push(`${pathname}?${params.toString()}`)
-  }
-  function navigateType(type: string) {
-    const params = new URLSearchParams()
-    params.set("status", statusFilter)
-    if (type !== "all_types") params.set("type", type)
+    params.set("mode", next)
     router.push(`${pathname}?${params.toString()}`)
   }
   function handleApprove(id: string) {
@@ -412,44 +419,67 @@ export default function LeavesClient({
         {/* ── Main Column ─────────────────────────────────────────────────── */}
         <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
 
-          {/* Status tabs + type dropdown */}
-          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, alignItems: "center" }}>
-            {STATUS_TABS.map((tab) => {
-              const active = statusFilter === tab.status
-              return (
-                <button key={tab.key} onClick={() => navigateStatus(tab.status)} style={{
-                  padding: "8px 22px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  whiteSpace: "nowrap", transition: "all 0.15s", border: "none", flexShrink: 0,
-                  background: active ? gradBg : "#FFFFFF",
-                  color: active ? "#FFFFFF" : "#6B7280",
-                  boxShadow: active ? "0 4px 16px rgba(180,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
-                }}>
-                  {tab.label}
-                </button>
-              )
-            })}
-            {statusFilter !== "holidays" && (
-              <select
-                value={typeFilter}
-                onChange={e => navigateType(e.target.value)}
-                aria-label="Filter by leave type"
-                style={{
-                  padding: "8px 12px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  whiteSpace: "nowrap", flexShrink: 0, outline: "none",
-                  background: typeFilter !== "all_types" ? gradBg : "#FFFFFF",
-                  color: typeFilter !== "all_types" ? "#FFFFFF" : "#6B7280",
-                  border: "none",
-                  boxShadow: typeFilter !== "all_types" ? "0 4px 16px rgba(180,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
-                }}>
-                {TYPE_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value} style={{ background: "#FFFFFF", color: "#374151" }}>{o.label}</option>
-                ))}
-              </select>
+          {/* Single filter dropdown + Holidays toggle + date filter */}
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, alignItems: "center", flexWrap: "wrap" }}>
+            <select
+              value={mode === "holidays" ? "pending" : mode}
+              onChange={e => navigateMode(e.target.value)}
+              aria-label="Filter leaves"
+              style={{
+                padding: "8px 14px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                whiteSpace: "nowrap", flexShrink: 0, outline: "none", border: "none",
+                background: mode !== "all" && mode !== "holidays" ? gradBg : "#FFFFFF",
+                color: mode !== "all" && mode !== "holidays" ? "#FFFFFF" : "#6B7280",
+                boxShadow: mode !== "all" && mode !== "holidays" ? "0 4px 16px rgba(180,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
+              }}>
+              {MODE_OPTIONS.map(o => (
+                <option key={o.value} value={o.value} style={{ background: "#FFFFFF", color: "#374151" }}>{o.label}</option>
+              ))}
+            </select>
+
+            <button onClick={() => navigateMode("holidays")} style={{
+              padding: "8px 18px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
+              whiteSpace: "nowrap", border: "none", flexShrink: 0,
+              background: mode === "holidays" ? gradBg : "#FFFFFF",
+              color: mode === "holidays" ? "#FFFFFF" : "#6B7280",
+              boxShadow: mode === "holidays" ? "0 4px 16px rgba(180,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
+            }}>
+              🏢 Holidays
+            </button>
+
+            {mode !== "holidays" && (
+              <>
+                <select
+                  value={dateMode}
+                  onChange={e => setDateMode(e.target.value as typeof dateMode)}
+                  aria-label="Date filter"
+                  style={{ padding: "8px 12px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, outline: "none", border: "none", background: "#FFFFFF", color: "#6B7280", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                  <option value="all">All Time</option>
+                  <option value="month">Monthly</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+                {dateMode === "month" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 2, background: "#FFFFFF", borderRadius: 24, padding: "2px 6px", flexShrink: 0, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    <button onClick={() => setFilterMonth(m => shiftMonth(m, -1))} aria-label="Previous month" style={{ width: 30, height: 30, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}><ChevronLeft size={15} color="#6B7280" /></button>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#374151", minWidth: 82, textAlign: "center", whiteSpace: "nowrap" }}>{monthLabel(filterMonth)}</span>
+                    <button onClick={() => setFilterMonth(m => shiftMonth(m, 1))} aria-label="Next month" style={{ width: 30, height: 30, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}><ChevronRight size={15} color="#6B7280" /></button>
+                  </div>
+                )}
+                {dateMode === "custom" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                    <input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} aria-label="From date"
+                      style={{ padding: "7px 10px", borderRadius: 12, background: "#FFFFFF", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#374151", outline: "none", minHeight: 38 }} />
+                    <span style={{ fontSize: 12, color: "#9CA3AF" }}>–</span>
+                    <input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)} aria-label="To date"
+                      style={{ padding: "7px 10px", borderRadius: 12, background: "#FFFFFF", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#374151", outline: "none", minHeight: 38 }} />
+                  </div>
+                )}
+              </>
             )}
           </div>
 
           {/* ── Holidays Tab UI ─────────────────────────────────────────── */}
-          {statusFilter === "holidays" && (
+          {mode === "holidays" && (
             <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
               {/* Add holiday form */}
               <div style={{ background:"#FFFFFF", borderRadius:18, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
@@ -555,7 +585,7 @@ export default function LeavesClient({
           )}
 
           {/* On Leave Today strip */}
-          {statusFilter !== "holidays" && onLeaveToday.length > 0 && (
+          {mode !== "holidays" && onLeaveToday.length > 0 && (
             <div style={{
               background: gradBg, borderRadius: 14, padding: "12px 16px",
               display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
@@ -578,7 +608,7 @@ export default function LeavesClient({
           )}
 
           {/* Leave Cards */}
-          {statusFilter !== "holidays" && (leaves.length === 0 ? (
+          {mode !== "holidays" && (dateFilteredLeaves.length === 0 ? (
             <div style={{
               background: "#FFFFFF", borderRadius: 18, padding: "60px 24px", textAlign: "center",
               border: "1px solid #F0F0F5", boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
@@ -587,13 +617,13 @@ export default function LeavesClient({
                 <Image src="/brand/leave/vacation-hero.png" alt="" fill style={{ objectFit: "contain" }} />
               </div>
               <p style={{ fontSize: 16, fontWeight: 700, color: "#111827", margin: "0 0 6px", fontFamily: "var(--font-jakarta)" }}>
-                No {statusFilter === "all" ? "" : statusFilter} leave requests
+                No leave requests match this filter
               </p>
               <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>Your team is fully available today.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
-              {leaves.map((leave, i) => (
+              {dateFilteredLeaves.map((leave, i) => (
                 <LeaveCard
                   key={leave.id} leave={leave} idx={i}
                   isPending={isPending} actionId={actionId}

@@ -59,8 +59,9 @@ export function FreelancersHero({
           </div>
         </div>
 
-        <div className="flex lg:hidden flex-wrap gap-2.5">
-          {metrics.map(heroPill)}
+        {/* Single scrollable row on mobile so the banner stays short */}
+        <div className="flex lg:hidden flex-nowrap gap-2.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          {metrics.map(m => <div key={m.label} style={{ flexShrink: 0 }}>{heroPill(m)}</div>)}
         </div>
       </div>
     </div>

@@ -336,13 +336,16 @@ function TravelTab({ shoots, savedTravel }: {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table style={{ minWidth: 640 }} className="w-full">
+          <table style={{ minWidth: 720 }} className="w-full">
             <thead>
               <tr style={{ background: "#FAFAFA", borderBottom: "1px solid #EDEDED" }}>
-                {["Date", "Client", "Shoot Title", "Member", "Hrs", "Travel ₹", ""].map(h => (
-                  <th key={h} className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap"
-                    style={{ textAlign: h === "Travel ₹" || h === "" ? "center" : "left", color: "#9CA3AF" }}>{h}</th>
-                ))}
+                <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Date</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Client</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Shoot Title</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Member</th>
+                <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Hrs</th>
+                <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Travel ₹</th>
+                <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -352,7 +355,7 @@ function TravelTab({ shoots, savedTravel }: {
                 const hasVal   = parseFloat(localAmounts[row.key] ?? "") > 0
                 return (
                   <tr key={row.key} style={{ borderBottom: i < shoots.length - 1 ? "1px solid #F5F5F5" : "none" }}>
-                    <td className="px-4 py-3 whitespace-nowrap text-[12px]" style={{ color: "#9CA3AF" }}>{fmtDate(row.date)}</td>
+                    <td className="px-6 py-3 whitespace-nowrap text-[12px]" style={{ color: "#9CA3AF" }}>{fmtDate(row.date)}</td>
                     <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{row.clientName}</td>
                     <td className="px-4 py-3 text-[12px] whitespace-nowrap" style={{ color: "#374151", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{row.title || "—"}</td>
                     <td className="px-4 py-3 text-[12px] whitespace-nowrap" style={{ color: "#6B7280" }}>{row.memberName}</td>
@@ -363,11 +366,11 @@ function TravelTab({ shoots, savedTravel }: {
                         value={localAmounts[row.key] ?? ""}
                         onChange={e => setLocal(p => ({ ...p, [row.key]: e.target.value }))}
                         placeholder="0"
-                        className="w-24 rounded-lg px-3 py-1.5 text-[13px] text-center outline-none"
-                        style={{ background: hasVal ? "rgba(59,130,246,0.06)" : "#F9FAFB", border: `1px solid ${hasVal ? "rgba(59,130,246,0.3)" : "#E5E7EB"}`, color: "#111111", display: "block", margin: "0 auto" }}
+                        className="w-24 rounded-lg px-3 py-1.5 text-[13px] text-right outline-none"
+                        style={{ background: hasVal ? "rgba(59,130,246,0.06)" : "#F9FAFB", border: `1px solid ${hasVal ? "rgba(59,130,246,0.3)" : "#E5E7EB"}`, color: "#111111", display: "block", marginLeft: "auto" }}
                       />
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-6 py-3 text-right">
                       <button onClick={() => saveRow(row)} disabled={isSaving}
                         className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-50"
                         style={{ background: isSaved ? "rgba(22,163,74,0.1)" : "rgba(59,130,246,0.08)", color: isSaved ? "#16A34A" : "#3B82F6", border: `1px solid ${isSaved ? "rgba(22,163,74,0.2)" : "rgba(59,130,246,0.2)"}`, whiteSpace: "nowrap" }}>
@@ -645,68 +648,71 @@ export default function ExpensesClient({
 
         {/* Tab content */}
         {activeTab === "direct" && (
-          <FlatCard className="overflow-hidden flex flex-col">
-            <div className="flex items-center gap-2.5 px-5 py-3">
-              <Receipt size={14} style={{ color: "#3B82F6" }} />
-              <h2 className="text-[12px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Client Direct</h2>
-            </div>
-            {clientExpenses.length > 0 && (
-              <div className="grid flex-shrink-0 px-4 py-2" style={{ gridTemplateColumns: "56px 28px 1fr 84px 48px", background: "#F8F9FB", borderBottom: "1px solid #F0F0F2" }}>
-                <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Date</div>
-                <div />
-                <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Client</div>
-                <div className="text-[10px] font-black uppercase tracking-wider text-right" style={{ color: "#3B82F6" }}>Amount</div>
-                <div />
+          <FlatCard className="overflow-hidden">
+            <div className="flex items-center justify-between gap-2 px-6 py-4" style={{ borderBottom: "1px solid #EDEDED" }}>
+              <div className="flex items-center gap-2">
+                <Receipt size={15} style={{ color: "#3B82F6" }} />
+                <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Client Direct</span>
               </div>
-            )}
-            <div className="overflow-y-auto" style={{ maxHeight: "360px" }}>
-              {clientExpenses.length === 0 ? (
-                <div className="flex flex-col items-center py-12">
-                  <AlertCircle size={28} style={{ color: "#E5E7EB" }} className="mb-2" />
-                  <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No client expenses this month</p>
-                </div>
-              ) : (
-                clientExpenses.map((e, i) => (
-                  <div key={e.id} className="grid items-center gap-2 px-4 py-2.5"
-                    style={{ gridTemplateColumns: "56px 28px 1fr 84px 48px", borderBottom: "1px solid #F3F4F6", background: i % 2 === 0 ? "#FFFFFF" : "#FAFCFF" }}>
-                    <span className="text-[10px] font-bold" style={{ color: "#9CA3AF" }}>{fmtDate(e.date)}</span>
-                    <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
-                      style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>
-                      {TYPE_ICON[e.type] ?? TYPE_ICON.other}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-[12px] font-bold break-words" style={{ color: "#111111" }}>{e.client_name}</p>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded font-black capitalize flex-shrink-0"
-                          style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>{e.type}</span>
-                      </div>
-                      {(e.shoot_title || e.notes) && (
-                        <p className="text-[10px] break-words" style={{ color: "#9CA3AF" }}>
-                          {e.shoot_title ? e.shoot_title : ""}{e.notes ? (e.shoot_title ? ` · ${e.notes}` : e.notes) : ""}
-                        </p>
-                      )}
-                    </div>
-                    <span className="text-[12px] font-black text-right" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
-                      ₹{Math.round(e.amount).toLocaleString("en-IN")}
-                    </span>
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button onClick={() => { setEditClient(e); setModal("client") }} className="opacity-40 hover:opacity-90 transition-opacity">
-                        <Pencil size={12} style={{ color: "#6B7280" }} />
-                      </button>
-                      <button onClick={() => handleDeleteClient(e.id)} disabled={isPending} className="opacity-30 hover:opacity-80 transition-opacity">
-                        <Trash2 size={12} style={{ color: "#DC2626" }} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
             </div>
-            {clientExpenses.length > 0 && (
-              <div className="grid flex-shrink-0 px-4 py-3 mt-auto"
-                style={{ gridTemplateColumns: "56px 28px 1fr 84px 48px", borderTop: "2px solid #F0F0F2", background: "#F8F9FB" }}>
-                <div /><div /><div className="text-[11px] font-black text-right pr-2" style={{ color: "#9CA3AF", alignSelf: "center" }}>Total</div>
-                <span className="text-[14px] font-black text-right" style={{ color: "#3B82F6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalClientDirect)}</span>
-                <div />
+            {clientExpenses.length === 0 ? (
+              <div className="flex flex-col items-center py-12">
+                <AlertCircle size={28} style={{ color: "#E5E7EB" }} className="mb-2" />
+                <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No client expenses this month</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table style={{ minWidth: 720 }} className="w-full">
+                  <thead>
+                    <tr style={{ background: "#FAFAFA", borderBottom: "1px solid #EDEDED" }}>
+                      <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Date</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Client</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Type</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Details</th>
+                      <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Amount</th>
+                      <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clientExpenses.map((e, i) => (
+                      <tr key={e.id} style={{ borderBottom: i < clientExpenses.length - 1 ? "1px solid #F5F5F5" : "none" }}>
+                        <td className="px-6 py-3 text-[12px] whitespace-nowrap" style={{ color: "#9CA3AF" }}>{fmtDate(e.date)}</td>
+                        <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>{e.client_name}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {e.type !== "other" ? (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded capitalize"
+                              style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>{e.type}</span>
+                          ) : (
+                            <span style={{ color: "#D1D5DB" }}>—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-[12px]" style={{ color: "#6B7280" }}>
+                          {e.shoot_title ? e.shoot_title : ""}{e.notes ? (e.shoot_title ? ` · ${e.notes}` : e.notes) : (!e.shoot_title ? "—" : "")}
+                        </td>
+                        <td className="px-4 py-3 text-right text-[13px] font-black whitespace-nowrap" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
+                          ₹{Math.round(e.amount).toLocaleString("en-IN")}
+                        </td>
+                        <td className="px-6 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => { setEditClient(e); setModal("client") }} className="opacity-40 hover:opacity-90 transition-opacity">
+                              <Pencil size={13} style={{ color: "#6B7280" }} />
+                            </button>
+                            <button onClick={() => handleDeleteClient(e.id)} disabled={isPending} className="opacity-30 hover:opacity-80 transition-opacity">
+                              <Trash2 size={13} style={{ color: "#DC2626" }} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ background: "#FAFAFA", borderTop: "2px solid #EDEDED" }}>
+                      <td colSpan={4} className="px-6 py-3 text-[11px] font-black uppercase tracking-wider" style={{ color: "#374151" }}>Total</td>
+                      <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#3B82F6" }}>{fmtRupee(totalClientDirect)}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             )}
           </FlatCard>
@@ -714,66 +720,65 @@ export default function ExpensesClient({
 
         {/* Common / Shared */}
         {activeTab === "common" && (
-          <FlatCard className="overflow-hidden flex flex-col">
-            <div className="flex items-center gap-2.5 px-5 py-3">
-              <Layers size={14} style={{ color: "#8B5CF6" }} />
-              <h2 className="text-[12px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Common / Shared</h2>
+          <FlatCard className="overflow-hidden">
+            <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: "1px solid #EDEDED" }}>
+              <Layers size={15} style={{ color: "#8B5CF6" }} />
+              <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#8B5CF6" }}>Common / Shared</span>
             </div>
-            {commonExpenses.length > 0 && (
-              <div className="grid flex-shrink-0 px-4 py-2" style={{ gridTemplateColumns: "28px 1fr 84px 48px", background: "#F8F9FB", borderBottom: "1px solid #F0F0F2" }}>
-                <div />
-                <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#8B5CF6" }}>Name</div>
-                <div className="text-[10px] font-black uppercase tracking-wider text-right" style={{ color: "#8B5CF6" }}>Amount</div>
-                <div />
+            {commonExpenses.length === 0 ? (
+              <div className="flex flex-col items-center py-12">
+                <AlertCircle size={28} style={{ color: "#E5E7EB" }} className="mb-2" />
+                <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No common expenses this month</p>
               </div>
-            )}
-            {/* Scrollable body */}
-            <div className="overflow-y-auto" style={{ maxHeight: "360px" }}>
-              {commonExpenses.length === 0 ? (
-                <div className="flex flex-col items-center py-12">
-                  <AlertCircle size={28} style={{ color: "#E5E7EB" }} className="mb-2" />
-                  <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No common expenses this month</p>
-                </div>
-              ) : (
-                commonExpenses.map((e, i) => {
-                  const share = overheadDivisor > 0 ? e.amount / overheadDivisor : 0
-                  return (
-                    <div key={e.id} className="grid items-center gap-2 px-4 py-2.5"
-                      style={{ gridTemplateColumns: "28px 1fr 84px 48px", borderBottom: "1px solid #F3F4F6", background: i % 2 === 0 ? "#FFFFFF" : "#FDFAFF" }}>
-                      <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
-                        style={{ background: "rgba(139,92,246,0.08)", color: "#8B5CF6" }}>
-                        <Layers size={12} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[12px] font-bold break-words" style={{ color: "#111111" }}>{e.name}</p>
-                        <p className="text-[10px] break-words" style={{ color: "#9CA3AF" }}>
-                          {e.notes ? `${e.notes} · ` : ""}{share > 0 ? `${fmtRupee(share)}/client` : ""}
-                        </p>
-                      </div>
-                      <span className="text-[12px] font-black text-right" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
-                        ₹{Math.round(e.amount).toLocaleString("en-IN")}
-                      </span>
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => { setEditCommon(e); setModal("common") }}
-                          className="opacity-40 hover:opacity-90 transition-opacity">
-                          <Pencil size={12} style={{ color: "#6B7280" }} />
-                        </button>
-                        <button onClick={() => handleDeleteCommon(e.id)} disabled={isPending}
-                          className="opacity-30 hover:opacity-80 transition-opacity">
-                          <Trash2 size={12} style={{ color: "#DC2626" }} />
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-            {commonExpenses.length > 0 && (
-              <div className="grid flex-shrink-0 px-4 py-3 mt-auto"
-                style={{ gridTemplateColumns: "28px 1fr 84px 48px", borderTop: "2px solid #F0F0F2", background: "#F8F9FB" }}>
-                <div /><div className="text-[11px] font-black text-right pr-2" style={{ color: "#9CA3AF", alignSelf: "center" }}>Total</div>
-                <span className="text-[14px] font-black text-right" style={{ color: "#8B5CF6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalCommon)}</span>
-                <div />
+            ) : (
+              <div className="overflow-x-auto">
+                <table style={{ minWidth: 640 }} className="w-full">
+                  <thead>
+                    <tr style={{ background: "#FAFAFA", borderBottom: "1px solid #EDEDED" }}>
+                      <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Name</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Notes</th>
+                      <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Per Client</th>
+                      <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Amount</th>
+                      <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#9CA3AF" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {commonExpenses.map((e, i) => {
+                      const share = overheadDivisor > 0 ? e.amount / overheadDivisor : 0
+                      return (
+                        <tr key={e.id} style={{ borderBottom: i < commonExpenses.length - 1 ? "1px solid #F5F5F5" : "none" }}>
+                          <td className="px-6 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>{e.name}</td>
+                          <td className="px-4 py-3 text-[12px]" style={{ color: "#6B7280" }}>{e.notes || "—"}</td>
+                          <td className="px-4 py-3 text-right text-[12px] font-semibold whitespace-nowrap" style={{ color: share > 0 ? "#8B5CF6" : "#D1D5DB" }}>
+                            {share > 0 ? fmtRupee(share) : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right text-[13px] font-black whitespace-nowrap" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
+                            ₹{Math.round(e.amount).toLocaleString("en-IN")}
+                          </td>
+                          <td className="px-6 py-3">
+                            <div className="flex items-center justify-end gap-2">
+                              <button onClick={() => { setEditCommon(e); setModal("common") }}
+                                className="opacity-40 hover:opacity-90 transition-opacity">
+                                <Pencil size={13} style={{ color: "#6B7280" }} />
+                              </button>
+                              <button onClick={() => handleDeleteCommon(e.id)} disabled={isPending}
+                                className="opacity-30 hover:opacity-80 transition-opacity">
+                                <Trash2 size={13} style={{ color: "#DC2626" }} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ background: "#FAFAFA", borderTop: "2px solid #EDEDED" }}>
+                      <td colSpan={3} className="px-6 py-3 text-[11px] font-black uppercase tracking-wider" style={{ color: "#374151" }}>Total</td>
+                      <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#8B5CF6" }}>{fmtRupee(totalCommon)}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             )}
           </FlatCard>

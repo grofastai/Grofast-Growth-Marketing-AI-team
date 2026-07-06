@@ -16,19 +16,18 @@ function adminClient() {
 export default async function LeavesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; type?: string }>
+  searchParams: Promise<{ mode?: string; status?: string; type?: string }>
 }) {
   const params = await searchParams
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const statusFilter = params.status ?? "pending"
-  const typeFilter = params.type ?? "all_types"
-  // Permission family = hour permission + WFH + shoot; Leave family = full/half day
-  const PERMISSION_TYPES = ["permission", "wfh", "shoot_day"]
-  const LEAVE_TYPES = ["full_day", "half_day"]
-  const SPECIFIC_TYPES = ["full_day", "half_day", "permission", "wfh", "shoot_day"]
+  // Single combined filter mode: pending/approved/rejected filter by STATUS,
+  // leaves/permission filter by TYPE, all = everything, holidays = holidays view.
+  const mode = params.mode ?? "pending"
+  const LEAVE_TYPES = ["full_day", "half_day", "permission"]   // "Leaves" bucket
+  const PERMISSION_TYPES = ["wfh", "shoot_day"]                 // "Permission" bucket
   const today = new Date().toISOString().split("T")[0]
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0]
 
@@ -51,17 +50,14 @@ export default async function LeavesPage({
     .eq("company_id", cid)
     .order("from_date", { ascending: false })
 
-  if (statusFilter !== "all") {
-    leavesQuery = leavesQuery.eq("status", statusFilter)
-  }
-
-  if (typeFilter === "permission_all") {
-    leavesQuery = leavesQuery.in("leave_type", PERMISSION_TYPES)
-  } else if (typeFilter === "leave") {
+  if (mode === "pending" || mode === "approved" || mode === "rejected") {
+    leavesQuery = leavesQuery.eq("status", mode)
+  } else if (mode === "leaves") {
     leavesQuery = leavesQuery.in("leave_type", LEAVE_TYPES)
-  } else if (SPECIFIC_TYPES.includes(typeFilter)) {
-    leavesQuery = leavesQuery.eq("leave_type", typeFilter)
+  } else if (mode === "permission") {
+    leavesQuery = leavesQuery.in("leave_type", PERMISSION_TYPES)
   }
+  // mode === "all" or "holidays" → no status/type filter (date filtering happens client-side)
 
   const [
     { data: leaves },
@@ -145,8 +141,7 @@ export default async function LeavesPage({
   return (
     <LeavesClient
       leaves={leaves ?? []}
-      statusFilter={statusFilter}
-      typeFilter={typeFilter}
+      mode={mode}
       upcomingLeaves={upcoming ?? []}
       availabilityPct={availabilityPct}
       availableCount={available}

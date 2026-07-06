@@ -517,12 +517,19 @@ export default function ExpensesClient({
 
         {/* Header — red gradient hero, matching every other page in the app */}
         <div className="p-6 md:p-8" style={{
-          position: "relative", overflow: "hidden", borderRadius: 20,
+          position: "relative", overflow: "hidden", borderRadius: 20, minHeight: "clamp(150px,32vw,190px)",
           background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
           boxShadow: "0 8px 32px rgba(180,0,0,0.35)",
         }}>
           <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
           <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+
+          {/* Illustration — mobile: bottom-right anchored so it can't reach the title/date-pill row; desktop: centered in the space right of the text */}
+          <div className="right-[clamp(4px,2vw,16px)] bottom-0 md:right-auto md:bottom-auto md:left-[78%] md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2" style={{ position: "absolute", zIndex: 1, pointerEvents: "none" }}>
+            <Image src="/brand/expenses/expenses-hero-boy.png" alt="" width={500} height={500}
+              className="h-[clamp(80px,20vw,150px)] md:h-[clamp(130px,17vw,180px)]"
+              style={{ width: "auto", display: "block" }} priority />
+          </div>
 
           <div className="flex items-start justify-between gap-4" style={{ position: "relative", zIndex: 2 }}>
             <div className="max-w-[56%] sm:max-w-[62%] md:max-w-[60%]">
@@ -534,15 +541,11 @@ export default function ExpensesClient({
               <h1 className="text-[28px] md:text-[34px] font-black" style={{ color: "#fff", fontFamily: "var(--font-jakarta)", margin: 0, lineHeight: 1.1 }}>Expenses</h1>
               <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>Track client direct, common shared & overhead costs</p>
             </div>
-            <div className="flex items-center gap-1 px-3 py-2 rounded-xl flex-shrink-0" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
+            <div className="flex items-center gap-1 px-3 py-2 rounded-xl flex-shrink-0" style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.2)" }}>
               <button onClick={() => goMonth(-1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#fff" }}>‹</button>
               <span className="text-[13px] font-black px-1" style={{ color: "#fff" }}>{MONTHS_SHORT[mo - 1]} {yr}</span>
               <button onClick={() => goMonth(1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#fff" }}>›</button>
             </div>
-          </div>
-          <div style={{ position: "absolute", right: "clamp(4px,2vw,12px)", top: "50%", transform: "translateY(-50%)", width: "clamp(90px,22vw,300px)", zIndex: 1, pointerEvents: "none" }}>
-            <Image src="/brand/expenses/expenses-hero-boy.png" alt="" width={500} height={500}
-              style={{ width: "100%", height: "auto", display: "block" }} priority />
           </div>
         </div>
 

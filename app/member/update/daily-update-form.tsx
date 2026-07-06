@@ -1670,46 +1670,51 @@ export default function DailyUpdateForm({
         <div style={{ position:"absolute", top:-50, right:-30, width:200, height:200, borderRadius:"50%", background:"rgba(255,255,255,0.05)", pointerEvents:"none" }} />
         <div style={{ position:"absolute", bottom:-40, left:60, width:150, height:150, borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }} />
 
-        {/* Mobile packs into 2 rows (title+ring, then greeting+calendar) via order classes; md+ restores natural order in one row */}
-        <div className="order-1 md:order-none" style={{ flexShrink:0, position:"relative", zIndex:1 }}>
-          <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(255,255,255,0.15)", color:"#fff", marginBottom:10, border:"1px solid rgba(255,255,255,0.2)", letterSpacing:"0.04em" }}>
-            ⭐ Daily Update
-          </span>
-          <h1 style={{ fontSize:26, fontWeight:900, color:"#fff", fontFamily:"var(--font-jakarta)", margin:"0 0 3px" }}>Daily Update</h1>
-          <p style={{ fontSize:11, color:"rgba(255,255,255,0.65)", margin:0 }}>{dateLabel}</p>
-        </div>
-
-        <div className="flex order-3 md:order-none min-w-0" style={{ alignItems:"center", borderRadius:16, overflow:"hidden", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", flex:1, maxWidth:340, position:"relative", zIndex:1 }}>
-          <div style={{ position:"relative", width:70, height:80, flexShrink:0 }}>
-            <Image src="/brand/assistant-girl.jpg" alt="" fill style={{ objectFit:"cover", objectPosition:"top center" }} />
+        {/* Mobile: two explicit full-width rows (title+ring, then greeting+calendar) so items can't get pulled into the wrong row.
+            md:contents dissolves these wrapper divs so children become direct flex items again, restoring the original single-row desktop layout. */}
+        <div className="flex items-start justify-between w-full md:contents">
+          <div style={{ flexShrink:0, position:"relative", zIndex:1 }}>
+            <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(255,255,255,0.15)", color:"#fff", marginBottom:10, border:"1px solid rgba(255,255,255,0.2)", letterSpacing:"0.04em" }}>
+              ⭐ Daily Update
+            </span>
+            <h1 style={{ fontSize:26, fontWeight:900, color:"#fff", fontFamily:"var(--font-jakarta)", margin:"0 0 3px" }}>Daily Update</h1>
+            <p style={{ fontSize:11, color:"rgba(255,255,255,0.65)", margin:0 }}>{dateLabel}</p>
           </div>
-          <div style={{ padding:"10px 16px", minWidth:0 }}>
-            <p style={{ fontSize:13, fontWeight:800, color:"#fff", margin:"0 0 3px", fontFamily:"var(--font-jakarta)" }}>{greeting}, {firstName}! 👋</p>
-            <p style={{ fontSize:11, color:"rgba(255,255,255,0.7)", margin:0 }}>What did you work on today?</p>
-          </div>
-        </div>
 
-        <div className="order-4 md:order-none" style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:16, padding:"12px 18px", textAlign:"center", flexShrink:0, position:"relative", zIndex:1 }}>
-          <p style={{ fontSize:10, color:"rgba(255,255,255,0.6)", margin:"0 0 4px", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.08em" }}>{calMonth}</p>
-          <p style={{ fontSize:32, fontWeight:900, color:"#fff", margin:"0 0 2px", lineHeight:1, fontFamily:"var(--font-jakarta)" }}>{calDay}</p>
-          <p style={{ fontSize:10, color:"rgba(255,255,255,0.7)", margin:0, fontWeight:600 }}>{calWeekday}</p>
-        </div>
-
-        <div className="order-2 md:order-none" style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, flexShrink:0, position:"relative", zIndex:1 }}>
-          <div style={{ position:"relative", width:80, height:80 }}>
-            <svg viewBox="0 0 80 80" width="80" height="80">
-              <circle cx="40" cy="40" r={ringR} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
-              <circle cx="40" cy="40" r={ringR} fill="none" stroke="#FACC15" strokeWidth="8"
-                strokeDasharray={`${ringFilled} ${ringCirc}`} strokeLinecap="round"
-                transform="rotate(-90 40 40)" style={{ transition:"stroke-dasharray 0.5s ease" }} />
-            </svg>
-            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <span style={{ fontSize:15, fontWeight:900, color:"#fff" }}>{dayPct}%</span>
+          <div className="md:order-4" style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, flexShrink:0, position:"relative", zIndex:1 }}>
+            <div style={{ position:"relative", width:80, height:80 }}>
+              <svg viewBox="0 0 80 80" width="80" height="80">
+                <circle cx="40" cy="40" r={ringR} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
+                <circle cx="40" cy="40" r={ringR} fill="none" stroke="#FACC15" strokeWidth="8"
+                  strokeDasharray={`${ringFilled} ${ringCirc}`} strokeLinecap="round"
+                  transform="rotate(-90 40 40)" style={{ transition:"stroke-dasharray 0.5s ease" }} />
+              </svg>
+              <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <span style={{ fontSize:15, fontWeight:900, color:"#fff" }}>{dayPct}%</span>
+              </div>
+            </div>
+            <div style={{ textAlign:"center" }}>
+              <p style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.85)", margin:"0 0 1px" }}>Day Progress</p>
+              <p style={{ fontSize:9, color:"rgba(255,255,255,0.55)", margin:0 }}>{elapsed}/{totalWorkHours} hrs</p>
             </div>
           </div>
-          <div style={{ textAlign:"center" }}>
-            <p style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.85)", margin:"0 0 1px" }}>Day Progress</p>
-            <p style={{ fontSize:9, color:"rgba(255,255,255,0.55)", margin:0 }}>{elapsed}/{totalWorkHours} hrs</p>
+        </div>
+
+        <div className="flex items-center justify-between w-full gap-3 mt-3 md:mt-0 md:contents">
+          <div className="flex min-w-0 md:order-2" style={{ alignItems:"center", borderRadius:16, overflow:"hidden", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", flex:1, maxWidth:340, position:"relative", zIndex:1 }}>
+            <div style={{ position:"relative", width:70, height:80, flexShrink:0 }}>
+              <Image src="/brand/assistant-girl.jpg" alt="" fill style={{ objectFit:"cover", objectPosition:"top center" }} />
+            </div>
+            <div style={{ padding:"10px 16px", minWidth:0 }}>
+              <p style={{ fontSize:13, fontWeight:800, color:"#fff", margin:"0 0 3px", fontFamily:"var(--font-jakarta)" }}>{greeting}, {firstName}! 👋</p>
+              <p style={{ fontSize:11, color:"rgba(255,255,255,0.7)", margin:0 }}>What did you work on today?</p>
+            </div>
+          </div>
+
+          <div className="md:order-3" style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:16, padding:"12px 18px", textAlign:"center", flexShrink:0, position:"relative", zIndex:1 }}>
+            <p style={{ fontSize:10, color:"rgba(255,255,255,0.6)", margin:"0 0 4px", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.08em" }}>{calMonth}</p>
+            <p style={{ fontSize:32, fontWeight:900, color:"#fff", margin:"0 0 2px", lineHeight:1, fontFamily:"var(--font-jakarta)" }}>{calDay}</p>
+            <p style={{ fontSize:10, color:"rgba(255,255,255,0.7)", margin:0, fontWeight:600 }}>{calWeekday}</p>
           </div>
         </div>
       </div>

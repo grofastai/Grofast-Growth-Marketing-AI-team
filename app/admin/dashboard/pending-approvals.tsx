@@ -71,24 +71,26 @@ export default function PendingApprovalsCard({ leaves: initialLeaves }: { leaves
 
             return (
               <div key={leave.id}
-                className="flex items-center gap-3 p-3 rounded-xl"
+                className="p-3 rounded-xl"
                 style={{ background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
-                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
-                  style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
-                  {(member?.name ?? "?")[0].toUpperCase()}
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
+                    style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
+                    {(member?.name ?? "?")[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold leading-tight" style={{ color: "#111827" }}>
+                      {member?.name ?? "—"}
+                      <span className="ml-1.5 text-[11px] font-medium" style={{ color: "#6B7280" }}>
+                        #{member?.employee_id}
+                      </span>
+                    </p>
+                    <p className="text-[11px] mt-0.5 truncate" style={{ color: "#6B7280" }}>
+                      {fmt(leave.from_date)} → {fmt(leave.to_date)} · {shortReason}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold leading-tight" style={{ color: "#111827" }}>
-                    {member?.name ?? "—"}
-                    <span className="ml-1.5 text-[11px] font-medium" style={{ color: "#6B7280" }}>
-                      #{member?.employee_id}
-                    </span>
-                  </p>
-                  <p className="text-[11px] mt-0.5 truncate" style={{ color: "#6B7280" }}>
-                    {fmt(leave.from_date)} → {fmt(leave.to_date)} · {shortReason}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
+                <div className="flex items-center justify-end gap-1.5 mt-2.5">
                   <button
                     onClick={() => handleAction(leave.id, "approved")}
                     disabled={isPending}

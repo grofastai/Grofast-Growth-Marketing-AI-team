@@ -90,6 +90,12 @@ function fmtTime(isoOrDate: string | undefined): string {
   } catch { return "" }
 }
 
+function parseLearningTitle(title: string | undefined): { client: string; topic: string } {
+  if (!title) return { client: "", topic: "" }
+  const m = title.match(/^\[([^\]]+)\]\s*(.*)$/)
+  return m ? { client: m[1], topic: m[2] } : { client: "", topic: title }
+}
+
 function getEntryTypeLabel(type: unknown): { label: string; color: string; bg: string; emoji: string } {
   const t = String(type ?? "").toLowerCase()
   if (t === "shoot")     return { label: "Shoot",      color: "#0EA5E9", bg: "rgba(14,165,233,0.1)",  emoji: "📹" }
@@ -147,7 +153,7 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates
       />
       {/* Drawer */}
       <div style={{
-        position: "fixed", top: 0, right: 0, height: "100vh", width: "min(480px, 100vw)", zIndex: 50,
+        position: "fixed", top: 0, right: 0, height: "100vh", width: "min(560px, 100vw)", zIndex: 50,
         background: "#fff", boxShadow: "-8px 0 48px rgba(0,0,0,0.14)",
         display: "flex", flexDirection: "column", overflow: "hidden",
       }}>
@@ -181,12 +187,17 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates
                   <div style={{ fontSize: 11, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid #F0F0F5" }}>
                     {(() => { try { return new Date(date + "T12:00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) } catch { return date } })()}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {entries.map((e, i) => {
                 const typeInfo = getEntryTypeLabel(e.task_type)
-                const title = (e.title || e.task_name || e.description || "") as string
+                const rawTitle = (e.title || e.task_name || e.description || "") as string
+                const isLearning = e.task_type === "learning"
+                const { client: parsedClient, topic: parsedTopic } = isLearning ? parseLearningTitle(rawTitle) : { client: "", topic: "" }
+                const title = isLearning ? (parsedTopic || rawTitle) : rawTitle
                 const client = (e.client_name || e._brand || e._custom_client || e.client || "") as string
-                const clientNames = Array.isArray(e.client_names) ? (e.client_names as string[]).join(", ") : client
+                const clientNames = isLearning
+                  ? parsedClient
+                  : (Array.isArray(e.client_names) ? (e.client_names as string[]).join(", ") : client)
                 const durationH = (e.duration_hours || e.working_hours || 0) as number
                 const startTime = e.start_time as string | undefined
                 const endTime = e.end_time as string | undefined
@@ -195,9 +206,9 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates
 
                 return (
                   <div key={i} style={{
-                    background: "#FFFFFF", borderRadius: 10, padding: "10px 12px",
+                    background: "#FFFFFF", borderRadius: 10, padding: "12px 14px",
                     border: "1px solid #F0F0F5", borderLeft: `3px solid ${typeInfo.color}`,
-                    display: "flex", alignItems: "center", gap: 10,
+                    display: "flex", alignItems: "center", gap: 12,
                   }}>
                     {/* Type icon square */}
                     <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, background: typeInfo.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -208,16 +219,16 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates
                       <p style={{ fontSize: 12, fontWeight: 800, color: "#111827", margin: 0, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {title || typeInfo.label}
                       </p>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
-                        {clientNames && (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: typeInfo.color, background: typeInfo.bg, padding: "1px 7px", borderRadius: 5 }}>
+                      {clientNames && (
+                        <div style={{ marginTop: 5 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: typeInfo.color, background: typeInfo.bg, padding: "2px 8px", borderRadius: 5 }}>
                             {clientNames}
                           </span>
-                        )}
-                        {startTime && endTime && (
-                          <span style={{ fontSize: 10, color: "#9CA3AF" }}>{startTime} – {endTime}</span>
-                        )}
-                      </div>
+                        </div>
+                      )}
+                      {startTime && endTime && (
+                        <p style={{ fontSize: 10, color: "#9CA3AF", margin: "5px 0 0" }}>{startTime} – {endTime}</p>
+                      )}
                     </div>
                     {/* Duration */}
                     {durationH > 0 && (

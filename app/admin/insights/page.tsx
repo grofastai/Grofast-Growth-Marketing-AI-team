@@ -48,12 +48,13 @@ export type MemberUtilization = {
   isMedia: boolean
   monthlySalary: number
   workingDays: number
-  expectedHours: number       // workingDays × 8.5
-  trackedHours: number        // work_entries sum + learning_hours
+  expectedHours: number       // fixed 212.5h (25 × 8.5) — same target for everyone, every month
+  trackedHours: number        // work_entries sum + learning_hours (original library formula, unchanged)
   learningHours: number
-  untrackedHours: number      // max(0, expected - tracked)
+  untrackedHours: number      // Gap Hrs = max(0, 212.5 - tracked)
+  overtimeHours: number       // max(0, tracked - 212.5)
   wastedCost: number          // untracked × hourly_rate
-  efficiency: number          // (tracked / expected) × 100
+  efficiency: number          // (tracked / 212.5) × 100
   overworked: boolean         // efficiency > 105
   clients: string[]
   workBreakdown: {
@@ -65,6 +66,13 @@ export type MemberUtilization = {
     learning: number
   }
   totalCost: number
+  // ── Attendance table fields ──────────────────────────────────────────────
+  loginHours: number              // sum(clock_out - clock_in), raw span, no break deducted
+  avgLoginHours: number           // loginHours / days with both clock_in & clock_out
+  workingHoursExclLearning: number // calcNetWorkHours with 'learning' entries stripped out first
+  avgWorkingHoursExclLearning: number
+  breakHours: number              // sum(attendance_logs.break_total_mins) / 60
+  avgBreakHours: number
 }
 
 export type ClientHour    = { name: string; hours: number; cost: number }
@@ -151,7 +159,7 @@ export default async function InsightsPage({
       .eq('is_management', false)
       .order('name'),
     admin.from('attendance_logs')
-      .select('user_id, clock_in')
+      .select('user_id, clock_in, clock_out, break_total_mins')
       .eq('company_id', cid)
       .gte('date', dateFrom)
       .lte('date', dateTo)
@@ -196,17 +204,30 @@ export default async function InsightsPage({
     return salary > 0 ? salary / 212.5 : 0
   }
 
-  // ── Working days from attendance ──────────────────────────────────────────
-  const workingDaysMap: Record<string, number> = {}
-  for (const a of (attRaw ?? []) as { user_id: string; clock_in: string | null }[]) {
-    if (a.clock_in) workingDaysMap[a.user_id] = (workingDaysMap[a.user_id] ?? 0) + 1
+  // ── Attendance: days present, login-hour span, break minutes ──────────────
+  type AttAcc = { days: number; loginHrs: number; loginDays: number; breakMins: number }
+  const attAccMap: Record<string, AttAcc> = {}
+  for (const a of (attRaw ?? []) as { user_id: string; clock_in: string | null; clock_out: string | null; break_total_mins: number | null }[]) {
+    if (!a.clock_in) continue
+    if (!attAccMap[a.user_id]) attAccMap[a.user_id] = { days: 0, loginHrs: 0, loginDays: 0, breakMins: 0 }
+    const acc = attAccMap[a.user_id]
+    acc.days += 1
+    acc.breakMins += a.break_total_mins ?? 0
+    if (a.clock_out) {
+      // Same formula as member dashboard: raw clock_in -> clock_out span, no break deduction
+      const span = (new Date(a.clock_out).getTime() - new Date(a.clock_in).getTime()) / 3600000
+      if (span > 0) { acc.loginHrs += span; acc.loginDays += 1 }
+    }
   }
+  const workingDaysMap: Record<string, number> = {}
+  for (const [uid, a] of Object.entries(attAccMap)) workingDaysMap[uid] = a.days
 
   // ── Per-member accumulator ────────────────────────────────────────────────
   type Acc = {
     trackedHours: number; learningHours: number; totalCost: number
     shoot: number; edit: number; technical: number; voiceover: number; poster: number
     clients: Set<string>
+    workHoursExclLearning: number
   }
   const accMap: Record<string, Acc> = {}
   const dailyMap: Record<string, { hours: number; cost: number }> = {}
@@ -221,7 +242,7 @@ export default async function InsightsPage({
       accMap[du.user_id] = {
         trackedHours: 0, learningHours: 0, totalCost: 0,
         shoot: 0, edit: 0, technical: 0, voiceover: 0, poster: 0,
-        clients: new Set(),
+        clients: new Set(), workHoursExclLearning: 0,
       }
     }
     const acc = accMap[du.user_id]
@@ -260,6 +281,14 @@ export default async function InsightsPage({
     acc.trackedHours += workH
     acc.totalCost    += workH * hourly
 
+    // Attendance table's "Working Hrs" — same interval-merge logic, but with
+    // learning entries stripped out first, so it's a separate number from
+    // trackedHours above (which intentionally still includes learning).
+    const workHNoLearning = workEntries.length > 0
+      ? calcNetWorkHours(workEntries.filter(e => (e.task_type ?? '').toLowerCase() !== 'learning') as Parameters<typeof calcNetWorkHours>[0])
+      : (du.working_hours ?? 0)
+    acc.workHoursExclLearning += workHNoLearning
+
     if (!dailyMap[du.date]) dailyMap[du.date] = { hours: 0, cost: 0 }
     dailyMap[du.date].hours += workH
     dailyMap[du.date].cost  += workH * hourly
@@ -271,32 +300,42 @@ export default async function InsightsPage({
     if (ch <= 0) continue
     const hourly = hourlyForMember(c.collaborator_id)
     if (!accMap[c.collaborator_id]) {
-      accMap[c.collaborator_id] = { trackedHours: 0, learningHours: 0, totalCost: 0, shoot: 0, edit: 0, technical: 0, voiceover: 0, poster: 0, clients: new Set() }
+      accMap[c.collaborator_id] = { trackedHours: 0, learningHours: 0, totalCost: 0, shoot: 0, edit: 0, technical: 0, voiceover: 0, poster: 0, clients: new Set(), workHoursExclLearning: 0 }
     }
     accMap[c.collaborator_id].trackedHours += ch
     accMap[c.collaborator_id].totalCost    += ch * hourly
   }
 
   // ── Member utilization ────────────────────────────────────────────────────
+  const MONTHLY_TARGET_HRS = 25 * 8.5 // 212.5h — fixed for everyone, every month (same constant as member dashboard)
+  const r1 = (n: number) => Math.round(n * 10) / 10
+
   const memberUtilization: MemberUtilization[] = members
     .map(m => {
       const acc          = accMap[m.id]
+      const att          = attAccMap[m.id]
       const hourly       = hourlyForMember(m.id)
       const workingDays  = workingDaysMap[m.id] ?? 0
-      const expectedHours = workingDays * 8.5
+      const expectedHours = MONTHLY_TARGET_HRS
       const trackedHours  = acc?.trackedHours ?? 0
       const learningHours = acc?.learningHours ?? 0
       const untrackedHours = Math.max(0, expectedHours - trackedHours)
+      const overtimeHours  = Math.max(0, trackedHours - expectedHours)
       const wastedCost    = untrackedHours * hourly
-      const efficiency    = expectedHours > 0
-        ? Math.round((trackedHours / expectedHours) * 100)
-        : trackedHours > 0 ? 100 : 0
+      const efficiency    = Math.round((trackedHours / expectedHours) * 100)
+
+      const loginHours    = r1(att?.loginHrs ?? 0)
+      const avgLoginHours = (att?.loginDays ?? 0) > 0 ? r1(loginHours / att!.loginDays) : 0
+      const breakHours    = r1((att?.breakMins ?? 0) / 60)
+      const avgBreakHours = workingDays > 0 ? r1(breakHours / workingDays) : 0
+      const workingHoursExclLearning = r1(acc?.workHoursExclLearning ?? 0)
+      const avgWorkingHoursExclLearning = workingDays > 0 ? r1(workingHoursExclLearning / workingDays) : 0
 
       return {
         id: m.id, name: m.name, employeeId: m.employee_id,
         team: m.team, isMedia: m.work_layout === 'media' || m.work_layout === 'freelance_media', monthlySalary: m.monthly_salary ?? 0,
         workingDays, expectedHours,
-        trackedHours, learningHours, untrackedHours,
+        trackedHours, learningHours, untrackedHours, overtimeHours,
         wastedCost, efficiency, overworked: efficiency > 105,
         clients: Array.from(acc?.clients ?? []),
         workBreakdown: {
@@ -305,6 +344,9 @@ export default async function InsightsPage({
           poster: acc?.poster ?? 0, learning: learningHours,
         },
         totalCost: acc?.totalCost ?? 0,
+        loginHours, avgLoginHours,
+        workingHoursExclLearning, avgWorkingHoursExclLearning,
+        breakHours, avgBreakHours,
       }
     })
     .filter(m => m.workingDays > 0)

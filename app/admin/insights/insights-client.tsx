@@ -222,13 +222,13 @@ export default function InsightsClient({
         </div>
       )}
 
-      {/* ── Team Utilization Table ───────────────────────────────────────── */}
-      <SectionCard title="Team Utilization — Productivity Gap Tracker" emoji="📋">
+      {/* ── Attendance Table ──────────────────────────────────────────────── */}
+      <SectionCard title="Attendance" emoji="🕒">
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
             <thead>
               <tr style={{ background: '#F9FAFB' }}>
-                {['Member', 'Team', 'Days In', 'Expected', 'Tracked', 'Avg/Day', 'Learning', 'Gap Hrs', 'Prod. Gap', 'Efficiency'].map(h => (
+                {['Member', 'Team', 'Present', 'Login Hrs', 'Avg Login', 'Working Hrs', 'Avg Working', 'Learning Hrs', 'Break Hrs', 'Avg Break'].map(h => (
                   <th key={h} style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#9CA3AF', textAlign: h === 'Member' || h === 'Team' ? 'left' : 'right', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                     {h}
                   </th>
@@ -237,7 +237,111 @@ export default function InsightsClient({
             </thead>
             <tbody>
               {memberUtilization.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '40px 0', color: '#9CA3AF', fontSize: 13 }}>No attendance data for this month</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: '#9CA3AF', fontSize: 13 }}>No attendance data for this month</td></tr>
+              ) : memberUtilization.map((m, i) => (
+                <tr key={m.id} style={{ borderBottom: '1px solid #F9FAFB', background: i % 2 === 0 ? '#fff' : '#FAFBFF' }}>
+                  {/* Member */}
+                  <td style={{ padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+                        background: `linear-gradient(135deg, #DE1A1A22, #DE1A1A33)`,
+                        border: '1.5px solid #DE1A1A30',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 900, color: '#DE1A1A',
+                      }}>{ini(m.name)}</div>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: '#111827', margin: 0 }}>{m.name}</p>
+                        <p style={{ fontSize: 10, color: '#9CA3AF', margin: 0 }}>{m.employeeId}</p>
+                      </div>
+                    </div>
+                  </td>
+                  {/* Team */}
+                  <td style={{ padding: '12px 14px' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F3F4F6', color: '#6B7280' }}>
+                      {m.team ?? '—'}
+                    </span>
+                  </td>
+                  {/* Present */}
+                  <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: '#374151', textAlign: 'right' }}>
+                    {m.workingDays}
+                  </td>
+                  {/* Login Hrs */}
+                  <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: '#111827', textAlign: 'right' }}>
+                    {fmtH(m.loginHours)}
+                  </td>
+                  {/* Avg Login */}
+                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#6B7280', textAlign: 'right' }}>
+                    {m.avgLoginHours > 0 ? fmtH(m.avgLoginHours) : '—'}
+                  </td>
+                  {/* Working Hrs (excl. learning) */}
+                  <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: '#111827', textAlign: 'right' }}>
+                    {fmtH(m.workingHoursExclLearning)}
+                  </td>
+                  {/* Avg Working */}
+                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#6B7280', textAlign: 'right' }}>
+                    {m.avgWorkingHoursExclLearning > 0 ? fmtH(m.avgWorkingHoursExclLearning) : '—'}
+                  </td>
+                  {/* Learning Hrs */}
+                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#0EA5E9', textAlign: 'right' }}>
+                    {m.learningHours > 0 ? fmtH(m.learningHours) : '—'}
+                  </td>
+                  {/* Break Hrs */}
+                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#9CA3AF', textAlign: 'right' }}>
+                    {m.breakHours > 0 ? fmtH(m.breakHours) : '—'}
+                  </td>
+                  {/* Avg Break */}
+                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#9CA3AF', textAlign: 'right' }}>
+                    {m.avgBreakHours > 0 ? fmtH(m.avgBreakHours) : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {memberUtilization.length > 0 && (
+              <tfoot>
+                <tr style={{ borderTop: '2px solid #EBEDF2', background: '#F9FAFB' }}>
+                  <td colSpan={2} style={{ padding: '10px 14px', fontSize: 11, fontWeight: 800, color: '#374151' }}>TOTAL / AVG</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#374151' }}>
+                    {memberUtilization.reduce((s, m) => s + m.workingDays, 0)}
+                  </td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: '#111827' }}>
+                    {fmtH(memberUtilization.reduce((s, m) => s + m.loginHours, 0))}
+                  </td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#6B7280' }}>—</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: '#111827' }}>
+                    {fmtH(memberUtilization.reduce((s, m) => s + m.workingHoursExclLearning, 0))}
+                  </td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#6B7280' }}>—</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#0EA5E9' }}>
+                    {fmtH(kpis.totalLearningHours)}
+                  </td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#9CA3AF' }}>
+                    {fmtH(memberUtilization.reduce((s, m) => s + m.breakHours, 0))}
+                  </td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#6B7280' }}>—</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </SectionCard>
+
+      {/* ── Team Utilization Table ───────────────────────────────────────── */}
+      <SectionCard title="Team Utilization — Productivity Gap Tracker" emoji="📋">
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+            <thead>
+              <tr style={{ background: '#F9FAFB' }}>
+                {['Member', 'Team', 'Days In', 'Expected', 'Tracked', 'Avg/Day', 'Overtime', 'Gap Hrs', 'Prod. Gap', 'Efficiency'].map(h => (
+                  <th key={h} style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#9CA3AF', textAlign: h === 'Member' || h === 'Team' ? 'left' : 'right', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {memberUtilization.length === 0 ? (
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: '#9CA3AF', fontSize: 13 }}>No attendance data for this month</td></tr>
               ) : memberUtilization.map((m, i) => {
                 const eColor = effColor(m.efficiency, m.overworked)
                 const eBg    = effBg(m.efficiency, m.overworked)
@@ -289,9 +393,13 @@ export default function InsightsClient({
                         </td>
                       )
                     })()}
-                    {/* Learning */}
-                    <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#0EA5E9', textAlign: 'right' }}>
-                      {m.learningHours > 0 ? fmtH(m.learningHours) : '—'}
+                    {/* Overtime */}
+                    <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                      {m.overtimeHours > 0 ? (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#6366F1' }}>+{fmtH(m.overtimeHours)}</span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: '#D1D5DB', fontWeight: 600 }}>—</span>
+                      )}
                     </td>
                     {/* Untracked */}
                     <td style={{ padding: '12px 14px', textAlign: 'right' }}>
@@ -347,8 +455,8 @@ export default function InsightsClient({
                       return <span style={{ fontSize: 12, fontWeight: 800, color: avgColor }}>{avg > 0 ? `${avg.toFixed(1)}h` : '—'}</span>
                     })()}
                   </td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#0EA5E9' }}>
-                    {fmtH(kpis.totalLearningHours)}
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#6366F1' }}>
+                    {fmtH(memberUtilization.reduce((s, m) => s + m.overtimeHours, 0))}
                   </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: '#EF4444' }}>
                     {fmtH(memberUtilization.reduce((s, m) => s + m.untrackedHours, 0))}

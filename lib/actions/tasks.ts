@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { insertNotification, insertManyNotifications } from './notifications'
 import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
+import { computeNextRun, isRecurringInterval } from '@/lib/recurring'
 
 function adminSupabase() {
   return createClient(
@@ -152,7 +153,12 @@ export async function createMemberTask(
   const expectedTime         = (formData.get('expected_time') as string)?.trim() || null
   const expectedDeliverable  = (formData.get('expected_deliverable') as string)?.trim() || null
   const approvalRequired     = formData.get('approval_required') === 'true'
-  const recurringTask        = (formData.get('recurring_task') as string) || 'none'
+  const recurringTaskRaw     = (formData.get('recurring_task') as string) || 'none'
+  const recurringTask        = isRecurringInterval(recurringTaskRaw) ? recurringTaskRaw : 'none'
+
+  if (recurringTask !== 'none' && !parsed.data.due_date) {
+    return { error: 'Due date is required for a recurring task' }
+  }
   let checklist: object[] = []
   let attachments: string[] = []
   try { checklist  = JSON.parse((formData.get('checklist_json')   as string) || '[]') } catch { checklist = [] }
@@ -196,6 +202,8 @@ export async function createMemberTask(
     attachments,
     approval_required:    approvalRequired,
     recurring_task:       recurringTask,
+    recurring_active:     recurringTask !== 'none',
+    recurring_next_run:   recurringTask !== 'none' ? computeNextRun(parsed.data.due_date!, recurringTask) : null,
   }).select('id').single()
 
   if (error) return { error: error.message }
@@ -327,6 +335,25 @@ export async function deleteTask(id: string): Promise<{ success: boolean; error?
   if (!isAdmin && !isCreator) return { success: false, error: 'Only the task creator or an admin can delete this task' }
 
   const { error } = await admin.from('tasks').delete().eq('id', id)
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/goals')
+  revalidatePath('/member/tasks')
+  return { success: true }
+}
+
+export async function stopRecurringTask(id: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: task } = await admin.from('tasks').select('created_by, recurring_active').eq('id', id).single()
+  if (!task) return { success: false, error: 'Task not found' }
+  if (task.created_by !== user.id) return { success: false, error: 'Only the person who assigned this task can stop its recurrence' }
+  if (!task.recurring_active) return { success: true }
+
+  const { error } = await admin.from('tasks').update({ recurring_active: false }).eq('id', id)
   if (error) return { success: false, error: error.message }
 
   revalidatePath('/admin/goals')

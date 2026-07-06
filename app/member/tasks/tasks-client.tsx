@@ -2096,6 +2096,7 @@ export default function MemberTasksClient({
                         <option value="Video Edit">Video Edit</option>
                         <option value="Voice Over">Voice Over</option>
                         <option value="Poster Design">Poster Design</option>
+                        <option value="Social Media">Social Media</option>
                       </select>
                       <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
                     </div>

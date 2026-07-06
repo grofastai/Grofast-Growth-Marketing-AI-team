@@ -48,13 +48,23 @@ interface LeavesClientProps {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-const COMBINED_TABS = [
-  { key: "all",                  label: "All",                  status: "all",      type: "all_types" },
-  { key: "pending",              label: "Pending",              status: "pending",  type: "all_types" },
-  { key: "approved_permission",  label: "Approved Permission",  status: "approved", type: "permission" },
-  { key: "approved_leave",       label: "Approved Leave",       status: "approved", type: "leave" },
-  { key: "rejected",             label: "Rejected",             status: "rejected", type: "all_types" },
-  { key: "holidays",             label: "🏢 Holidays",          status: "holidays", type: "all_types" },
+const STATUS_TABS = [
+  { key: "all",      label: "All",         status: "all" },
+  { key: "pending",  label: "Pending",     status: "pending" },
+  { key: "approved", label: "Approved",    status: "approved" },
+  { key: "rejected", label: "Rejected",    status: "rejected" },
+  { key: "holidays", label: "🏢 Holidays", status: "holidays" },
+]
+
+const TYPE_OPTIONS = [
+  { value: "all_types",      label: "All Types" },
+  { value: "leave",          label: "Leave (Full + Half Day)" },
+  { value: "full_day",       label: "Full Day" },
+  { value: "half_day",       label: "Half Day" },
+  { value: "permission_all", label: "Permission (Hours + WFH + Shoot)" },
+  { value: "permission",     label: "Hour Permission" },
+  { value: "wfh",            label: "WFH" },
+  { value: "shoot_day",      label: "Shoot Day" },
 ]
 
 function daysBetween(from: string, to: string) {
@@ -310,10 +320,17 @@ export default function LeavesClient({
     router.refresh()
   }
 
-  function navigateCombined(tab: { status: string; type: string }) {
+  function navigateStatus(status: string) {
     const params = new URLSearchParams()
-    params.set("status", tab.status)
-    if (tab.type !== "all_types") params.set("type", tab.type)
+    params.set("status", status)
+    // Keep the current type filter when switching status (except Holidays)
+    if (status !== "holidays" && typeFilter !== "all_types") params.set("type", typeFilter)
+    router.push(`${pathname}?${params.toString()}`)
+  }
+  function navigateType(type: string) {
+    const params = new URLSearchParams()
+    params.set("status", statusFilter)
+    if (type !== "all_types") params.set("type", type)
     router.push(`${pathname}?${params.toString()}`)
   }
   function handleApprove(id: string) {
@@ -395,16 +412,14 @@ export default function LeavesClient({
         {/* ── Main Column ─────────────────────────────────────────────────── */}
         <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
 
-          {/* Combined status + type tabs */}
-          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
-            {COMBINED_TABS.map((tab) => {
-              const active = tab.key === "holidays"
-                ? statusFilter === "holidays"
-                : statusFilter === tab.status && typeFilter === tab.type
+          {/* Status tabs + type dropdown */}
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, alignItems: "center" }}>
+            {STATUS_TABS.map((tab) => {
+              const active = statusFilter === tab.status
               return (
-                <button key={tab.key} onClick={() => navigateCombined(tab)} style={{
+                <button key={tab.key} onClick={() => navigateStatus(tab.status)} style={{
                   padding: "8px 22px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  whiteSpace: "nowrap", transition: "all 0.15s", border: "none",
+                  whiteSpace: "nowrap", transition: "all 0.15s", border: "none", flexShrink: 0,
                   background: active ? gradBg : "#FFFFFF",
                   color: active ? "#FFFFFF" : "#6B7280",
                   boxShadow: active ? "0 4px 16px rgba(180,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
@@ -413,6 +428,24 @@ export default function LeavesClient({
                 </button>
               )
             })}
+            {statusFilter !== "holidays" && (
+              <select
+                value={typeFilter}
+                onChange={e => navigateType(e.target.value)}
+                aria-label="Filter by leave type"
+                style={{
+                  padding: "8px 12px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  whiteSpace: "nowrap", flexShrink: 0, outline: "none",
+                  background: typeFilter !== "all_types" ? gradBg : "#FFFFFF",
+                  color: typeFilter !== "all_types" ? "#FFFFFF" : "#6B7280",
+                  border: "none",
+                  boxShadow: typeFilter !== "all_types" ? "0 4px 16px rgba(180,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
+                }}>
+                {TYPE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value} style={{ background: "#FFFFFF", color: "#374151" }}>{o.label}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* ── Holidays Tab UI ─────────────────────────────────────────── */}

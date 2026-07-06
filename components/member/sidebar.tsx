@@ -47,18 +47,18 @@ const mainBottomNav = [
   { label: "Home",       href: "/member/dashboard",  icon: LayoutDashboard },
   { label: "Attendance", href: "/member/attendance", icon: Clock },
   { label: "Update",     href: "/member/update",     icon: ClipboardList },
-  { label: "Tasks",      href: "/member/tasks",      icon: Target },
+  { label: "History",    href: "/member/history",    icon: History },
 ]
 
 const moreNavItems = [
-  { label: "History",        href: "/member/history",          icon: History },
+  { label: "My Tasks",       href: "/member/tasks",            icon: Target },
   { label: "Content Cal",    href: "/member/content-calendar", icon: CalendarDays },
   { label: "Leaves",         href: "/member/leaves",           icon: CalendarOff },
   { label: "Announcements",  href: "/member/announcements",    icon: Megaphone },
   { label: "Notes",          href: "/member/notes",            icon: StickyNote },
   { label: "Notifications",  href: "/member/notifications",    icon: Bell },
-  { label: "Support",        href: "/member/support",          icon: LifeBuoy },
   { label: "Profile",        href: "/member/profile",          icon: User },
+  { label: "Support",        href: "/member/support",          icon: LifeBuoy },
 ]
 
 const DIVIDER = "rgba(255,255,255,0.08)"
@@ -84,8 +84,9 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
     ? baseNavItems.filter(i => !FL_MEDIA_HIDDEN.has(i.href))
     : baseNavItems
 
+  // Same order as the desktop sidebar: Freelancers slots in after Content Cal
   const baseMoreNavItems = canManageFreelancers
-    ? [{ label: "Freelancers", href: "/member/freelancers", icon: Users2 }, ...moreNavItems]
+    ? [...moreNavItems.slice(0, 2), { label: "Freelancers", href: "/member/freelancers", icon: Users2 }, ...moreNavItems.slice(2)]
     : moreNavItems
   const activeMoreNavItems = isFreelancerMedia
     ? baseMoreNavItems.filter(i => !FL_MEDIA_HIDDEN.has(i.href))

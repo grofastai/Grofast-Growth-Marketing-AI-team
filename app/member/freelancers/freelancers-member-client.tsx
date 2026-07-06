@@ -1356,9 +1356,7 @@ export default function FreelancersMemberClient({
                       {[
                         { label: "Works", value: String(detailStats.works) },
                         { label: "Total Cost", value: detailStats.total > 0 ? fmt(detailStats.total) : "—" },
-                        { label: "Paid", value: detailStats.paid > 0 ? fmt(detailStats.paid) : "—" },
                         { label: "Unpaid", value: detailStats.unpaid > 0 ? fmt(detailStats.unpaid) : "—" },
-                        { label: "Avg / Work", value: detailStats.avg > 0 ? fmt(detailStats.avg) : "—" },
                       ].map(k => (
                         <div key={k.label} style={{ background: "rgba(255,255,255,0.92)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.6)", padding: "10px 16px", minWidth: 90, flexShrink: 0 }}>
                           <p style={{ fontSize: 16, fontWeight: 900, color: cfg.color, margin: 0, fontFamily: "var(--font-jakarta)" }}>{k.value}</p>

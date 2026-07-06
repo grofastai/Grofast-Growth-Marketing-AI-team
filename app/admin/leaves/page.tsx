@@ -25,8 +25,10 @@ export default async function LeavesPage({
 
   const statusFilter = params.status ?? "pending"
   const typeFilter = params.type ?? "all_types"
-  const PERMISSION_TYPES = ["wfh", "shoot_day"]
-  const LEAVE_TYPES = ["full_day", "half_day", "permission"]
+  // Permission family = hour permission + WFH + shoot; Leave family = full/half day
+  const PERMISSION_TYPES = ["permission", "wfh", "shoot_day"]
+  const LEAVE_TYPES = ["full_day", "half_day"]
+  const SPECIFIC_TYPES = ["full_day", "half_day", "permission", "wfh", "shoot_day"]
   const today = new Date().toISOString().split("T")[0]
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0]
 
@@ -53,10 +55,12 @@ export default async function LeavesPage({
     leavesQuery = leavesQuery.eq("status", statusFilter)
   }
 
-  if (typeFilter === "permission") {
+  if (typeFilter === "permission_all") {
     leavesQuery = leavesQuery.in("leave_type", PERMISSION_TYPES)
   } else if (typeFilter === "leave") {
     leavesQuery = leavesQuery.in("leave_type", LEAVE_TYPES)
+  } else if (SPECIFIC_TYPES.includes(typeFilter)) {
+    leavesQuery = leavesQuery.eq("leave_type", typeFilter)
   }
 
   const [

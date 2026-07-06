@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
 import { buildClientOptions } from "@/lib/utils/client-options"
+import ClientSelector from "@/components/ui/ClientSelector"
 import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
 import { useToast } from "@/components/ui/useToast"
 
@@ -82,64 +83,6 @@ function TimePicker({ value, onChange, allowEmpty, style: extraStyle }: { value:
     />
   )
 }
-// Single shared client picker used by every block (Shoot/Edit/Voiceover/Poster/
-// Technical/media-Edit) so the dropdown behavior — Active list, "Past Clients →"
-// browse toggle, no free-typing — only has to be right in one place.
-//
-// `value=""` with no matching <option value=""> is what causes a native <select>
-// to silently pre-highlight its first listed option without actually selecting
-// it — clicking that same option again then fires no onChange at all (nothing
-// "changed" as far as the browser is concerned). That's why the past-clients
-// view always renders an explicit `<option value="">` first: it guarantees
-// there's a real option matching the empty value, so "← Back to Active
-// Clients" is never itself the pre-highlighted one and always fires onChange.
-function ClientSelect({
-  value, onSelect, onBackToActive, activeOptions, pastOptions, excludeOptions = [], placeholder = "Add client / project…",
-}: {
-  value: string
-  onSelect: (name: string) => void
-  onBackToActive?: () => void
-  activeOptions: string[]
-  pastOptions: string[]
-  excludeOptions?: string[]
-  placeholder?: string
-}) {
-  const [browsingPast, setBrowsingPast] = useState(false)
-  const inPastView = browsingPast || (value !== "" && pastOptions.includes(value))
-
-  return (
-    <div style={{ position: "relative" }}>
-      <select
-        value={value}
-        onChange={e => {
-          const v = e.target.value
-          if (v === "__back__") { setBrowsingPast(false); onBackToActive?.(); return }
-          if (v === "__past_clients__") { setBrowsingPast(true); return }
-          if (!v) return
-          setBrowsingPast(false)
-          onSelect(v)
-        }}
-        style={{ width: "100%", fontSize: 12, fontWeight: 600, color: "#374151", background: "#fff", border: "1.5px solid #EBEDF2", borderRadius: 10, padding: "8px 28px 8px 10px", cursor: "pointer", outline: "none", appearance: "none" }}
-      >
-        {inPastView ? (
-          <>
-            <option value="">📁 Past Clients</option>
-            <option value="__back__">← Back to Active Clients</option>
-            {pastOptions.filter(n => !excludeOptions.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
-          </>
-        ) : (
-          <>
-            <option value="">{placeholder}</option>
-            {activeOptions.filter(n => !excludeOptions.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
-            {pastOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-          </>
-        )}
-      </select>
-      <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
-    </div>
-  )
-}
-
 function calcDuration(start: string, end: string) {
   if (!start || !end) return 0
   const [sh, sm] = start.split(":").map(Number)
@@ -1868,12 +1811,14 @@ export default function DailyUpdateForm({
                         <div className="grid md:grid-cols-2" style={{ gap:8 }}>
                             <div>
                               <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5, margin:"0 0 5px" }}>Client Name</p>
-                              <ClientSelect
+                              <ClientSelector
+                                label=""
                                 value=""
-                                activeOptions={activeClientOptions}
-                                pastOptions={pastClientOptions}
+                                clientOptions={activeClientOptions}
+                                pastClientOptions={pastClientOptions}
                                 excludeOptions={block.clientNames}
-                                onSelect={v => patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "" })}
+                                placeholder="Add client / project…"
+                                onValueChange={v => { if (!v) return; patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "" }) }}
                               />
                             </div>
                             <div>
@@ -2014,13 +1959,13 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client Name</label>
-                          <ClientSelect
+                          <ClientSelector
+                            label=""
                             value={e.clientName}
-                            activeOptions={activeClientOptions}
-                            pastOptions={pastClientOptions}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
                             placeholder="Select client…"
-                            onSelect={v => patchVoiceover(e.id, { clientName: v })}
-                            onBackToActive={() => patchVoiceover(e.id, { clientName: "" })}
+                            onValueChange={v => patchVoiceover(e.id, { clientName: v })}
                           />
                         </div>
                         <div>
@@ -2106,13 +2051,13 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client Name</label>
-                          <ClientSelect
+                          <ClientSelector
+                            label=""
                             value={e.clientName}
-                            activeOptions={activeClientOptions}
-                            pastOptions={pastClientOptions}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
                             placeholder="Select client…"
-                            onSelect={v => patchPoster(e.id, { clientName: v })}
-                            onBackToActive={() => patchPoster(e.id, { clientName: "" })}
+                            onValueChange={v => patchPoster(e.id, { clientName: v })}
                           />
                         </div>
                         <div>
@@ -2227,13 +2172,13 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client Name</label>
-                          <ClientSelect
+                          <ClientSelector
+                            label=""
                             value={e.clientName}
-                            activeOptions={activeClientOptions}
-                            pastOptions={pastClientOptions}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
                             placeholder="Select client…"
-                            onSelect={v => patchNmEdit(e.id, { clientName: v })}
-                            onBackToActive={() => patchNmEdit(e.id, { clientName: "" })}
+                            onValueChange={v => patchNmEdit(e.id, { clientName: v })}
                           />
                         </div>
                         <div>
@@ -2407,13 +2352,13 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client Name *</label>
-                          <ClientSelect
+                          <ClientSelector
+                            label=""
                             value={s.clientName}
-                            activeOptions={activeClientOptions}
-                            pastOptions={pastClientOptions}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
                             placeholder="Select client…"
-                            onSelect={v => patchShoot(s.id, { clientName: v, brand:"", shopName:"" })}
-                            onBackToActive={() => patchShoot(s.id, { clientName: "", brand:"", shopName:"" })}
+                            onValueChange={v => patchShoot(s.id, { clientName: v, brand:"", shopName:"" })}
                           />
                         </div>
                         <div>
@@ -2661,13 +2606,13 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client Name *</label>
-                          <ClientSelect
+                          <ClientSelector
+                            label=""
                             value={e.clientName}
-                            activeOptions={activeClientOptions}
-                            pastOptions={pastClientOptions}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
                             placeholder="Select client…"
-                            onSelect={v => patchEdit(e.id, { clientName: v, brand:"" })}
-                            onBackToActive={() => patchEdit(e.id, { clientName: "", brand:"" })}
+                            onValueChange={v => patchEdit(e.id, { clientName: v, brand:"" })}
                           />
                         </div>
                         <div>

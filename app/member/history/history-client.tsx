@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning, addEntryToDate } from "@/lib/actions/daily-updates"
 import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
 import { useToast } from "@/components/ui/useToast"
+import ClientSelector from "@/components/ui/ClientSelector"
 import { confirmCollaboration, editCollaborationTime, rejectCollaboration, deleteCollaborationsByEntry } from "@/lib/actions/collaboration"
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
@@ -444,9 +445,6 @@ export default function HistoryClient({
   const [editDraftDate, setEditDraftDate] = useState<string>("")
   const [editOrigDate, setEditOrigDate] = useState<string>("")
 
-  // Past-client mode for edit dropdown (mirrors daily update form)
-  const [editClientShowPast, setEditClientShowPast] = useState(false)
-
   const currentMonthLabel = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const hasCurrentMonth = updates.some(u => monthLabel(u.date) === currentMonthLabel)
@@ -470,7 +468,6 @@ export default function HistoryClient({
   }
 
   function startEditEntry(updateId: string, entryIdx: number, entry: WorkEntry, updateDate: string) {
-    setEditClientShowPast(false)
     setEditDraftDate(updateDate)
     setEditOrigDate(updateDate)
     setEditingKey(`${updateId}:${entryIdx}`)
@@ -2189,27 +2186,15 @@ export default function HistoryClient({
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                                       <div>
                                         <label style={HL}>Client Name *</label>
-                                        <div style={{ position:"relative" }}>
-                                          {editClientShowPast
-                                            ? <div>
-                                                <button type="button" onClick={()=>setEditClientShowPast(false)} style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>← Back</button>
-                                                <div style={{ position:"relative" }}>
-                                                  <select value="" onChange={ev=>{if(ev.target.value){setEditDraft(d=>({...d,client_name:ev.target.value}));setEditClientShowPast(false)}}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
-                                                    <option value="">— Select past client —</option>
-                                                    {pastClientsOnly.map(c=><option key={c} value={c}>{c}</option>)}
-                                                  </select>
-                                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                                </div>
-                                              </div>
-                                            : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__")setEditClientShowPast(true);else setEditDraft(d=>({...d,client_name:v}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
-                                                <option value="">Select client…</option>
-                                                {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
-                                                {editDraft.client_name && !activeClientsForEdit.includes(editDraft.client_name) && pastClientsOnly.includes(editDraft.client_name) && <option key={editDraft.client_name} value={editDraft.client_name}>{editDraft.client_name}</option>}
-                                                {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                              </select>
-                                          }
-                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                        </div>
+                                        <ClientSelector
+                                          label=""
+                                          value={editDraft.client_name??""}
+                                          clientOptions={activeClientsForEdit}
+                                          pastClientOptions={pastClientsOnly}
+                                          placeholder="Select client…"
+                                          fieldStyle={HF}
+                                          onValueChange={v=>setEditDraft(d=>({...d,client_name:v}))}
+                                        />
                                       </div>
                                       <div>
                                         <label style={HL}>Shoot Name *</label>
@@ -2331,27 +2316,15 @@ export default function HistoryClient({
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                                       <div>
                                         <label style={HL}>Client Name *</label>
-                                        <div style={{ position:"relative" }}>
-                                          {editClientShowPast
-                                            ? <div>
-                                                <button type="button" onClick={()=>setEditClientShowPast(false)} style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>← Back</button>
-                                                <div style={{ position:"relative" }}>
-                                                  <select value="" onChange={ev=>{if(ev.target.value){setEditDraft(d=>({...d,client_name:ev.target.value}));setEditClientShowPast(false)}}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
-                                                    <option value="">— Select past client —</option>
-                                                    {pastClientsOnly.map(c=><option key={c} value={c}>{c}</option>)}
-                                                  </select>
-                                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                                </div>
-                                              </div>
-                                            : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__")setEditClientShowPast(true);else setEditDraft(d=>({...d,client_name:v}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
-                                                <option value="">Select client…</option>
-                                                {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
-                                                {editDraft.client_name && !activeClientsForEdit.includes(editDraft.client_name) && pastClientsOnly.includes(editDraft.client_name) && <option key={editDraft.client_name} value={editDraft.client_name}>{editDraft.client_name}</option>}
-                                                {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                              </select>
-                                          }
-                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                        </div>
+                                        <ClientSelector
+                                          label=""
+                                          value={editDraft.client_name??""}
+                                          clientOptions={activeClientsForEdit}
+                                          pastClientOptions={pastClientsOnly}
+                                          placeholder="Select client…"
+                                          fieldStyle={HF}
+                                          onValueChange={v=>setEditDraft(d=>({...d,client_name:v}))}
+                                        />
                                       </div>
                                       <div>
                                         <label style={HL}>Video Type</label>
@@ -2434,21 +2407,15 @@ export default function HistoryClient({
                                           <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>
                                             Client Name {(editDraft.client_names??[]).length > 1 && <span style={{ color:"#de1a1a", fontWeight:700 }}>· Split ({(editDraft.client_names??[]).length})</span>}
                                           </label>
-                                          <div style={{ position:"relative" }}>
-                                            {editClientShowPast ? (
-                                              <select value="" onChange={ev=>{const v=ev.target.value;if(!v)return;if(v==="__back__"){setEditClientShowPast(false);return}const cur=editDraft.client_names??[];if(!cur.some(n=>n.toLowerCase()===v.toLowerCase())){const next=[...cur,v];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name,is_multi_client:next.length>1}))}setEditClientShowPast(false)}} style={{ background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 28px 9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box", appearance:"none", fontWeight:600, cursor:"pointer" }}>
-                                                <option value="__back__">← Back to Active Clients</option>
-                                                {pastClientsOnly.filter(n=>!(editDraft.client_names??[]).some(c=>c.toLowerCase()===n.toLowerCase())).map(n=><option key={n} value={n}>{n}</option>)}
-                                              </select>
-                                            ) : (
-                                              <select value="" onChange={ev=>{const v=ev.target.value;if(!v)return;if(v==="__past_clients__"){setEditClientShowPast(true);return}const cur=editDraft.client_names??[];if(!cur.some(n=>n.toLowerCase()===v.toLowerCase())){const next=[...cur,v];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name,is_multi_client:next.length>1}))}}} style={{ background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 28px 9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box", appearance:"none", fontWeight:600, cursor:"pointer" }}>
-                                                <option value="">Add client / project…</option>
-                                                {activeClientsForEdit.filter(n=>!(editDraft.client_names??[]).some(c=>c.toLowerCase()===n.toLowerCase())).map(n=><option key={n} value={n}>{n}</option>)}
-                                                {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                              </select>
-                                            )}
-                                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                          </div>
+                                          <ClientSelector
+                                            label=""
+                                            value=""
+                                            clientOptions={activeClientsForEdit}
+                                            pastClientOptions={pastClientsOnly}
+                                            excludeOptions={editDraft.client_names??[]}
+                                            placeholder="Add client / project…"
+                                            onValueChange={v=>{if(!v)return;const cur=editDraft.client_names??[];if(!cur.some(n=>n.toLowerCase()===v.toLowerCase())){const next=[...cur,v];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name,is_multi_client:next.length>1}))}}}
+                                          />
                                           {(editDraft.client_names??[]).length>0 && (
                                             <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
                                               {(editDraft.client_names??[]).map(name=>(
@@ -2575,24 +2542,15 @@ export default function HistoryClient({
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                                       <div>
                                         <label style={HL}>Client Name *</label>
-                                        <div style={{ position:"relative" }}>
-                                          {editClientShowPast
-                                            ? <div>
-                                                <button type="button" onClick={()=>setEditClientShowPast(false)} style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>← Back</button>
-                                                <select value="" onChange={ev=>{if(ev.target.value){setEditDraft(d=>({...d,client_name:ev.target.value}));setEditClientShowPast(false)}}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
-                                                  <option value="">— Select past client —</option>
-                                                  {pastClientsOnly.map(c=><option key={c} value={c}>{c}</option>)}
-                                                </select>
-                                              </div>
-                                            : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__")setEditClientShowPast(true);else setEditDraft(d=>({...d,client_name:v}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
-                                                <option value="">Select client…</option>
-                                                {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
-                                                {editDraft.client_name && !activeClientsForEdit.includes(editDraft.client_name) && pastClientsOnly.includes(editDraft.client_name) && <option key={editDraft.client_name} value={editDraft.client_name}>{editDraft.client_name}</option>}
-                                                {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                              </select>
-                                          }
-                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                        </div>
+                                        <ClientSelector
+                                          label=""
+                                          value={editDraft.client_name??""}
+                                          clientOptions={activeClientsForEdit}
+                                          pastClientOptions={pastClientsOnly}
+                                          placeholder="Select client…"
+                                          fieldStyle={HF}
+                                          onValueChange={v=>setEditDraft(d=>({...d,client_name:v}))}
+                                        />
                                       </div>
                                       <div><label style={HL}>Script Name</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="Script or project name" style={HF} /></div>
                                     </div>
@@ -2651,24 +2609,15 @@ export default function HistoryClient({
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                                       <div>
                                         <label style={HL}>Client Name *</label>
-                                        <div style={{ position:"relative" }}>
-                                          {editClientShowPast
-                                            ? <div>
-                                                <button type="button" onClick={()=>setEditClientShowPast(false)} style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>← Back</button>
-                                                <select value="" onChange={ev=>{if(ev.target.value){setEditDraft(d=>({...d,client_name:ev.target.value}));setEditClientShowPast(false)}}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
-                                                  <option value="">— Select past client —</option>
-                                                  {pastClientsOnly.map(c=><option key={c} value={c}>{c}</option>)}
-                                                </select>
-                                              </div>
-                                            : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__")setEditClientShowPast(true);else setEditDraft(d=>({...d,client_name:v}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
-                                                <option value="">Select client…</option>
-                                                {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
-                                                {editDraft.client_name && !activeClientsForEdit.includes(editDraft.client_name) && pastClientsOnly.includes(editDraft.client_name) && <option key={editDraft.client_name} value={editDraft.client_name}>{editDraft.client_name}</option>}
-                                                {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                              </select>
-                                          }
-                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                        </div>
+                                        <ClientSelector
+                                          label=""
+                                          value={editDraft.client_name??""}
+                                          clientOptions={activeClientsForEdit}
+                                          pastClientOptions={pastClientsOnly}
+                                          placeholder="Select client…"
+                                          fieldStyle={HF}
+                                          onValueChange={v=>setEditDraft(d=>({...d,client_name:v}))}
+                                        />
                                       </div>
                                       <div><label style={HL}>Poster Name</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="Poster or design name" style={HF} /></div>
                                     </div>
@@ -2752,24 +2701,15 @@ export default function HistoryClient({
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                                       <div>
                                         <label style={HL}>Client Name *</label>
-                                        <div style={{ position:"relative" }}>
-                                          {editClientShowPast
-                                            ? <div>
-                                                <button type="button" onClick={()=>setEditClientShowPast(false)} style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>← Back</button>
-                                                <select value="" onChange={ev=>{if(ev.target.value){setEditDraft(d=>({...d,client_name:ev.target.value}));setEditClientShowPast(false)}}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
-                                                  <option value="">— Select past client —</option>
-                                                  {pastClientsOnly.map(c=><option key={c} value={c}>{c}</option>)}
-                                                </select>
-                                              </div>
-                                            : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__")setEditClientShowPast(true);else setEditDraft(d=>({...d,client_name:v}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
-                                                <option value="">Select client…</option>
-                                                {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
-                                                {editDraft.client_name && !activeClientsForEdit.includes(editDraft.client_name) && pastClientsOnly.includes(editDraft.client_name) && <option key={editDraft.client_name} value={editDraft.client_name}>{editDraft.client_name}</option>}
-                                                {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                              </select>
-                                          }
-                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                        </div>
+                                        <ClientSelector
+                                          label=""
+                                          value={editDraft.client_name??""}
+                                          clientOptions={activeClientsForEdit}
+                                          pastClientOptions={pastClientsOnly}
+                                          placeholder="Select client…"
+                                          fieldStyle={HF}
+                                          onValueChange={v=>setEditDraft(d=>({...d,client_name:v}))}
+                                        />
                                       </div>
                                       <div>
                                         <label style={HL}>Video Type</label>

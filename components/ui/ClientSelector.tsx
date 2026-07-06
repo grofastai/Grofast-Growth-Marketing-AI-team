@@ -6,15 +6,20 @@ import { ChevronDown } from "lucide-react"
 interface Props {
   clientOptions: string[]
   pastClientOptions?: string[]
-  value: string          // "__custom__" | "<client name>" | ""
-  brand?: string
-  customClient?: string  // typed name when value="__custom__"
+  value: string
   onValueChange: (v: string) => void
-  onBrandChange?: (b: string) => void
-  onCustomChange?: (c: string) => void
   label?: string
   required?: boolean
   fieldStyle?: React.CSSProperties
+  excludeOptions?: string[]
+  placeholder?: string
+  // Deprecated — kept only so older call sites compile unchanged. The
+  // "Other (type manually)" free-text option has been removed everywhere;
+  // client_name must always come from the real client list now.
+  brand?: string
+  customClient?: string
+  onBrandChange?: (b: string) => void
+  onCustomChange?: (c: string) => void
 }
 
 const BASE: React.CSSProperties = {
@@ -28,72 +33,68 @@ const LABEL: React.CSSProperties = {
   textTransform: "uppercase" as const, letterSpacing: "0.1em", marginBottom: 5,
 }
 
+// Single shared client picker used throughout the app (Daily Update, History,
+// Tasks, Freelancers, Content Calendar, Goals, ...) — Active list, then a
+// "Past Clients →" browse toggle, no free-typing.
+//
+// `value=""` with no matching <option value=""> is what causes a native
+// <select> to silently pre-highlight its first listed option without it
+// actually being selected — clicking that same option again then fires no
+// onChange at all (nothing "changed" as far as the browser is concerned).
+// That's why the past-clients view always renders an explicit
+// `<option value="">` first: it guarantees there's a real option matching
+// the empty value, so "← Back to Active Clients" always fires onChange.
 export default function ClientSelector({
-  clientOptions, pastClientOptions = [], value, brand = "", customClient = "",
-  onValueChange, onBrandChange, onCustomChange,
+  clientOptions, pastClientOptions = [], value, onValueChange,
   label = "Client / Project", required = false, fieldStyle,
+  excludeOptions = [], placeholder = "Select client…",
 }: Props) {
-  const [showPast, setShowPast] = useState(false)
+  const [browsingPast, setBrowsingPast] = useState(false)
+  const inPastView = browsingPast || (value !== "" && pastClientOptions.includes(value))
 
   return (
     <div>
       {label && <label style={LABEL}>{label}{required && " *"}</label>}
-
-      {/* Main dropdown */}
       <div style={{ position: "relative" }}>
-        {showPast ? (
-          <select
-            value=""
-            onChange={e => {
-              const v = e.target.value
-              if (v === "__back__") { setShowPast(false); return }
-              onValueChange(v)
-              onCustomChange?.("")
-              setShowPast(false)
-            }}
-            style={{ ...BASE, ...fieldStyle }}
-          >
-            <option value="__back__">← Back to Active Clients</option>
-            {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
-        ) : (
-          <select
-            value={value}
-            onChange={e => {
-              const v = e.target.value
-              if (v === "__past__") { setShowPast(true); return }
-              onValueChange(v)
-              if (v !== "__custom__") onCustomChange?.("")
-            }}
-            style={{ ...BASE, ...fieldStyle }}
-          >
-            <option value="">Select client…</option>
-            {clientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-            {value && !clientOptions.includes(value) && pastClientOptions.includes(value) && (
-              <option key={value} value={value}>{value}</option>
-            )}
-            {pastClientOptions.length > 0 && <option value="__past__">📁 Past Clients →</option>}
-            <option value="__custom__">✏️ Other (type manually)</option>
-          </select>
-        )}
+        <select
+          value={value}
+          onChange={e => {
+            const v = e.target.value
+            if (v === "__back__") {
+              setBrowsingPast(false)
+              // Only clear if there was a real (already-picked past-client) value showing —
+              // for multi-select callers `value` is always "" while browsing, so this is a no-op for them.
+              if (value !== "") onValueChange("")
+              return
+            }
+            if (v === "__past__") { setBrowsingPast(true); return }
+            if (!v) return
+            setBrowsingPast(false)
+            onValueChange(v)
+          }}
+          style={{ ...BASE, ...fieldStyle }}
+        >
+          {inPastView ? (
+            <>
+              <option value="">📁 Past Clients</option>
+              <option value="__back__">← Back to Active Clients</option>
+              {pastClientOptions.filter(n => !excludeOptions.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
+            </>
+          ) : (
+            <>
+              <option value="">{placeholder}</option>
+              {clientOptions.filter(n => !excludeOptions.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
+              {pastClientOptions.length > 0 && <option value="__past__">📁 Past Clients →</option>}
+            </>
+          )}
+        </select>
         <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
       </div>
-
-      {/* Other → text input */}
-      {value === "__custom__" && !showPast && (
-        <input
-          value={customClient}
-          onChange={e => onCustomChange?.(e.target.value)}
-          placeholder="Type client name…"
-          style={{ ...BASE, ...fieldStyle, marginTop: 6, padding: "8px 10px" }}
-        />
-      )}
     </div>
   )
 }
 
-/** Resolve the final client name string to save */
-export function resolveClientName(value: string, brand: string, customClient: string): string {
-  if (value === "__custom__") return customClient || ""
+/** Resolve the final client name string to save. Kept for older call sites — always just the picked value now. */
+export function resolveClientName(value: string, ..._unused: unknown[]): string {
   return value
 }

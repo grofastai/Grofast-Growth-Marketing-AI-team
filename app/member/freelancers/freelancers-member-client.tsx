@@ -5,6 +5,7 @@ import { X, Plus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Star, Link2, 
 import { FreelancersHero } from "@/components/freelancers/FreelancersHero"
 import { saveFreelancerWorkEntry, toggleFreelancerPaymentStatus, updateFreelancerWorkEntry, deleteFreelancerWorkEntry } from "@/lib/actions/freelancer-work"
 import { buildClientOptions } from "@/lib/utils/client-options"
+import ClientSelector from "@/components/ui/ClientSelector"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -176,10 +177,6 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
   onRemove: () => void
   canRemove: boolean
 }) {
-  const [showPast, setShowPast] = useState(pastClients.includes(entry.client_name))
-  const [customMode, setCustomMode] = useState(
-    !!entry.client_name && !activeClients.includes(entry.client_name) && !pastClients.includes(entry.client_name)
-  )
   const cfg = TEAM_CFG[team]
   const isITMedia = team === "Freelance AI Development & Creative Production"
   const itCat = isITMedia ? (entry.it_category || "") : ""
@@ -283,53 +280,15 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
         {/* Client Name */}
         <div>
           <label style={LABEL}>Client Name *</label>
-          {customMode ? (
-            <div style={{ display: "flex", gap: 8 }}>
-              <input type="text" autoFocus placeholder="Type client name…" value={entry.client_name}
-                style={{ ...FIELD, flex: 1 }} onChange={e => onChange("client_name", e.target.value)} />
-              <button type="button"
-                onClick={() => { setCustomMode(false); setShowPast(false); onChange("client_name", "") }}
-                style={{ padding: "0 12px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#F9FAFB", fontSize: 12, color: "#6B7280", cursor: "pointer", whiteSpace: "nowrap" }}>
-                ← Back
-              </button>
-            </div>
-          ) : showPast ? (
-            <div style={{ position: "relative" }}>
-              <select autoFocus value=""
-                onChange={e => {
-                  const v = e.target.value
-                  if (!v) return
-                  if (v === "__back__") { setShowPast(false); onChange("client_name", "") }
-                  else { onChange("client_name", v); setShowPast(false) }
-                }}
-                style={{ ...FIELD, appearance: "none", paddingRight: 34 }}>
-                <option value="">📁 Past Clients — select one…</option>
-                {pastClients.map(c => <option key={c} value={c}>{c}</option>)}
-                <option value="__back__">← Back to active clients</option>
-              </select>
-              <ChevronDown size={13} style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
-            </div>
-          ) : (
-            <div style={{ position: "relative" }}>
-              <select value={entry.client_name}
-                onChange={e => {
-                  const v = e.target.value
-                  if (v === "__past_clients__") { setShowPast(true) }
-                  else if (v === "__custom__") { setCustomMode(true); onChange("client_name", "") }
-                  else onChange("client_name", v)
-                }}
-                style={{ ...FIELD, appearance: "none", paddingRight: 34 }}>
-                <option value="">Select client…</option>
-                {activeClients.map(c => <option key={c} value={c}>{c}</option>)}
-                {entry.client_name && !activeClients.includes(entry.client_name) && pastClients.includes(entry.client_name) && (
-                  <option key={entry.client_name} value={entry.client_name}>{entry.client_name}</option>
-                )}
-                {pastClients.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                <option value="__custom__">✏️ Other (type manually)</option>
-              </select>
-              <ChevronDown size={13} style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
-            </div>
-          )}
+          <ClientSelector
+            label=""
+            value={entry.client_name}
+            clientOptions={activeClients}
+            pastClientOptions={pastClients}
+            placeholder="Select client…"
+            fieldStyle={{ ...FIELD, appearance: "none" as const, paddingRight: 34 }}
+            onValueChange={v => onChange("client_name", v)}
+          />
         </div>
 
         {/* Title */}

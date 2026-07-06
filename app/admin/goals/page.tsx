@@ -36,6 +36,7 @@ export default async function GoalsPage() {
       .select("id, business_name, client_name")
       .eq("company_id", cid)
       .eq("status", "active")
+      .neq("client_name", "__member_quick__") // internal marker for members' self-created quick projects — not a real admin-assignable project
       .order("business_name"),
     admin.from("clients")
       .select("id, name")

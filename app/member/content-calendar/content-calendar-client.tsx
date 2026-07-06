@@ -454,39 +454,47 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           </div>
         </div>
 
-        {/* ── CENTER: Character + greeting card ── */}
-        <div style={{ position: "relative", zIndex: 3, display: isMobile ? "none" : "flex", alignItems: "flex-end", gap: 16, padding: "0 32px" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/content-cal-hero-girl.png" alt=""
-            style={{ height: 160, width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
-          <div style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "14px 18px", border: "1px solid rgba(255,255,255,0.2)", minWidth: 180, marginBottom: 16 }}>
-            <p style={{ fontSize: 15, fontWeight: 800, color: "#FFF", margin: "0 0 4px" }}>Your schedule! 📅</p>
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", margin: 0 }}>What are you posting today?</p>
+        {/* ── Character + greeting + stat cards — visible at every width; one scrollable row on mobile instead of being hidden */}
+        <div style={{
+          position: "relative", zIndex: 3, display: "flex", alignItems: "flex-end",
+          gap: isMobile ? 12 : 16, flexWrap: "nowrap",
+          overflowX: isMobile ? "auto" : "visible", width: isMobile ? "100%" : "auto",
+          padding: isMobile ? "0 0 14px" : "0 32px", scrollbarWidth: "none",
+        }}>
+          {/* Character + greeting card */}
+          <div style={{ display: "flex", alignItems: "flex-end", gap: isMobile ? 10 : 16, flexShrink: 0 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/content-cal-hero-girl.png" alt=""
+              style={{ height: isMobile ? 90 : 160, width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
+            <div style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)", borderRadius: 16, padding: isMobile ? "10px 14px" : "14px 18px", border: "1px solid rgba(255,255,255,0.2)", minWidth: isMobile ? 150 : 180, marginBottom: isMobile ? 0 : 16, flexShrink: 0 }}>
+              <p style={{ fontSize: isMobile ? 13 : 15, fontWeight: 800, color: "#FFF", margin: "0 0 4px" }}>Your schedule! 📅</p>
+              <p style={{ fontSize: isMobile ? 11 : 12, color: "rgba(255,255,255,0.65)", margin: 0 }}>What are you posting today?</p>
+            </div>
           </div>
-        </div>
 
-        {/* ── RIGHT: Glass stat cards ── */}
-        <div style={{ display: isMobile ? "none" : "flex", gap: 12, position: "relative", zIndex: 3, flexShrink: 0 }}>
-          <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 90 }}>
-            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.1em" }}>
-              {MONTHS[month].slice(0,3).toUpperCase()} {year}
-            </p>
-            <p style={{ fontSize: 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>
-              {new Date().getDate()}
-            </p>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>
-              {new Date().toLocaleDateString("en-US", { weekday: "long" })}
-            </p>
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 90 }}>
-            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>TOTAL</p>
-            <p style={{ fontSize: 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{totalContent}</p>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Posts</p>
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 90 }}>
-            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>UPLOADED</p>
-            <p style={{ fontSize: 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{postedCount}</p>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Done ✓</p>
+          {/* Glass stat cards */}
+          <div style={{ display: "flex", gap: isMobile ? 8 : 12, flexShrink: 0 }}>
+            <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: isMobile ? "10px 14px" : "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: isMobile ? 70 : 90 }}>
+              <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.1em" }}>
+                {MONTHS[month].slice(0,3).toUpperCase()} {year}
+              </p>
+              <p style={{ fontSize: isMobile ? 26 : 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>
+                {new Date().getDate()}
+              </p>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>
+                {new Date().toLocaleDateString("en-US", { weekday: "long" })}
+              </p>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: isMobile ? "10px 14px" : "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: isMobile ? 70 : 90 }}>
+              <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>TOTAL</p>
+              <p style={{ fontSize: isMobile ? 26 : 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{totalContent}</p>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Posts</p>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: isMobile ? "10px 14px" : "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: isMobile ? 70 : 90 }}>
+              <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>UPLOADED</p>
+              <p style={{ fontSize: isMobile ? 26 : 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{postedCount}</p>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Done ✓</p>
+            </div>
           </div>
         </div>
       </div>

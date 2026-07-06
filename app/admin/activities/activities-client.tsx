@@ -494,12 +494,12 @@ export default function ActivitiesClient({
             </div>
           }
           rightSlot={
-            <div className="hidden md:flex" style={{ flexDirection: "column", gap: 8, alignItems: "flex-end", justifyContent: "flex-start" }}>
+            <div className="flex flex-wrap" style={{ gap: 8, alignItems: "flex-start", justifyContent: "flex-end" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", cursor: "pointer", whiteSpace: "nowrap" }}>
                 <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{displayDate}</span>
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
-              <div style={{ padding: "10px 14px", borderRadius: 12, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", width: 200 }}>
+              <div style={{ padding: "10px 14px", borderRadius: 12, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", width: "clamp(160px,60vw,200px)" }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Keep it up! 🚀</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>Team updates are on track today.</div>
                 <svg width="100%" height="24" style={{ marginTop: 4 }}>

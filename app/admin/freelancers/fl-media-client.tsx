@@ -114,6 +114,18 @@ export default function FlMediaClient({
     return Array.from(seen).sort().reverse()
   }, [entries])
 
+  // Nav range spans every month from the earliest entry to today, not just months
+  // that happen to have data — otherwise one empty gap month (e.g. no one logged
+  // anything in June) permanently blocks stepping back to real data in May.
+  const monthNavRange = useMemo(() => {
+    const today = currentYM()
+    if (allMonths.length === 0) return { min: today, max: today }
+    const sorted = [...allMonths].sort()
+    return { min: sorted[0], max: sorted[sorted.length - 1] > today ? sorted[sorted.length - 1] : today }
+  }, [allMonths])
+  const canGoPrev = selectedMonth > monthNavRange.min
+  const canGoNext = selectedMonth < monthNavRange.max
+
   async function handleSavePrice(entry: FlMediaEntry) {
     const raw = prices[entry.entry_id]
     if (raw === undefined) return
@@ -193,13 +205,13 @@ export default function FlMediaClient({
             </div>
             {/* Month nav */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.12)", borderRadius: 12, padding: "7px 10px", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(8px)" }}>
-              <button onClick={() => setSelectedMonth(prevMonth(selectedMonth))} disabled={!allMonths.includes(prevMonth(selectedMonth))}
-                style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "transparent", cursor: allMonths.includes(prevMonth(selectedMonth)) ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", opacity: allMonths.includes(prevMonth(selectedMonth)) ? 1 : 0.3 }}>
+              <button onClick={() => setSelectedMonth(prevMonth(selectedMonth))} disabled={!canGoPrev}
+                style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "transparent", cursor: canGoPrev ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", opacity: canGoPrev ? 1 : 0.3 }}>
                 <ChevronLeft size={13} color="#fff" />
               </button>
               <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", minWidth: 96, textAlign: "center", letterSpacing: "0.01em" }}>{monthLabel(selectedMonth)}</span>
-              <button onClick={() => setSelectedMonth(nextMonth(selectedMonth))} disabled={!allMonths.includes(nextMonth(selectedMonth))}
-                style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "transparent", cursor: allMonths.includes(nextMonth(selectedMonth)) ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", opacity: allMonths.includes(nextMonth(selectedMonth)) ? 1 : 0.3 }}>
+              <button onClick={() => setSelectedMonth(nextMonth(selectedMonth))} disabled={!canGoNext}
+                style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "transparent", cursor: canGoNext ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", opacity: canGoNext ? 1 : 0.3 }}>
                 <ChevronRight size={13} color="#fff" />
               </button>
             </div>

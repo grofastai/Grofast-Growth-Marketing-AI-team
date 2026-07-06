@@ -1,15 +1,16 @@
 "use client"
 
-import { useState, useTransition, useActionState, useEffect } from "react"
+import { useState, useTransition, useActionState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   Plus, X, Trash2, Loader2, Calendar, Users, Columns, Target,
   TrendingUp, CheckSquare, Clock, Sparkles, Archive, ChevronDown, ChevronUp,
-  Paperclip, Link2, FileText, ExternalLink,
+  Paperclip, Link2, FileText, ExternalLink, Upload,
 } from "lucide-react"
 import { createTask, updateTaskStatus, deleteTask } from "@/lib/actions/tasks"
 import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
+import { createBrowserClient } from "@/lib/supabase/client"
 
 interface TaskAttachment { type: 'link' | 'file'; url: string; name?: string }
 
@@ -249,6 +250,26 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
   const [managerNote, setManagerNote] = useState("")
   const [checklistItems, setChecklistItems] = useState<string[]>([])
   const [newCheckItem, setNewCheckItem] = useState("")
+  const [attachmentLinks, setAttachmentLinks] = useState<{ id: string; url: string; name: string; type: "link" | "file" }[]>([])
+  const [newAttachUrl, setNewAttachUrl] = useState("")
+  const [attachUploading, setAttachUploading] = useState(false)
+  const attachFileRef = useRef<HTMLInputElement>(null)
+
+  async function handleAttachFileUpload(file: File) {
+    setAttachUploading(true)
+    try {
+      const supabase = createBrowserClient()
+      const ext = file.name.split(".").pop() ?? "bin"
+      const path = `task-attachments/assign/${Date.now()}.${ext}`
+      const { data, error } = await supabase.storage.from("media-uploads").upload(path, file, { upsert: false })
+      if (!error && data) {
+        const { data: { publicUrl } } = supabase.storage.from("media-uploads").getPublicUrl(data.path)
+        setAttachmentLinks(p => [...p, { id: crypto.randomUUID(), url: publicUrl, name: file.name, type: "file" }])
+      }
+    } finally {
+      setAttachUploading(false)
+    }
+  }
 
   function openForm(preselect?: string) {
     setSelectedMembers(preselect ? [preselect] : [])
@@ -264,6 +285,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
       setSelectedMembers([])
       setMediaClientType(""); setMediaBrand(""); setMediaCustomClient("")
       setManagerNote(""); setChecklistItems([]); setNewCheckItem("")
+      setAttachmentLinks([]); setNewAttachUrl("")
       startTransition(() => { router.refresh() })
     }
   }, [state]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -683,8 +705,8 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
       {/* ── CREATE TASK MODAL ────────────────────────────────────────────────── */}
       {showForm && (
         <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}>
-          <div style={{ width: "100%", maxWidth: 520, borderRadius: 24, padding: "28px 28px 24px", margin: "0 16px", background: "#FFFFFF", boxShadow: "0 24px 80px rgba(0,0,0,0.22)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+          <div style={{ width: "100%", maxWidth: 520, maxHeight: "90vh", borderRadius: 24, margin: "0 16px", background: "#FFFFFF", boxShadow: "0 24px 80px rgba(0,0,0,0.22)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 28px 20px", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ width: 42, height: 42, borderRadius: 14, background: "linear-gradient(135deg,#de1a1a,#991B1B)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(222,26,26,0.3)" }}>
                   <Target size={20} style={{ color: "#FFFFFF" }} />
@@ -694,15 +716,16 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Assign work to your team</p>
                 </div>
               </div>
-              <button onClick={() => { setShowForm(false); setSelectedMembers([]); setManagerNote(""); setChecklistItems([]); setNewCheckItem("") }}
-                style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <button onClick={() => { setShowForm(false); setSelectedMembers([]); setManagerNote(""); setChecklistItems([]); setNewCheckItem(""); setAttachmentLinks([]); setNewAttachUrl("") }}
+                style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <X size={15} style={{ color: "#6B7280" }} />
               </button>
             </div>
 
             <style>{`.ti{outline:none;width:100%;border-radius:12px;padding:11px 14px;font-size:13px;background:#F9FAFB;border:1.5px solid #E5E7EB;color:#111827;font-family:inherit;transition:border-color 0.15s}.ti:focus{border-color:rgba(222,26,26,0.5)!important;background:#FFF!important}`}</style>
 
-            <form action={action} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <form action={action} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "0 28px 20px", overflowY: "auto", flex: 1 }}>
               <div>
                 <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Title *</label>
                 <input name="title" required placeholder="Task title…" className="ti" />
@@ -779,7 +802,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Project</label>
                   <select name="project_id" className="ti">
                     <option value="">No project</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.business_name}{p.client_name ? ` — ${p.client_name}` : ""}</option>)}
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.business_name}{p.client_name && p.client_name !== "__member_quick__" ? ` — ${p.client_name}` : ""}</option>)}
                   </select>
                 </div>
               </div>
@@ -846,12 +869,71 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                 )}
               </div>
 
+              {/* Attachments / Links */}
+              <div>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>
+                  Attachments / Links <span style={{ color: "#9CA3AF", fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                </label>
+                <input type="hidden" name="attachments_json" value={JSON.stringify(attachmentLinks.map(i => ({ type: i.type, url: i.url, name: i.name })))} />
+                {attachmentLinks.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+                    {attachmentLinks.map(item => (
+                      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", borderRadius: 10, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                        {item.type === "file"
+                          ? <FileText size={11} style={{ color: "#6366F1", flexShrink: 0 }} />
+                          : <Link2 size={11} style={{ color: "#6366F1", flexShrink: 0 }} />}
+                        <span style={{ fontSize: 11, color: "#6366F1", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name || item.url}</span>
+                        <button type="button" onClick={() => setAttachmentLinks(p => p.filter(i => i.id !== item.id))}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0 }}>
+                          <X size={11} style={{ color: "#9CA3AF" }} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    type="text"
+                    value={newAttachUrl}
+                    onChange={e => setNewAttachUrl(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        const u = newAttachUrl.trim()
+                        if (u) { setAttachmentLinks(p => [...p, { id: crypto.randomUUID(), url: u, name: u, type: "link" }]); setNewAttachUrl("") }
+                      }
+                    }}
+                    placeholder="Paste Google Drive, Figma, or any link…"
+                    className="ti"
+                    style={{ flex: 1 }}
+                  />
+                  <button type="button"
+                    onClick={() => {
+                      const u = newAttachUrl.trim()
+                      if (u) { setAttachmentLinks(p => [...p, { id: crypto.randomUUID(), url: u, name: u, type: "link" }]); setNewAttachUrl("") }
+                    }}
+                    style={{ padding: "0 14px", borderRadius: 12, background: "rgba(99,102,241,0.08)", border: "1.5px solid rgba(99,102,241,0.2)", color: "#6366F1", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                    <Plus size={11} strokeWidth={3} />
+                  </button>
+                  <button type="button"
+                    onClick={() => attachFileRef.current?.click()}
+                    disabled={attachUploading}
+                    style={{ padding: "0 14px", borderRadius: 12, background: "rgba(16,185,129,0.08)", border: "1.5px solid rgba(16,185,129,0.2)", color: "#10B981", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                    {attachUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                  </button>
+                  <input ref={attachFileRef} type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                    style={{ display: "none" }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleAttachFileUpload(f); e.target.value = "" }} />
+                </div>
+              </div>
+
               {state && "error" in state && (
                 <p style={{ fontSize: 12, color: "#de1a1a", fontWeight: 600, margin: 0, padding: "8px 12px", background: "rgba(222,26,26,0.06)", borderRadius: 8 }}>{state.error}</p>
               )}
+              </div>
 
-              <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
-                <button type="button" onClick={() => { setShowForm(false); setSelectedMembers([]); setMediaClientType(""); setMediaBrand(""); setMediaCustomClient(""); setManagerNote(""); setChecklistItems([]); setNewCheckItem("") }}
+              <div style={{ display: "flex", gap: 10, padding: "16px 28px 24px", borderTop: "1px solid #F0F0F0", flexShrink: 0 }}>
+                <button type="button" onClick={() => { setShowForm(false); setSelectedMembers([]); setMediaClientType(""); setMediaBrand(""); setMediaCustomClient(""); setManagerNote(""); setChecklistItems([]); setNewCheckItem(""); setAttachmentLinks([]); setNewAttachUrl("") }}
                   style={{ flex: 1, padding: "12px 0", borderRadius: 12, fontSize: 13, fontWeight: 600, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: "pointer" }}>
                   Cancel
                 </button>

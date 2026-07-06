@@ -57,6 +57,8 @@ export async function createTask(
   const managerNote = (formData.get('manager_note') as string)?.trim() || null
   let adminChecklist: object[] = []
   try { adminChecklist = JSON.parse((formData.get('checklist_json') as string) || '[]') } catch { adminChecklist = [] }
+  let adminAttachments: object[] = []
+  try { adminAttachments = JSON.parse((formData.get('attachments_json') as string) || '[]') } catch { adminAttachments = [] }
 
   const base = {
     company_id: profile.company_id,
@@ -69,6 +71,7 @@ export async function createTask(
     created_by: user.id,
     manager_note: managerNote,
     checklist: adminChecklist,
+    attachments: adminAttachments,
   }
 
   if (assignedToList.length === 0) {

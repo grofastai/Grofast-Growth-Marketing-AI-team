@@ -1040,8 +1040,8 @@ export default function MemberTasksClient({
         )}
 
         {/* ── Filter tabs + sort ── */}
-        <div className="flex items-center justify-between mb-5 gap-3">
-          <div className="flex gap-1.5 overflow-x-auto pb-1 flex-1 min-w-0" style={{ scrollbarWidth: "none" }}>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-5 gap-2 md:gap-3">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 w-full md:flex-1 md:min-w-0" style={{ scrollbarWidth: "none" }}>
             {FILTER_TABS.map(tab => {
               const active = filter === tab.key
               return (
@@ -1057,86 +1057,88 @@ export default function MemberTasksClient({
             })}
           </div>
 
-          {/* Client filter */}
-          <div className="relative flex-shrink-0 flex items-center gap-1.5">
-            <div className="relative">
-              <select
-                value={filterClient}
-                onChange={e => { setFilterClient(e.target.value); setFilterManualClient("") }}
-                className="px-3 py-1.5 rounded-xl text-[12px] font-semibold"
-                style={{
-                  background: filterClient ? "#de1a1a" : "#FFFFFF",
-                  border: `1px solid ${filterClient ? "#de1a1a" : "#E5E7EB"}`,
-                  color: filterClient ? "#FFFFFF" : "#374151",
-                  outline: "none", appearance: "none", paddingRight: 26, cursor: "pointer",
-                }}>
-                <option value="">All Clients</option>
-                {INTERNAL_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-                {clients
-                  .filter(c => !INTERNAL_BRANDS.includes(c.name))
-                  .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                {pastClients.length > 0 && (
-                  <optgroup label="── Past Clients ──">
-                    {pastClients
-                      .filter(c => !INTERNAL_BRANDS.includes(c.name))
-                      .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  </optgroup>
-                )}
-                <option value="__manual__">✏️ Type manually...</option>
-              </select>
-              <ChevronDown size={10} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", color: filterClient ? "#FFF" : "#9CA3AF", pointerEvents: "none" }} />
-            </div>
-            {filterClient === "__manual__" && (
-              <input
-                type="text"
-                value={filterManualClient}
-                onChange={e => setFilterManualClient(e.target.value)}
-                placeholder="Client name..."
-                className="px-3 py-1.5 rounded-xl text-[12px] font-semibold"
-                style={{ border: "1px solid #de1a1a", outline: "none", width: 120, color: "#374151" }}
-              />
-            )}
-          </div>
-
-          {/* Group by Project toggle */}
-          <button
-            onClick={() => setGroupByProject(g => !g)}
-            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
-            style={{
-              background: groupByProject ? "#de1a1a" : "#FFFFFF",
-              border: `1px solid ${groupByProject ? "#de1a1a" : "#E5E7EB"}`,
-              color: groupByProject ? "#FFFFFF" : "#374151",
-            }}
-            title="Toggle group by project"
-          >
-            <Layers size={12} />
-            <span className="hidden sm:inline">Group by Project</span>
-          </button>
-
-          {/* Sort dropdown */}
-          <div className="relative flex-shrink-0">
-            <button onClick={() => setShowSort(s => !s)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold"
-              style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#374151" }}>
-              <span className="hidden sm:inline">Sort: {sortBy === "priority" ? "Priority" : "Due Date"}</span>
-              <span className="sm:hidden">Sort</span>
-              <ChevronDown size={11} />
-            </button>
-            {showSort && (
-              <div className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-50"
-                style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.1)", minWidth: 140 }}>
-                {([
-                  { key: "priority" as const, label: "By Priority" },
-                  { key: "due_date" as const, label: "By Due Date" },
-                ]).map(opt => (
-                  <button key={opt.key} onClick={() => { setSortBy(opt.key); setShowSort(false) }}
-                    className="w-full text-left px-4 py-2.5 text-[12px] font-semibold transition-colors hover:bg-gray-50"
-                    style={{ color: sortBy === opt.key ? "#de1a1a" : "#374151" }}>
-                    {opt.label}
-                  </button>
-                ))}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Client filter */}
+            <div className="relative flex-shrink-0 flex items-center gap-1.5">
+              <div className="relative">
+                <select
+                  value={filterClient}
+                  onChange={e => { setFilterClient(e.target.value); setFilterManualClient("") }}
+                  className="px-3 py-1.5 rounded-xl text-[12px] font-semibold"
+                  style={{
+                    background: filterClient ? "#de1a1a" : "#FFFFFF",
+                    border: `1px solid ${filterClient ? "#de1a1a" : "#E5E7EB"}`,
+                    color: filterClient ? "#FFFFFF" : "#374151",
+                    outline: "none", appearance: "none", paddingRight: 26, cursor: "pointer",
+                  }}>
+                  <option value="">All Clients</option>
+                  {INTERNAL_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                  {clients
+                    .filter(c => !INTERNAL_BRANDS.includes(c.name))
+                    .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  {pastClients.length > 0 && (
+                    <optgroup label="── Past Clients ──">
+                      {pastClients
+                        .filter(c => !INTERNAL_BRANDS.includes(c.name))
+                        .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </optgroup>
+                  )}
+                  <option value="__manual__">✏️ Type manually...</option>
+                </select>
+                <ChevronDown size={10} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", color: filterClient ? "#FFF" : "#9CA3AF", pointerEvents: "none" }} />
               </div>
-            )}
+              {filterClient === "__manual__" && (
+                <input
+                  type="text"
+                  value={filterManualClient}
+                  onChange={e => setFilterManualClient(e.target.value)}
+                  placeholder="Client name..."
+                  className="px-3 py-1.5 rounded-xl text-[12px] font-semibold"
+                  style={{ border: "1px solid #de1a1a", outline: "none", width: 120, color: "#374151" }}
+                />
+              )}
+            </div>
+
+            {/* Group by Project toggle */}
+            <button
+              onClick={() => setGroupByProject(g => !g)}
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
+              style={{
+                background: groupByProject ? "#de1a1a" : "#FFFFFF",
+                border: `1px solid ${groupByProject ? "#de1a1a" : "#E5E7EB"}`,
+                color: groupByProject ? "#FFFFFF" : "#374151",
+              }}
+              title="Toggle group by project"
+            >
+              <Layers size={12} />
+              <span className="hidden sm:inline">Group by Project</span>
+            </button>
+
+            {/* Sort dropdown */}
+            <div className="relative flex-shrink-0">
+              <button onClick={() => setShowSort(s => !s)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold"
+                style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#374151" }}>
+                <span className="hidden sm:inline">Sort: {sortBy === "priority" ? "Priority" : "Due Date"}</span>
+                <span className="sm:hidden">Sort</span>
+                <ChevronDown size={11} />
+              </button>
+              {showSort && (
+                <div className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-50"
+                  style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.1)", minWidth: 140 }}>
+                  {([
+                    { key: "priority" as const, label: "By Priority" },
+                    { key: "due_date" as const, label: "By Due Date" },
+                  ]).map(opt => (
+                    <button key={opt.key} onClick={() => { setSortBy(opt.key); setShowSort(false) }}
+                      className="w-full text-left px-4 py-2.5 text-[12px] font-semibold transition-colors hover:bg-gray-50"
+                      style={{ color: sortBy === opt.key ? "#de1a1a" : "#374151" }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

@@ -395,6 +395,18 @@ export default function HistoryClient({
 
   const pendingCount = useMemo(() => collabConfirms.filter(c => c.status === 'pending').length, [collabConfirms])
 
+  // Jump-to-pending: clicking the banner clears any month/date filter that could be
+  // hiding the pending item, then scrolls to + briefly highlights the actual card.
+  const [scrollToConfirmId, setScrollToConfirmId] = useState<string | null>(null)
+  const [highlightConfirmId, setHighlightConfirmId] = useState<string | null>(null)
+  function handleJumpToPendingCollab() {
+    const firstPending = collabConfirms.find(c => c.status === 'pending')
+    if (!firstPending) return
+    setSelectedMonth("")
+    setSelectedDate("")
+    setScrollToConfirmId(firstPending.id)
+  }
+
   // Revision picker options — scanned from all loaded updates, newest first
   const revisionOptionsByType = useMemo(() => {
     type RevOpt = { key: string; label: string; title: string; client: string; date: string }
@@ -901,6 +913,17 @@ export default function HistoryClient({
     return [...ownItems, ...collabItems, ...leaveItems, ...holidayItems].sort((a, b) => b.date.localeCompare(a.date))
   }, [filtered, participatedByDate, selectedMonth, monthFiltered, approvedLeaves, companyLeaves, dateActive, selectedDate])
 
+  useEffect(() => {
+    if (!scrollToConfirmId) return
+    const el = document.getElementById(`collab-confirm-${scrollToConfirmId}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setHighlightConfirmId(scrollToConfirmId)
+    setScrollToConfirmId(null)
+    const t = setTimeout(() => setHighlightConfirmId(null), 2200)
+    return () => clearTimeout(t)
+  }, [scrollToConfirmId, mergedList])
+
   const topActivity = useMemo(() => {
     const map: Record<string, number> = {}
     for (const u of filtered) {
@@ -992,14 +1015,16 @@ export default function HistoryClient({
 
       {/* ── PENDING COLLABORATION BANNER ─────────────────────────────────── */}
       {pendingCount > 0 && (
-        <div style={{ background:"rgba(99,102,241,0.08)", borderBottom:"1px solid rgba(99,102,241,0.15)", padding:"10px 20px", display:"flex", alignItems:"center", gap:10 }}>
+        <button onClick={handleJumpToPendingCollab}
+          style={{ width:"100%", textAlign:"left", background:"rgba(99,102,241,0.08)", borderBottom:"1px solid rgba(99,102,241,0.15)", border:"none", borderBottomWidth:1, padding:"10px 20px", display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}>
           <div style={{ width:28, height:28, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
             <span style={{ fontSize:12, fontWeight:900, color:"#fff" }}>{pendingCount}</span>
           </div>
-          <span style={{ fontSize:13, fontWeight:700, color:"#4338CA" }}>
-            You have {pendingCount} collaboration {pendingCount === 1 ? "request" : "requests"} pending confirmation — scroll down to review
+          <span style={{ fontSize:13, fontWeight:700, color:"#4338CA", flex:1 }}>
+            You have {pendingCount} collaboration {pendingCount === 1 ? "request" : "requests"} pending confirmation — tap to review
           </span>
-        </div>
+          <ArrowRight size={15} style={{ color:"#6366F1", flexShrink:0 }} />
+        </button>
       )}
 
       {/* ── MONTH PILLS ───────────────────────────────────────────────────── */}
@@ -1269,8 +1294,9 @@ export default function HistoryClient({
                       const isEditing = collabEditId === conf.id
                       const isRejecting = collabRejectId === conf.id
                       const loading = collabLoading === conf.id
+                      const isHighlighted = highlightConfirmId === conf.id
                       return (
-                        <div key={conf.id} style={{ borderTop: "2px solid rgba(99,102,241,0.2)", background: "rgba(99,102,241,0.04)", padding: "12px 18px" }}>
+                        <div key={conf.id} id={`collab-confirm-${conf.id}`} style={{ borderTop: "2px solid rgba(99,102,241,0.2)", background: isHighlighted ? "rgba(99,102,241,0.14)" : "rgba(99,102,241,0.04)", padding: "12px 18px", transition: "box-shadow 0.3s, background 0.3s", boxShadow: isHighlighted ? "inset 0 0 0 2px #6366F1" : "none" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
                             <span style={{ fontSize: 10, fontWeight: 800, color: "#6366F1", background: "rgba(99,102,241,0.12)", padding: "2px 8px", borderRadius: 99 }}>⏳ PENDING CONFIRMATION</span>
                             <span style={{ fontSize: 11, color: "#9CA3AF" }}>· by <span style={{ fontWeight: 700, color: "#6366F1" }}>{submitter?.name ?? "Teammate"}</span></span>
@@ -2819,8 +2845,9 @@ export default function HistoryClient({
                   const isEditing = collabEditId === conf.id
                   const isRejecting = collabRejectId === conf.id
                   const loading = collabLoading === conf.id
+                  const isHighlighted = highlightConfirmId === conf.id
                   return (
-                    <div key={conf.id} style={{ borderTop: "2px solid rgba(99,102,241,0.2)", background: "rgba(99,102,241,0.04)", padding: "12px 18px" }}>
+                    <div key={conf.id} id={`collab-confirm-${conf.id}`} style={{ borderTop: "2px solid rgba(99,102,241,0.2)", background: isHighlighted ? "rgba(99,102,241,0.14)" : "rgba(99,102,241,0.04)", padding: "12px 18px", transition: "box-shadow 0.3s, background 0.3s", boxShadow: isHighlighted ? "inset 0 0 0 2px #6366F1" : "none" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
                         <span style={{ fontSize: 10, fontWeight: 800, color: "#6366F1", background: "rgba(99,102,241,0.12)", padding: "2px 8px", borderRadius: 99 }}>⏳ PENDING CONFIRMATION</span>
                         <span style={{ fontSize: 11, color: "#9CA3AF" }}>· by <span style={{ fontWeight: 700, color: "#6366F1" }}>{submitter?.name ?? "Teammate"}</span></span>

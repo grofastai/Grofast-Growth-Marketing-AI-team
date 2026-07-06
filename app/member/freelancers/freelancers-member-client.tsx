@@ -1317,7 +1317,6 @@ export default function FreelancersMemberClient({
                           {isRJ && (
                             <div style={{ marginTop: 10 }}>
                               <p style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>🎙️ Giving Voice to Every Brand</p>
-                              <p className="max-w-[320px]" style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: "3px 0 0", lineHeight: 1.55 }}>Professional RJ Voiceover artist delivering engaging, expressive &amp; impactful voice for your brand, ads, podcasts &amp; more.</p>
                             </div>
                           )}
                         </div>

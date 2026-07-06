@@ -515,29 +515,36 @@ export default function ExpensesClient({
     <div className="min-h-screen" style={{ background: "#F8F9FB" }}>
       <div className="p-4 md:p-6 xl:p-8 max-w-[1300px] mx-auto space-y-5">
 
-        {/* Header */}
-        <FlatCard className="p-6 md:p-8" style={{ position: "relative", overflow: "hidden" }}>
-          <div className="flex items-start justify-between gap-4">
-            <div style={{ maxWidth: "60%" }}>
-              <div className="flex items-center gap-1.5 mb-2" style={{ fontSize: 12, color: "#9CA3AF", fontWeight: 600 }}>
+        {/* Header — red gradient hero, matching every other page in the app */}
+        <div className="p-6 md:p-8" style={{
+          position: "relative", overflow: "hidden", borderRadius: 20,
+          background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
+          boxShadow: "0 8px 32px rgba(180,0,0,0.35)",
+        }}>
+          <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+
+          <div className="flex items-start justify-between gap-4" style={{ position: "relative", zIndex: 2 }}>
+            <div className="max-w-[56%] sm:max-w-[62%] md:max-w-[60%]">
+              <div className="flex items-center gap-1.5 mb-2" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontWeight: 600 }}>
                 <span>Admin Dashboard</span>
                 <ChevronRight size={12} />
-                <span style={{ color: "#111111", fontWeight: 700 }}>Expenses</span>
+                <span style={{ color: "#fff", fontWeight: 700 }}>Expenses</span>
               </div>
-              <h1 className="text-[28px] md:text-[34px] font-black" style={{ color: "#111111", fontFamily: "var(--font-jakarta)", margin: 0, lineHeight: 1.1 }}>Expenses</h1>
-              <p className="text-[13px] mt-1" style={{ color: "#6B7280" }}>Track client direct, common shared & overhead costs</p>
+              <h1 className="text-[28px] md:text-[34px] font-black" style={{ color: "#fff", fontFamily: "var(--font-jakarta)", margin: 0, lineHeight: 1.1 }}>Expenses</h1>
+              <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>Track client direct, common shared & overhead costs</p>
             </div>
-            <div className="flex items-center gap-1 px-3 py-2 rounded-xl flex-shrink-0" style={{ background: "#F8F9FB", border: "1px solid #EDEDED" }}>
-              <button onClick={() => goMonth(-1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#6B7280" }}>‹</button>
-              <span className="text-[13px] font-black px-1" style={{ color: "#111111" }}>{MONTHS_SHORT[mo - 1]} {yr}</span>
-              <button onClick={() => goMonth(1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#6B7280" }}>›</button>
+            <div className="flex items-center gap-1 px-3 py-2 rounded-xl flex-shrink-0" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}>
+              <button onClick={() => goMonth(-1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#fff" }}>‹</button>
+              <span className="text-[13px] font-black px-1" style={{ color: "#fff" }}>{MONTHS_SHORT[mo - 1]} {yr}</span>
+              <button onClick={() => goMonth(1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#fff" }}>›</button>
             </div>
           </div>
-          <div className="hidden md:block" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: "clamp(160px,22vw,300px)", pointerEvents: "none" }}>
+          <div style={{ position: "absolute", right: "clamp(4px,2vw,12px)", top: "50%", transform: "translateY(-50%)", width: "clamp(90px,22vw,300px)", zIndex: 1, pointerEvents: "none" }}>
             <Image src="/brand/expenses/expenses-hero-boy.png" alt="" width={500} height={500}
               style={{ width: "100%", height: "auto", display: "block" }} priority />
           </div>
-        </FlatCard>
+        </div>
 
         {/* Summary strip: total + 3 category stat cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

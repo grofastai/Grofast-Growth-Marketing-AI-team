@@ -49,14 +49,26 @@ function effBg(eff: number, overworked: boolean) {
   return 'rgba(239,68,68,0.08)'
 }
 
-const WORK_CFG = [
-  { key: 'shoot',     label: 'Shooting',   emoji: '📸', color: '#F97316' },
-  { key: 'edit',      label: 'Editing',    emoji: '🎬', color: '#E53935' },
-  { key: 'technical', label: 'Tech Work',  emoji: '💼', color: '#6366F1' },
-  { key: 'voiceover', label: 'Voiceover',  emoji: '🎙️', color: '#8B5CF6' },
-  { key: 'poster',    label: 'Posters',    emoji: '🖼️', color: '#10B981' },
-  { key: 'learning',  label: 'Learning',   emoji: '📚', color: '#0EA5E9' },
-] as const
+// Known task_type → display config. Anything not listed here (a brand-new
+// type like 'scripting') still renders — see typeCfg() fallback below — so
+// the Work Type Breakdown never silently swallows a new type into another bucket.
+const TYPE_CFG: Record<string, { label: string; emoji: string; color: string }> = {
+  shoot:     { label: 'Shooting',  emoji: '📸', color: '#F97316' },
+  edit:      { label: 'Editing',   emoji: '🎬', color: '#E53935' },
+  other:     { label: 'Tech Work', emoji: '💼', color: '#6366F1' },
+  voiceover: { label: 'Voiceover', emoji: '🎙️', color: '#8B5CF6' },
+  poster:    { label: 'Posters',   emoji: '🖼️', color: '#10B981' },
+  scripting: { label: 'Scripting', emoji: '📝', color: '#EAB308' },
+  learning:  { label: 'Learning',  emoji: '📚', color: '#0EA5E9' },
+  break:     { label: 'Break',     emoji: '☕', color: '#F97316' },
+}
+const TYPE_ORDER = ['shoot', 'edit', 'other', 'voiceover', 'poster', 'scripting', 'learning', 'break']
+function typeCfg(key: string) {
+  return TYPE_CFG[key] ?? { label: key.charAt(0).toUpperCase() + key.slice(1), emoji: '🔹', color: '#9CA3AF' }
+}
+function orderedTypeKeys(keys: string[]) {
+  return [...TYPE_ORDER.filter(k => keys.includes(k)), ...keys.filter(k => !TYPE_ORDER.includes(k)).sort()]
+}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -147,11 +159,13 @@ export default function InsightsClient({
 
   const isCurrentMonth = month === today.slice(0, 7)
 
-  // Work breakdown totals from member data
-  const workTotals = WORK_CFG.map(cfg => ({
-    ...cfg,
-    hours: memberUtilization.reduce((s, m) => s + m.workBreakdown[cfg.key], 0),
-  }))
+  // Work breakdown totals from member data — driven by whatever task_type
+  // keys actually appear this month, so a new type (e.g. scripting) shows up
+  // automatically with no code change here.
+  const allTypeKeys = Array.from(new Set(memberUtilization.flatMap(m => Object.keys(m.workBreakdown))))
+  const workTotals = orderedTypeKeys(allTypeKeys)
+    .map(key => ({ key, ...typeCfg(key), hours: memberUtilization.reduce((s, m) => s + (m.workBreakdown[key] ?? 0), 0) }))
+    .filter(w => w.hours > 0)
   const maxWorkHours = Math.max(...workTotals.map(w => w.hours), 1)
 
   // Attendance table footer aggregates — averages, not raw sums, for anything per-person
@@ -580,7 +594,7 @@ export default function InsightsClient({
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 20 }}>
 
         {/* Client Hours */}
-        <SectionCard title="Client Hours This Month" emoji="🏢">
+        <SectionCard title="Clients Worked (Hrs)" emoji="🏢">
           <div style={{ padding: '8px 0', maxHeight: 400, overflowY: 'auto' }}>
             {clientHours.length === 0 ? (
               <p style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 12, padding: '32px 0' }}>No client data</p>
@@ -659,7 +673,9 @@ export default function InsightsClient({
                     <div style={{ padding: '0 18px 14px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {/* Work bars */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {WORK_CFG.filter(w => m.workBreakdown[w.key] > 0).map(w => (
+                        {orderedTypeKeys(Object.keys(m.workBreakdown)).filter(k => (m.workBreakdown[k] ?? 0) > 0).map(k => {
+                          const w = { key: k, ...typeCfg(k) }
+                          return (
                           <div key={w.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ fontSize: 12, width: 18 }}>{w.emoji}</span>
                             <span style={{ fontSize: 10, color: '#6B7280', width: 72 }}>{w.label}</span>
@@ -674,7 +690,8 @@ export default function InsightsClient({
                               {fmtH(m.workBreakdown[w.key])}
                             </span>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                       {/* Clients */}
                       {m.clients.length > 0 && (
@@ -728,7 +745,9 @@ export default function InsightsClient({
                         title={`${d.date}: ${fmtH(d.hours)}`}
                         style={{
                           width: '100%', borderRadius: '3px 3px 0 0',
-                          height: `${Math.max(4, pct)}%`,
+                          // px, not %  — the parent column has no explicit height, so a
+                          // percentage height here resolves against 'auto' and collapses to 0
+                          height: `${Math.max(3, (pct / 100) * 64)}px`,
                           background: pct > 70 ? 'linear-gradient(180deg,#22C55E,#16A34A)' : pct > 40 ? 'linear-gradient(180deg,#F59E0B,#D97706)' : 'linear-gradient(180deg,#E5E7EB,#D1D5DB)',
                         }}
                       />

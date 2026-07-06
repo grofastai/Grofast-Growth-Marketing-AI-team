@@ -58,14 +58,7 @@ export type MemberUtilization = {
   efficiency: number          // (tracked / 212.5) × 100
   overworked: boolean         // efficiency > 105
   clients: string[]
-  workBreakdown: {
-    shoot: number
-    edit: number
-    technical: number
-    voiceover: number
-    poster: number
-    learning: number
-  }
+  workBreakdown: Record<string, number> // key = task_type (shoot/edit/voiceover/poster/other/break/...) — open-ended so new types need no page change
   totalCost: number
   // ── Attendance table fields ──────────────────────────────────────────────
   loginHours: number              // sum(clock_out - clock_in), raw span, no break deducted
@@ -221,7 +214,7 @@ export default async function InsightsPage({
   // ── Per-member accumulator ────────────────────────────────────────────────
   type Acc = {
     trackedHours: number; learningHours: number; totalCost: number
-    shoot: number; edit: number; technical: number; voiceover: number; poster: number
+    byType: Record<string, number> // every task_type found, incl. break/learning — future-proof for new types (e.g. scripting)
     clients: Set<string>
     workHoursExclLearning: number
   }
@@ -232,31 +225,24 @@ export default async function InsightsPage({
     const member = memberMap.get(du.user_id)
     if (!member) continue
     const hourly  = hourlyForMember(du.user_id, du.date)
-    const isMedia = member.work_layout === 'media' || member.work_layout === 'freelance_media'
 
     if (!accMap[du.user_id]) {
       accMap[du.user_id] = {
         trackedHours: 0, learningHours: 0, totalCost: 0,
-        shoot: 0, edit: 0, technical: 0, voiceover: 0, poster: 0,
-        clients: new Set(), workHoursExclLearning: 0,
+        byType: {}, clients: new Set(), workHoursExclLearning: 0,
       }
     }
     const acc = accMap[du.user_id]
 
-    // Per-type breakdown for display columns only (NOT used for total)
+    // Per-type breakdown for display columns only (NOT used for total) —
+    // driven entirely by whatever task_type strings actually appear, so a
+    // brand-new type (e.g. 'scripting') shows up automatically with no code change.
     for (const e of du.work_entries ?? []) {
       const hrs = e.duration_hours ?? 0
       if (hrs <= 0) continue
       const tt = (e.task_type ?? 'other').toLowerCase()
-      if (tt === 'break' || tt === 'learning') continue
-
-      if (e.client_name) acc.clients.add(e.client_name)
-
-      if      (tt === 'shoot')     acc.shoot     += hrs
-      else if (tt === 'edit')      acc.edit      += hrs
-      else if (tt === 'voiceover') acc.voiceover += hrs
-      else if (tt === 'poster')    acc.poster    += hrs
-      else                         acc.technical += hrs
+      if (tt !== 'break' && tt !== 'learning' && e.client_name) acc.clients.add(e.client_name)
+      acc.byType[tt] = (acc.byType[tt] ?? 0) + hrs
     }
 
     const workEntries = Array.isArray(du.work_entries) ? du.work_entries : []
@@ -296,7 +282,7 @@ export default async function InsightsPage({
     if (ch <= 0) continue
     const hourly = hourlyForMember(c.collaborator_id, c.date)
     if (!accMap[c.collaborator_id]) {
-      accMap[c.collaborator_id] = { trackedHours: 0, learningHours: 0, totalCost: 0, shoot: 0, edit: 0, technical: 0, voiceover: 0, poster: 0, clients: new Set(), workHoursExclLearning: 0 }
+      accMap[c.collaborator_id] = { trackedHours: 0, learningHours: 0, totalCost: 0, byType: {}, clients: new Set(), workHoursExclLearning: 0 }
     }
     accMap[c.collaborator_id].trackedHours += ch
     accMap[c.collaborator_id].totalCost    += ch * hourly
@@ -334,11 +320,8 @@ export default async function InsightsPage({
         trackedHours, learningHours, untrackedHours, overtimeHours,
         wastedCost, efficiency, overworked: efficiency > 105,
         clients: Array.from(acc?.clients ?? []),
-        workBreakdown: {
-          shoot: acc?.shoot ?? 0, edit: acc?.edit ?? 0,
-          technical: acc?.technical ?? 0, voiceover: acc?.voiceover ?? 0,
-          poster: acc?.poster ?? 0, learning: learningHours,
-        },
+        // 'learning' always comes from learningHours (has its own fallback for old records without work_entries)
+        workBreakdown: { ...(acc?.byType ?? {}), learning: learningHours },
         totalCost: acc?.totalCost ?? 0,
         loginHours, avgLoginHours,
         workingHoursExclLearning, avgWorkingHoursExclLearning,
@@ -415,8 +398,8 @@ export default async function InsightsPage({
   const avgEfficiency      = activeMemberCount > 0
     ? Math.round(memberUtilization.reduce((s, m) => s + m.efficiency, 0) / activeMemberCount)
     : 0
-  const shootHours = memberUtilization.reduce((s, m) => s + m.workBreakdown.shoot, 0)
-  const editHours  = memberUtilization.reduce((s, m) => s + m.workBreakdown.edit, 0)
+  const shootHours = memberUtilization.reduce((s, m) => s + (m.workBreakdown.shoot ?? 0), 0)
+  const editHours  = memberUtilization.reduce((s, m) => s + (m.workBreakdown.edit ?? 0), 0)
 
   const kpis: InsightsKPIs = {
     totalTrackedHours, totalLearningHours, totalUntrackedHours, totalCost, totalWastedCost,

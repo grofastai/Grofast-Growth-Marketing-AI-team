@@ -82,6 +82,64 @@ function TimePicker({ value, onChange, allowEmpty, style: extraStyle }: { value:
     />
   )
 }
+// Single shared client picker used by every block (Shoot/Edit/Voiceover/Poster/
+// Technical/media-Edit) so the dropdown behavior — Active list, "Past Clients →"
+// browse toggle, no free-typing — only has to be right in one place.
+//
+// `value=""` with no matching <option value=""> is what causes a native <select>
+// to silently pre-highlight its first listed option without actually selecting
+// it — clicking that same option again then fires no onChange at all (nothing
+// "changed" as far as the browser is concerned). That's why the past-clients
+// view always renders an explicit `<option value="">` first: it guarantees
+// there's a real option matching the empty value, so "← Back to Active
+// Clients" is never itself the pre-highlighted one and always fires onChange.
+function ClientSelect({
+  value, onSelect, onBackToActive, activeOptions, pastOptions, excludeOptions = [], placeholder = "Add client / project…",
+}: {
+  value: string
+  onSelect: (name: string) => void
+  onBackToActive?: () => void
+  activeOptions: string[]
+  pastOptions: string[]
+  excludeOptions?: string[]
+  placeholder?: string
+}) {
+  const [browsingPast, setBrowsingPast] = useState(false)
+  const inPastView = browsingPast || (value !== "" && pastOptions.includes(value))
+
+  return (
+    <div style={{ position: "relative" }}>
+      <select
+        value={value}
+        onChange={e => {
+          const v = e.target.value
+          if (v === "__back__") { setBrowsingPast(false); onBackToActive?.(); return }
+          if (v === "__past_clients__") { setBrowsingPast(true); return }
+          if (!v) return
+          setBrowsingPast(false)
+          onSelect(v)
+        }}
+        style={{ width: "100%", fontSize: 12, fontWeight: 600, color: "#374151", background: "#fff", border: "1.5px solid #EBEDF2", borderRadius: 10, padding: "8px 28px 8px 10px", cursor: "pointer", outline: "none", appearance: "none" }}
+      >
+        {inPastView ? (
+          <>
+            <option value="">📁 Past Clients</option>
+            <option value="__back__">← Back to Active Clients</option>
+            {pastOptions.filter(n => !excludeOptions.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
+          </>
+        ) : (
+          <>
+            <option value="">{placeholder}</option>
+            {activeOptions.filter(n => !excludeOptions.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
+            {pastOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
+          </>
+        )}
+      </select>
+      <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+    </div>
+  )
+}
+
 function calcDuration(start: string, end: string) {
   if (!start || !end) return 0
   const [sh, sm] = start.split(":").map(Number)
@@ -548,11 +606,6 @@ export default function DailyUpdateForm({
   )
   const allClientOptions = activeClientOptions
 
-  // Tracks which entry IDs are in "past clients" mode
-  const [showPastFor, setShowPastFor] = useState<Set<string>>(new Set())
-  const enterPastMode  = (id: string) => setShowPastFor(p => new Set([...p, id]))
-  const exitPastMode   = (id: string) => setShowPastFor(p => { const n = new Set(p); n.delete(id); return n })
-
   // ── Shoots (media) ───────────────────────────────────────────────────────
   const [shoots, setShoots] = useState<ShootEntry[]>(() => existingUpdate ? parseExistingShoots(existingUpdate) : [])
   const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, cameraHours:0, droneHours:0, travelHours:0, brand:"", shopName:"", location:"", driveLink:"", notes:"", videoUploaded:false, participantIds:[] }])
@@ -839,7 +892,7 @@ export default function DailyUpdateForm({
       if (!b.description.trim()) {
         setWorkingError(`${label}Enter what you worked on.`); return
       }
-      const hasClient = b.clientNames.length > 0 || (b.projectName === "__custom__" && b.customClient.trim())
+      const hasClient = b.clientNames.length > 0
       if (!hasClient) {
         setWorkingError(`${label}Select a client / project.`); return
       }
@@ -863,7 +916,7 @@ export default function DailyUpdateForm({
     for (let i = 0; i < voiceovers.length; i++) {
       const v = voiceovers[i]
       const label = voiceovers.length > 1 ? `Voiceover ${i + 1}: ` : "Voiceover: "
-      const client = v.clientName === "__custom__" ? v.customClient.trim() : v.clientName
+      const client = v.clientName
       if (!client) { setWorkingError(`${label}Select a client.`); return }
       if (!v.title.trim()) { setWorkingError(`${label}Enter a script name.`); return }
       if (!v.startTime) { setWorkingError(`${label}Enter start time.`); return }
@@ -875,7 +928,7 @@ export default function DailyUpdateForm({
     for (let i = 0; i < posters.length; i++) {
       const p = posters[i]
       const label = posters.length > 1 ? `Poster ${i + 1}: ` : "Poster: "
-      const client = p.clientName === "__custom__" ? p.customClient.trim() : p.clientName
+      const client = p.clientName
       if (!client) { setWorkingError(`${label}Select a client.`); return }
       if (!p.title.trim()) { setWorkingError(`${label}Enter a poster name.`); return }
       if (!p.startTime) { setWorkingError(`${label}Enter start time.`); return }
@@ -887,7 +940,7 @@ export default function DailyUpdateForm({
     for (let i = 0; i < nmEdits.length; i++) {
       const n = nmEdits[i]
       const label = nmEdits.length > 1 ? `Edit ${i + 1}: ` : "Edit: "
-      const client = n.clientName === "__custom__" ? n.customClient.trim() : n.clientName
+      const client = n.clientName
       if (!client) { setWorkingError(`${label}Select a client.`); return }
       if (!n.title.trim()) { setWorkingError(`${label}Enter a video name.`); return }
       if (!n.videoType || n.videoType === "") { setWorkingError(`${label}Select a video type.`); return }
@@ -899,7 +952,6 @@ export default function DailyUpdateForm({
     const work_entries = [
       ...filledBlocks.map(t => {
         const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")
-          : t.projectName === "__custom__" ? (t.customClient || "Internal")
           : (t.projectName || "Internal")
         const isMulti = t.clientNames.length > 1
         return {
@@ -930,7 +982,7 @@ export default function DailyUpdateForm({
       ...voiceovers.map(e => ({
         id: e.id,
         client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        client_name: e.clientName || "Internal",
         client_names: [] as string[],
         is_multi_client: false,
         task_type: "voiceover" as const,
@@ -944,7 +996,7 @@ export default function DailyUpdateForm({
       ...posters.map(e => ({
         id: e.id,
         client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        client_name: e.clientName || "Internal",
         client_names: [] as string[],
         is_multi_client: false,
         task_type: "poster" as const,
@@ -958,7 +1010,7 @@ export default function DailyUpdateForm({
       ...nmEdits.map(e => ({
         id: e.id,
         client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        client_name: e.clientName || "Internal",
         client_names: [] as string[],
         is_multi_client: false,
         task_type: "edit" as const,
@@ -1044,10 +1096,10 @@ export default function DailyUpdateForm({
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
-        client_name: s.clientName === "__custom__" ? (s.customClient || "Custom") : s.clientName === "Promotion" ? (s.brand || "Promotion") : s.clientName || "Internal",
+        client_name: s.clientName === "Promotion" ? (s.brand || "Promotion") : s.clientName || "Internal",
         task_type: "shoot" as const,
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
-        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
+        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", s.clientName === "Promotion" && s.shopName ? `Shop: ${s.shopName}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
         _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours > 0 ? Math.max(0, s.durationHours - s.droneHours) : 0, _drone_hours: s.droneHours,
         participant_ids: [...new Set([...participantIds, ...s.participantIds])],
@@ -1058,7 +1110,7 @@ export default function DailyUpdateForm({
         const finalVideoType = e.videoType === "__other__" ? (e.customVideoType || "Other") : e.videoType
         return {
           id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-          client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
+          client_name: e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
           task_type: "edit" as const,
           title: e.title || "Editing", start_time: e.startTime, end_time: e.endTime,
           duration_hours: validH || e.timeTaken, notes: overlapH > 0 ? `[overlap:${overlapH}h] ${e.notes}`.trim() : e.notes, video_uploaded: null,
@@ -1173,10 +1225,10 @@ export default function DailyUpdateForm({
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
-        client_name: s.clientName === "__custom__" ? (s.customClient || "Custom") : s.clientName === "Promotion" ? (s.brand || "Promotion") : s.clientName || "Internal",
+        client_name: s.clientName === "Promotion" ? (s.brand || "Promotion") : s.clientName || "Internal",
         task_type: "shoot" as const,
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
-        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
+        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", s.clientName === "Promotion" && s.shopName ? `Shop: ${s.shopName}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
         _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours > 0 ? Math.max(0, s.durationHours - s.droneHours) : 0, _drone_hours: s.droneHours,
         participant_ids: [...new Set([...participantIds, ...s.participantIds])],
@@ -1187,7 +1239,7 @@ export default function DailyUpdateForm({
         const finalVideoType = e.videoType === "__other__" ? (e.customVideoType || "Other") : e.videoType
         return {
           id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-          client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
+          client_name: e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
           task_type: "edit" as const,
           title: e.title || "Editing", start_time: e.startTime, end_time: e.endTime,
           duration_hours: validH || e.timeTaken, notes: overlapH > 0 ? `[overlap:${overlapH}h] ${e.notes}`.trim() : e.notes, video_uploaded: null,
@@ -1286,7 +1338,6 @@ export default function DailyUpdateForm({
     const workingEntries = !isMediaTeam
       ? filledBlocks.map(t => {
           const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")
-            : t.projectName === "__custom__" ? (t.customClient || "Internal")
             : (t.projectName || "Internal")
           return {
             id: t.id,
@@ -1817,24 +1868,13 @@ export default function DailyUpdateForm({
                         <div className="grid md:grid-cols-2" style={{ gap:8 }}>
                             <div>
                               <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5, margin:"0 0 5px" }}>Client Name</p>
-                              <div style={{ position:"relative" }}>
-                              {showPastFor.has(`blk-${block.id}`) ? (
-                                <select value="" onChange={e => { const v = e.target.value; if (!v) return; if (v === "__back__") { exitPastMode(`blk-${block.id}`); return } if (!block.clientNames.includes(v)) patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" }); exitPastMode(`blk-${block.id}`) }}
-                                  style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                                  <option value="__back__">← Back to Active Clients</option>
-                                  {pastClientOptions.filter(n => !block.clientNames.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
-                                </select>
-                              ) : (
-                              <select value="" onChange={e => { const v = e.target.value; if (!v) return; if (v === "__past_clients__") { enterPastMode(`blk-${block.id}`) } else if (v === "__custom__") { patchBlock(block.id, { projectName: v, clientNames: [], brand: "", customClient: "" }) } else { if (!block.clientNames.includes(v)) patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" }) } }}
-                                style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                                <option value="">Add client / project…</option>
-                                {activeClientOptions.filter(n => !block.clientNames.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
-                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                {!block.projectName && <option value="__custom__">✏️ Other (type manually)</option>}
-                              </select>
-                              )}
-                              <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                              </div>
+                              <ClientSelect
+                                value=""
+                                activeOptions={activeClientOptions}
+                                pastOptions={pastClientOptions}
+                                excludeOptions={block.clientNames}
+                                onSelect={v => patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "" })}
+                              />
                             </div>
                             <div>
                               <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5, margin:"0 0 5px" }}>Title</p>
@@ -1843,7 +1883,7 @@ export default function DailyUpdateForm({
                                 style={{ width:"100%", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"8px 10px", fontSize:12, color:"#111827", outline:"none", boxSizing:"border-box" as const }} />
                             </div>
                           </div>
-                          {(block.clientNames.length > 0 || block.projectName) && (
+                          {block.clientNames.length > 0 && (
                             <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:4 }}>
                               {block.clientNames.map(name => (
                                 <button key={name} type="button"
@@ -1853,19 +1893,7 @@ export default function DailyUpdateForm({
                                   <span style={{ fontSize:8, color:"#de1a1a" }}>✕</span>
                                 </button>
                               ))}
-                              {block.projectName === "__custom__" && (
-                                <button type="button" onClick={() => patchBlock(block.id, { projectName: "", brand: "", customClient: "" })}
-                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.08)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
-                                  <span style={{ fontSize:10, fontWeight:700, color:"#6366F1" }}>✏️ Other</span>
-                                  <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
-                                </button>
-                              )}
                             </div>
-                          )}
-                          {block.projectName === "__custom__" && (
-                            <input value={block.customClient} onChange={e => patchBlock(block.id, { customClient: e.target.value })}
-                              placeholder="Type client name…"
-                              style={{ width:"100%", fontSize:11, fontWeight:600, color:"#111827", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", outline:"none", boxSizing:"border-box", marginTop:6 }} />
                           )}
 
                           {/* ── WORKING TIME ── */}
@@ -1986,34 +2014,14 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client Name</label>
-                          <div style={{ position:"relative" }}>
-                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
-                              <div>
-                                <button type="button" onClick={() => { exitPastMode(e.id); patchVoiceover(e.id, { clientName:"", customClient:"" }) }}
-                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
-                                  ← Back to Active Clients
-                                </button>
-                                <div style={{ position:"relative" }}>
-                                  <select value={e.clientName}
-                                    onChange={ev => { patchVoiceover(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
-                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                    <option value="">Select past client…</option>
-                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                  </select>
-                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                </div>
-                              </div>
-                            ) : (
-                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchVoiceover(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">Select client…</option>
-                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                <option value="__custom__">✏️ Other (type manually)</option>
-                              </select>
-                            )}
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                          {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchVoiceover(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
+                          <ClientSelect
+                            value={e.clientName}
+                            activeOptions={activeClientOptions}
+                            pastOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onSelect={v => patchVoiceover(e.id, { clientName: v })}
+                            onBackToActive={() => patchVoiceover(e.id, { clientName: "" })}
+                          />
                         </div>
                         <div>
                           <label style={L}>Script Name</label>
@@ -2098,34 +2106,14 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client Name</label>
-                          <div style={{ position:"relative" }}>
-                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
-                              <div>
-                                <button type="button" onClick={() => { exitPastMode(e.id); patchPoster(e.id, { clientName:"", customClient:"" }) }}
-                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
-                                  ← Back to Active Clients
-                                </button>
-                                <div style={{ position:"relative" }}>
-                                  <select value={e.clientName}
-                                    onChange={ev => { patchPoster(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
-                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                    <option value="">Select past client…</option>
-                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                  </select>
-                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                </div>
-                              </div>
-                            ) : (
-                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchPoster(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">Select client…</option>
-                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                <option value="__custom__">✏️ Other (type manually)</option>
-                              </select>
-                            )}
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                          {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchPoster(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
+                          <ClientSelect
+                            value={e.clientName}
+                            activeOptions={activeClientOptions}
+                            pastOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onSelect={v => patchPoster(e.id, { clientName: v })}
+                            onBackToActive={() => patchPoster(e.id, { clientName: "" })}
+                          />
                         </div>
                         <div>
                           <label style={L}>Poster Name</label>
@@ -2239,34 +2227,14 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client Name</label>
-                          <div style={{ position:"relative" }}>
-                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
-                              <div>
-                                <button type="button" onClick={() => { exitPastMode(e.id); patchNmEdit(e.id, { clientName:"", customClient:"" }) }}
-                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
-                                  ← Back to Active Clients
-                                </button>
-                                <div style={{ position:"relative" }}>
-                                  <select value={e.clientName}
-                                    onChange={ev => { patchNmEdit(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
-                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                    <option value="">Select past client…</option>
-                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                  </select>
-                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                </div>
-                              </div>
-                            ) : (
-                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchNmEdit(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">Select client…</option>
-                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                <option value="__custom__">✏️ Other (type manually)</option>
-                              </select>
-                            )}
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                          {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchNmEdit(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
+                          <ClientSelect
+                            value={e.clientName}
+                            activeOptions={activeClientOptions}
+                            pastOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onSelect={v => patchNmEdit(e.id, { clientName: v })}
+                            onBackToActive={() => patchNmEdit(e.id, { clientName: "" })}
+                          />
                         </div>
                         <div>
                           <label style={L}>Video Type</label>
@@ -2439,47 +2407,20 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client Name *</label>
-                          <div style={{ position:"relative" }}>
-                            {(showPastFor.has(s.id) || pastClientOptions.includes(s.clientName)) ? (
-                              <div>
-                                <button type="button" onClick={() => { exitPastMode(s.id); patchShoot(s.id, { clientName: "", brand:"", shopName:"", customClient:"" }) }}
-                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
-                                  ← Back to Active Clients
-                                </button>
-                                <div style={{ position:"relative" }}>
-                                  <select value={s.clientName}
-                                    onChange={e => { patchShoot(s.id, { clientName: e.target.value, brand:"", shopName:"", customClient:"" }); exitPastMode(s.id) }}
-                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                    <option value="">Select past client…</option>
-                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                  </select>
-                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                </div>
-                              </div>
-                            ) : (
-                            <select value={s.clientName} onChange={e => { const v = e.target.value; if (v === "__past_clients__") { enterPastMode(s.id) } else { patchShoot(s.id, { clientName: v, brand:"", shopName:"", customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                              <option value="">Select client…</option>
-                              {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                              {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                              <option value="__custom__">✏️ Other (type manually)</option>
-                            </select>
-                            )}
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
+                          <ClientSelect
+                            value={s.clientName}
+                            activeOptions={activeClientOptions}
+                            pastOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onSelect={v => patchShoot(s.id, { clientName: v, brand:"", shopName:"" })}
+                            onBackToActive={() => patchShoot(s.id, { clientName: "", brand:"", shopName:"" })}
+                          />
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Shoot Name *</label>
                           <input value={s.title} onChange={e => patchShoot(s.id, { title: e.target.value })} placeholder="e.g. Basketball Tournament Shoot" style={F} />
                         </div>
                       </div>
-
-                      {/* Custom client sub-fields */}
-                      {s.clientName === "__custom__" && (
-                        <div style={{ marginBottom:10, padding:"12px 14px", borderRadius:12, background:"rgba(99,102,241,0.05)", border:"1.5px solid rgba(99,102,241,0.2)" }}>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6366F1", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>✏️ Client Name *</label>
-                          <input value={s.customClient} onChange={e => patchShoot(s.id, { customClient: e.target.value })} placeholder="Type client name…" style={F} />
-                        </div>
-                      )}
 
 
 
@@ -2720,36 +2661,14 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client Name *</label>
-                          <div style={{ position:"relative" }}>
-                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
-                              <div>
-                                <button type="button" onClick={() => { exitPastMode(e.id); patchEdit(e.id, { clientName: "", brand:"", customClient:"" }) }}
-                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
-                                  ← Back to Active Clients
-                                </button>
-                                <div style={{ position:"relative" }}>
-                                  <select value={e.clientName}
-                                    onChange={ev => { patchEdit(e.id, { clientName: ev.target.value, brand:"", customClient:"" }); exitPastMode(e.id) }}
-                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                    <option value="">Select past client…</option>
-                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                  </select>
-                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                </div>
-                              </div>
-                            ) : (
-                            <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchEdit(e.id, { clientName: v, brand:"", customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                              <option value="">Select client…</option>
-                              {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                              {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                              <option value="__custom__">✏️ Other (type manually)</option>
-                            </select>
-                            )}
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                          {e.clientName === "__custom__" && (
-                            <input value={e.customClient} onChange={ev => patchEdit(e.id, { customClient: ev.target.value })} placeholder="Type client name…" style={{ ...F, marginTop:8, background:"rgba(99,102,241,0.05)", borderColor:"rgba(99,102,241,0.25)" }} />
-                          )}
+                          <ClientSelect
+                            value={e.clientName}
+                            activeOptions={activeClientOptions}
+                            pastOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onSelect={v => patchEdit(e.id, { clientName: v, brand:"" })}
+                            onBackToActive={() => patchEdit(e.id, { clientName: "", brand:"" })}
+                          />
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Type</label>

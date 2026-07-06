@@ -287,9 +287,9 @@ function CommonExpenseModalBody({ selectedMonth, overheadDivisor, editing, onClo
   )
 }
 
-// ── Travel Table Modal ────────────────────────────────────────────────────────
+// ── Travel Tab ────────────────────────────────────────────────────────────────
 
-function TravelTableModalBody({ shoots, savedTravel }: {
+function TravelTab({ shoots, savedTravel }: {
   shoots: ShootRow[]
   savedTravel: Record<string, number>
 }) {
@@ -317,64 +317,71 @@ function TravelTableModalBody({ shoots, savedTravel }: {
   const totalEntered = Object.values(localAmounts).reduce((s, v) => s + (parseFloat(v) || 0), 0)
 
   return (
-    <div>
-      {totalEntered > 0 && (
-        <p className="text-[12px] mb-3" style={{ color: "#6B7280" }}>
-          Total entered: <strong style={{ color: "#3B82F6" }}>₹{Math.round(totalEntered).toLocaleString("en-IN")}</strong>
-        </p>
-      )}
-      <div>
-          {shoots.length === 0 ? (
-            <div className="flex flex-col items-center py-16">
-              <Car size={32} style={{ color: "#E5E7EB" }} className="mb-3" />
-              <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No shoots logged this month</p>
-            </div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead style={{ position: "sticky", top: 0, background: "#F9FAFB", zIndex: 1 }}>
-                <tr>
-                  {["Date", "Client", "Shoot Title", "Member", "Hrs", "Travel ₹", ""].map(h => (
-                    <th key={h} style={{ padding: "10px 14px", textAlign: h === "Travel ₹" || h === "" ? "center" : "left", fontSize: 10, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "1px solid #E5E7EB", whiteSpace: "nowrap" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {shoots.map((row, i) => {
-                  const isSaving = saving === row.key
-                  const isSaved  = saved[row.key]
-                  const hasVal   = parseFloat(localAmounts[row.key] ?? "") > 0
-                  return (
-                    <tr key={row.key} style={{ background: i % 2 === 0 ? "#FFFFFF" : "#FAFAFA" }}>
-                      <td style={{ padding: "10px 14px", color: "#6B7280", borderBottom: "1px solid #F3F4F6", whiteSpace: "nowrap" }}>{fmtDate(row.date)}</td>
-                      <td style={{ padding: "10px 14px", fontWeight: 600, color: "#111111", borderBottom: "1px solid #F3F4F6", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.clientName}</td>
-                      <td style={{ padding: "10px 14px", color: "#374151", borderBottom: "1px solid #F3F4F6", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.title || "—"}</td>
-                      <td style={{ padding: "10px 14px", color: "#6B7280", borderBottom: "1px solid #F3F4F6", whiteSpace: "nowrap" }}>{row.memberName}</td>
-                      <td style={{ padding: "10px 14px", textAlign: "center", color: "#374151", borderBottom: "1px solid #F3F4F6" }}>{row.durationHrs > 0 ? `${row.durationHrs}h` : "—"}</td>
-                      <td style={{ padding: "8px 14px", borderBottom: "1px solid #F3F4F6" }}>
-                        <input
-                          type="number" min="0"
-                          value={localAmounts[row.key] ?? ""}
-                          onChange={e => setLocal(p => ({ ...p, [row.key]: e.target.value }))}
-                          placeholder="0"
-                          className="w-24 rounded-lg px-3 py-1.5 text-[13px] text-center outline-none"
-                          style={{ background: hasVal ? "rgba(59,130,246,0.06)" : "#F9FAFB", border: `1px solid ${hasVal ? "rgba(59,130,246,0.3)" : "#E5E7EB"}`, color: "#111111", display: "block", margin: "0 auto" }}
-                        />
-                      </td>
-                      <td style={{ padding: "8px 14px", textAlign: "center", borderBottom: "1px solid #F3F4F6" }}>
-                        <button onClick={() => saveRow(row)} disabled={isSaving}
-                          className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-50"
-                          style={{ background: isSaved ? "rgba(22,163,74,0.1)" : "rgba(59,130,246,0.08)", color: isSaved ? "#16A34A" : "#3B82F6", border: `1px solid ${isSaved ? "rgba(22,163,74,0.2)" : "rgba(59,130,246,0.2)"}`, whiteSpace: "nowrap" }}>
-                          {isSaving ? "…" : isSaved ? "✓" : "Save"}
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
+    <FlatCard className="overflow-hidden">
+      <div className="flex items-center justify-between gap-2 px-6 py-4" style={{ borderBottom: "1px solid #EDEDED" }}>
+        <div className="flex items-center gap-2">
+          <Car size={15} style={{ color: "#3B82F6" }} />
+          <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Travel</span>
+        </div>
+        {totalEntered > 0 && (
+          <span className="text-[12px]" style={{ color: "#6B7280" }}>
+            Total entered: <strong style={{ color: "#3B82F6" }}>₹{Math.round(totalEntered).toLocaleString("en-IN")}</strong>
+          </span>
+        )}
       </div>
-    </div>
+      {shoots.length === 0 ? (
+        <div className="flex flex-col items-center py-16">
+          <Car size={32} style={{ color: "#E5E7EB" }} className="mb-3" />
+          <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No shoots logged this month</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table style={{ minWidth: 640 }} className="w-full">
+            <thead>
+              <tr style={{ background: "#FAFAFA", borderBottom: "1px solid #EDEDED" }}>
+                {["Date", "Client", "Shoot Title", "Member", "Hrs", "Travel ₹", ""].map(h => (
+                  <th key={h} className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap"
+                    style={{ textAlign: h === "Travel ₹" || h === "" ? "center" : "left", color: "#9CA3AF" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {shoots.map((row, i) => {
+                const isSaving = saving === row.key
+                const isSaved  = saved[row.key]
+                const hasVal   = parseFloat(localAmounts[row.key] ?? "") > 0
+                return (
+                  <tr key={row.key} style={{ borderBottom: i < shoots.length - 1 ? "1px solid #F5F5F5" : "none" }}>
+                    <td className="px-4 py-3 whitespace-nowrap text-[12px]" style={{ color: "#9CA3AF" }}>{fmtDate(row.date)}</td>
+                    <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{row.clientName}</td>
+                    <td className="px-4 py-3 text-[12px] whitespace-nowrap" style={{ color: "#374151", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{row.title || "—"}</td>
+                    <td className="px-4 py-3 text-[12px] whitespace-nowrap" style={{ color: "#6B7280" }}>{row.memberName}</td>
+                    <td className="px-4 py-3 text-[12px] text-center" style={{ color: "#374151" }}>{row.durationHrs > 0 ? `${row.durationHrs}h` : "—"}</td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="number" min="0"
+                        value={localAmounts[row.key] ?? ""}
+                        onChange={e => setLocal(p => ({ ...p, [row.key]: e.target.value }))}
+                        placeholder="0"
+                        className="w-24 rounded-lg px-3 py-1.5 text-[13px] text-center outline-none"
+                        style={{ background: hasVal ? "rgba(59,130,246,0.06)" : "#F9FAFB", border: `1px solid ${hasVal ? "rgba(59,130,246,0.3)" : "#E5E7EB"}`, color: "#111111", display: "block", margin: "0 auto" }}
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button onClick={() => saveRow(row)} disabled={isSaving}
+                        className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-50"
+                        style={{ background: isSaved ? "rgba(22,163,74,0.1)" : "rgba(59,130,246,0.08)", color: isSaved ? "#16A34A" : "#3B82F6", border: `1px solid ${isSaved ? "rgba(22,163,74,0.2)" : "rgba(59,130,246,0.2)"}`, whiteSpace: "nowrap" }}>
+                        {isSaving ? "…" : isSaved ? "✓" : "Save"}
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </FlatCard>
   )
 }
 
@@ -392,11 +399,11 @@ export default function ExpensesClient({
   employeeCostByClient: Record<string, number>
 }) {
   const router = useRouter()
-  const [modal, setModal]             = useState<"travel" | "client" | "common" | null>(null)
+  const [modal, setModal]             = useState<"client" | "common" | null>(null)
   const [editingClient, setEditClient] = useState<ClientExpense | null>(null)
   const [editingCommon, setEditCommon] = useState<CommonExpense | null>(null)
   const [isPending, start]             = useTransition()
-  const [activeTab, setActiveTab]      = useState<"summary" | "direct" | "common">("summary")
+  const [activeTab, setActiveTab]      = useState<"summary" | "direct" | "common" | "travel">("summary")
   const [clientFilter, setClientFilter] = useState("all")
   const [search, setSearch]            = useState("")
   const [viewDetailsClient, setViewDetailsClient] = useState<string | null>(null)
@@ -515,39 +522,29 @@ export default function ExpensesClient({
     <div className="min-h-screen" style={{ background: "#F8F9FB" }}>
       <div className="p-4 md:p-6 xl:p-8 max-w-[1300px] mx-auto space-y-5">
 
-        {/* Header — red gradient hero, matching every other page in the app */}
-        <div className="p-6 md:p-8" style={{
-          position: "relative", overflow: "hidden", borderRadius: 20, minHeight: "clamp(150px,32vw,190px)",
-          background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
-          boxShadow: "0 8px 32px rgba(180,0,0,0.35)",
-        }}>
-          <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
-
-          {/* Illustration — mobile: bottom-right anchored so it can't reach the title/date-pill row; desktop: centered in the space right of the text */}
-          <div className="right-[clamp(4px,2vw,16px)] bottom-0 md:right-auto md:bottom-auto md:left-[78%] md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2" style={{ position: "absolute", zIndex: 1, pointerEvents: "none" }}>
-            <Image src="/brand/expenses/expenses-hero-boy.png" alt="" width={500} height={500}
-              className="h-[clamp(80px,20vw,150px)] md:h-[clamp(130px,17vw,180px)]"
-              style={{ width: "auto", display: "block" }} priority />
-          </div>
-
-          <div className="flex items-start justify-between gap-4" style={{ position: "relative", zIndex: 2 }}>
-            <div className="max-w-[56%] sm:max-w-[62%] md:max-w-[60%]">
-              <div className="flex items-center gap-1.5 mb-2" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontWeight: 600 }}>
+        {/* Header */}
+        <FlatCard className="p-6 md:p-8" style={{ position: "relative", overflow: "hidden" }}>
+          <div className="flex items-start justify-between gap-4 md:pr-[180px] xl:pr-[240px]" style={{ position: "relative", zIndex: 1 }}>
+            <div style={{ maxWidth: "60%" }}>
+              <div className="flex items-center gap-1.5 mb-2" style={{ fontSize: 12, color: "#9CA3AF", fontWeight: 600 }}>
                 <span>Admin Dashboard</span>
                 <ChevronRight size={12} />
-                <span style={{ color: "#fff", fontWeight: 700 }}>Expenses</span>
+                <span style={{ color: "#111111", fontWeight: 700 }}>Expenses</span>
               </div>
-              <h1 className="text-[28px] md:text-[34px] font-black" style={{ color: "#fff", fontFamily: "var(--font-jakarta)", margin: 0, lineHeight: 1.1 }}>Expenses</h1>
-              <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>Track client direct, common shared & overhead costs</p>
+              <h1 className="text-[28px] md:text-[34px] font-black" style={{ color: "#111111", fontFamily: "var(--font-jakarta)", margin: 0, lineHeight: 1.1 }}>Expenses</h1>
+              <p className="text-[13px] mt-1" style={{ color: "#6B7280" }}>Track client direct, common shared & overhead costs</p>
             </div>
-            <div className="flex items-center gap-1 px-3 py-2 rounded-xl flex-shrink-0" style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.2)" }}>
-              <button onClick={() => goMonth(-1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#fff" }}>‹</button>
-              <span className="text-[13px] font-black px-1" style={{ color: "#fff" }}>{MONTHS_SHORT[mo - 1]} {yr}</span>
-              <button onClick={() => goMonth(1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#fff" }}>›</button>
+            <div className="flex items-center gap-1 px-3 py-2 rounded-xl flex-shrink-0" style={{ background: "#F8F9FB", border: "1px solid #EDEDED" }}>
+              <button onClick={() => goMonth(-1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#6B7280" }}>‹</button>
+              <span className="text-[13px] font-black px-1" style={{ color: "#111111" }}>{MONTHS_SHORT[mo - 1]} {yr}</span>
+              <button onClick={() => goMonth(1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#6B7280" }}>›</button>
             </div>
           </div>
-        </div>
+          <div className="hidden md:block" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", width: "clamp(160px,22vw,300px)", pointerEvents: "none" }}>
+            <Image src="/brand/expenses/expenses-hero-boy.png" alt="" width={500} height={500}
+              style={{ width: "100%", height: "auto", display: "block" }} priority />
+          </div>
+        </FlatCard>
 
         {/* Summary strip: total + 3 category stat cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -591,7 +588,7 @@ export default function ExpensesClient({
             <button className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#fff", border: "1px solid #EDEDED", color: "#DE1A1A" }}>
               <TrendingUp size={16} />
             </button>
-            <button onClick={() => setModal("travel")}
+            <button onClick={() => setModal("client")}
               className="flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-bold text-[13px] text-white whitespace-nowrap"
               style={{ background: "linear-gradient(135deg,#DE1A1A,#991111)" }}
             >
@@ -607,6 +604,7 @@ export default function ExpensesClient({
               { key: "direct" as const, label: "Client Direct", icon: <Receipt size={13} /> },
               { key: "common" as const, label: "Common / Shared", icon: <Layers size={13} /> },
               { key: "summary" as const, label: "Per Client", icon: <IndianRupee size={13} /> },
+              { key: "travel" as const, label: "Travel", icon: <Car size={13} /> },
             ]).map(t => (
               <button key={t.key} onClick={() => setActiveTab(t.key)}
                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all"
@@ -773,6 +771,11 @@ export default function ExpensesClient({
           </FlatCard>
         )}
 
+        {/* Travel */}
+        {activeTab === "travel" && (
+          <TravelTab shoots={shootRows} savedTravel={savedTravel} />
+        )}
+
         {/* Client & Brand Cost Summary — table */}
         {activeTab === "summary" && (
           <FlatCard className="overflow-hidden">
@@ -813,19 +816,15 @@ export default function ExpensesClient({
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="text-[13px] font-black" style={{ color: row.empCost > 0 ? "#059669" : "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(row.empCost)}</div>
-                          <div className="text-[9px]" style={{ color: "#9CA3AF" }}>Employee</div>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="text-[13px] font-black" style={{ color: row.direct > 0 ? "#6366F1" : "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(row.direct)}</div>
-                          <div className="text-[9px]" style={{ color: "#9CA3AF" }}>Direct</div>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="text-[13px] font-black" style={{ color: "#8B5CF6", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(row.overhead)}</div>
-                          <div className="text-[9px]" style={{ color: "#9CA3AF" }}>Common</div>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="text-[14px] font-black" style={{ color: "#DE1A1A", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(row.total)}</div>
-                          <div className="text-[9px]" style={{ color: "#9CA3AF" }}>Total</div>
                         </td>
                         <td className="px-6 py-3">
                           <div className="flex items-center justify-end gap-2">
@@ -864,22 +863,17 @@ export default function ExpensesClient({
       <DrawerPanel
         open={modal !== null}
         onClose={() => { setModal(null); setEditClient(null); setEditCommon(null) }}
-        widthClassName="w-full max-w-2xl"
         header={
           <SegmentedControl
-            value={modal ?? "travel"}
+            value={modal ?? "client"}
             onChange={(v) => { setModal(v); setEditClient(null); setEditCommon(null) }}
             options={[
-              { value: "travel", label: "Travel", icon: <Car size={13} /> },
               { value: "client", label: "Client", icon: <Megaphone size={13} /> },
               { value: "common", label: "Common", icon: <Building2 size={13} /> },
             ]}
           />
         }
       >
-        {modal === "travel" && (
-          <TravelTableModalBody shoots={shootRows} savedTravel={savedTravel} />
-        )}
         {modal === "client" && (
           <ClientExpenseModalBody
             clients={clientNames}

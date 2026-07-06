@@ -90,6 +90,7 @@ export type SpendCategory = {
 export type InsightsKPIs  = {
   totalTrackedHours: number
   totalLearningHours: number
+  totalUntrackedHours: number
   totalCost: number
   totalWastedCost: number
   activeMemberCount: number
@@ -159,6 +160,7 @@ export default async function InsightsPage({
       .eq('role', 'MEMBER')
       .eq('status', 'active')
       .eq('is_management', false)
+      .eq('employment_type', 'regular') // full-time only — excludes login freelancers (e.g. Freelance Media Production)
       .order('name'),
     admin.from('attendance_logs')
       .select('user_id, clock_in, clock_out, break_total_mins')
@@ -403,10 +405,11 @@ export default async function InsightsPage({
     .sort((a, b) => a.date.localeCompare(b.date))
 
   // ── KPIs ──────────────────────────────────────────────────────────────────
-  const totalTrackedHours  = memberUtilization.reduce((s, m) => s + m.trackedHours, 0)
-  const totalLearningHours = memberUtilization.reduce((s, m) => s + m.learningHours, 0)
-  const totalCost          = memberUtilization.reduce((s, m) => s + m.totalCost, 0)
-  const totalWastedCost    = memberUtilization.reduce((s, m) => s + m.wastedCost, 0)
+  const totalTrackedHours   = memberUtilization.reduce((s, m) => s + m.trackedHours, 0)
+  const totalLearningHours  = memberUtilization.reduce((s, m) => s + m.learningHours, 0)
+  const totalUntrackedHours = memberUtilization.reduce((s, m) => s + m.untrackedHours, 0)
+  const totalCost           = memberUtilization.reduce((s, m) => s + m.totalCost, 0)
+  const totalWastedCost     = memberUtilization.reduce((s, m) => s + m.wastedCost, 0)
   const activeMemberCount  = memberUtilization.length
   const clientsServedCount = Object.keys(clientMap).length
   const avgEfficiency      = activeMemberCount > 0
@@ -416,7 +419,7 @@ export default async function InsightsPage({
   const editHours  = memberUtilization.reduce((s, m) => s + m.workBreakdown.edit, 0)
 
   const kpis: InsightsKPIs = {
-    totalTrackedHours, totalLearningHours, totalCost, totalWastedCost,
+    totalTrackedHours, totalLearningHours, totalUntrackedHours, totalCost, totalWastedCost,
     activeMemberCount, clientsServedCount, avgEfficiency, shootHours, editHours,
   }
 

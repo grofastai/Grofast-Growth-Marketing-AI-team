@@ -60,11 +60,14 @@ export function PageHero({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between"
         style={{ padding: "clamp(16px,4vw,24px) clamp(18px,5vw,28px)", gap: 16, position: "relative", zIndex: 2 }}>
         <div
-          className={maxContentWidth ? "sm:max-w-[var(--hero-content-max)]" : undefined}
+          className={maxContentWidth ? "max-w-[var(--hero-content-max)]" : undefined}
           style={{
             minWidth: 0,
+            // Cap applies at every width (not just sm+) so text can never run
+            // under a caller's absolutely-positioned illustration on mobile.
+            // px values are additionally capped to 68% of the row on phones.
             ...(maxContentWidth
-              ? ({ "--hero-content-max": typeof maxContentWidth === "number" ? `${maxContentWidth}px` : maxContentWidth } as React.CSSProperties)
+              ? ({ "--hero-content-max": typeof maxContentWidth === "number" ? `min(${maxContentWidth}px, 68%)` : maxContentWidth } as React.CSSProperties)
               : {}),
           }}
         >

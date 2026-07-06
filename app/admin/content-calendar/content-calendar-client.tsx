@@ -486,7 +486,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               </div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={img} alt="" aria-hidden="true"
-                style={{ height: isMobile ? 40 : 52, width: "auto", objectFit: "contain", flexShrink: 0, opacity: contentMode === mode ? 1 : 0.45, filter: contentMode === mode ? "none" : "grayscale(40%)" }} />
+                style={{ height: isMobile ? 40 : 52, width: "auto", maxWidth: isMobile ? "24%" : "36%", objectFit: "contain", flexShrink: 0, opacity: contentMode === mode ? 1 : 0.45, filter: contentMode === mode ? "none" : "grayscale(40%)" }} />
             </button>
           ))}
         </div>

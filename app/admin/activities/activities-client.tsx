@@ -458,11 +458,13 @@ export default function ActivitiesClient({
           title="Activities"
           subtitle="Track real-time updates and progress from your amazing team."
           illustration={
-            <div style={{ position: "absolute", bottom: "clamp(-30px,-9vw,-85px)", left: "54%", transform: "translateX(-50%)", zIndex: 1, pointerEvents: "none" }}>
+            /* Mobile: right-anchored so it can't sit behind the search bar; md+: original centered placement */
+            <div className="absolute right-2 left-auto translate-x-0 md:left-[54%] md:right-auto md:-translate-x-1/2" style={{ bottom: "clamp(-30px,-9vw,-85px)", zIndex: 1, pointerEvents: "none" }}>
               <img
                 src="/brand/activities-hero.png"
                 alt=""
-                style={{ height: "clamp(120px,36vw,300px)", width: "auto", objectFit: "contain", userSelect: "none" }}
+                className="h-[clamp(90px,24vw,300px)] md:h-[clamp(120px,36vw,300px)]"
+                style={{ width: "auto", objectFit: "contain", userSelect: "none" }}
               />
             </div>
           }

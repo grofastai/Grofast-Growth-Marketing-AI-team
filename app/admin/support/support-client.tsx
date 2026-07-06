@@ -181,9 +181,9 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
             subtitle="Manage tickets, reply instantly, and keep every client happy."
             maxContentWidth={400}
             illustration={
-              <div style={{
-                position: 'absolute', left: '28%', top: '50%', transform: 'translateY(-50%)',
-                width: 'clamp(150px,45vw,420px)', height: '135%', pointerEvents: 'none', zIndex: 1,
+              /* Mobile: right-anchored, fully contained within the card (no bleed) so overflow:hidden can't clip her; md+: original bleed-crop placement */
+              <div className="absolute right-2 bottom-2 top-auto translate-y-0 w-[28vw] h-[75%] md:left-[28%] md:right-auto md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:w-[clamp(150px,45vw,420px)] md:h-[135%]" style={{
+                pointerEvents: 'none', zIndex: 1,
               }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/brand/support/hero-girl.png" alt=""

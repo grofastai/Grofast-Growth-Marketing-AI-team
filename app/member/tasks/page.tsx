@@ -51,7 +51,7 @@ export default async function MemberTasksPage() {
     // Fetch tasks assigned to me OR created by me (for "To Others" tab)
     admin
       .from("tasks")
-      .select("id, title, description, status, priority, due_date, completed_at, created_by, assigned_to, category, manager_note, checklist, attachments, expected_time, expected_deliverable, approval_required, recurring_task, projects(id, business_name, client_name), assignedBy:users!tasks_created_by_fkey(id, name), assignedToUser:users!tasks_assigned_to_fkey(id, name)")
+      .select("id, title, description, status, priority, due_date, completed_at, created_by, assigned_to, category, manager_note, checklist, attachments, expected_time, expected_deliverable, approval_required, recurring_task, recurring_active, projects(id, business_name, client_name), assignedBy:users!tasks_created_by_fkey(id, name), assignedToUser:users!tasks_assigned_to_fkey(id, name)")
       .or(`assigned_to.eq.${effectiveUserId},created_by.eq.${effectiveUserId}`)
       .order("due_date", { ascending: true, nullsFirst: false }),
     db

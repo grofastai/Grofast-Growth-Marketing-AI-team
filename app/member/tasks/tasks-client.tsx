@@ -15,9 +15,9 @@ import {
   Flame, AlertCircle, GripVertical, Plus, X, User,
   Trash2, MessageSquare, Send, Loader2, Pencil, Layers,
   ChevronLeft, Check, FileText, Upload, ExternalLink,
-  RotateCcw, Link2, Paperclip, Image as ImageIcon,
+  RotateCcw, Link2, Paperclip, Image as ImageIcon, Repeat,
 } from "lucide-react"
-import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject, updateTask, updateTaskChecklist, getTaskAttachments } from "@/lib/actions/tasks"
+import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject, updateTask, updateTaskChecklist, getTaskAttachments, stopRecurringTask } from "@/lib/actions/tasks"
 import { getTaskComments, addTaskComment, type TaskComment } from "@/lib/actions/comments"
 import { createBrowserClient } from "@/lib/supabase/client"
 
@@ -46,6 +46,7 @@ interface Task {
   expected_deliverable: string | null
   approval_required: boolean
   recurring_task: string | null
+  recurring_active: boolean
   projects: { id: string; business_name: string; client_name?: string | null } | null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   assignedBy: { id: string; name: string } | null | any
@@ -544,6 +545,7 @@ export default function MemberTasksClient({
   const [detailAttachments, setDetailAttachments] = useState<Array<{ type: 'link' | 'file'; url: string; name: string }>>([])
   const [detailNewLink, setDetailNewLink] = useState("")
   const [detailAttachUploading, setDetailAttachUploading] = useState(false)
+  const [stoppingRecurring, setStoppingRecurring] = useState(false)
   const [detailAttachError, setDetailAttachError] = useState<string | null>(null)
   const [detailAttachSuccess, setDetailAttachSuccess] = useState<string | null>(null)
   const detailFileRef = useRef<HTMLInputElement>(null)
@@ -570,6 +572,16 @@ export default function MemberTasksClient({
     setAssignError(null)
   }
 
+  async function handleStopRecurring(taskId: string) {
+    setStoppingRecurring(true)
+    const result = await stopRecurringTask(taskId)
+    setStoppingRecurring(false)
+    if (result.success) {
+      setDetailTask(prev => prev && prev.id === taskId ? { ...prev, recurring_active: false } : prev)
+      router.refresh()
+    }
+  }
+
   async function handleAssignFileUpload(file: File) {
     setAttachUploading(true)
     try {
@@ -588,9 +600,13 @@ export default function MemberTasksClient({
 
   async function handleAssignSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    const fd = new FormData(e.currentTarget)
+    if (recurringTask !== "none" && !fd.get("due_date")) {
+      setAssignError("Due date is required for a recurring task")
+      return
+    }
     setAssignPending(true)
     setAssignError(null)
-    const fd = new FormData(e.currentTarget)
     const result = await createMemberTask(null, fd)
     setAssignPending(false)
     if ('error' in result) {
@@ -1719,6 +1735,28 @@ export default function MemberTasksClient({
                 )}
               </div>
 
+              {/* Recurring Task */}
+              {detailTask.recurring_task && detailTask.recurring_task !== "none" && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 14px", borderRadius: 12, background: "rgba(99,102,241,0.04)", border: "1.5px solid rgba(99,102,241,0.18)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Repeat size={13} style={{ color: "#6366F1" }} />
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: "#111", margin: 0, textTransform: "capitalize" }}>{detailTask.recurring_task} recurring task</p>
+                      <p style={{ fontSize: 10, color: detailTask.recurring_active ? "#6366F1" : "#9CA3AF", fontWeight: 700, margin: 0 }}>
+                        {detailTask.recurring_active ? "Active — next occurrence will be created automatically" : "Stopped — no further occurrences will be created"}
+                      </p>
+                    </div>
+                  </div>
+                  {isCreator && detailTask.recurring_active && (
+                    <button type="button" disabled={stoppingRecurring} onClick={() => handleStopRecurring(detailTask.id)}
+                      className="flex-shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-lg"
+                      style={{ border: "1.5px solid #DE1A1A", color: "#DE1A1A", background: "#fff", cursor: stoppingRecurring ? "wait" : "pointer" }}>
+                      {stoppingRecurring ? "Stopping…" : "Stop Recurrence"}
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Task Brief / Description */}
               {detailTask.description && (
                 <div style={{ padding: "12px 14px", borderRadius: 12, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
@@ -2096,6 +2134,7 @@ export default function MemberTasksClient({
                         <option value="Video Edit">Video Edit</option>
                         <option value="Voice Over">Voice Over</option>
                         <option value="Poster Design">Poster Design</option>
+                        <option value="Social Media">Social Media</option>
                       </select>
                       <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
                     </div>
@@ -2191,10 +2230,18 @@ export default function MemberTasksClient({
                       style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Due Date</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>
+                      Due Date{recurringTask !== "none" && <span style={{ color: "#DE1A1A" }}> *</span>}
+                    </label>
                     <input type="date" max="2099-12-31" name="due_date" min={today}
+                      required={recurringTask !== "none"}
                       className="w-full px-3 py-2.5 rounded-xl text-[13px]"
                       style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
+                    {recurringTask !== "none" && (
+                      <p className="text-[10px] mt-1" style={{ color: "#9CA3AF" }}>
+                        Sets the {recurringTask} repeat anchor
+                      </p>
+                    )}
                   </div>
                 </div>
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { runRecurringTasksJob } from '@/lib/cron/recurring-tasks'
 
 export const runtime = 'nodejs'
 
@@ -32,5 +33,8 @@ export async function GET(req: Request) {
   }
 
   console.log(`[cleanup-tasks] deleted ${count} tasks completed before ${cutoff}`)
-  return NextResponse.json({ deleted: count, cutoff })
+
+  const recurring = await runRecurringTasksJob(admin)
+
+  return NextResponse.json({ deleted: count, cutoff, recurring })
 }

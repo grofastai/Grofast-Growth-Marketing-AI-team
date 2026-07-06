@@ -766,27 +766,32 @@ export default function InsightsClient({
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: '#F9FAFB' }}>
+              <tr style={{ background: 'linear-gradient(135deg, #1F2937, #111827)' }}>
                 {['Employee', 'ID', 'Team', 'Monthly Salary', 'Per Hour Rate'].map(h => (
                   <th key={h} style={{
-                    padding: '10px 16px', textAlign: 'left', fontSize: 10,
-                    fontWeight: 800, color: '#6B7280', textTransform: 'uppercase',
-                    letterSpacing: '0.06em', borderBottom: '1px solid #F3F4F6',
-                    whiteSpace: 'nowrap',
+                    padding: '12px 16px', textAlign: 'left', fontSize: 10,
+                    fontWeight: 800, color: '#F9FAFB', textTransform: 'uppercase',
+                    letterSpacing: '0.07em', whiteSpace: 'nowrap',
                   }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {allMembers.map((m, i) => (
-                <tr key={m.employeeId} style={{ background: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
-                  <td style={{ padding: '10px 16px', fontWeight: 700, color: '#111827' }}>{m.name.trim()}</td>
-                  <td style={{ padding: '10px 16px', color: '#6B7280', fontWeight: 600, fontFamily: 'monospace' }}>{m.employeeId}</td>
-                  <td style={{ padding: '10px 16px', color: '#6B7280', fontSize: 12 }}>{m.team ?? '—'}</td>
-                  <td style={{ padding: '10px 16px', fontWeight: 700, color: '#374151' }}>
+              {allMembers.map((m, i) => {
+                const tb = teamBadge(m.team)
+                return (
+                <tr key={m.employeeId} style={{ background: i % 2 === 0 ? '#fff' : '#FAFBFF', borderBottom: '1px solid #F9FAFB' }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 700, color: '#111827' }}>{m.name.trim()}</td>
+                  <td style={{ padding: '12px 16px', color: '#9CA3AF', fontWeight: 700, fontFamily: 'monospace' }}>{m.employeeId}</td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: '3px 9px', borderRadius: 99, background: tb.bg, color: tb.color, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                      {m.team ?? '—'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px 16px', fontWeight: 700, color: '#374151' }}>
                     {m.monthlySalary > 0 ? `₹${m.monthlySalary.toLocaleString('en-IN')}` : '—'}
                   </td>
-                  <td style={{ padding: '10px 16px' }}>
+                  <td style={{ padding: '12px 16px' }}>
                     {m.hourlyRate > 0 ? (
                       <span style={{
                         background: 'rgba(222,26,26,0.08)', color: '#DE1A1A',
@@ -798,7 +803,7 @@ export default function InsightsClient({
                     ) : <span style={{ color: '#9CA3AF' }}>—</span>}
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>

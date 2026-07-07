@@ -1565,7 +1565,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
               <div className="absolute right-0 bottom-0 w-[60px] h-[60px] sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
                 <Image src="/brand/team-freelancers.png" alt="Freelancers" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
               </div>
-              <div style={{ position: "relative", zIndex: 1 }}>
+              <div style={{ position: "relative", zIndex: 1 }} className="max-w-[52%] sm:max-w-[60%] lg:max-w-[55%]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "#F97316", opacity: 0.85 }}>Freelancers</p>
                 <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: "#F97316" }}>{stats.freelancers}</p>
                 <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#6B7280" }}>Freelance team</p>
@@ -2269,12 +2269,12 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 20% 50%, rgba(222,26,26,0.12) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(99,102,241,0.1) 0%, transparent 50%)" }} />
 
         {/* Boy with laptop illustration — visible at every width, shrinks on mobile */}
-        <div className="absolute right-4 bottom-0 pointer-events-none" style={{ width: "clamp(130px,36vw,240px)", height: "clamp(120px,33vw,220px)" }}>
+        <div className="absolute right-4 bottom-0 pointer-events-none w-[140px] h-[130px] sm:w-[200px] sm:h-[185px] lg:w-[240px] lg:h-[220px]">
           <Image src="/brand/boy-laptop.png" alt="Productivity" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
         </div>
 
         <div style={{ position: "relative", zIndex: 1, padding: "24px 28px" }}>
-          <div className="flex items-start gap-6 flex-wrap pr-32 sm:pr-56 lg:pr-64 xl:pr-72">
+          <div className="flex items-start gap-6 flex-wrap pr-[160px] sm:pr-[220px] lg:pr-64 xl:pr-72">
             <div>
               <h2 className="text-[22px] font-black text-white leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
                 Happy Team,<br />Productive Team!

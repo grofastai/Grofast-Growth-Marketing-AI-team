@@ -461,13 +461,16 @@ export default function ActivitiesClient({
         <PageHero
           title="Activities"
           subtitle="Track real-time updates and progress from your amazing team."
+          maxContentWidth={420}
           illustration={
-            /* Mobile: right-anchored so it can't sit behind the search bar; md+: original centered placement */
-            <div className="absolute right-2 left-auto translate-x-0 md:left-[54%] md:right-auto md:-translate-x-1/2" style={{ bottom: "clamp(-30px,-9vw,-85px)", zIndex: 1, pointerEvents: "none" }}>
+            /* Mobile: right-anchored and flush with the bottom (no negative offset, so overflow:hidden
+               can't crop mid-figure). The "Keep it up" card that used to sit in this same corner has
+               been removed, so this is now clear space; md+: original centered placement. */
+            <div className="absolute right-2 bottom-2 top-auto md:left-[54%] md:right-auto md:top-1/2 md:bottom-auto md:-translate-x-1/2 md:-translate-y-1/2" style={{ zIndex: 1, pointerEvents: "none" }}>
               <img
                 src="/brand/activities-hero.png"
                 alt=""
-                className="h-[clamp(90px,24vw,300px)] md:h-[clamp(120px,36vw,300px)]"
+                className="h-[clamp(64px,20vw,110px)] md:h-[clamp(120px,36vw,300px)]"
                 style={{ width: "auto", objectFit: "contain", userSelect: "none" }}
               />
             </div>
@@ -502,13 +505,6 @@ export default function ActivitiesClient({
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", cursor: "pointer", whiteSpace: "nowrap" }}>
                 <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{displayDate}</span>
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </div>
-              <div style={{ padding: "10px 14px", borderRadius: 12, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", width: "clamp(160px,60vw,200px)" }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Keep it up! 🚀</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>Team updates are on track today.</div>
-                <svg width="100%" height="24" style={{ marginTop: 4 }}>
-                  <polyline points="0,18 20,12 40,15 60,8 80,10 100,5 120,8 140,4 160,6" fill="none" stroke="#E31E24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
               </div>
             </div>
           }

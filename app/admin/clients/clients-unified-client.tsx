@@ -282,24 +282,27 @@ export default function ClientsUnifiedClient({
         {/* Decorative circles */}
         <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
         <div style={{ position: 'absolute', bottom: -20, right: 180, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
-        {/* Pixar-style client illustration — right side, fades into gradient; visible at every width */}
-        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%', pointerEvents: 'none', zIndex: 0 }}>
-          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 110, background: 'linear-gradient(to right, #8B1A1A 0%, transparent 100%)', zIndex: 2 }} />
-          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 30, background: 'linear-gradient(to bottom, rgba(127,29,29,0.85) 0%, transparent 100%)', zIndex: 2 }} />
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 30, background: 'linear-gradient(to top, rgba(127,29,29,0.85) 0%, transparent 100%)', zIndex: 2 }} />
+        {/* Pixar-style client illustration — box sized to the image's own aspect ratio (1774/1024) and
+            vertically centered, instead of stretched to fill the hero's full height. Stretching to fill
+            height forced object-fit:cover to zoom in hard whenever the hero was taller/narrower than the
+            image's native ~1.73:1 ratio (always true on mobile), cropping the woman's head and hands
+            instead of showing the scene framed. */}
+        <div style={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)', width: 'clamp(140px,36vw,360px)', aspectRatio: '1774 / 1024', pointerEvents: 'none', zIndex: 0, borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '30%', background: 'linear-gradient(to right, #8B1A1A 0%, transparent 100%)', zIndex: 2 }} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/client-hero.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'left center', display: 'block', opacity: 0.92 }} />
         </div>
-        <div style={{ padding: '40px 32px', display: 'flex', alignItems: 'center', gap: 16, position: 'relative', zIndex: 1 }}>
-          <div>
+        <div style={{ padding: 'clamp(24px,6vw,40px) clamp(18px,5vw,32px)', display: 'flex', alignItems: 'center', gap: 16, position: 'relative', zIndex: 1 }}>
+          {/* Capped to 60% so it can never run under the illustration, which occupies the right 50% of the hero */}
+          <div style={{ maxWidth: '60%', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
               <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '5px 7px', display: 'flex', alignItems: 'center' }}>
                 <Sparkles size={15} style={{ color: '#FFD700' }} />
               </div>
               <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Admin Dashboard</span>
             </div>
-            <h1 style={{ fontSize: 38, fontWeight: 900, color: '#FFFFFF', margin: '0 0 8px', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>Clients</h1>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', margin: 0 }}>Manage active clients, deliverables and financials</p>
+            <h1 style={{ fontSize: 'clamp(24px,7vw,38px)', fontWeight: 900, color: '#FFFFFF', margin: '0 0 8px', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>Clients</h1>
+            <p style={{ fontSize: 'clamp(12px,3vw,14px)', color: 'rgba(255,255,255,0.65)', margin: 0 }}>Manage active clients, deliverables and financials</p>
             <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
               {[
                 { icon: <Building2 size={11} />, label: `${regularActive.length} Active` },

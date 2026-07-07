@@ -156,6 +156,139 @@ export async function addResponse(input: {
   return { success: true }
 }
 
+// Pull `[img]<url>` attachment lines back out of a stored message body —
+// mirrors components/support/thread-ui.tsx's bodyParts() but kept local
+// since that file is a 'use client' component and shouldn't be imported here.
+function imageUrlsIn(message: string): string[] {
+  return message.split('\n').filter(l => l.startsWith('[img]')).map(l => l.slice(5))
+}
+
+function storagePathFromUrl(url: string): string | null {
+  const marker = '/support-attachments/'
+  const idx = url.indexOf(marker)
+  return idx === -1 ? null : decodeURIComponent(url.slice(idx + marker.length))
+}
+
+// When a message/description is edited (e.g. the "×" on a photo removed it),
+// any image URL that no longer appears in the new body is now orphaned in
+// storage — clean those up rather than leaking them.
+async function removeDroppedImages(admin: ReturnType<typeof adminSupabase>, oldMessage: string, newMessage: string) {
+  const before = new Set(imageUrlsIn(oldMessage))
+  const after = new Set(imageUrlsIn(newMessage))
+  const dropped = [...before].filter(u => !after.has(u))
+  const paths = dropped.map(storagePathFromUrl).filter((p): p is string => !!p)
+  if (paths.length) await admin.storage.from('support-attachments').remove(paths)
+}
+
+export async function editResponse(input: {
+  response_id: string
+  message: string
+}): Promise<{ success: boolean; error?: string }> {
+  const profile = await getProfile()
+  if (!profile) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: existing } = await admin
+    .from('support_responses')
+    .select('id, responder_id, ticket_id, message')
+    .eq('id', input.response_id)
+    .single()
+  if (!existing) return { success: false, error: 'Message not found' }
+  if (existing.responder_id !== profile.id) return { success: false, error: 'You can only edit your own messages' }
+
+  const message = input.message.trim()
+  if (!message) return { success: false, error: 'Message cannot be empty' }
+
+  await removeDroppedImages(admin, existing.message, message)
+
+  const { error } = await admin
+    .from('support_responses')
+    .update({ message, edited_at: new Date().toISOString() })
+    .eq('id', input.response_id)
+  if (error) return { success: false, error: error.message }
+
+  const { data: ticket } = await admin
+    .from('support_tickets')
+    .select('user_id, company_id')
+    .eq('id', existing.ticket_id)
+    .single()
+  if (ticket) await cacheDel(`tickets:ADMIN:${ticket.company_id}`, `tickets:MEMBER:${ticket.user_id}`)
+
+  revalidatePath('/member/support')
+  revalidatePath('/admin/support')
+  return { success: true }
+}
+
+export async function deleteResponse(response_id: string): Promise<{ success: boolean; error?: string }> {
+  const profile = await getProfile()
+  if (!profile) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: existing } = await admin
+    .from('support_responses')
+    .select('id, responder_id, message, ticket_id')
+    .eq('id', response_id)
+    .single()
+  if (!existing) return { success: false, error: 'Message not found' }
+  if (existing.responder_id !== profile.id) return { success: false, error: 'You can only delete your own messages' }
+
+  // Clean up any attached image in storage so deleting a message doesn't
+  // leave an orphaned file behind.
+  const paths = imageUrlsIn(existing.message).map(storagePathFromUrl).filter((p): p is string => !!p)
+  if (paths.length) await admin.storage.from('support-attachments').remove(paths)
+
+  const { error } = await admin.from('support_responses').delete().eq('id', response_id)
+  if (error) return { success: false, error: error.message }
+
+  const { data: ticket } = await admin
+    .from('support_tickets')
+    .select('user_id, company_id')
+    .eq('id', existing.ticket_id)
+    .single()
+  if (ticket) await cacheDel(`tickets:ADMIN:${ticket.company_id}`, `tickets:MEMBER:${ticket.user_id}`)
+
+  revalidatePath('/member/support')
+  revalidatePath('/admin/support')
+  return { success: true }
+}
+
+// Edits the ticket's own opening message (title/first bubble in the thread).
+// This is a separate record from support_responses, so accidentally-attached
+// photos or typos in the very first message need their own edit path — only
+// the ticket's owner may touch it.
+export async function editTicketDescription(input: {
+  ticket_id: string
+  message: string
+}): Promise<{ success: boolean; error?: string }> {
+  const profile = await getProfile()
+  if (!profile) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: ticket } = await admin
+    .from('support_tickets')
+    .select('id, user_id, company_id, description')
+    .eq('id', input.ticket_id)
+    .single()
+  if (!ticket) return { success: false, error: 'Request not found' }
+  if (ticket.user_id !== profile.id) return { success: false, error: 'You can only edit your own request' }
+
+  const message = input.message.trim()
+  if (!message) return { success: false, error: 'Description cannot be empty' }
+
+  await removeDroppedImages(admin, ticket.description, message)
+
+  const { error } = await admin
+    .from('support_tickets')
+    .update({ description: message })
+    .eq('id', input.ticket_id)
+  if (error) return { success: false, error: error.message }
+
+  await cacheDel(`tickets:ADMIN:${ticket.company_id}`, `tickets:MEMBER:${ticket.user_id}`)
+  revalidatePath('/member/support')
+  revalidatePath('/admin/support')
+  return { success: true }
+}
+
 export async function updateTicketStatus(
   ticket_id: string,
   status: string
@@ -194,7 +327,7 @@ export async function getTickets(role: 'ADMIN' | 'MEMBER') {
     .select(`
       id, title, category, description, status, priority, assigned_to, created_at, updated_at,
       user_id,
-      support_responses ( id, responder_id, responder_name, message, created_at )
+      support_responses ( id, responder_id, responder_name, message, created_at, edited_at )
     `)
     .eq('company_id', profile.company_id)
     .order('updated_at', { ascending: false })

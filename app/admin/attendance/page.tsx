@@ -239,18 +239,19 @@ export default async function AttendancePage({
           }}>
             {/* Soft bg circle */}
             <div style={{ position: "absolute", top: -20, right: -20, width: 90, height: 90, borderRadius: "50%", background: s.accentBg }} />
-            {/* Character image — visible at every width, narrower on small cards */}
-            <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: "clamp(70px,26vw,130px)", pointerEvents: "none" }}>
+            {/* Character image — width keyed to breakpoints (not vw) since each card is only ~45% of viewport width on the mobile 2-col grid; vw-based sizing made the image proportionally oversized for its card */}
+            <div className="w-[52px] sm:w-[64px] md:w-[90px] lg:w-[110px]" style={{ position: "absolute", top: 0, bottom: 0, right: 0, pointerEvents: "none" }}>
               <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right center" }} />
             </div>
-            <div style={{ position: "relative" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <div style={{ width: 30, height: 30, borderRadius: 9, background: s.accentBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {/* Text column — right padding matches the image width above (plus a small gap) so the label/number can never run under it, and minWidth:0 lets the label wrap instead of overflowing the card */}
+            <div className="pr-[60px] sm:pr-[72px] md:pr-[98px] lg:pr-[118px]" style={{ position: "relative" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, minWidth: 0 }}>
+                <div style={{ width: 30, height: 30, borderRadius: 9, background: s.accentBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   {s.icon}
                 </div>
-                <p style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.07em" }}>{s.label}</p>
+                <p style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.07em", minWidth: 0 }}>{s.label}</p>
               </div>
-              <p style={{ fontSize: "clamp(42px,10vw,56px)", fontWeight: 900, color: s.numColor, margin: "0 0 2px", lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
+              <p style={{ fontSize: "clamp(34px,9vw,56px)", fontWeight: 900, color: s.numColor, margin: "0 0 2px", lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
             </div>
             {/* Progress bar */}
             <div style={{ marginTop: 20, height: 4, background: "#F3F4F6", borderRadius: 4, overflow: "hidden", position: "relative" }}>

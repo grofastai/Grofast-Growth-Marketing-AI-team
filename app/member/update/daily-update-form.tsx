@@ -1745,6 +1745,8 @@ export default function DailyUpdateForm({
               setShoots([])
               setEdits([])
               setMediaBreaks([])
+              setVoiceovers([])
+              setPosters([])
               setEditMode(true)
               setSubmitted(false)
               if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }

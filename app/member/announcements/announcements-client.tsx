@@ -135,15 +135,15 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: "3px 0 0" }}>Updates and notices from your team</p>
           </div>
 
-          {/* Search + category — mobile only, stacked below the title */}
-          <div className="flex md:hidden" style={{ alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-start" }}>
-            <div style={{ position: "relative" }}>
+          {/* Search + category — mobile only, stacked below the title. Capped to 60% width so it can't extend under the illustration anchored to the right 34% of the banner. */}
+          <div className="flex md:hidden" style={{ alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-start", maxWidth: "60%", minWidth: 0 }}>
+            <div style={{ position: "relative", minWidth: 0 }}>
               <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.6)" }} />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search announcements..."
-                style={{ width: "min(230px, 100%)", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, padding: "9px 12px 9px 34px", fontSize: 13, color: "#fff", outline: "none" }}
+                style={{ width: "min(200px, 100%)", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, padding: "9px 12px 9px 34px", fontSize: 13, color: "#fff", outline: "none" }}
               />
             </div>
             <div ref={catRefMobile} style={{ position: "relative" }}>

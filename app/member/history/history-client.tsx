@@ -1157,13 +1157,16 @@ export default function HistoryClient({
                 <p style={{ fontSize:10, color:"#9CA3AF", margin:0, fontWeight:500 }}>Keep going!</p>
               </div>
 
-              {/* Left content */}
-              <div style={{ position:"relative", zIndex:3, padding:"52px 28px 0 28px", maxWidth:"44%" }}>
+              {/* Left content — fixed 27px heading didn't shrink with the 44% maxWidth box on narrow
+                  screens, so long words like "productive"/"impactful" could overflow past the box and
+                  into the illustration/quote-bubble zone; clamp() ties the font size to the same
+                  shrinking box, and overflowWrap is a safety net for any remaining long word. */}
+              <div style={{ position:"relative", zIndex:3, padding:"52px 28px 0 28px", maxWidth:"44%", overflowWrap:"break-word" }}>
                 <p style={{ fontSize:13, fontWeight:600, color:"rgba(255,255,255,0.7)", margin:"0 0 10px" }}>{greeting}, {fn}! 👋</p>
-                <h2 style={{ fontSize:27, fontWeight:900, color:"#fff", margin:"0 0 4px", fontFamily:"var(--font-jakarta)", lineHeight:1.25 }}>
+                <h2 style={{ fontSize:"clamp(17px,5.5vw,27px)", fontWeight:900, color:"#fff", margin:"0 0 4px", fontFamily:"var(--font-jakarta)", lineHeight:1.25 }}>
                   Let&apos;s make today
                 </h2>
-                <h2 style={{ fontSize:27, fontWeight:900, color:"#FACC15", margin:"0 0 18px", fontFamily:"var(--font-jakarta)", lineHeight:1.25 }}>
+                <h2 style={{ fontSize:"clamp(17px,5.5vw,27px)", fontWeight:900, color:"#FACC15", margin:"0 0 18px", fontFamily:"var(--font-jakarta)", lineHeight:1.25 }}>
                   productive &amp; impactful.
                 </h2>
                 <div style={{ width:48, height:4, background:"linear-gradient(90deg,#FACC15,#fff)", borderRadius:99 }}/>

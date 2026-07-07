@@ -949,8 +949,12 @@ export default function MemberTasksClient({
           <img src="/brand/task-board-hero.png" alt="" aria-hidden="true"
             style={{ position: "absolute", top: "50%", right: "clamp(12px,6vw,84px)", transform: "translateY(-50%)", height: "clamp(72px,26vw,188px)", width: "auto", objectFit: "contain", zIndex: 2, pointerEvents: "none", filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.35))" }} />
 
-          {/* LEFT: badge + title + subtitle */}
-          <div style={{ flex: 1, position: "relative", zIndex: 3, paddingTop: 24, paddingBottom: 24 }}>
+          {/* LEFT: badge + title + subtitle — paddingRight reserves space so the title/subtitle never
+              run under the absolutely-positioned illustration on the right. The illustration is a plain
+              <img> with a fixed height and width:auto, so its rendered width is height * 1.5 (the PNG's
+              native 1536x1024 aspect ratio) — the padding must reserve (right-offset + height*1.5), not
+              just match the height's own clamp(), or it under-reserves by ~50% and text runs under the image. */}
+          <div style={{ flex: 1, position: "relative", zIndex: 3, paddingTop: 24, paddingBottom: 24, paddingRight: "clamp(132px,47vw,378px)" }}>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", borderRadius: 20, padding: "4px 12px 4px 8px", marginBottom: 10, border: "1px solid rgba(255,255,255,0.25)" }}>
               <span style={{ fontSize: 13 }}>⭐</span>
               <span style={{ fontSize: 11, fontWeight: 800, color: "#FFF", letterSpacing: "0.04em" }}>My Tasks</span>

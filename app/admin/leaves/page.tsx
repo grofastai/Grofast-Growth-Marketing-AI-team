@@ -67,13 +67,7 @@ export default async function LeavesPage({
     { count: awayTodayCount },
     { data: onLeaveTodayRaw },
     { count: pendingCount },
-    { count: approvedCount },
-    { count: rejectedCount },
     { data: companyLeaves },
-    { count: fullDayCount },
-    { count: wfhCount },
-    { count: shootCount },
-    { count: halfDayCount },
   ] = await Promise.all([
     leavesQuery,
     admin
@@ -118,13 +112,7 @@ export default async function LeavesPage({
       .lte("from_date", today)
       .gte("to_date", today),
     admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "pending"),
-    admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "approved"),
-    admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "rejected"),
     admin.from("company_leaves").select("id, date, name").eq("company_id", cid).order("date"),
-    admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("leave_type", "full_day"),
-    admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("leave_type", "wfh"),
-    admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("leave_type", "shoot_day"),
-    admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("leave_type", "half_day"),
   ])
 
   const total = Math.max(1, memberCount ?? 0)
@@ -149,13 +137,7 @@ export default async function LeavesPage({
       awayCountToday={away}
       onLeaveToday={onLeaveToday}
       pendingCount={pendingCount ?? 0}
-      approvedCount={approvedCount ?? 0}
-      rejectedCount={rejectedCount ?? 0}
       companyLeaves={(companyLeaves ?? []) as { id: string; date: string; name: string }[]}
-      fullDayCount={fullDayCount ?? 0}
-      wfhCount={wfhCount ?? 0}
-      shootCount={shootCount ?? 0}
-      halfDayCount={halfDayCount ?? 0}
     />
   )
 }

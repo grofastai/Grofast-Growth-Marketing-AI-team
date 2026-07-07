@@ -36,13 +36,7 @@ interface LeavesClientProps {
   awayCountToday: number
   onLeaveToday: { name: string }[]
   pendingCount: number
-  approvedCount: number
-  rejectedCount: number
   companyLeaves: CompanyLeave[]
-  fullDayCount: number
-  wfhCount: number
-  shootCount: number
-  halfDayCount: number
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -257,8 +251,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 export default function LeavesClient({
   leaves, mode, upcomingLeaves, availabilityPct,
   availableCount, onLeaveCountToday, awayCountToday, onLeaveToday,
-  pendingCount, approvedCount, rejectedCount, companyLeaves,
-  fullDayCount, wfhCount, shootCount, halfDayCount,
+  pendingCount, companyLeaves,
 }: LeavesClientProps) {
   const router   = useRouter()
   const pathname = usePathname()
@@ -287,6 +280,15 @@ export default function LeavesClient({
     if (rangeTo   && l.from_date > rangeTo)   return false
     return true
   })
+
+  // Header KPI breakdown of whatever's actually on screen right now — reacts to
+  // both the mode filter (server-scoped into `leaves`) and the date filter above.
+  const fullDayCount  = dateFilteredLeaves.filter(l => l.leave_type === "full_day").length
+  const wfhCount      = dateFilteredLeaves.filter(l => l.leave_type === "wfh").length
+  const shootCount    = dateFilteredLeaves.filter(l => l.leave_type === "shoot_day").length
+  const halfDayCount  = dateFilteredLeaves.filter(l => l.leave_type === "half_day").length
+  const approvedCount = dateFilteredLeaves.filter(l => l.status === "approved").length
+  const rejectedCount = dateFilteredLeaves.filter(l => l.status === "rejected").length
   const [actionId, setActionId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 

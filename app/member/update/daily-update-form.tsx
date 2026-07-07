@@ -37,6 +37,16 @@ interface EditEntry {
   participantIds: string[]
   isRework: boolean; linkedToTitle: string; linkedToClient: string; linkedToDate: string
 }
+interface DevEntry {
+  id: string; project: string; isCreatingNew: boolean; subtitle: string
+  startTime: string; endTime: string; timeTaken: number
+  participantIds: string[]
+}
+interface OtherEntry {
+  id: string; otherType: string; title: string
+  startTime: string; endTime: string; timeTaken: number
+  notes: string; participantIds: string[]
+}
 interface TimeBlock {
   id: string; isBreak: boolean; breakLabel: string; breakCustom?: string
   startTime: string; endTime: string
@@ -228,6 +238,7 @@ type SavedEntry = {
   _custom_client?: string; _location?: string; _travel_hours?: number
   _camera_hours?: number; _drone_hours?: number
   price?: number | null
+  project_name?: string; _other_type?: string
 }
 
 function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock[] {
@@ -454,6 +465,61 @@ function parseExistingNmEdits(existingUpdate: Record<string, unknown>): EditEntr
     }))
 }
 
+function parseExistingScriptings(existingUpdate: Record<string, unknown>): EditEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'scripting')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      clientName: e._client_type ?? e.client_name ?? "",
+      brand: "", customClient: e._custom_client ?? "",
+      title: e.title ?? "", videoType: "", customVideoType: "", videoDuration: "",
+      startTime: e.start_time ?? "", endTime: e.end_time ?? "",
+      dateGiven: "", dateFinished: "",
+      timeTaken: e.duration_hours ?? 0,
+      driveUpdated: false, revisions: 0, hooksCompleted: 0,
+      videoLink: e.video_link ?? "", notes: e.notes ?? "",
+      participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+      isRework: (e as Record<string, unknown>).is_rework as boolean ?? false,
+      linkedToTitle: (e as Record<string, unknown>).linked_to_title as string ?? "",
+      linkedToClient: (e as Record<string, unknown>).linked_to_client as string ?? "",
+      linkedToDate: (e as Record<string, unknown>).linked_to_date as string ?? "",
+    }))
+}
+
+function parseExistingDevelopments(existingUpdate: Record<string, unknown>): DevEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'development')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      project: e.project_name ?? e.client_name ?? "",
+      isCreatingNew: false,
+      subtitle: e.title ?? "",
+      startTime: e.start_time ?? "", endTime: e.end_time ?? "",
+      timeTaken: e.duration_hours ?? 0,
+      participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+    }))
+}
+
+function parseExistingOthers(existingUpdate: Record<string, unknown>): OtherEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'other_activity')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      otherType: e._other_type ?? "Meeting",
+      title: e.title ?? "",
+      startTime: e.start_time ?? "", endTime: e.end_time ?? "",
+      timeTaken: e.duration_hours ?? 0,
+      notes: e.notes ?? "",
+      participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+    }))
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 type PastUpdate = {
   id: string; date: string; working_hours: number | null; learning_hours: number | null
@@ -522,6 +588,9 @@ export default function DailyUpdateForm({
     setEdits(isPast ? [] : (found ? parseExistingEdits(found) : []))
     setVoiceovers(isPast ? [] : (found ? parseExistingVoiceovers(found) : []))
     setPosters(isPast ? [] : (found ? parseExistingPosters(found) : []))
+    setScriptings(isPast ? [] : (found ? parseExistingScriptings(found) : []))
+    setDevelopments(isPast ? [] : (found ? parseExistingDevelopments(found) : []))
+    setOthers(isPast ? [] : (found ? parseExistingOthers(found) : []))
     setNmEdits(isPast ? [] : (!isMediaTeam && found ? parseExistingNmEdits(found) : []))
     setTimeBlocks(isPast ? [] : (found ? parseExistingBlocks(found) : []))
     setMediaBreaks(isPast ? [] : (found ? parseExistingMediaBreaks(found) : []))
@@ -587,6 +656,18 @@ export default function DailyUpdateForm({
   const addPoster    = () => setPosters(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"09:00", endTime:"09:00", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[], isRework:false, linkedToTitle:"", linkedToClient:"", linkedToDate:"" }])
   const patchPoster  = (id: string, patch: Partial<EditEntry>) => setPosters(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
   const removePoster = (id: string) => setPosters(p => p.filter(e => e.id !== id))
+
+  // ── Scripting (non-media) ────────────────────────────────────────────────
+  const [scriptings, setScriptings] = useState<EditEntry[]>(() => existingUpdate ? parseExistingScriptings(existingUpdate) : [])
+  const addScripting    = () => setScriptings(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"09:00", endTime:"09:00", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[], isRework:false, linkedToTitle:"", linkedToClient:"", linkedToDate:"" }])
+  const patchScripting  = (id: string, patch: Partial<EditEntry>) => setScriptings(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
+  const removeScripting = (id: string) => setScriptings(p => p.filter(e => e.id !== id))
+
+  // ── Development (non-media) ──────────────────────────────────────────────
+  const [developments, setDevelopments] = useState<DevEntry[]>(() => existingUpdate ? parseExistingDevelopments(existingUpdate) : [])
+  const addDevelopment    = () => setDevelopments(p => [...p, { id: crypto.randomUUID(), project:"", isCreatingNew:false, subtitle:"", startTime:"09:00", endTime:"09:00", timeTaken:1, participantIds:[] }])
+  const patchDevelopment  = (id: string, patch: Partial<DevEntry>) => setDevelopments(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
+  const removeDevelopment = (id: string) => setDevelopments(p => p.filter(e => e.id !== id))
 
   // ── Non-media editing ─────────────────────────────────────────────────────
   const [nmEdits, setNmEdits] = useState<EditEntry[]>(() => (!isMediaTeam && existingUpdate) ? parseExistingNmEdits(existingUpdate) : [])
@@ -658,6 +739,12 @@ export default function DailyUpdateForm({
   const filledLearningBlocks = learningBlocks.filter(
     b => b.client.trim() && b.topic.trim() && b.from && b.to && calcLearningHours(b.from, b.to) > 0
   )
+
+  // ── Other (Meeting / Teaching / Misc) — Learning tab, both Media & Non-Media ──
+  const [others, setOthers] = useState<OtherEntry[]>(() => existingUpdate ? parseExistingOthers(existingUpdate) : [])
+  const addOther    = () => setOthers(p => [...p, { id: crypto.randomUUID(), otherType:"Meeting", title:"", startTime:"09:00", endTime:"09:00", timeTaken:0.5, notes:"", participantIds:[] }])
+  const patchOther  = (id: string, patch: Partial<OtherEntry>) => setOthers(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
+  const removeOther = (id: string) => setOthers(p => p.filter(e => e.id !== id))
   const [learningParticipantIds, setLearningParticipantIds] = useState<string[]>(
     existingUpdate?.active_tab === "learning" ? ((existingUpdate?.participant_ids as string[]) ?? []) : []
   )
@@ -779,7 +866,7 @@ export default function DailyUpdateForm({
     const MAX = 50
     type Opt = { key: string; label: string; title: string; client: string; date: string }
     type Source = { date: string; work_entries: Record<string, unknown>[] | null }
-    const editsOpts: Opt[] = [], voiceoversOpts: Opt[] = [], postersOpts: Opt[] = []
+    const editsOpts: Opt[] = [], voiceoversOpts: Opt[] = [], postersOpts: Opt[] = [], scriptingsOpts: Opt[] = []
     // existingUpdate (today's row) is fetched separately from pastUpdates (which excludes today),
     // so it must be merged in here — otherwise entries added today can never appear as a revision target.
     const sources: Source[] = [
@@ -800,10 +887,30 @@ export default function DailyUpdateForm({
         if (e.task_type === "edit" && editsOpts.length < MAX) editsOpts.push({ key, label:`🎬  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
         else if (e.task_type === "voiceover" && voiceoversOpts.length < MAX) voiceoversOpts.push({ key, label:`🎙️  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
         else if (e.task_type === "poster" && postersOpts.length < MAX) postersOpts.push({ key, label:`🖼️  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
+        else if (e.task_type === "scripting" && scriptingsOpts.length < MAX) scriptingsOpts.push({ key, label:`📝  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
       }
     }
-    return { edits: editsOpts, voiceovers: voiceoversOpts, posters: postersOpts }
+    return { edits: editsOpts, voiceovers: voiceoversOpts, posters: postersOpts, scriptings: scriptingsOpts }
   }, [pastUpdates, existingUpdate, selectedDate])
+
+  // Development project picker — grows from this person's own past Development entries.
+  // No "finished" status: a project just stops being picked once nobody logs against it anymore.
+  const pastProjectNames = useMemo(() => {
+    const names = new Set<string>()
+    const sources = [
+      ...(existingUpdate ? [existingUpdate as unknown as { work_entries: Record<string, unknown>[] | null }] : []),
+      ...(pastUpdates as unknown as { work_entries: Record<string, unknown>[] | null }[]),
+    ]
+    for (const u of sources) {
+      const entries = Array.isArray(u.work_entries) ? u.work_entries as Record<string, unknown>[] : []
+      for (const e of entries) {
+        if (e.task_type !== "development") continue
+        const name = (e.project_name as string) || (e.client_name as string) || ""
+        if (name) names.add(name)
+      }
+    }
+    return Array.from(names).sort()
+  }, [pastUpdates, existingUpdate])
 
   const totalShootHours     = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
   const totalTravelHours    = useMemo(() => shoots.reduce((s, e) => s + e.travelHours, 0), [shoots])
@@ -823,7 +930,7 @@ export default function DailyUpdateForm({
   function handleWorkingSubmit() {
     setWorkingError(null)
     if (requiresClockIn && !todayClockedIn && selectedDate === todayStr) { setWorkingError("Please clock in on the Attendance page before submitting today's work log."); return }
-    if (filledBlocks.length === 0 && posters.length === 0 && voiceovers.length === 0 && nmEdits.length === 0) { setWorkingError("Add at least one time block, poster, voiceover, or editing entry."); return }
+    if (filledBlocks.length === 0 && posters.length === 0 && voiceovers.length === 0 && nmEdits.length === 0 && scriptings.length === 0 && developments.length === 0) { setWorkingError("Add at least one time block, poster, voiceover, editing, scripting, or development entry."); return }
 
     // Per-block validation: timings + description + client are all mandatory
     for (let i = 0; i < filledBlocks.length; i++) {
@@ -850,6 +957,8 @@ export default function DailyUpdateForm({
         ...voiceovers.map(v => ({ id: v.id, start: v.startTime, end: v.endTime, title: v.title || 'Voiceover' })),
         ...posters.map(p => ({ id: p.id, start: p.startTime, end: p.endTime, title: p.title || 'Poster' })),
         ...nmEdits.map(n => ({ id: n.id, start: n.startTime, end: n.endTime, title: n.title || 'Edit' })),
+        ...scriptings.map(s => ({ id: s.id, start: s.startTime, end: s.endTime, title: s.title || 'Scripting' })),
+        ...developments.map(d => ({ id: d.id, start: d.startTime, end: d.endTime, title: d.subtitle || 'Development' })),
       ]
       const overlapErr = findOverlapError(newEntries, existingEntries, activeLeavesList, selectedDate, collabWindows)
       if (overlapErr) { setWorkingError(overlapErr); return }
@@ -877,6 +986,28 @@ export default function DailyUpdateForm({
       if (!p.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!p.endTime)   { setWorkingError(`${label}Enter end time.`); return }
       if (toMins(p.endTime) <= toMins(p.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+    }
+
+    // Scripting mandatory: client, title, start time, end time
+    for (let i = 0; i < scriptings.length; i++) {
+      const s = scriptings[i]
+      const label = scriptings.length > 1 ? `Scripting ${i + 1}: ` : "Scripting: "
+      if (!s.clientName) { setWorkingError(`${label}Select a client.`); return }
+      if (!s.title.trim()) { setWorkingError(`${label}Enter a script title.`); return }
+      if (!s.startTime) { setWorkingError(`${label}Enter start time.`); return }
+      if (!s.endTime)   { setWorkingError(`${label}Enter end time.`); return }
+      if (toMins(s.endTime) <= toMins(s.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+    }
+
+    // Development mandatory: project, sub-title, start/end time
+    for (let i = 0; i < developments.length; i++) {
+      const d = developments[i]
+      const label = developments.length > 1 ? `Development ${i + 1}: ` : "Development: "
+      if (!d.project.trim()) { setWorkingError(`${label}Select or create a project.`); return }
+      if (!d.subtitle.trim()) { setWorkingError(`${label}Enter what you worked on today.`); return }
+      if (!d.startTime) { setWorkingError(`${label}Enter start time.`); return }
+      if (!d.endTime)   { setWorkingError(`${label}Enter end time.`); return }
+      if (toMins(d.endTime) <= toMins(d.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
     // Editing (non-media) mandatory: client, video name, video type, start/end time
@@ -965,6 +1096,33 @@ export default function DailyUpdateForm({
         participant_ids: e.participantIds,
         is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
       })),
+      ...scriptings.map(e => ({
+        id: e.id,
+        client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+        client_name: e.clientName || "Internal",
+        client_names: [] as string[],
+        is_multi_client: false,
+        task_type: "scripting" as const,
+        title: e.title || "Scripting", start_time: e.startTime, end_time: e.endTime,
+        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
+        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
+        _client_type: e.clientName, _custom_client: e.customClient,
+        participant_ids: e.participantIds,
+        is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
+      })),
+      ...developments.map(e => ({
+        id: e.id,
+        client_id: null,
+        client_name: e.project || "Internal",
+        client_names: [] as string[],
+        is_multi_client: false,
+        task_type: "development" as const,
+        title: e.subtitle || "Development", start_time: e.startTime, end_time: e.endTime,
+        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
+        notes: undefined, video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
+        project_name: e.project,
+        participant_ids: e.participantIds,
+      })),
     ]
     const allParticipantIds = [...new Set(filledBlocks.flatMap(b => b.participantIds))]
     startTransition(async () => {
@@ -984,6 +1142,8 @@ export default function DailyUpdateForm({
           setTimeBlocks([])
           setVoiceovers([])
           setPosters([])
+          setScriptings([])
+          setDevelopments([])
           setNmEdits([])
           router.refresh()
         } else {
@@ -1228,8 +1388,17 @@ export default function DailyUpdateForm({
       if (!b.topic.trim()) { setLearningError(`${label}Enter what you learned (Topic / Course).`); return }
       if (!b.from || !b.to || calcLearningHours(b.from, b.to) <= 0) { setLearningError(`${label}Set a valid From and To time.`); return }
     }
-    if (filledLearningBlocks.length === 0) {
-      setLearningError("Add at least one learning block with client, topic, and time."); return
+    // Other (Meeting/Teaching/Misc) mandatory: title, start/end time
+    for (let i = 0; i < others.length; i++) {
+      const o = others[i]
+      const label = others.length > 1 ? `Other ${i + 1}: ` : "Other: "
+      if (!o.title.trim()) { setLearningError(`${label}Enter a title.`); return }
+      if (!o.startTime) { setLearningError(`${label}Enter start time.`); return }
+      if (!o.endTime)   { setLearningError(`${label}Enter end time.`); return }
+      if (toMins(o.endTime) <= toMins(o.startTime)) { setLearningError(`${label}End time must be after start time.`); return }
+    }
+    if (filledLearningBlocks.length === 0 && others.length === 0) {
+      setLearningError("Add at least one learning block or other activity."); return
     }
     startTransition(async () => {
       const res = await submitDailyUpdate({
@@ -1237,21 +1406,37 @@ export default function DailyUpdateForm({
         shoot_count: 0, editing_count: 0,
         shoot_time_hours: 0, editing_time_hours: 0,
         learning_hours: 0,
-        participant_ids: learningParticipantIds,
-        work_entries: filledLearningBlocks.map(b => ({
-          id: b.id,
-          client_id: null,
-          client_name: b.client,
-          client_names: [],
-          is_multi_client: false,
-          task_type: "learning" as const,
-          title: `[${b.client}] ${b.topic.trim()}`,
-          start_time: b.from || "",
-          end_time:   b.to   || "",
-          duration_hours: calcLearningHours(b.from, b.to),
-          notes: b.notes || "",
-          editing_videos: [],
-        })),
+        participant_ids: [...new Set([...learningParticipantIds, ...others.flatMap(o => o.participantIds)])],
+        work_entries: [
+          ...filledLearningBlocks.map(b => ({
+            id: b.id,
+            client_id: null,
+            client_name: b.client,
+            client_names: [],
+            is_multi_client: false,
+            task_type: "learning" as const,
+            title: `[${b.client}] ${b.topic.trim()}`,
+            start_time: b.from || "",
+            end_time:   b.to   || "",
+            duration_hours: calcLearningHours(b.from, b.to),
+            notes: b.notes || "",
+            editing_videos: [],
+          })),
+          ...others.map(o => ({
+            id: o.id,
+            client_id: null,
+            client_name: "Internal",
+            client_names: [] as string[],
+            is_multi_client: false,
+            task_type: "other_activity" as const,
+            title: o.title || o.otherType, start_time: o.startTime, end_time: o.endTime,
+            duration_hours: calcDuration(o.startTime, o.endTime) || o.timeTaken,
+            notes: o.notes || undefined,
+            _other_type: o.otherType,
+            participant_ids: o.participantIds,
+            editing_videos: [],
+          })),
+        ],
       })
       if (!res.success) setLearningError(res.error ?? "Submission failed.")
       else { setSuccessPopup("learning"); setLearningDone(true); setEditMode(false); router.refresh() }
@@ -2123,6 +2308,231 @@ export default function DailyUpdateForm({
                 )}
               </div>}
 
+              {/* ── Scripting Today section (non-media only) ────────────── */}
+              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                <SectionHead icon={<span style={{ fontSize:16 }}>📝</span>} label="Scripting" count={scriptings.length} color="#EAB308" />
+                {scriptings.length === 0 ? (
+                  <div onClick={addScripting} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(234,179,8,0.35)", background:"rgba(234,179,8,0.03)", cursor:"pointer" }}>
+                    <span style={{ fontSize:36 }}>📝</span>
+                    <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No scripts logged yet</p>
+                    <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#EAB308", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(234,179,8,0.35)" }}>+ Add Scripting</span>
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {scriptings.map((e, si) => {
+                  const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
+                  const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                  const dur = calcDuration(e.startTime, e.endTime)
+                  return (
+                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                        <span style={{ fontSize:11, fontWeight:800, color:"#EAB308", textTransform:"uppercase", letterSpacing:"0.1em" }}>Scripting #{si+1}</span>
+                        <button onClick={() => removeScripting(e.id)} style={{ width:26, height:26, borderRadius:8, border:"none", background:"rgba(234,179,8,0.1)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Trash2 size={12} style={{ color:"#92620B" }} />
+                        </button>
+                      </div>
+                      {/* Revision toggle */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, padding:"7px 12px", borderRadius:10, background: e.isRework ? "rgba(245,158,11,0.08)" : "rgba(234,179,8,0.05)", border: e.isRework ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(234,179,8,0.15)" }}>
+                        <button onClick={() => patchScripting(e.id, { isRework: !e.isRework, linkedToTitle:"", linkedToClient:"", linkedToDate:"" })}
+                          style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background: e.isRework ? "rgba(245,158,11,0.2)" : "rgba(234,179,8,0.15)", color: e.isRework ? "#92400E" : "#92620B", whiteSpace:"nowrap", flexShrink:0 }}>
+                          {e.isRework ? "✓ Revision" : "Revision of existing?"}
+                        </button>
+                        {e.isRework && (
+                          past15Options.scriptings.length > 0 ? (
+                            <select value={e.linkedToDate ? `${e.linkedToDate}||${e.linkedToClient}||${e.linkedToTitle}` : ""}
+                              onChange={ev => {
+                                const opt = past15Options.scriptings.find(o => o.key === ev.target.value)
+                                if (opt) patchScripting(e.id, { linkedToTitle: opt.title, linkedToClient: opt.client, linkedToDate: opt.date })
+                              }}
+                              style={{ flex:1, fontSize:11, padding:"4px 8px", borderRadius:8, border:"1px solid rgba(245,158,11,0.4)", background:"#fff", color:"#374151", outline:"none" }}>
+                              <option value="">Select original script (last 50 entries)…</option>
+                              {past15Options.scriptings.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                            </select>
+                          ) : <span style={{ fontSize:11, color:"#9CA3AF" }}>No scripts found</span>
+                        )}
+                        {e.isRework && e.linkedToTitle && <span style={{ fontSize:10, fontWeight:700, color:"#B45309", whiteSpace:"nowrap" }}>→ {e.linkedToTitle}</span>}
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Client Name</label>
+                          <ClientSelector
+                            label=""
+                            value={e.clientName}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onValueChange={v => patchScripting(e.id, { clientName: v })}
+                          />
+                        </div>
+                        <div>
+                          <label style={L}>Script Title</label>
+                          <input value={e.title} onChange={ev => patchScripting(e.id, { title: ev.target.value })} placeholder="e.g. Independence Day Reel Script" style={F} />
+                        </div>
+                      </div>
+                      <div style={{ marginBottom:8 }}>
+                        <label style={L}>📝 Scripting Time</label>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                          <TimePicker value={e.startTime} onChange={v => patchScripting(e.id, { startTime: v })} />
+                          <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                          <TimePicker value={e.endTime} onChange={v => patchScripting(e.id, { endTime: v })} />
+                          {dur > 0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(234,179,8,0.12)", color:"#92620B" }}>{fmtTravel(dur)}</span>}
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
+                        <label style={L}>Notes</label>
+                        <input value={e.notes} onChange={ev => patchScripting(e.id, { notes: ev.target.value })} placeholder="Script details, revisions…" style={F} />
+                      </div>
+                      {teamMembers.length > 0 && (
+                        <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
+                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                          <div style={{ position:"relative" }}>
+                            <select value="" onChange={ev => { const id = ev.target.value; if (id && !e.participantIds.includes(id)) patchScripting(e.id, { participantIds: [...e.participantIds, id] }) }}
+                              style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                              <option value="">Add teammate…</option>
+                              {teamMembers.filter(m => !e.participantIds.includes(m.id)).map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                          {e.participantIds.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                              {e.participantIds.map(pid => {
+                                const m = teamMembers.find(t => t.id === pid)
+                                if (!m) return null
+                                const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                return (
+                                  <button key={pid} type="button"
+                                    onClick={() => patchScripting(e.id, { participantIds: e.participantIds.filter(p => p !== pid) })}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(234,179,8,0.12)", border:"1.5px solid rgba(234,179,8,0.3)", cursor:"pointer" }}>
+                                    <div style={{ width:16, height:16, borderRadius:"50%", background:"#EAB308", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#92620B" }}>{m.name.split(" ")[0]}</span>
+                                    <span style={{ fontSize:8, color:"#B45309" }}>✕</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                  </div>
+                )}
+                {scriptings.length > 0 && (
+                  <button onClick={addScripting} style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, padding:"9px 18px", borderRadius:10, border:"1.5px dashed rgba(234,179,8,0.4)", background:"rgba(234,179,8,0.04)", color:"#92620B", fontSize:12, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                    <Plus size={13} /> Add Another Scripting
+                  </button>
+                )}
+              </div>}
+
+              {/* ── Development Today section (non-media only) ──────────── */}
+              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                <SectionHead icon={<span style={{ fontSize:16 }}>💻</span>} label="Development" count={developments.length} color="#6366F1" />
+                {developments.length === 0 ? (
+                  <div onClick={addDevelopment} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(99,102,241,0.35)", background:"rgba(99,102,241,0.03)", cursor:"pointer" }}>
+                    <span style={{ fontSize:36 }}>💻</span>
+                    <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No development logged yet</p>
+                    <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#6366F1", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(99,102,241,0.35)" }}>+ Add Development</span>
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {developments.map((e, di) => {
+                  const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
+                  const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                  const dur = calcDuration(e.startTime, e.endTime)
+                  return (
+                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                        <span style={{ fontSize:11, fontWeight:800, color:"#6366F1", textTransform:"uppercase", letterSpacing:"0.1em" }}>Development #{di+1}</span>
+                        <button onClick={() => removeDevelopment(e.id)} style={{ width:26, height:26, borderRadius:8, border:"none", background:"rgba(99,102,241,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Trash2 size={12} style={{ color:"#6366F1" }} />
+                        </button>
+                      </div>
+                      <div style={{ marginBottom:8 }}>
+                        <label style={L}>Project</label>
+                        {e.isCreatingNew ? (
+                          <div style={{ display:"flex", gap:6 }}>
+                            <input autoFocus value={e.project} onChange={ev => patchDevelopment(e.id, { project: ev.target.value })} placeholder="Type new project name, e.g. TEAM APP" style={F} />
+                            <button type="button" onClick={() => patchDevelopment(e.id, { isCreatingNew: false, project: "" })}
+                              style={{ flexShrink:0, fontSize:11, fontWeight:700, color:"#6B7280", background:"#F3F4F6", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"0 10px", cursor:"pointer" }}>
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ position:"relative" }}>
+                            <select value={e.project} onChange={ev => {
+                                if (ev.target.value === "__new__") patchDevelopment(e.id, { isCreatingNew: true, project: "" })
+                                else patchDevelopment(e.id, { project: ev.target.value, isCreatingNew: false })
+                              }}
+                              style={{ ...F, paddingRight:28, appearance:"none" }}>
+                              <option value="">Select project…</option>
+                              <option value="__new__">+ Create New Project</option>
+                              {pastProjectNames.map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ marginBottom:8 }}>
+                        <label style={L}>Sub-title — what did you work on today?</label>
+                        <input value={e.subtitle} onChange={ev => patchDevelopment(e.id, { subtitle: ev.target.value })} placeholder="e.g. Fixed dashboard filter bug" style={F} />
+                      </div>
+                      <div style={{ marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
+                        <label style={L}>💻 Dev Time</label>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                          <TimePicker value={e.startTime} onChange={v => patchDevelopment(e.id, { startTime: v })} />
+                          <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                          <TimePicker value={e.endTime} onChange={v => patchDevelopment(e.id, { endTime: v })} />
+                          {dur > 0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>{fmtTravel(dur)}</span>}
+                        </div>
+                      </div>
+                      {teamMembers.length > 0 && (
+                        <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
+                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                          <div style={{ position:"relative" }}>
+                            <select value="" onChange={ev => { const id = ev.target.value; if (id && !e.participantIds.includes(id)) patchDevelopment(e.id, { participantIds: [...e.participantIds, id] }) }}
+                              style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                              <option value="">Add teammate…</option>
+                              {teamMembers.filter(m => !e.participantIds.includes(m.id)).map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                          {e.participantIds.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                              {e.participantIds.map(pid => {
+                                const m = teamMembers.find(t => t.id === pid)
+                                if (!m) return null
+                                const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                return (
+                                  <button key={pid} type="button"
+                                    onClick={() => patchDevelopment(e.id, { participantIds: e.participantIds.filter(p => p !== pid) })}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
+                                    <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#3730A3" }}>{m.name.split(" ")[0]}</span>
+                                    <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                  </div>
+                )}
+                {developments.length > 0 && (
+                  <button onClick={addDevelopment} style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, padding:"9px 18px", borderRadius:10, border:"1.5px dashed rgba(99,102,241,0.4)", background:"rgba(99,102,241,0.04)", color:"#6366F1", fontSize:12, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                    <Plus size={13} /> Add Another Development
+                  </button>
+                )}
+              </div>}
+
               {/* ── Editing Today section (non-media only) ──────────────── */}
               {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                 <SectionHead icon={<span style={{ fontSize:16 }}>🎬</span>} label="Editing" count={nmEdits.length} color="#0D9488" />
@@ -2954,11 +3364,11 @@ export default function DailyUpdateForm({
               )}
 
               {/* Submit button for non-media team — only when form is open */}
-              {!isMediaTeam && (learningStarted || learningDone) && (
+              {!isMediaTeam && (learningStarted || learningDone || others.length > 0) && (
                 <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
                   <div>
                     {learningError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{learningError}</p>}
-                    {!learningError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningSummaryTopic || "not set"}{filledLearningBlocks.length > 1 ? ` +${filledLearningBlocks.length - 1} more` : ""} · {learningHours}h</p>}
+                    {!learningError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningSummaryTopic || "not set"}{filledLearningBlocks.length > 1 ? ` +${filledLearningBlocks.length - 1} more` : ""} · {learningHours}h{others.length > 0 ? ` · ${others.length} other` : ""}</p>}
                   </div>
                   {learningDone ? (
                     <span style={{ fontSize:12, fontWeight:700, color:"#22C55E", display:"flex", alignItems:"center", gap:6 }}>
@@ -2973,11 +3383,112 @@ export default function DailyUpdateForm({
                   )}
                 </div>
               )}
-              {!isMediaTeam && (learningStarted || learningDone) && (
+              {!isMediaTeam && (learningStarted || learningDone || others.length > 0) && (
                 <p style={{ fontSize:11, marginTop:16, color:"#9CA3AF", textAlign:"center" }}>
                   Saved entries appear in your{" "}
                   <a href="/member/history" style={{ color:"#6366F1", fontWeight:600 }}>History tab ↗</a>
                 </p>
+              )}
+            </div>
+          )}
+
+          {/* ── Other Today section (Meeting/Teaching/Misc — both Media & Non-Media) ── */}
+          {tab === "learning" && (
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <SectionHead icon={<span style={{ fontSize:16 }}>🗓️</span>} label="Other" count={others.length} color="#6B7280" />
+              {others.length === 0 ? (
+                <div onClick={addOther} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(107,114,128,0.3)", background:"rgba(107,114,128,0.03)", cursor:"pointer" }}>
+                  <span style={{ fontSize:36 }}>🗓️</span>
+                  <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No other activity logged yet</p>
+                  <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#6B7280", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(107,114,128,0.3)" }}>+ Add Other</span>
+                </div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              {others.map((e, oi) => {
+                const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
+                const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                const dur = calcDuration(e.startTime, e.endTime)
+                return (
+                  <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                      <span style={{ fontSize:11, fontWeight:800, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.1em" }}>Other #{oi+1}</span>
+                      <button onClick={() => removeOther(e.id)} style={{ width:26, height:26, borderRadius:8, border:"none", background:"rgba(107,114,128,0.1)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <Trash2 size={12} style={{ color:"#374151" }} />
+                      </button>
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                      <div>
+                        <label style={L}>Type</label>
+                        <div style={{ position:"relative" }}>
+                          <select value={e.otherType} onChange={ev => patchOther(e.id, { otherType: ev.target.value })}
+                            style={{ ...F, paddingRight:28, appearance:"none" }}>
+                            <option value="Meeting">Meeting</option>
+                            <option value="Teaching">Teaching</option>
+                            <option value="Other">Other</option>
+                          </select>
+                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={L}>Title / What was it?</label>
+                        <input value={e.title} onChange={ev => patchOther(e.id, { title: ev.target.value })} placeholder="e.g. Weekly Sync with Marketing Team" style={F} />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom:8 }}>
+                      <label style={L}>🗓️ Time</label>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                        <TimePicker value={e.startTime} onChange={v => patchOther(e.id, { startTime: v })} />
+                        <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                        <TimePicker value={e.endTime} onChange={v => patchOther(e.id, { endTime: v })} />
+                        {dur > 0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(107,114,128,0.12)", color:"#374151" }}>{fmtTravel(dur)}</span>}
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
+                      <label style={L}>Notes</label>
+                      <input value={e.notes} onChange={ev => patchOther(e.id, { notes: ev.target.value })} placeholder="What was discussed / covered…" style={F} />
+                    </div>
+                    {teamMembers.length > 0 && (
+                      <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
+                        <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                        <div style={{ position:"relative" }}>
+                          <select value="" onChange={ev => { const id = ev.target.value; if (id && !e.participantIds.includes(id)) patchOther(e.id, { participantIds: [...e.participantIds, id] }) }}
+                            style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                            <option value="">Add teammate…</option>
+                            {teamMembers.filter(m => !e.participantIds.includes(m.id)).map(m => (
+                              <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                          </select>
+                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                        </div>
+                        {e.participantIds.length > 0 && (
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                            {e.participantIds.map(pid => {
+                              const m = teamMembers.find(t => t.id === pid)
+                              if (!m) return null
+                              const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                              return (
+                                <button key={pid} type="button"
+                                  onClick={() => patchOther(e.id, { participantIds: e.participantIds.filter(p => p !== pid) })}
+                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(107,114,128,0.12)", border:"1.5px solid rgba(107,114,128,0.3)", cursor:"pointer" }}>
+                                  <div style={{ width:16, height:16, borderRadius:"50%", background:"#6B7280", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                  <span style={{ fontSize:10, fontWeight:700, color:"#374151" }}>{m.name.split(" ")[0]}</span>
+                                  <span style={{ fontSize:8, color:"#6B7280" }}>✕</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+                </div>
+              )}
+              {others.length > 0 && (
+                <button onClick={addOther} style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, padding:"9px 18px", borderRadius:10, border:"1.5px dashed rgba(107,114,128,0.4)", background:"rgba(107,114,128,0.04)", color:"#374151", fontSize:12, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                  <Plus size={13} /> Add Another
+                </button>
               )}
             </div>
           )}

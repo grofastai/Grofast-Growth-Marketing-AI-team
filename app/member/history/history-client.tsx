@@ -16,11 +16,11 @@ import {
   TrendingUp, Zap, BookOpen, Coffee, GraduationCap,
   CheckCircle2, Search, Trash2,
   ArrowRight, Flame, Star, X, Pencil, Check, ChevronDown,
-  Mic, ImageIcon,
+  Mic, ImageIcon, FileText, Code2, CalendarClock,
 } from "lucide-react"
 
 interface WorkEntry {
-  id?: string; task_type: "shoot" | "edit" | "other" | "break" | "learning" | "voiceover" | "poster"
+  id?: string; task_type: "shoot" | "edit" | "other" | "break" | "learning" | "voiceover" | "poster" | "scripting" | "development" | "other_activity"
   title: string; client_name: string; duration_hours: number
   notes: string; start_time?: string | null; end_time?: string | null
   screenshot_url?: string | null; video_link?: string | null
@@ -35,6 +35,7 @@ interface WorkEntry {
   drive_updated?: boolean | null; hooks_completed?: number | null
   _custom_label?: string | null
   is_rework?: boolean | null; linked_to_title?: string | null; linked_to_client?: string | null; linked_to_date?: string | null
+  _other_type?: string | null
 }
 interface UpdateRow {
   id: string; date: string; attendance_status: string
@@ -53,6 +54,8 @@ const STATUS_STYLE: Record<string, { label: string; color: string; bg: string; d
   holiday: { label:"Holiday",  color:"#6B7280", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
   wfh:     { label:"WFH",      color:"#6366F1", bg:"rgba(99,102,241,0.1)",  dot:"#6366F1" },
 }
+// 'other' below = the generic Technical/Working block (historical naming) — distinct
+// from 'other_activity' (Meeting/Teaching/Misc), which is a genuinely different type.
 const TASK_CFG = {
   shoot:     { Icon: Camera,       color:"#EF4444", bg:"rgba(239,68,68,0.1)",    label:"Shoot"     },
   edit:      { Icon: Film,         color:"#6366F1", bg:"rgba(99,102,241,0.1)",   label:"Editing"   },
@@ -61,6 +64,9 @@ const TASK_CFG = {
   learning:  { Icon: GraduationCap, color:"#059669", bg:"rgba(5,150,105,0.12)", label:"Learning"  },
   voiceover: { Icon: Mic,          color:"#8B5CF6", bg:"rgba(139,92,246,0.1)",   label:"Voiceover" },
   poster:    { Icon: ImageIcon,    color:"#EC4899", bg:"rgba(236,72,153,0.1)",   label:"Poster"    },
+  scripting:     { Icon: FileText,     color:"#EAB308", bg:"rgba(234,179,8,0.1)",   label:"Scripting" },
+  development:   { Icon: Code2,        color:"#6366F1", bg:"rgba(99,102,241,0.1)",  label:"Development" },
+  other_activity:{ Icon: CalendarClock,color:"#6B7280", bg:"rgba(107,114,128,0.1)", label:"Other" },
 }
 const DOT_COLORS = ["#22C55E","#F59E0B","#6366F1","#EF4444","#0EA5E9","#EC4899"]
 
@@ -411,7 +417,7 @@ export default function HistoryClient({
   // Revision picker options — scanned from all loaded updates, newest first
   const revisionOptionsByType = useMemo(() => {
     type RevOpt = { key: string; label: string; title: string; client: string; date: string }
-    const edits: RevOpt[] = [], voiceovers: RevOpt[] = [], posters: RevOpt[] = []
+    const edits: RevOpt[] = [], voiceovers: RevOpt[] = [], posters: RevOpt[] = [], scriptings: RevOpt[] = []
     for (const u of updates) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntry[] : []
       for (const e of entries) {
@@ -424,10 +430,11 @@ export default function HistoryClient({
         if (e.task_type === "edit") edits.push({ key, label:`🎬  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
         else if (e.task_type === "voiceover") voiceovers.push({ key, label:`🎙️  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
         else if (e.task_type === "poster") posters.push({ key, label:`🖼️  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
+        else if (e.task_type === "scripting") scriptings.push({ key, label:`📝  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
       }
     }
     const byDate = (a: RevOpt, b: RevOpt) => b.date.localeCompare(a.date)
-    return { edits: edits.sort(byDate), voiceovers: voiceovers.sort(byDate), posters: posters.sort(byDate) }
+    return { edits: edits.sort(byDate), voiceovers: voiceovers.sort(byDate), posters: posters.sort(byDate), scriptings: scriptings.sort(byDate) }
   }, [updates])
 
   // Per-entry edit state
@@ -531,16 +538,25 @@ export default function HistoryClient({
       linked_to_title: entry.linked_to_title ?? null,
       linked_to_client: entry.linked_to_client ?? null,
       linked_to_date: entry.linked_to_date ?? null,
+      _other_type: entry._other_type ?? "Meeting",
     })
   }
 
   async function saveEntry(updateId: string, allEntries: WorkEntry[], entryIdx: number) {
     const key = `${updateId}:${entryIdx}`
-    // Common: client and title required for all non-break types
-    if (editDraft.task_type !== "break") {
+    // Common: client + title required for most types. Development is project-linked, not
+    // client-linked, and Other has neither — both skip the client check but still need a title.
+    const NO_CLIENT_TYPES = ["break", "development", "other_activity"]
+    if (!NO_CLIENT_TYPES.includes(editDraft.task_type ?? "")) {
       const clientVal = (editDraft.client_names && editDraft.client_names.length > 0) ? editDraft.client_names[0] : editDraft.client_name
       if (!clientVal || clientVal === "Internal" || clientVal === "") { showToast("Select a client before saving."); return }
       if (editDraft.task_type !== "shoot" && !editDraft.title?.trim()) { showToast("Enter a title / video name before saving."); return }
+    }
+    if ((editDraft.task_type === "development" || editDraft.task_type === "other_activity") && !editDraft.title?.trim()) {
+      showToast(editDraft.task_type === "development" ? "Enter what you worked on before saving." : "Enter a title before saving."); return
+    }
+    if (editDraft.task_type === "development" && !editDraft.project_name?.trim()) {
+      showToast("Select or create a project before saving."); return
     }
     if (editDraft.task_type === "edit" && isMedia) {
       if (!editDraft.video_type) { showToast("Select a video type before saving."); return }
@@ -556,7 +572,10 @@ export default function HistoryClient({
     } else if (editDraft.task_type === "other") {
       if (!editDraft.start_time || !editDraft.end_time) { showToast("Please set Working Time before saving."); return }
       if (editDraft.start_time >= (editDraft.end_time ?? "")) { showToast("End time must be after Start time."); return }
-    } else if (editDraft.task_type === "voiceover" || editDraft.task_type === "poster") {
+    } else if (editDraft.task_type === "voiceover" || editDraft.task_type === "poster" || editDraft.task_type === "scripting") {
+      if (!editDraft.start_time || !editDraft.end_time) { showToast("Please set Start & End Time before saving."); return }
+      if (editDraft.start_time >= (editDraft.end_time ?? "")) { showToast("End time must be after Start time."); return }
+    } else if (editDraft.task_type === "development" || editDraft.task_type === "other_activity") {
       if (!editDraft.start_time || !editDraft.end_time) { showToast("Please set Start & End Time before saving."); return }
       if (editDraft.start_time >= (editDraft.end_time ?? "")) { showToast("End time must be after Start time."); return }
     }
@@ -576,8 +595,12 @@ export default function HistoryClient({
       const VALID_BREAKS = ["Lunch Break", "Tea", "Short Break", "Personal", "Early Logoff", "Late Login"]
       const finalTitle = VALID_BREAKS.includes(editDraft.title || "") ? editDraft.title! : "Lunch Break"
       draftToSave = { ...editDraft, title: finalTitle, client_name: "Break", duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
-    } else if (editDraft.task_type === "voiceover" || editDraft.task_type === "poster") {
+    } else if (editDraft.task_type === "voiceover" || editDraft.task_type === "poster" || editDraft.task_type === "scripting") {
       draftToSave = { ...editDraft, duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
+    } else if (editDraft.task_type === "development") {
+      draftToSave = { ...editDraft, client_name: editDraft.project_name || "Internal", duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
+    } else if (editDraft.task_type === "other_activity") {
+      draftToSave = { ...editDraft, client_name: "Internal", duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
     }
     const updatedEntry = { ...(allEntries[entryIdx] as unknown as Record<string, unknown>), ...draftToSave }
 
@@ -726,6 +749,7 @@ export default function HistoryClient({
     let totalHours = 0, totalTasks = 0, presentDays = 0, totalLearning = 0, totalBreak = 0
     let shootH = 0, editH = 0, otherH = 0, shootCount = 0, editCount = 0
     let travelH = 0, worklogCount = 0, voiceoverCount = 0, voiceoverH = 0, posterCount = 0, posterH = 0
+    let scriptingH = 0, scriptingCount = 0, developmentH = 0, developmentCount = 0, otherActivityH = 0
     // workLayout drives media/non-media formula; fall back to detecting from entries
     const isMedia = workLayout
       ? workLayout !== 'non_media'
@@ -756,6 +780,9 @@ export default function HistoryClient({
         else if (e.task_type === "other") { otherH += e.duration_hours ?? 0; worklogCount++ }
         else if (e.task_type === "voiceover") { voiceoverH += e.duration_hours ?? 0; if (!e.is_rework) voiceoverCount++ }
         else if (e.task_type === "poster") { posterH += e.duration_hours ?? 0; if (!e.is_rework) posterCount++ }
+        else if (e.task_type === "scripting") { scriptingH += e.duration_hours ?? 0; if (!e.is_rework) scriptingCount++ }
+        else if (e.task_type === "development") { developmentH += e.duration_hours ?? 0; developmentCount++ }
+        else if (e.task_type === "other_activity") { otherActivityH += e.duration_hours ?? 0 }
       }
     }
     // Also count clock-in dates in the selected month that have no daily_update record
@@ -803,16 +830,29 @@ export default function HistoryClient({
     const productivity = filtered.length > 0
       ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9.5)) * 40) : 0)))
       : 0
-    // Media working = shoot + edit + learning (travel already inside shoot window)
-    const mediaWorkH = shootH + editH + totalLearning
-    // Non-media working = worklogs + voiceovers + posters + editing + learning
-    const nonMediaWorkH = otherH + voiceoverH + posterH + editH + totalLearning
+    // Media working = shoot + edit + learning + other activity (travel already inside shoot window)
+    const mediaWorkH = shootH + editH + totalLearning + otherActivityH
+    // Non-media working = worklogs + voiceovers + posters + editing + scripting + development + learning + other activity
+    const nonMediaWorkH = otherH + voiceoverH + posterH + editH + scriptingH + developmentH + totalLearning + otherActivityH
     const workForAvg = isMedia ? mediaWorkH : nonMediaWorkH
     const daysSubmitted = monthFiltered.length
     const avgDivisor = isFreelancerMedia ? daysSubmitted : presentDays
     const avgH = avgDivisor > 0 ? Math.round((workForAvg / avgDivisor) * 10) / 10 : 0
-    return { totalHours, totalOT, totalTasks, presentDays, absentDays, leaveDays, holidayDays, totalLearning, totalBreak, travelH, shootH, editH, otherH, shootCount, editCount, worklogCount, voiceoverCount, voiceoverH, posterCount, posterH, mediaWorkH, nonMediaWorkH, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity, daysSubmitted }
+    return { totalHours, totalOT, totalTasks, presentDays, absentDays, leaveDays, holidayDays, totalLearning, totalBreak, travelH, shootH, editH, otherH, shootCount, editCount, worklogCount, voiceoverCount, voiceoverH, posterCount, posterH, scriptingH, scriptingCount, developmentH, developmentCount, otherActivityH, mediaWorkH, nonMediaWorkH, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity, daysSubmitted }
   }, [filtered, attendanceDates, selectedMonth, monthFiltered, approvedLeaves, companyLeaves])
+
+  // Which work types this person has EVER logged (scoped to `updates`, i.e. this
+  // calendar year — matches the page's own fetch window) — decides which summary
+  // rows appear at all; the VALUES on those rows still come from `stats` above (selected month).
+  const everTypes = useMemo(() => {
+    const set = new Set<string>()
+    for (const u of updates) {
+      for (const e of (u.work_entries ?? [])) {
+        if (e.task_type) set.add(e.task_type.toLowerCase())
+      }
+    }
+    return set
+  }, [updates])
 
   // Streak calculation
   const { streak, last7 } = useMemo(() => {
@@ -2665,6 +2705,223 @@ export default function HistoryClient({
                                   </div>)
                                 })()}
 
+                                {/* ── SCRIPTING EDIT ── */}
+                                {editDraft.task_type === "scripting" && (()=>{
+                                  const HF: React.CSSProperties = { background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box" as const }
+                                  const HL: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                                  const dur = calcDur(editDraft.start_time, editDraft.end_time)
+                                  return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                                    <p style={{ fontSize:11, fontWeight:800, color:"#92620B", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Scripting</p>
+                                    {/* Revision toggle */}
+                                    <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"7px 12px", borderRadius:10, background:editDraft.is_rework?"rgba(245,158,11,0.08)":"rgba(234,179,8,0.05)", border:editDraft.is_rework?"1px solid rgba(245,158,11,0.3)":"1px solid rgba(234,179,8,0.15)" }}>
+                                      <button type="button" onClick={()=>setEditDraft(d=>({...d, is_rework:!d.is_rework, linked_to_title:null, linked_to_client:null, linked_to_date:null}))}
+                                        style={{ padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.is_rework?"rgba(245,158,11,0.2)":"rgba(234,179,8,0.15)", color:editDraft.is_rework?"#92400E":"#92620B", whiteSpace:"nowrap", alignSelf:"flex-start" }}>
+                                        {editDraft.is_rework ? "✓ Revision" : "Revision of existing?"}
+                                      </button>
+                                      {editDraft.is_rework && (
+                                        <div style={{ position:"relative" }}>
+                                          <select
+                                            value={editDraft.linked_to_title ? `${editDraft.linked_to_client||""}||${editDraft.linked_to_title}||${editDraft.linked_to_date||""}` : ""}
+                                            onChange={ev=>{const val=ev.target.value;if(!val){setEditDraft(d=>({...d,linked_to_title:null,linked_to_client:null,linked_to_date:null}));return}const p=val.split("||");setEditDraft(d=>({...d,linked_to_client:p[0]||null,linked_to_title:p[1]||null,linked_to_date:p[2]||null}))}}
+                                            style={{...HF,paddingRight:28,appearance:"none"}}>
+                                            <option value="">— Pick original script —</option>
+                                            {revisionOptionsByType.scriptings.map(o=><option key={o.key} value={o.key}>{o.label}</option>)}
+                                            {editDraft.linked_to_title&&!revisionOptionsByType.scriptings.find(o=>o.title===editDraft.linked_to_title&&o.client===(editDraft.linked_to_client??""))&&(
+                                              <option value={`${editDraft.linked_to_client||""}||${editDraft.linked_to_title}||${editDraft.linked_to_date||""}`}>{editDraft.linked_to_client?editDraft.linked_to_client+" – ":""}{editDraft.linked_to_title} ↩</option>
+                                            )}
+                                          </select>
+                                          <ChevronDown size={11} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",color:"#9CA3AF",pointerEvents:"none"}} />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <label style={HL}>Entry Date</label>
+                                      <input type="date" max="2099-12-31" value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
+                                      {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                      <div>
+                                        <label style={HL}>Client Name *</label>
+                                        <ClientSelector
+                                          label=""
+                                          value={editDraft.client_name??""}
+                                          clientOptions={activeClientsForEdit}
+                                          pastClientOptions={pastClientsOnly}
+                                          placeholder="Select client…"
+                                          fieldStyle={HF}
+                                          onValueChange={v=>setEditDraft(d=>({...d,client_name:v}))}
+                                        />
+                                      </div>
+                                      <div><label style={HL}>Script Title *</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="e.g. Independence Day Reel Script" style={HF} /></div>
+                                    </div>
+                                    <div>
+                                      <label style={HL}>📝 Scripting Time</label>
+                                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                        <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
+                                        <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                        <HTimePicker value={editDraft.end_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} />
+                                        {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(234,179,8,0.12)", color:"#92620B" }}>{fmtTravel(dur)}</span>}
+                                      </div>
+                                    </div>
+                                    <div><label style={HL}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Script details, revisions…" style={{ ...HF, resize:"none" }} /></div>
+                                    {members.length > 0 && (
+                                      <div>
+                                        <label style={HL}>👥 Worked With</label>
+                                        <div style={{ position:"relative" }}>
+                                          <select value="" onChange={ev=>{const id=ev.target.value;if(id&&!(editDraft.participant_ids??[]).includes(id))setEditDraft(d=>({...d,participant_ids:[...(d.participant_ids??[]),id]}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                            <option value="">Add teammate…</option>
+                                            {members.filter(m=>!(editDraft.participant_ids??[]).includes(m.id)).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+                                          </select>
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
+                                        {(editDraft.participant_ids??[]).length > 0 && (
+                                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                            {(editDraft.participant_ids??[]).map(pid=>{
+                                              const m=members.find(t=>t.id===pid); if(!m) return null
+                                              const initials=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase()
+                                              return (<button key={pid} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:(d.participant_ids??[]).filter(p=>p!==pid)}))}
+                                                style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(234,179,8,0.12)", border:"1.5px solid rgba(234,179,8,0.3)", cursor:"pointer" }}>
+                                                <div style={{ width:16, height:16, borderRadius:"50%", background:"#EAB308", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                                <span style={{ fontSize:10, fontWeight:700, color:"#92620B" }}>{m.name.split(" ")[0]}</span>
+                                                <span style={{ fontSize:8, color:"#B45309" }}>✕</span>
+                                              </button>)
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    <div style={{ display:"flex", gap:8, justifyContent:"flex-end", borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4 }}>
+                                      <button onClick={()=>{setEditingKey(null);setEditDraft({})}} style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
+                                      <button onClick={()=>saveEntry(u.id,entries,ei)} disabled={savingKey===eKey} style={{ display:"flex", alignItems:"center", gap:5, padding:"9px 20px", borderRadius:10, background:"#EAB308", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:savingKey===eKey?0.7:1, boxShadow:"0 4px 12px rgba(234,179,8,0.3)" }}><Check size={12}/> {savingKey===eKey?"Saving…":"Save Scripting"}</button>
+                                    </div>
+                                  </div>)
+                                })()}
+
+                                {/* ── DEVELOPMENT EDIT ── */}
+                                {editDraft.task_type === "development" && (()=>{
+                                  const HF: React.CSSProperties = { background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box" as const }
+                                  const HL: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                                  const dur = calcDur(editDraft.start_time, editDraft.end_time)
+                                  return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                                    <p style={{ fontSize:11, fontWeight:800, color:"#4338CA", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Development</p>
+                                    <div>
+                                      <label style={HL}>Entry Date</label>
+                                      <input type="date" max="2099-12-31" value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
+                                      {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
+                                    </div>
+                                    <div>
+                                      <label style={HL}>Project</label>
+                                      <input value={editDraft.project_name??""} onChange={ev=>setEditDraft(d=>({...d,project_name:ev.target.value}))} placeholder="e.g. TEAM APP" style={HF} />
+                                    </div>
+                                    <div><label style={HL}>Sub-title — what did you work on? *</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="e.g. Fixed dashboard filter bug" style={HF} /></div>
+                                    <div>
+                                      <label style={HL}>💻 Dev Time</label>
+                                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                        <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
+                                        <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                        <HTimePicker value={editDraft.end_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} />
+                                        {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#4338CA" }}>{fmtTravel(dur)}</span>}
+                                      </div>
+                                    </div>
+                                    {members.length > 0 && (
+                                      <div>
+                                        <label style={HL}>👥 Worked With</label>
+                                        <div style={{ position:"relative" }}>
+                                          <select value="" onChange={ev=>{const id=ev.target.value;if(id&&!(editDraft.participant_ids??[]).includes(id))setEditDraft(d=>({...d,participant_ids:[...(d.participant_ids??[]),id]}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                            <option value="">Add teammate…</option>
+                                            {members.filter(m=>!(editDraft.participant_ids??[]).includes(m.id)).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+                                          </select>
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
+                                        {(editDraft.participant_ids??[]).length > 0 && (
+                                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                            {(editDraft.participant_ids??[]).map(pid=>{
+                                              const m=members.find(t=>t.id===pid); if(!m) return null
+                                              const initials=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase()
+                                              return (<button key={pid} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:(d.participant_ids??[]).filter(p=>p!==pid)}))}
+                                                style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
+                                                <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                                <span style={{ fontSize:10, fontWeight:700, color:"#3730A3" }}>{m.name.split(" ")[0]}</span>
+                                                <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
+                                              </button>)
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    <div style={{ display:"flex", gap:8, justifyContent:"flex-end", borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4 }}>
+                                      <button onClick={()=>{setEditingKey(null);setEditDraft({})}} style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
+                                      <button onClick={()=>saveEntry(u.id,entries,ei)} disabled={savingKey===eKey} style={{ display:"flex", alignItems:"center", gap:5, padding:"9px 20px", borderRadius:10, background:"#6366F1", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:savingKey===eKey?0.7:1, boxShadow:"0 4px 12px rgba(99,102,241,0.3)" }}><Check size={12}/> {savingKey===eKey?"Saving…":"Save Development"}</button>
+                                    </div>
+                                  </div>)
+                                })()}
+
+                                {/* ── OTHER (Meeting/Teaching/Misc) EDIT ── */}
+                                {editDraft.task_type === "other_activity" && (()=>{
+                                  const HF: React.CSSProperties = { background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box" as const }
+                                  const HL: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                                  const dur = calcDur(editDraft.start_time, editDraft.end_time)
+                                  return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                                    <p style={{ fontSize:11, fontWeight:800, color:"#374151", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Other</p>
+                                    <div>
+                                      <label style={HL}>Entry Date</label>
+                                      <input type="date" max="2099-12-31" value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
+                                      {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                      <div>
+                                        <label style={HL}>Type</label>
+                                        <select value={editDraft._other_type??"Meeting"} onChange={ev=>setEditDraft(d=>({...d,_other_type:ev.target.value}))} style={{...HF,appearance:"none"}}>
+                                          <option value="Meeting">Meeting</option>
+                                          <option value="Teaching">Teaching</option>
+                                          <option value="Other">Other</option>
+                                        </select>
+                                      </div>
+                                      <div><label style={HL}>Title / What was it? *</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="e.g. Weekly Sync with Marketing Team" style={HF} /></div>
+                                    </div>
+                                    <div>
+                                      <label style={HL}>🗓️ Time</label>
+                                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                        <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
+                                        <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                        <HTimePicker value={editDraft.end_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} />
+                                        {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(107,114,128,0.12)", color:"#374151" }}>{fmtTravel(dur)}</span>}
+                                      </div>
+                                    </div>
+                                    <div><label style={HL}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="What was discussed / covered…" style={{ ...HF, resize:"none" }} /></div>
+                                    {members.length > 0 && (
+                                      <div>
+                                        <label style={HL}>👥 Worked With</label>
+                                        <div style={{ position:"relative" }}>
+                                          <select value="" onChange={ev=>{const id=ev.target.value;if(id&&!(editDraft.participant_ids??[]).includes(id))setEditDraft(d=>({...d,participant_ids:[...(d.participant_ids??[]),id]}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                            <option value="">Add teammate…</option>
+                                            {members.filter(m=>!(editDraft.participant_ids??[]).includes(m.id)).map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+                                          </select>
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
+                                        {(editDraft.participant_ids??[]).length > 0 && (
+                                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                            {(editDraft.participant_ids??[]).map(pid=>{
+                                              const m=members.find(t=>t.id===pid); if(!m) return null
+                                              const initials=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase()
+                                              return (<button key={pid} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:(d.participant_ids??[]).filter(p=>p!==pid)}))}
+                                                style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(107,114,128,0.12)", border:"1.5px solid rgba(107,114,128,0.3)", cursor:"pointer" }}>
+                                                <div style={{ width:16, height:16, borderRadius:"50%", background:"#6B7280", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                                <span style={{ fontSize:10, fontWeight:700, color:"#374151" }}>{m.name.split(" ")[0]}</span>
+                                                <span style={{ fontSize:8, color:"#6B7280" }}>✕</span>
+                                              </button>)
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    <div style={{ display:"flex", gap:8, justifyContent:"flex-end", borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4 }}>
+                                      <button onClick={()=>{setEditingKey(null);setEditDraft({})}} style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
+                                      <button onClick={()=>saveEntry(u.id,entries,ei)} disabled={savingKey===eKey} style={{ display:"flex", alignItems:"center", gap:5, padding:"9px 20px", borderRadius:10, background:"#6B7280", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:savingKey===eKey?0.7:1, boxShadow:"0 4px 12px rgba(107,114,128,0.3)" }}><Check size={12}/> {savingKey===eKey?"Saving…":"Save Other"}</button>
+                                    </div>
+                                  </div>)
+                                })()}
+
                                 {/* ── NON-MEDIA EDIT ── */}
                                 {editDraft.task_type === "edit" && !isMedia && (()=>{
                                   const HF: React.CSSProperties = { background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box" as const }
@@ -2933,13 +3190,18 @@ export default function HistoryClient({
                   { label:"Leave Days",       value: String(stats.leaveDays),              dot:"#F97316" },
                   { label:"Office Holidays",  value: String(stats.holidayDays),            dot:"#9CA3AF" },
                   { label:"Overtime",         value: fmtH(stats.totalOT),                 dot:"#FACC15" },
+                  ...(everTypes.has("other_activity") ? [{ label:"Other", value: fmtH(stats.otherActivityH), dot:"#6B7280" }] : []),
                 ] : [
                   { label:"Working Hours",    value: fmtH(stats.nonMediaWorkH),                        dot:"#22C55E" },
                   { label:"Avg Working Hrs",  value: fmtH(stats.avgH),                                 dot: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", isAvg: true },
-                  { label:"Work Logs",        value: String(stats.worklogCount),                        dot:"#3B82F6" },
-                  { label:"Posters",          value: String(stats.posterCount),                         dot:"#EC4899" },
-                  { label:"Voiceovers",       value: String(stats.voiceoverCount),                      dot:"#8B5CF6" },
+                  ...(everTypes.has("other") ? [{ label:"Technical", value: fmtH(stats.otherH), dot:"#3B82F6" }] : []),
+                  ...(everTypes.has("poster") ? [{ label:"Posters", value: String(stats.posterCount), dot:"#EC4899" }] : []),
+                  ...(everTypes.has("voiceover") ? [{ label:"Voiceovers", value: String(stats.voiceoverCount), dot:"#8B5CF6" }] : []),
+                  ...(everTypes.has("edit") ? [{ label:"Editing", value: String(stats.editCount), dot:"#0D9488" }] : []),
+                  ...(everTypes.has("scripting") ? [{ label:"Scripting", value: fmtH(stats.scriptingH), dot:"#EAB308" }] : []),
+                  ...(everTypes.has("development") ? [{ label:"Development", value: fmtH(stats.developmentH), dot:"#6366F1" }] : []),
                   { label:"Learning Hours",   value: fmtH(stats.totalLearning),                         dot:"#6366F1" },
+                  ...(everTypes.has("other_activity") ? [{ label:"Other", value: fmtH(stats.otherActivityH), dot:"#6B7280" }] : []),
                   { label:"Break Hours",      value: fmtH(stats.totalBreak),                            dot:"#78716C" },
                   { label:"Present Days",     value: String(stats.presentDays),                          dot:"#059669" },
                   { label:"Leave Days",       value: String(stats.leaveDays),                            dot:"#F97316" },

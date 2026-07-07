@@ -21,7 +21,9 @@ export const workEntrySchema = z.object({
   id:              z.string(),
   client_id:       z.string().nullable().optional(),
   client_name:     z.string().min(1, 'Client name required'),
-  task_type:       z.enum(['shoot', 'edit', 'other', 'break', 'learning', 'voiceover', 'poster']),
+  // 'other' = the generic Technical/Working block (historical naming, shown as "Technical" everywhere in the UI) —
+  // NOT the same as 'other_activity' (Meeting/Teaching/Misc, shown as "Other"). Kept as-is to avoid migrating history.
+  task_type:       z.enum(['shoot', 'edit', 'other', 'break', 'learning', 'voiceover', 'poster', 'scripting', 'development', 'other_activity']),
   title:           z.string().min(1, 'Entry title required'),
   start_time:      z.string().optional().default(''),
   end_time:        z.string().optional().default(''),

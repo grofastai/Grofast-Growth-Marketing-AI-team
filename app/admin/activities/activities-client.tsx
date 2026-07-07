@@ -105,6 +105,10 @@ function getEntryTypeLabel(type: unknown): { label: string; color: string; bg: s
   if (t === "log")       return { label: "Log",         color: "#10B981", bg: "rgba(16,185,129,0.1)", emoji: "📋" }
   if (t === "learning")  return { label: "Learning",   color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  emoji: "📚" }
   if (t === "break")     return { label: "Break",      color: "#9CA3AF", bg: "rgba(156,163,175,0.1)", emoji: "☕" }
+  if (t === "scripting")     return { label: "Scripting",   color: "#EAB308", bg: "rgba(234,179,8,0.1)",   emoji: "📝" }
+  if (t === "development")   return { label: "Development", color: "#4338CA", bg: "rgba(67,56,202,0.1)",   emoji: "💻" }
+  if (t === "other_activity") return { label: "Other",      color: "#6B7280", bg: "rgba(107,114,128,0.1)", emoji: "🗓️" }
+  // 'other' below = generic Technical/Working block (historical naming) — distinct from 'other_activity' above
   return { label: "Work", color: "#374151", bg: "rgba(55,65,81,0.08)", emoji: "💼" }
 }
 

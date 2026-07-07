@@ -31,7 +31,8 @@ export type WorkEntry = {
   client_name?: string
   is_multi_client?: boolean
   client_names?: string[]
-  task_type?: 'shoot' | 'edit' | 'other' | 'voiceover' | 'poster' | 'break' | 'learning'
+  task_type?: 'shoot' | 'edit' | 'other' | 'voiceover' | 'poster' | 'break' | 'learning' | 'scripting' | 'development' | 'other_activity'
+  project_name?: string
   title?: string
   start_time?: string
   end_time?: string
@@ -117,6 +118,9 @@ export type DeliverableResult = {
   technicalWork: OtherWorkEntry[]   // task_type other/upload
   voiceoverWork: OtherWorkEntry[]   // task_type voiceover
   posterWork: OtherWorkEntry[]      // task_type poster
+  scriptingWork: OtherWorkEntry[]   // task_type scripting
+  developmentWork: OtherWorkEntry[] // task_type development
+  otherActivityWork: OtherWorkEntry[] // task_type other_activity (Meeting/Teaching/Misc)
   teamContributions: TeamContribution[]
   dayLog: DayLogEntry[]
   totalVideos: number
@@ -133,6 +137,10 @@ export type DeliverableResult = {
   voiceoverCount: number
   voiceoverHours: number
   posterHours: number
+  scriptingCount: number
+  scriptingHours: number
+  developmentHours: number
+  otherActivityHours: number
   totalLearningHours: number
   activeMemberCount: number
 }
@@ -227,6 +235,9 @@ export function computeDeliverables(
   const technicalWork:  OtherWorkEntry[]                 = []
   const voiceoverWork:  OtherWorkEntry[]                 = []
   const posterWork:     OtherWorkEntry[]                 = []
+  const scriptingWork:  OtherWorkEntry[]                 = []
+  const developmentWork: OtherWorkEntry[]                = []
+  const otherActivityWork: OtherWorkEntry[]               = []
   const teamMap:        Record<string, TeamContribution> = {}
   const dayMap:         Record<string, DayLogEntry[]>    = {}
 
@@ -249,6 +260,10 @@ export function computeDeliverables(
   let voiceoverHoursAcc = 0
   let posterCountAcc    = 0
   let posterHoursAcc    = 0
+  let scriptingCountAcc = 0
+  let scriptingHoursAcc = 0
+  let developmentHoursAcc = 0
+  let otherActivityHoursAcc = 0
   // Track rows that contributed to this client (for learning hours)
   const contributingRows = new Set<string>()
 
@@ -289,8 +304,10 @@ export function computeDeliverables(
       const tm = teamMap[user.id]
       tm.totalHours += hrs
 
-      // Non-media working = all types except break (other+voiceover+poster+edit+learning)
-      if (!isMedia && tt !== 'break') nonMediaWorkHours += hrs
+      // "Working" = Technical hours only. Voiceover/Poster/Scripting/Development each
+      // get their own card instead — previously this leaked in every non-break type,
+      // double-counting Voiceover/Poster hours inside "Working" too. Fixed 2026-07.
+      if (!isMedia && tt === 'other') nonMediaWorkHours += hrs
 
       if (!dayMap[row.date]) dayMap[row.date] = []
 
@@ -373,6 +390,32 @@ export function computeDeliverables(
         otherWork.push(pe); posterWork.push(pe)
         tm.otherHours += hrs; tm.cost += cost
         dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'poster', itemCount: 1, hours: hrs, cost, label: entry.title ?? 'Poster' })
+
+      } else if (tt === 'scripting') {
+        const cost = entry.price != null ? entry.price : hourly * hrs
+        const isReworkS = !!(entry as Record<string,unknown>).is_rework
+        if (!isReworkS) scriptingCountAcc++
+        scriptingHoursAcc += hrs
+        const se = { date: row.date, clientName: entryClientName, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Scripting'), hours: hrs, cost, isRework: isReworkS }
+        otherWork.push(se); scriptingWork.push(se)
+        tm.otherHours += hrs; tm.cost += cost
+        dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'scripting', itemCount: 1, hours: hrs, cost, label: entry.title ?? 'Scripting' })
+
+      } else if (tt === 'development') {
+        const cost = entry.price != null ? entry.price : hourly * hrs
+        developmentHoursAcc += hrs
+        const de = { date: row.date, clientName: entryClientName, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Development'), hours: hrs, cost }
+        otherWork.push(de); developmentWork.push(de)
+        tm.otherHours += hrs; tm.cost += cost
+        dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'development', itemCount: 1, hours: hrs, cost, label: entry.title ?? 'Development' })
+
+      } else if (tt === 'other_activity') {
+        const cost = entry.price != null ? entry.price : hourly * hrs
+        otherActivityHoursAcc += hrs
+        const oe = { date: row.date, clientName: entryClientName, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Other'), hours: hrs, cost }
+        otherWork.push(oe); otherActivityWork.push(oe)
+        tm.otherHours += hrs; tm.cost += cost
+        dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'other_activity', itemCount: 1, hours: hrs, cost, label: entry.title ?? 'Other' })
 
       } else {
         const cost = entry.price != null ? entry.price : hourly * hrs
@@ -484,10 +527,17 @@ export function computeDeliverables(
     voiceoverCount,
     voiceoverHours,
     posterHours,
+    scriptingCount: scriptingCountAcc,
+    scriptingHours: scriptingHoursAcc,
+    developmentHours: developmentHoursAcc,
+    otherActivityHours: otherActivityHoursAcc,
     totalLearningHours,
     activeMemberCount,
     technicalWork:  technicalWork.sort((a, b)  => b.date.localeCompare(a.date)),
     voiceoverWork:  voiceoverWork.sort((a, b)  => b.date.localeCompare(a.date)),
     posterWork:     posterWork.sort((a, b)     => b.date.localeCompare(a.date)),
+    scriptingWork:  scriptingWork.sort((a, b)  => b.date.localeCompare(a.date)),
+    developmentWork: developmentWork.sort((a, b) => b.date.localeCompare(a.date)),
+    otherActivityWork: otherActivityWork.sort((a, b) => b.date.localeCompare(a.date)),
   }
 }

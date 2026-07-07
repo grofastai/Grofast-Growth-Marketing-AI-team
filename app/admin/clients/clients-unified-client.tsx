@@ -185,14 +185,15 @@ function TH({ children }: { children: string }) {
 
 // Shared colgroup — 5 cols normally, 6 cols when showClient=true (aggregate view)
 function TableCols({ showClient }: { showClient?: boolean }) {
+  // Date / Client (aggregate only) / Member / Title / Hours / Cost
   return (
     <colgroup>
-      <col style={{ width: '12%' }} />                          {/* Date */}
-      {showClient && <col style={{ width: '14%' }} />}          {/* Client (aggregate only) */}
-      <col style={{ width: showClient ? '12%' : '14%' }} />     {/* Member */}
-      <col />                                                   {/* Title */}
-      <col style={{ width: '8%' }} />                           {/* Hours */}
-      <col style={{ width: '10%' }} />                          {/* Cost */}
+      <col style={{ width: '12%' }} />
+      {showClient && <col style={{ width: '14%' }} />}
+      <col style={{ width: showClient ? '12%' : '14%' }} />
+      <col />
+      <col style={{ width: '8%' }} />
+      <col style={{ width: '10%' }} />
     </colgroup>
   )
 }
@@ -556,23 +557,30 @@ export default function ClientsUnifiedClient({
               const d = deliverables
               if (isInternal) {
                 return (
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <StatChip label="Shooting" emoji="📸" hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
-                    <StatChip label="Editing"  emoji="🎬" hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
-                    <StatChip label="Working"  emoji="💼" hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
-                    <StatChip label="Learning" emoji="📚" hours={`${d.totalLearningHours.toFixed(1)}h`}                           color="#0EA5E9" />
-                    <StatChip label="Total"    emoji="💰" hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
+                  <div className="grid grid-cols-2 md:grid-cols-5" style={{ gap: 10 }}>
+                    <StatChip label="Shooting"    emoji="📸" hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
+                    <StatChip label="Editing"     emoji="🎬" hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
+                    <StatChip label="Working"     emoji="💼" hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
+                    <StatChip label="Voiceover"   emoji="🎙️" hours={`${d.voiceoverHours.toFixed(1)}h`}    count={d.voiceoverCount}   color="#8B5CF6" />
+                    <StatChip label="Posters"     emoji="🖼️" hours={`${d.posterHours.toFixed(1)}h`}       count={d.totalPosters}     color="#10B981" />
+                    <StatChip label="Learning"    emoji="📚" hours={`${d.totalLearningHours.toFixed(1)}h`}                           color="#0EA5E9" />
+                    <StatChip label="Other"       emoji="🗓️" hours={`${d.otherActivityHours.toFixed(1)}h`}                          color="#6B7280" />
+                    <StatChip label="Scripting"   emoji="📝" hours={`${d.scriptingHours.toFixed(1)}h`}    count={d.scriptingCount}   color="#EAB308" />
+                    <StatChip label="Development" emoji="💻" hours={`${d.developmentHours.toFixed(1)}h`}                            color="#4338CA" />
+                    <StatChip label="Total"       emoji="💰" hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
                   </div>
                 )
               }
               return (
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <StatChip label="Shooting"  emoji="📸" hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
-                  <StatChip label="Editing"   emoji="🎬" hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
-                  <StatChip label="Working"   emoji="💼" hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
-                  <StatChip label="Voiceover" emoji="🎙️" hours={`${d.voiceoverHours.toFixed(1)}h`}    count={d.voiceoverCount}   color="#8B5CF6" />
-                  <StatChip label="Posters"   emoji="🖼️" hours={`${d.posterHours.toFixed(1)}h`}       count={d.totalPosters}     color="#10B981" />
-                  <StatChip label="Total"     emoji="💰" hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
+                <div className="grid grid-cols-2 md:grid-cols-4" style={{ gap: 10 }}>
+                  <StatChip label="Shooting"    emoji="📸" hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
+                  <StatChip label="Editing"     emoji="🎬" hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
+                  <StatChip label="Working"     emoji="💼" hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
+                  <StatChip label="Voiceover"   emoji="🎙️" hours={`${d.voiceoverHours.toFixed(1)}h`}    count={d.voiceoverCount}   color="#8B5CF6" />
+                  <StatChip label="Posters"     emoji="🖼️" hours={`${d.posterHours.toFixed(1)}h`}       count={d.totalPosters}     color="#10B981" />
+                  <StatChip label="Scripting"   emoji="📝" hours={`${d.scriptingHours.toFixed(1)}h`}    count={d.scriptingCount}   color="#EAB308" />
+                  <StatChip label="Development" emoji="💻" hours={`${d.developmentHours.toFixed(1)}h`}                            color="#4338CA" />
+                  <StatChip label="Total"       emoji="💰" hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
                 </div>
               )
             })()}

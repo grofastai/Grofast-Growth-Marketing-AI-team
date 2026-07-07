@@ -59,10 +59,12 @@ const TYPE_CFG: Record<string, { label: string; emoji: string; color: string }> 
   voiceover: { label: 'Voiceover', emoji: '🎙️', color: '#8B5CF6' },
   poster:    { label: 'Posters',   emoji: '🖼️', color: '#10B981' },
   scripting: { label: 'Scripting', emoji: '📝', color: '#EAB308' },
+  development: { label: 'Development', emoji: '💻', color: '#4338CA' },
+  other_activity: { label: 'Other', emoji: '🗓️', color: '#6B7280' },
   learning:  { label: 'Learning',  emoji: '📚', color: '#0EA5E9' },
   break:     { label: 'Break',     emoji: '☕', color: '#F97316' },
 }
-const TYPE_ORDER = ['shoot', 'edit', 'other', 'voiceover', 'poster', 'scripting', 'learning', 'break']
+const TYPE_ORDER = ['shoot', 'edit', 'other', 'voiceover', 'poster', 'scripting', 'development', 'learning', 'other_activity', 'break']
 function typeCfg(key: string) {
   return TYPE_CFG[key] ?? { label: key.charAt(0).toUpperCase() + key.slice(1), emoji: '🔹', color: '#9CA3AF' }
 }

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { createShoot, updateShootStatus, deleteShoot } from '@/lib/actions/shoots'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import {
   Camera, Plus, X, Loader2, MapPin, Users, Wrench,
   IndianRupee, Clock, CheckCircle2, XCircle, CalendarClock, Trash2, AlertTriangle,
@@ -64,6 +65,7 @@ function duration(start: string, end: string) {
 }
 
 export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
+  const confirm = useConfirm()
   const [showForm, setShowForm]   = useState(false)
   const [form, setForm]           = useState<FormState>(EMPTY)
   const [formError, setFormError] = useState('')
@@ -97,8 +99,8 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
     })
   }
 
-  function handleDelete(id: string) {
-    if (!confirm('Delete this shoot record?')) return
+  async function handleDelete(id: string) {
+    if (!(await confirm('Delete this shoot record?'))) return
     setActionId(id + 'del')
     start(async () => {
       await deleteShoot(id)

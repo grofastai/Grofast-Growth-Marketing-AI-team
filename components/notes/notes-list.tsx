@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Pin, Bell, Lock, Globe, BookOpen, Trash2 } from 'lucide-react'
 import type { HubNote, Folder } from './types'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const scopeBadge = (s: string) =>
   s === 'team' ? { icon: <Globe size={11}/>, label: 'Team', c: '#2563EB' }
@@ -14,6 +15,7 @@ export function NotesList({ notes, folders, activeId, sort, onSort, onSelect, on
   onSelect: (id: string) => void
   onDelete: (id: string) => void
 }) {
+  const confirm = useConfirm()
   const [hoverId, setHoverId] = useState<string | null>(null)
   const fname = (id: string | null) => folders.find(f => f.id === id)?.name ?? ''
   const sorted = [...notes].sort((a, b) =>
@@ -45,7 +47,7 @@ export function NotesList({ notes, folders, activeId, sort, onSort, onSelect, on
                   {n.pinned && <Pin size={13} color="#DE1A1A" />}
                   {hoverId === n.id && (
                     <button
-                      onClick={e => { e.stopPropagation(); if (confirm(`Delete "${n.title || 'Untitled'}"? This cannot be undone.`)) onDelete(n.id) }}
+                      onClick={async e => { e.stopPropagation(); if (await confirm(`Delete "${n.title || 'Untitled'}"? This cannot be undone.`)) onDelete(n.id) }}
                       title="Delete note"
                       style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 2, display: 'flex', alignItems: 'center' }}>
                       <Trash2 size={13} />

@@ -7,6 +7,7 @@ import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning, ad
 import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
 import { useToast } from "@/components/ui/useToast"
 import ClientSelector from "@/components/ui/ClientSelector"
+import { useConfirm } from "@/components/ui/ConfirmDialog"
 import { confirmCollaboration, editCollaborationTime, rejectCollaboration, deleteCollaborationsByEntry } from "@/lib/actions/collaboration"
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
@@ -339,6 +340,7 @@ export default function HistoryClient({
   defaultDate?: string
   collaborationConfirmations?: CollaborationConfirmation[]
 }) {
+  const confirm = useConfirm()
   const isFreelancerMedia = workLayout ? workLayout === 'freelance_media' : team === "Freelance Media Production"
   const isMedia = workLayout ? workLayout !== 'non_media' : (team === "Media Team" || team === "Media Production Team" || team === "Freelance Media Production")
 
@@ -463,7 +465,7 @@ export default function HistoryClient({
   const [selectedDate, setSelectedDate]   = useState(defaultDate ?? "")
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this day's submission? This cannot be undone.")) return
+    if (!(await confirm("Delete this day's submission? This cannot be undone."))) return
     setDeletingId(id)
     const result = await deleteDailyUpdate(id)
     if (result.success) {
@@ -645,7 +647,7 @@ export default function HistoryClient({
   }
 
   async function deleteEntry(updateId: string, allEntries: WorkEntry[], entryIdx: number) {
-    if (!confirm("Remove this entry? This cannot be undone.")) return
+    if (!(await confirm("Remove this entry? This cannot be undone."))) return
     const key = `${updateId}:${entryIdx}`
     setDeletingKey(key)
     const deletedEntry = allEntries[entryIdx]
@@ -1766,7 +1768,7 @@ export default function HistoryClient({
                             <Pencil size={11} style={{ color:"#D97706" }}/>
                           </button>
                           <button
-                            onClick={async () => { if (!confirm("Delete this learning entry?")) return; await updateDailyUpdateLearning(u.id, { learning_hours: null, learning_topic: null, learning_notes: null, learning_start_time: null, learning_end_time: null }); router.refresh() }}
+                            onClick={async () => { if (!(await confirm("Delete this learning entry?"))) return; await updateDailyUpdateLearning(u.id, { learning_hours: null, learning_topic: null, learning_notes: null, learning_start_time: null, learning_end_time: null }); router.refresh() }}
                             title="Delete learning"
                             style={{ width:26, height:26, borderRadius:7, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
                             <Trash2 size={11} style={{ color:"#EF4444" }}/>

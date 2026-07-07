@@ -13,6 +13,7 @@ import { buildClientOptions } from "@/lib/utils/client-options"
 import ClientSelector from "@/components/ui/ClientSelector"
 import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
 import { useToast } from "@/components/ui/useToast"
+import { useConfirm } from "@/components/ui/ConfirmDialog"
 
 interface Project { id: string; business_name: string }
 interface TeamMember { id: string; name: string; employee_id: string; role: string; team?: string | null }
@@ -547,6 +548,7 @@ export default function DailyUpdateForm({
   collabWindows?: CollabWindow[]
 }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const existingUpdateRef = useRef(existingUpdate)
   useEffect(() => { existingUpdateRef.current = existingUpdate }, [existingUpdate])
   const [isPending, startTransition] = useTransition()
@@ -3762,7 +3764,7 @@ export default function DailyUpdateForm({
                             </button>
                           )}
                           <button disabled={deletingId === u.id} onClick={async () => {
-                            if (!confirm("Delete this day's update? This cannot be undone.")) return
+                            if (!(await confirm("Delete this day's update? This cannot be undone."))) return
                             setDeletingId(u.id)
                             await deleteDailyUpdate(u.id)
                             setDeletingId(null)

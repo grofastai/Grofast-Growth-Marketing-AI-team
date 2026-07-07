@@ -6,6 +6,7 @@ import { FreelancersHero } from "@/components/freelancers/FreelancersHero"
 import { saveFreelancerWorkEntry, toggleFreelancerPaymentStatus, updateFreelancerWorkEntry, deleteFreelancerWorkEntry } from "@/lib/actions/freelancer-work"
 import { buildClientOptions } from "@/lib/utils/client-options"
 import ClientSelector from "@/components/ui/ClientSelector"
+import { useConfirm } from "@/components/ui/ConfirmDialog"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -868,6 +869,7 @@ export default function FreelancersMemberClient({
   const { activeOptions: activeClients, pastOptions: pastClients } = useMemo(
     () => buildClientOptions(clientNames, pastClientNames), [clientNames, pastClientNames]
   )
+  const confirm = useConfirm()
   const [workEntries, setWorkEntries] = useState(initialEntries)
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null)
   const [mobileView, setMobileView] = useState<'list' | 'detail'>(() => initialSelectedId ? 'detail' : 'list')
@@ -957,7 +959,7 @@ export default function FreelancersMemberClient({
   }
 
   async function handleDelete(entryId: string) {
-    if (!confirm("Delete this work entry? This cannot be undone.")) return
+    if (!(await confirm("Delete this work entry? This cannot be undone."))) return
     setWorkEntries(prev => prev.filter(e => e.id !== entryId))
     startTransition(async () => { await deleteFreelancerWorkEntry(entryId) })
   }

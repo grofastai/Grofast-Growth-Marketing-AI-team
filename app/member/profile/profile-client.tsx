@@ -14,6 +14,7 @@ import { updateOwnProfile } from "@/lib/actions/team"
 import { updatePersonalDetails, updateKYC, deleteKYCDocument, type KYCDocField } from "@/lib/actions/profile"
 import { logoutAction } from "@/lib/actions/auth"
 import { createBrowserClient } from "@/lib/supabase/client"
+import { useConfirm } from "@/components/ui/ConfirmDialog"
 
 interface ProfileData {
   id: string; name: string; employee_id: string; role: string
@@ -130,6 +131,7 @@ export default function ProfileClient({
   payslipHistory: { month: string; is_paid: boolean; paid_at: string | null }[]
 }) {
   const router = useRouter()
+  const confirm = useConfirm()
 
   const [editing, setEditing]     = useState(false)
   const [editName, setEditName]   = useState(profile?.name ?? "")
@@ -673,7 +675,7 @@ export default function ProfileClient({
                                 Replace
                               </button>
                               <button type="button" onClick={async () => {
-                                if (!confirm(`Delete ${l}?`)) return
+                                if (!(await confirm(`Delete ${l}?`))) return
                                 const res = await deleteKYCDocument(f)
                                 if (res.success) router.refresh()
                               }}

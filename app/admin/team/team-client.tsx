@@ -15,6 +15,7 @@ import { startImpersonation } from "@/lib/actions/impersonate"
 import { setSupportHandler } from "@/lib/actions/support"
 import { createFreelancer, updateFreelancer, toggleFreelancerStatus, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
 import { addManagerToAllFreelancers, removeManagerFromAllFreelancers } from "@/lib/actions/freelancer-manager"
+import { useConfirm } from "@/components/ui/ConfirmDialog"
 
 type FreelancerBasic = {
   id: string; name: string; type: string; team: string | null; phone: string | null; upi_id: string | null
@@ -1340,6 +1341,7 @@ function AssignManagerSheet({
 
 export default function TeamClient({ members, pastMembers, freelancers: initFreelancers = [], pastFreelancers: initPastFreelancers = [], initialSearch = "", assignedManagerIds = [] }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; pastFreelancers?: FreelancerBasic[]; initialSearch?: string; assignedManagerIds?: string[] }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const nextId = useMemo(() => computeNextEmployeeId(members), [members])
   const [search, setSearch] = useState(initialSearch)
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
@@ -1393,7 +1395,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
   const filteredFreelancers = freelancers
 
   async function handleDeleteFreelancer(id: string, name: string) {
-    if (!confirm(`Delete freelancer "${name}"? This cannot be undone.`)) return
+    if (!(await confirm(`Delete freelancer "${name}"? This cannot be undone.`))) return
     const res = await deleteFreelancer(id)
     if (res.success) {
       setFreelancers(prev => prev.filter(f => f.id !== id))
@@ -1402,7 +1404,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
   }
 
   async function handleDeactivateFreelancer(f: FreelancerBasic) {
-    if (!confirm(`Move "${f.name}" to Past Freelancers? All their data stays safe. You can reactivate anytime.`)) return
+    if (!(await confirm(`Move "${f.name}" to Past Freelancers? All their data stays safe. You can reactivate anytime.`))) return
     const res = await toggleFreelancerStatus(f.id, 'inactive')
     if (res.success) {
       setFreelancers(prev => prev.filter(x => x.id !== f.id))

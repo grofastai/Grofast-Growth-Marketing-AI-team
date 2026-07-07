@@ -652,6 +652,13 @@ export async function updateWorkEntryPrice(
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
+  // Media/login-team work pricing is Admin-only — unlike no-login freelancer
+  // entries, assigned managers don't get access to this data at all.
+  const { data: profile } = await admin.from('users').select('role').eq('id', user.id).single()
+  if (!profile || !['ADMIN', 'FOUNDER', 'CEO'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized to price work entries' }
+  }
+
   const { data: record } = await admin
     .from('daily_updates')
     .select('work_entries')

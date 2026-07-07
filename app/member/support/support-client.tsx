@@ -3,7 +3,7 @@
 import { useState, useRef, useMemo, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase/client'
-import { createTicket, addResponse, closeTicket } from '@/lib/actions/support'
+import { createTicket, addResponse, closeTicket, editResponse, deleteResponse } from '@/lib/actions/support'
 import { useToast } from '@/components/ui/useToast'
 import {
   Plus, Search, Send, Loader2, X, Paperclip, ChevronLeft,
@@ -15,7 +15,7 @@ import {
 } from '@/lib/support-tokens'
 import { Bubble, StatusRibbon, bodyParts, SUPPORT_ANIM_CSS } from '@/components/support/thread-ui'
 
-type Response = { id: string; responder_id?: string; responder_name: string; message: string; created_at: string }
+type Response = { id: string; responder_id?: string; responder_name: string; message: string; created_at: string; edited_at?: string | null }
 type Ticket = {
   id: string
   user_id?: string
@@ -55,6 +55,8 @@ export default function MemberSupportChat({ tickets, currentUserId = '' }: { tic
 
   // live responses for the open ticket
   const [live, setLive] = useState<Record<string, Response[]>>({})
+  // optimistic/realtime edit+delete patches, keyed by response id
+  const [overrides, setOverrides] = useState<Record<string, { message?: string; edited_at?: string | null; deleted?: boolean }>>({})
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -71,10 +73,12 @@ export default function MemberSupportChat({ tickets, currentUserId = '' }: { tic
     if (!active) return [] as Response[]
     const merged = [...(active.support_responses ?? []), ...(live[active.id] ?? [])]
     return merged.filter((r, i, arr) => arr.findIndex(x => x.id === r.id) === i)
+      .map(r => (overrides[r.id] ? { ...r, ...overrides[r.id] } : r))
+      .filter(r => !overrides[r.id]?.deleted)
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-  }, [active, live])
+  }, [active, live, overrides])
 
-  // realtime subscription for the selected ticket
+  // realtime subscription for the selected ticket — inserts, edits, and deletes
   useEffect(() => {
     if (!active) return
     const id = active.id
@@ -83,9 +87,40 @@ export default function MemberSupportChat({ tickets, currentUserId = '' }: { tic
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'support_responses', filter: `ticket_id=eq.${id}` },
         payload => setLive(p => ({ ...p, [id]: [...(p[id] ?? []), payload.new as Response] })))
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'support_responses', filter: `ticket_id=eq.${id}` },
+        payload => {
+          const row = payload.new as Response
+          setOverrides(p => ({ ...p, [row.id]: { message: row.message, edited_at: row.edited_at } }))
+        })
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'support_responses', filter: `ticket_id=eq.${id}` },
+        payload => {
+          const row = payload.old as { id: string }
+          setOverrides(p => ({ ...p, [row.id]: { deleted: true } }))
+        })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [active?.id, supabase])
+
+  function handleEditMessage(id: string, message: string) {
+    setOverrides(p => ({ ...p, [id]: { ...p[id], message, edited_at: new Date().toISOString() } }))
+    startTransition(async () => {
+      const res = await editResponse({ response_id: id, message })
+      if (!res.success) { showToast(res.error ?? 'Failed to edit message'); router.refresh() }
+    })
+  }
+
+  function handleDeleteMessage(id: string) {
+    setOverrides(p => ({ ...p, [id]: { ...p[id], deleted: true } }))
+    startTransition(async () => {
+      const res = await deleteResponse(id)
+      if (!res.success) {
+        showToast(res.error ?? 'Failed to delete message')
+        setOverrides(p => { const next = { ...p }; delete next[id]; return next })
+      }
+    })
+  }
 
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -260,10 +295,13 @@ export default function MemberSupportChat({ tickets, currentUserId = '' }: { tic
                       time={new Date(active.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} />
                     {messages.map(r => {
                       const mine = r.responder_id ? r.responder_id === (active.user_id ?? currentUserId) : false
+                      const isOwnMessage = r.responder_id === currentUserId
                       return (
-                        <Bubble key={r.id} side={mine ? 'right' : 'left'} body={r.message}
+                        <Bubble key={r.id} id={r.id} side={mine ? 'right' : 'left'} body={r.message}
                           who={mine ? 'You' : `${r.responder_name} · Support`}
-                          time={new Date(r.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} />
+                          time={new Date(r.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          mine={isOwnMessage} editedAt={r.edited_at} busy={pending}
+                          onEdit={handleEditMessage} onDelete={handleDeleteMessage} />
                       )
                     })}
                     {(active.status === 'resolved' || active.status === 'closed') && (

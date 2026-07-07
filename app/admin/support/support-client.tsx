@@ -3,7 +3,7 @@
 import { useState, useRef, useMemo, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase/client'
-import { addResponse, updateTicketStatus, createTicket, closeTicket, getSupportHandlerCandidates, setSupportHandler } from '@/lib/actions/support'
+import { addResponse, updateTicketStatus, createTicket, closeTicket, getSupportHandlerCandidates, setSupportHandler, editResponse, deleteResponse } from '@/lib/actions/support'
 import { useToast } from '@/components/ui/useToast'
 import {
   Plus, Search, Send, Loader2, X, Paperclip, ChevronLeft,
@@ -16,7 +16,7 @@ import {
 import { Bubble, StatusRibbon, bodyParts, SUPPORT_ANIM_CSS } from '@/components/support/thread-ui'
 import { PageHero } from '@/components/admin/PageHero'
 
-type Response = { id: string; responder_id: string; responder_name: string; message: string; created_at: string }
+type Response = { id: string; responder_id: string; responder_name: string; message: string; created_at: string; edited_at?: string | null }
 type Ticket = {
   id: string; user_id: string; title: string; category: string
   description: string; status: string; priority: string; assigned_to?: string
@@ -41,7 +41,6 @@ function requesterName(t: Ticket): string {
 }
 
 export default function AdminSupportClient({ tickets, currentUserId, canAssign = false }: { tickets: Ticket[]; currentUserId: string; canAssign?: boolean }) {
-  void currentUserId
   const router = useRouter()
   const { toastEl, showToast } = useToast()
   const supabase = useMemo(() => createBrowserClient(), [])
@@ -63,6 +62,8 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
   const threadEndRef = useRef<HTMLDivElement>(null)
 
   const [live, setLive] = useState<Record<string, Response[]>>({})
+  // optimistic/realtime edit+delete patches, keyed by response id
+  const [overrides, setOverrides] = useState<Record<string, { message?: string; edited_at?: string | null; deleted?: boolean }>>({})
 
   const stats = useMemo(() => ({
     open:        tickets.filter(t => t.status === 'open').length,
@@ -99,8 +100,10 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
     if (!active) return [] as Response[]
     const merged = [...(active.support_responses ?? []), ...(live[active.id] ?? [])]
     return merged.filter((r, i, arr) => arr.findIndex(x => x.id === r.id) === i)
+      .map(r => (overrides[r.id] ? { ...r, ...overrides[r.id] } : r))
+      .filter(r => !overrides[r.id]?.deleted)
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-  }, [active, live])
+  }, [active, live, overrides])
 
   useEffect(() => {
     if (!active) return
@@ -110,9 +113,40 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'support_responses', filter: `ticket_id=eq.${id}` },
         payload => setLive(p => ({ ...p, [id]: [...(p[id] ?? []), payload.new as Response] })))
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'support_responses', filter: `ticket_id=eq.${id}` },
+        payload => {
+          const row = payload.new as Response
+          setOverrides(p => ({ ...p, [row.id]: { message: row.message, edited_at: row.edited_at } }))
+        })
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'support_responses', filter: `ticket_id=eq.${id}` },
+        payload => {
+          const row = payload.old as { id: string }
+          setOverrides(p => ({ ...p, [row.id]: { deleted: true } }))
+        })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [active?.id, supabase])
+
+  function handleEditMessage(id: string, message: string) {
+    setOverrides(p => ({ ...p, [id]: { ...p[id], message, edited_at: new Date().toISOString() } }))
+    startTransition(async () => {
+      const res = await editResponse({ response_id: id, message })
+      if (!res.success) { showToast(res.error ?? 'Failed to edit message'); router.refresh() }
+    })
+  }
+
+  function handleDeleteMessage(id: string) {
+    setOverrides(p => ({ ...p, [id]: { ...p[id], deleted: true } }))
+    startTransition(async () => {
+      const res = await deleteResponse(id)
+      if (!res.success) {
+        showToast(res.error ?? 'Failed to delete message')
+        setOverrides(p => { const next = { ...p }; delete next[id]; return next })
+      }
+    })
+  }
 
   useEffect(() => { threadEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages.length, active?.id])
 
@@ -358,9 +392,11 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                       {messages.map(r => {
                         const fromMember = r.responder_id === active.user_id
                         return (
-                          <Bubble key={r.id} side={fromMember ? 'left' : 'right'} body={r.message}
+                          <Bubble key={r.id} id={r.id} side={fromMember ? 'left' : 'right'} body={r.message}
                             who={fromMember ? r.responder_name : `${r.responder_name} · Support`}
-                            time={new Date(r.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} />
+                            time={new Date(r.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            mine={r.responder_id === currentUserId} editedAt={r.edited_at} busy={pending}
+                            onEdit={handleEditMessage} onDelete={handleDeleteMessage} />
                         )
                       })}
                       {(active.status === 'resolved' || active.status === 'closed') && (

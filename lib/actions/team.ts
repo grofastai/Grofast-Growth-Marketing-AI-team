@@ -113,6 +113,7 @@ export async function createMember(input: {
   gender?: 'male' | 'female'
   work_layout?: 'media' | 'non_media' | 'freelance_media'
   is_management?: boolean
+  enabled_blocks?: string[] | null
 }): Promise<{ success: boolean; error?: string; whatsappSent?: boolean; whatsappSkipped?: boolean; whatsappError?: string }> {
   // Admin-level roles use real email login (not employee_id-based internal email)
   const isAdmin = input.role === 'ADMIN' || input.role === 'FOUNDER' || input.role === 'CEO'
@@ -241,6 +242,7 @@ export async function createMember(input: {
     gender: input.gender ?? 'male',
     work_layout: input.work_layout ?? 'non_media',
     is_management: input.is_management ?? false,
+    enabled_blocks: input.enabled_blocks ?? null,
   })
 
   if (insertError) {
@@ -351,6 +353,7 @@ export async function updateMember(input: {
   work_layout?: 'media' | 'non_media' | 'freelance_media'
   is_management?: boolean
   salaryEffectiveFrom?: string
+  enabled_blocks?: string[] | null
 }): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -415,6 +418,7 @@ export async function updateMember(input: {
       gender: input.gender ?? 'male',
       ...(input.work_layout ? { work_layout: input.work_layout } : {}),
       is_management: input.is_management ?? false,
+      ...(input.work_layout === 'non_media' ? { enabled_blocks: input.enabled_blocks ?? null } : {}),
     })
     .eq('id', input.id)
 

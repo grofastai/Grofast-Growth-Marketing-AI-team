@@ -714,6 +714,21 @@ export default function ClientsUnifiedClient({
                       <EntryTable entries={d.voiceoverWork} />
                     </Section>
                   )}
+                  {d.scriptingWork.length > 0 && (
+                    <Section title="Scripting" emoji="📝" count={d.scriptingWork.length} totalCost={d.scriptingWork.reduce((s, e) => s + e.cost, 0)}>
+                      <EntryTable entries={d.scriptingWork} />
+                    </Section>
+                  )}
+                  {d.developmentWork.length > 0 && (
+                    <Section title="Development" emoji="💻" count={d.developmentWork.length} totalCost={d.developmentWork.reduce((s, e) => s + e.cost, 0)}>
+                      <EntryTable entries={d.developmentWork} />
+                    </Section>
+                  )}
+                  {d.otherActivityWork.length > 0 && (
+                    <Section title="Other" emoji="🗓️" count={d.otherActivityWork.length} totalCost={d.otherActivityWork.reduce((s, e) => s + e.cost, 0)}>
+                      <EntryTable entries={d.otherActivityWork} />
+                    </Section>
+                  )}
                 </>
               )
             })()}

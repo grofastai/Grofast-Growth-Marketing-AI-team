@@ -201,7 +201,9 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates
                 const client = (e.client_name || e._brand || e._custom_client || e.client || "") as string
                 const clientNames = isLearning
                   ? parsedClient
-                  : (Array.isArray(e.client_names) ? (e.client_names as string[]).join(", ") : client)
+                  : (e.is_multi_client && Array.isArray(e.client_names) && e.client_names.length > 0
+                      ? (e.client_names as string[]).join(", ")
+                      : client)
                 const durationH = (e.duration_hours || e.working_hours || 0) as number
                 const startTime = e.start_time as string | undefined
                 const endTime = e.end_time as string | undefined

@@ -536,11 +536,12 @@ type PastUpdate = {
 function clampDate(v: string) { if (!v) return v; const [yr = '', mo = '', dy = ''] = v.split('-'); const y = yr.length > 4 ? yr.slice(0, 4) : yr; const m = mo && +mo > 12 ? '12' : mo; const d = dy && +dy > 31 ? '31' : dy; return [y, m, d].filter(Boolean).join('-') }
 
 export default function DailyUpdateForm({
-  projects, sheetClientNames = [], pastClientNames = [], userName, team, workLayout, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
+  projects, sheetClientNames = [], pastClientNames = [], userName, team, workLayout, enabledBlocks, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
   todayClockedIn = true, requiresClockIn = false, defaultDate, activeLeavesList = [], collabWindows = [],
 }: {
   projects: Project[]; sheetClientNames?: string[]; pastClientNames?: string[]; userName: string; team?: string | null
   workLayout?: 'media' | 'non_media' | 'freelance_media'
+  enabledBlocks?: string[] | null
   existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
   teamMembers?: TeamMember[]; approvedLeaveDates?: string[]
   todayClockedIn?: boolean; requiresClockIn?: boolean; defaultDate?: string
@@ -563,6 +564,8 @@ export default function DailyUpdateForm({
     ? workLayout !== 'non_media'
     : (team === "Media Team" || team === "Media Production Team" || team === "Freelance Media Production")
   const isFreelancerLayout = workLayout ? workLayout === 'freelance_media' : team === "Freelance Media Production"
+  // Per-person non-media block checklist — null/unset means everything enabled (back-compat default).
+  const blockEnabled = (key: string) => !enabledBlocks || enabledBlocks.includes(key)
 
   const todayStr = new Date().toISOString().split("T")[0]
 
@@ -1963,6 +1966,7 @@ export default function DailyUpdateForm({
           {/* ══ WORKING: Time Blocks ══════════════════════════════════════════ */}
           {tab === "working" && (
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              {blockEnabled('other') && (<>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                   <div style={{ width:34, height:34, borderRadius:10, background:"rgba(222,26,26,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -2106,9 +2110,10 @@ export default function DailyUpdateForm({
                   </button>
                 </div>
               )}
+              </>)}
 
               {/* ── Voiceover Today section ─────────────────────────────── */}
-              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              {!isMediaTeam && blockEnabled('voiceover') && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                 <SectionHead icon={<span style={{ fontSize:16 }}>🎙️</span>} label="Voiceover" count={voiceovers.length} color="#8B5CF6" />
                 {voiceovers.length === 0 ? (
                   <div onClick={addVoiceover} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #DDD6FE", background:"rgba(139,92,246,0.02)", cursor:"pointer" }}>
@@ -2200,7 +2205,7 @@ export default function DailyUpdateForm({
               </div>}
 
               {/* ── Poster Today section ────────────────────────────────── */}
-              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              {!isMediaTeam && blockEnabled('poster') && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                 <SectionHead icon={<span style={{ fontSize:16 }}>🖼️</span>} label="Poster" count={posters.length} color="#EC4899" />
                 {posters.length === 0 ? (
                   <div onClick={addPoster} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #FBCFE8", background:"rgba(236,72,153,0.02)", cursor:"pointer" }}>
@@ -2321,7 +2326,7 @@ export default function DailyUpdateForm({
               </div>}
 
               {/* ── Scripting Today section (non-media only) ────────────── */}
-              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              {!isMediaTeam && blockEnabled('scripting') && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                 <SectionHead icon={<span style={{ fontSize:16 }}>📝</span>} label="Scripting" count={scriptings.length} color="#EAB308" />
                 {scriptings.length === 0 ? (
                   <div onClick={addScripting} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(234,179,8,0.35)", background:"rgba(234,179,8,0.03)", cursor:"pointer" }}>
@@ -2440,7 +2445,7 @@ export default function DailyUpdateForm({
               </div>}
 
               {/* ── Development Today section (non-media only) ──────────── */}
-              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              {!isMediaTeam && blockEnabled('development') && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                 <SectionHead icon={<span style={{ fontSize:16 }}>💻</span>} label="Development" count={developments.length} color="#6366F1" />
                 {developments.length === 0 ? (
                   <div onClick={addDevelopment} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(99,102,241,0.35)", background:"rgba(99,102,241,0.03)", cursor:"pointer" }}>
@@ -2559,7 +2564,7 @@ export default function DailyUpdateForm({
               </div>}
 
               {/* ── Editing Today section (non-media only) ──────────────── */}
-              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              {!isMediaTeam && blockEnabled('edit') && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                 <SectionHead icon={<span style={{ fontSize:16 }}>🎬</span>} label="Editing" count={nmEdits.length} color="#0D9488" />
                 {nmEdits.length === 0 ? (
                   <div onClick={addNmEdit} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(13,148,136,0.35)", background:"rgba(13,148,136,0.02)", cursor:"pointer" }}>

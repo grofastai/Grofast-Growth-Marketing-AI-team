@@ -29,7 +29,7 @@ export default async function UpdatePage() {
 
   const { data: profile } = await admin
     .from("users")
-    .select("company_id, team, name, work_layout, is_management")
+    .select("company_id, team, name, work_layout, is_management, enabled_blocks")
     .eq("id", effectiveUserId)
     .single()
 
@@ -196,6 +196,7 @@ export default async function UpdatePage() {
         pastClientNames={pastClientNames}
         team={profile?.team ?? null}
         workLayout={(profile as { work_layout?: string } | null)?.work_layout as 'media' | 'non_media' | 'freelance_media' | undefined}
+        enabledBlocks={(profile as { enabled_blocks?: string[] | null } | null)?.enabled_blocks ?? null}
         userName={userName}
         existingUpdate={existingUpdate ?? null}
         pastUpdates={pastUpdates ?? []}

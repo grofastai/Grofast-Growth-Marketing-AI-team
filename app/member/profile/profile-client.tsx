@@ -339,24 +339,26 @@ export default function ProfileClient({
             <div style={{ position: "absolute", top: -20, left: 200, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }}/>
 
             {/* Boy illustration — blends into red; narrower on mobile so it can't collide with the text column below */}
-            <div className="w-[38%] sm:w-[42%] md:w-1/2" style={{ position: "absolute", right: 0, top: 0, bottom: 0, zIndex: 2 }}>
+            <div className="w-[30%] sm:w-[36%] md:w-1/2" style={{ position: "absolute", right: 0, top: 0, bottom: 0, zIndex: 2 }}>
               <Image src="/brand/profile-boy.png" fill
                 style={{ objectFit: "contain", objectPosition: "right bottom" }} alt="" priority/>
               {/* Red fade on left edge so illustration blends seamlessly */}
               <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "50%", background: "linear-gradient(to right, #C01010, transparent)", pointerEvents: "none" }}/>
             </div>
 
-            {/* Completion content — max-width kept a few points narrower than the illustration's reserved space at every breakpoint so text can never run under the character */}
-            <div className="max-w-[58%] sm:max-w-[54%] md:max-w-[48%]" style={{ display: "flex", alignItems: "center", gap: 28, position: "relative", zIndex: 3, minWidth: 0 }}>
+            {/* Completion content — max-width kept a few points narrower than the illustration's reserved space at every breakpoint so text can never run under the character.
+                Ring + gap also shrink on mobile: at the fixed 100px/28px sizing, the ring+gap alone ate ~65% of the already-narrow mobile
+                text budget, squeezing the "Missing: …" pills into a sliver that overflowed into the illustration. */}
+            <div className="max-w-[68%] sm:max-w-[62%] md:max-w-[48%] gap-3 sm:gap-5 md:gap-7" style={{ display: "flex", alignItems: "center", position: "relative", zIndex: 3, minWidth: 0 }}>
               {/* Ring */}
-              <div style={{ position: "relative", width: 100, height: 100, flexShrink: 0 }}>
-                <svg width={100} height={100} viewBox="0 0 100 100" style={{ transform: "rotate(-90deg)" }}>
+              <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-[100px] md:h-[100px]" style={{ position: "relative", flexShrink: 0 }}>
+                <svg className="w-full h-full" viewBox="0 0 100 100" style={{ transform: "rotate(-90deg)" }}>
                   <circle cx={50} cy={50} r={42} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={9}/>
                   <circle cx={50} cy={50} r={42} fill="none" stroke="#FACC15" strokeWidth={9}
                     strokeLinecap="round" strokeDasharray={`${arc} ${circ - arc}`}/>
                 </svg>
                 <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontSize: 21, fontWeight: 900, color: "#FACC15", fontFamily: "var(--font-jakarta)" }}>{score}%</span>
+                  <span className="text-[13px] sm:text-[16px] md:text-[21px]" style={{ fontWeight: 900, color: "#FACC15", fontFamily: "var(--font-jakarta)" }}>{score}%</span>
                 </div>
               </div>
               {/* Text */}

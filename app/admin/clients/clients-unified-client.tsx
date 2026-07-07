@@ -288,11 +288,13 @@ export default function ClientsUnifiedClient({
         {/* Decorative circles */}
         <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
         <div style={{ position: 'absolute', bottom: -20, right: 180, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
-        {/* Pixar-style client illustration — right side, fades into gradient; visible at every width */}
-        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%', pointerEvents: 'none', zIndex: 0 }}>
-          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 110, background: 'linear-gradient(to right, #8B1A1A 0%, transparent 100%)', zIndex: 2 }} />
-          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 30, background: 'linear-gradient(to bottom, rgba(127,29,29,0.85) 0%, transparent 100%)', zIndex: 2 }} />
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 30, background: 'linear-gradient(to top, rgba(127,29,29,0.85) 0%, transparent 100%)', zIndex: 2 }} />
+        {/* Pixar-style client illustration — box sized to the image's own aspect ratio (1774/1024) and
+            vertically centered, instead of stretched to fill the hero's full height. Stretching to fill
+            height forced object-fit:cover to zoom in hard whenever the hero was taller/narrower than the
+            image's native ~1.73:1 ratio (always true on mobile), cropping the woman's head and hands
+            instead of showing the scene framed. */}
+        <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', width: 'clamp(150px,44vw,460px)', aspectRatio: '1774 / 1024', pointerEvents: 'none', zIndex: 0, borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '30%', background: 'linear-gradient(to right, #8B1A1A 0%, transparent 100%)', zIndex: 2 }} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/client-hero.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'left center', display: 'block', opacity: 0.92 }} />
         </div>

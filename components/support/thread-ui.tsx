@@ -40,7 +40,9 @@ export function Bubble({ id, side, body, who, time, mine, editedAt, onEdit, onDe
 }) {
   const { text, images } = bodyParts(body)
   const right = side === 'right'
-  const canManage = !!(mine && id && (onEdit || onDelete))
+  const canEdit = !!(mine && id && onEdit)
+  const canDelete = !!(mine && id && onDelete)
+  const canManage = canEdit || canDelete
 
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(text)
@@ -59,6 +61,19 @@ export function Bubble({ id, side, body, who, time, mine, editedAt, onEdit, onDe
     const rebuilt = images.length ? [next, ...images.map(u => `[img]${u}`)].filter(Boolean).join('\n') : next
     onEdit(id, rebuilt)
     setEditing(false)
+  }
+
+  // Removing a single photo is a one-tap "×" on the photo itself rather than
+  // requiring the whole message be deleted — this is the common accidental-
+  // attachment case (both for a reply and for the ticket's own opening photo,
+  // which has no onDelete since you can't delete a ticket's root message).
+  function removeImage(index: number) {
+    if (!id) return
+    const remaining = images.filter((_, i) => i !== index)
+    if (!text && remaining.length === 0 && onDelete) { onDelete(id); return }
+    if (!onEdit) return
+    const rebuilt = [text, ...remaining.map(u => `[img]${u}`)].filter(Boolean).join('\n')
+    onEdit(id, rebuilt)
   }
 
   return (
@@ -130,12 +145,20 @@ export function Bubble({ id, side, body, who, time, mine, editedAt, onEdit, onDe
             <>
               {text && <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{text}</p>}
               {images.map((src, i) => (
-                <img key={i} src={src} alt="attachment" onClick={() => window.open(src, '_blank')}
-                  style={{
-                    display: 'block', maxWidth: 240, maxHeight: 260, width: '100%', height: 'auto',
-                    objectFit: 'contain', background: right ? 'rgba(255,255,255,0.1)' : '#F3F4F6',
-                    borderRadius: 11, marginTop: text ? 8 : 0, cursor: 'zoom-in',
-                  }} />
+                <div key={i} style={{ position: 'relative', display: 'inline-block', marginTop: text || i > 0 ? 8 : 0 }}>
+                  <img src={src} alt="attachment" onClick={() => window.open(src, '_blank')}
+                    style={{
+                      display: 'block', maxWidth: 240, maxHeight: 260, width: '100%', height: 'auto',
+                      objectFit: 'contain', background: right ? 'rgba(255,255,255,0.1)' : '#F3F4F6',
+                      borderRadius: 11, cursor: 'zoom-in',
+                    }} />
+                  {canEdit && (
+                    <button onClick={() => removeImage(i)} disabled={busy} title="Remove this photo"
+                      style={{ position: 'absolute', top: -7, right: -7, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,0.65)', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: busy ? 'default' : 'pointer' }}>
+                      <XIcon size={11} color="#fff" />
+                    </button>
+                  )}
+                </div>
               ))}
             </>
           )}

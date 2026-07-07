@@ -3,7 +3,7 @@
 import { useState, useRef, useMemo, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase/client'
-import { createTicket, addResponse, closeTicket, editResponse, deleteResponse } from '@/lib/actions/support'
+import { createTicket, addResponse, closeTicket, editResponse, deleteResponse, editTicketDescription } from '@/lib/actions/support'
 import { useToast } from '@/components/ui/useToast'
 import {
   Plus, Search, Send, Loader2, X, Paperclip, ChevronLeft,
@@ -57,6 +57,8 @@ export default function MemberSupportChat({ tickets, currentUserId = '' }: { tic
   const [live, setLive] = useState<Record<string, Response[]>>({})
   // optimistic/realtime edit+delete patches, keyed by response id
   const [overrides, setOverrides] = useState<Record<string, { message?: string; edited_at?: string | null; deleted?: boolean }>>({})
+  // optimistic/realtime edits to a ticket's own opening message, keyed by ticket id
+  const [descOverrides, setDescOverrides] = useState<Record<string, string>>({})
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -99,9 +101,23 @@ export default function MemberSupportChat({ tickets, currentUserId = '' }: { tic
           const row = payload.old as { id: string }
           setOverrides(p => ({ ...p, [row.id]: { deleted: true } }))
         })
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'support_tickets', filter: `id=eq.${id}` },
+        payload => {
+          const row = payload.new as { id: string; description: string }
+          setDescOverrides(p => ({ ...p, [row.id]: row.description }))
+        })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [active?.id, supabase])
+
+  function handleEditDescription(ticketId: string, message: string) {
+    setDescOverrides(p => ({ ...p, [ticketId]: message }))
+    startTransition(async () => {
+      const res = await editTicketDescription({ ticket_id: ticketId, message })
+      if (!res.success) { showToast(res.error ?? 'Failed to update'); router.refresh() }
+    })
+  }
 
   function handleEditMessage(id: string, message: string) {
     setOverrides(p => ({ ...p, [id]: { ...p[id], message, edited_at: new Date().toISOString() } }))
@@ -291,7 +307,8 @@ export default function MemberSupportChat({ tickets, currentUserId = '' }: { tic
 
                   {/* messages */}
                   <div key={active.id} className="sd-thread" style={{ flex: 1, overflowY: 'auto', padding: '18px', display: 'flex', flexDirection: 'column', gap: 13, background: 'linear-gradient(180deg,#FAFBFC,#F4F5F8)' }}>
-                    <Bubble side="right" body={active.description} who="You"
+                    <Bubble id={active.id} side="right" body={descOverrides[active.id] ?? active.description} who="You" mine busy={pending}
+                      onEdit={handleEditDescription}
                       time={new Date(active.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} />
                     {messages.map(r => {
                       const mine = r.responder_id ? r.responder_id === (active.user_id ?? currentUserId) : false

@@ -64,6 +64,9 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
   const [live, setLive] = useState<Record<string, Response[]>>({})
   // optimistic/realtime edit+delete patches, keyed by response id
   const [overrides, setOverrides] = useState<Record<string, { message?: string; edited_at?: string | null; deleted?: boolean }>>({})
+  // realtime edits to a ticket's own opening message, keyed by ticket id — admin can't
+  // edit this (it's the member's request), just needs to see it live if they do
+  const [descOverrides, setDescOverrides] = useState<Record<string, string>>({})
 
   const stats = useMemo(() => ({
     open:        tickets.filter(t => t.status === 'open').length,
@@ -124,6 +127,12 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
         payload => {
           const row = payload.old as { id: string }
           setOverrides(p => ({ ...p, [row.id]: { deleted: true } }))
+        })
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'support_tickets', filter: `id=eq.${id}` },
+        payload => {
+          const row = payload.new as { id: string; description: string }
+          setDescOverrides(p => ({ ...p, [row.id]: row.description }))
         })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -387,7 +396,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
 
                     {/* messages */}
                     <div key={active.id} className="sd-thread" style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column', gap: 13, background: 'linear-gradient(180deg,#FAFBFC,#F4F5F8)' }}>
-                      <Bubble side="left" body={active.description} who={requesterName(active)}
+                      <Bubble side="left" body={descOverrides[active.id] ?? active.description} who={requesterName(active)}
                         time={new Date(active.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} />
                       {messages.map(r => {
                         const fromMember = r.responder_id === active.user_id

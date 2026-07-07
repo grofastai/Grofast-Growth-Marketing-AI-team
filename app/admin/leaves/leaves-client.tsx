@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { useState, useTransition } from "react"
-import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, UserCheck, UserX, XOctagon, Paperclip, Plus, Trash2, Pencil, X, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, UserCheck, UserX, XOctagon, Paperclip, Plus, Trash2, Pencil, X, AlertTriangle, ChevronLeft, ChevronRight, ChevronDown, ListFilter } from "lucide-react"
 import { updateLeaveStatus } from "@/lib/actions/leaves"
 import { addCompanyLeave, updateCompanyLeave, deleteCompanyLeave } from "@/lib/actions/company-leaves"
 
@@ -421,21 +421,28 @@ export default function LeavesClient({
 
           {/* Single filter dropdown + Holidays toggle + date filter */}
           <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, alignItems: "center", flexWrap: "wrap" }}>
-            <select
-              value={mode === "holidays" ? "pending" : mode}
-              onChange={e => navigateMode(e.target.value)}
-              aria-label="Filter leaves"
-              style={{
-                padding: "8px 14px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
-                whiteSpace: "nowrap", flexShrink: 0, outline: "none", border: "none",
-                background: mode !== "all" && mode !== "holidays" ? gradBg : "#FFFFFF",
-                color: mode !== "all" && mode !== "holidays" ? "#FFFFFF" : "#6B7280",
-                boxShadow: mode !== "all" && mode !== "holidays" ? "0 4px 16px rgba(180,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
-              }}>
-              {MODE_OPTIONS.map(o => (
-                <option key={o.value} value={o.value} style={{ background: "#FFFFFF", color: "#374151" }}>{o.label}</option>
-              ))}
-            </select>
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <select
+                value={mode === "holidays" ? "pending" : mode}
+                onChange={e => navigateMode(e.target.value)}
+                aria-label="Filter leaves"
+                style={{
+                  padding: "8px 30px 8px 14px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  whiteSpace: "nowrap", outline: "none", border: "none", appearance: "none", WebkitAppearance: "none",
+                  background: mode !== "all" && mode !== "holidays" ? gradBg : "#FFFFFF",
+                  color: mode !== "all" && mode !== "holidays" ? "#FFFFFF" : "#6B7280",
+                  boxShadow: mode !== "all" && mode !== "holidays" ? "0 4px 16px rgba(180,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
+                }}>
+                {MODE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value} style={{ background: "#FFFFFF", color: "#374151" }}>{o.label}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} strokeWidth={2.5}
+                style={{
+                  position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none",
+                  color: mode !== "all" && mode !== "holidays" ? "#FFFFFF" : "#9CA3AF",
+                }} />
+            </div>
 
             <button onClick={() => navigateMode("holidays")} style={{
               padding: "8px 18px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
@@ -449,15 +456,25 @@ export default function LeavesClient({
 
             {mode !== "holidays" && (
               <>
-                <select
-                  value={dateMode}
-                  onChange={e => setDateMode(e.target.value as typeof dateMode)}
-                  aria-label="Date filter"
-                  style={{ padding: "8px 12px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, outline: "none", border: "none", background: "#FFFFFF", color: "#6B7280", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                  <option value="all">All Time</option>
-                  <option value="month">Monthly</option>
-                  <option value="custom">Custom Range</option>
-                </select>
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  <ListFilter size={12} strokeWidth={2.5}
+                    style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#9CA3AF" }} />
+                  <select
+                    value={dateMode}
+                    onChange={e => setDateMode(e.target.value as typeof dateMode)}
+                    aria-label="Date filter"
+                    style={{
+                      padding: "8px 26px 8px 30px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                      whiteSpace: "nowrap", outline: "none", border: "1px solid #EBEDF2", appearance: "none", WebkitAppearance: "none",
+                      background: "#FFFFFF", color: "#6B7280", boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+                    }}>
+                    <option value="all">All Time</option>
+                    <option value="month">Monthly</option>
+                    <option value="custom">Custom Range</option>
+                  </select>
+                  <ChevronDown size={13} strokeWidth={2.5}
+                    style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#9CA3AF" }} />
+                </div>
                 {dateMode === "month" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 2, background: "#FFFFFF", borderRadius: 24, padding: "2px 6px", flexShrink: 0, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                     <button onClick={() => setFilterMonth(m => shiftMonth(m, -1))} aria-label="Previous month" style={{ width: 30, height: 30, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}><ChevronLeft size={15} color="#6B7280" /></button>

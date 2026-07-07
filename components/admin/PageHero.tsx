@@ -98,7 +98,15 @@ export function PageHero({
         </div>
 
         {(actions || rightSlot) && (
-          <div className="flex items-center flex-wrap gap-2 sm:flex-shrink-0" style={{ position: "relative" }}>
+          <div className="flex items-center flex-wrap gap-2 sm:flex-shrink-0" style={{
+            position: "relative",
+            // Same safety net as the text column above: when a caller supplies an
+            // illustration, cap this row so action buttons can't stretch out past it
+            // and collide with the artwork on phones, where the row sits full-width
+            // below the title instead of beside it. Harmless with no illustration —
+            // buttons already wrap via flex-wrap regardless.
+            ...(illustration ? { maxWidth: "68%" } : {}),
+          }}>
             {actions}
             {rightSlot}
           </div>

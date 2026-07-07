@@ -338,16 +338,16 @@ export default function ProfileClient({
             <div style={{ position: "absolute", bottom: -30, right: -20, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }}/>
             <div style={{ position: "absolute", top: -20, left: 200, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }}/>
 
-            {/* Boy illustration — blends into red */}
-            <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "50%", zIndex: 2 }}>
+            {/* Boy illustration — blends into red; narrower on mobile so it can't collide with the text column below */}
+            <div className="w-[38%] sm:w-[42%] md:w-1/2" style={{ position: "absolute", right: 0, top: 0, bottom: 0, zIndex: 2 }}>
               <Image src="/brand/profile-boy.png" fill
                 style={{ objectFit: "contain", objectPosition: "right bottom" }} alt="" priority/>
               {/* Red fade on left edge so illustration blends seamlessly */}
               <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "50%", background: "linear-gradient(to right, #C01010, transparent)", pointerEvents: "none" }}/>
             </div>
 
-            {/* Completion content */}
-            <div style={{ display: "flex", alignItems: "center", gap: 28, position: "relative", zIndex: 3 }}>
+            {/* Completion content — max-width kept a few points narrower than the illustration's reserved space at every breakpoint so text can never run under the character */}
+            <div className="max-w-[58%] sm:max-w-[54%] md:max-w-[48%]" style={{ display: "flex", alignItems: "center", gap: 28, position: "relative", zIndex: 3, minWidth: 0 }}>
               {/* Ring */}
               <div style={{ position: "relative", width: 100, height: 100, flexShrink: 0 }}>
                 <svg width={100} height={100} viewBox="0 0 100 100" style={{ transform: "rotate(-90deg)" }}>
@@ -360,7 +360,7 @@ export default function ProfileClient({
                 </div>
               </div>
               {/* Text */}
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: "#fff", margin: "0 0 6px" }}>
                   Profile <span style={{ color: "#FACC15" }}>{score}%</span> complete
                 </h2>

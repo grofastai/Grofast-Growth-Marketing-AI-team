@@ -296,16 +296,17 @@ export default function ClientsUnifiedClient({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/client-hero.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'left center', display: 'block', opacity: 0.92 }} />
         </div>
-        <div style={{ padding: '40px 32px', display: 'flex', alignItems: 'center', gap: 16, position: 'relative', zIndex: 1 }}>
-          <div>
+        <div style={{ padding: 'clamp(24px,6vw,40px) clamp(18px,5vw,32px)', display: 'flex', alignItems: 'center', gap: 16, position: 'relative', zIndex: 1 }}>
+          {/* Capped to 60% so it can never run under the illustration, which occupies the right 50% of the hero */}
+          <div style={{ maxWidth: '60%', minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
               <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '5px 7px', display: 'flex', alignItems: 'center' }}>
                 <Sparkles size={15} style={{ color: '#FFD700' }} />
               </div>
               <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Admin Dashboard</span>
             </div>
-            <h1 style={{ fontSize: 38, fontWeight: 900, color: '#FFFFFF', margin: '0 0 8px', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>Clients</h1>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', margin: 0 }}>Manage active clients, deliverables and financials</p>
+            <h1 style={{ fontSize: 'clamp(24px,7vw,38px)', fontWeight: 900, color: '#FFFFFF', margin: '0 0 8px', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>Clients</h1>
+            <p style={{ fontSize: 'clamp(12px,3vw,14px)', color: 'rgba(255,255,255,0.65)', margin: 0 }}>Manage active clients, deliverables and financials</p>
             <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
               {[
                 { icon: <Building2 size={11} />, label: `${regularActive.length} Active` },

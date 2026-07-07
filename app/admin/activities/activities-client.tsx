@@ -457,13 +457,14 @@ export default function ActivitiesClient({
         <PageHero
           title="Activities"
           subtitle="Track real-time updates and progress from your amazing team."
+          maxContentWidth={420}
           illustration={
-            /* Mobile: right-anchored so it can't sit behind the search bar; md+: original centered placement */
-            <div className="absolute right-2 left-auto translate-x-0 md:left-[54%] md:right-auto md:-translate-x-1/2" style={{ bottom: "clamp(-30px,-9vw,-85px)", zIndex: 1, pointerEvents: "none" }}>
+            /* Mobile: right-anchored and flush with the bottom (no negative offset) so the character sits fully inside the hero instead of getting clipped mid-figure by overflow:hidden; md+: original centered placement */
+            <div className="absolute right-2 bottom-2 top-auto md:left-[54%] md:right-auto md:top-1/2 md:bottom-auto md:-translate-x-1/2 md:-translate-y-1/2" style={{ zIndex: 1, pointerEvents: "none" }}>
               <img
                 src="/brand/activities-hero.png"
                 alt=""
-                className="h-[clamp(90px,24vw,300px)] md:h-[clamp(120px,36vw,300px)]"
+                className="h-[clamp(64px,20vw,110px)] md:h-[clamp(120px,36vw,300px)]"
                 style={{ width: "auto", objectFit: "contain", userSelect: "none" }}
               />
             </div>

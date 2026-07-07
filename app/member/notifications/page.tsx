@@ -56,8 +56,8 @@ export default async function NotificationsPage() {
         <div style={{ position: 'absolute', top: -40, right: -40, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', bottom: -30, left: 60, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
 
-        {/* Illustration — centered in the banner, behind the text/button row; visible at every width, just smaller on mobile */}
-        <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', zIndex: 0, pointerEvents: 'none', opacity: 0.9, width: 'clamp(60px,16vw,100px)' }}>
+        {/* Illustration — anchored bottom-right so it never sits directly behind the title/subtitle text; visible at every width, just smaller on mobile */}
+        <div style={{ position: 'absolute', right: 12, bottom: 8, zIndex: 0, pointerEvents: 'none', opacity: 0.9, width: 'clamp(60px,16vw,100px)' }}>
           <Image src="/brand/notifications-hero.png" alt="" width={100} height={100}
             style={{ objectFit: 'contain', display: 'block', width: '100%', height: 'auto', filter: 'drop-shadow(0 6px 20px rgba(0,0,0,0.3))' }} priority />
         </div>

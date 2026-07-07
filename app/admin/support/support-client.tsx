@@ -228,7 +228,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
               // Mobile width was a bare 28vw with no cap — at just-under-640px (the sm breakpoint where the row is still
               // stacked) that's up to ~180px, reaching far enough left to run under the subtitle/"New ticket" button.
               // Capped with clamp() and shortened so it stays a small corner accent instead of colliding with text.
-              <div className="absolute right-2 bottom-2 top-auto translate-y-0 w-[clamp(64px,24vw,130px)] h-[56%] md:left-[28%] md:right-auto md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:w-[clamp(150px,45vw,420px)] md:h-[135%]" style={{
+              <div className="absolute right-2 bottom-6 top-auto translate-y-0 w-[clamp(64px,24vw,130px)] h-[56%] md:left-[28%] md:right-auto md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:w-[clamp(150px,45vw,420px)] md:h-[135%]" style={{
                 pointerEvents: 'none', zIndex: 1,
               }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}

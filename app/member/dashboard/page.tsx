@@ -386,11 +386,11 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: flShootCount, label: "Videos Shot",   href: "/member/history" },
     { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
   ] : isMedia ? [
-    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: mediaShootHrs > 0 ? `${mediaShootHrs}h` : "—",      label: mediaShootCount > 0 ? `Shooting · ${mediaShootCount} session${mediaShootCount !== 1 ? "s" : ""}` : "Shooting", href: "/member/history" },
-    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: mediaEditHrs > 0 ? `${mediaEditHrs}h` : "—",        label: mediaEditCount > 0 ? `Editing · ${mediaEditCount} video${mediaEditCount !== 1 ? "s" : ""}` : "Editing", href: "/member/history" },
-    { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs",     href: "/member/history" },
+    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: mediaShootHrs > 0 ? `${mediaShootHrs}h` : "—",      label: "SHOOTING", href: "/member/history", count: mediaShootCount },
+    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: mediaEditHrs > 0 ? `${mediaEditHrs}h` : "—",        label: "EDITING", href: "/member/history", count: mediaEditCount },
+    { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "LEARNING HRS",     href: "/member/history" },
     ...(everTypes.has("other_activity") ? [
-      { icon: CalendarClock, iconBg: "rgba(107,114,128,0.1)", iconColor: "#6B7280", value: totalOtherActivityHrs > 0 ? `${totalOtherActivityHrs}h` : "—", label: "Other", href: "/member/history" },
+      { icon: CalendarClock, iconBg: "rgba(107,114,128,0.1)", iconColor: "#6B7280", value: totalOtherActivityHrs > 0 ? `${totalOtherActivityHrs}h` : "—", label: "OTHER", href: "/member/history" },
     ] : []),
   ] : [
     ...NM_TYPE_ORDER.filter(k => everTypes.has(k)).map(k => {
@@ -657,7 +657,8 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
                 <stat.icon size={16} style={{ color: stat.iconColor }} />
               </div>
               <div className="flex-1">
-                <div className="flex items-center gap-2">
+                <p className="text-[11px] font-bold" style={{ color: "#6B7280" }}>{stat.label}</p>
+                <div className="flex items-center gap-2 mt-0.5">
                   <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: stat.iconColor }}>{stat.value}</p>
                   {stat.count != null && stat.count > 0 && (
                     <div style={{
@@ -671,7 +672,6 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
                     </div>
                   )}
                 </div>
-                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>{stat.label}</p>
               </div>
               <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
             </Link>

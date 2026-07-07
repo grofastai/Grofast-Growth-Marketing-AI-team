@@ -381,7 +381,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   ]
 
   // Right-panel quick stats
-  const rightStats: { icon: React.ElementType; iconBg: string; iconColor: string; value: string | number; label: string; href: string }[] = isFreelancerMedia ? [
+  const rightStats: { icon: React.ElementType; iconBg: string; iconColor: string; value: string | number; label: string; href: string; count?: number }[] = isFreelancerMedia ? [
     { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: flEditCount,  label: "Videos Edited", href: "/member/history" },
     { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: flShootCount, label: "Videos Shot",   href: "/member/history" },
     { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
@@ -396,12 +396,12 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     ...NM_TYPE_ORDER.filter(k => everTypes.has(k)).map(k => {
       const cfg = NM_TYPE_CFG[k]
       const stat = nmTypeStats[k] ?? { count: 0, hours: 0 }
-      const value = cfg.metric === "hours" ? (stat.hours > 0 ? `${stat.hours}h` : "—") : stat.count
-      return { icon: cfg.icon, iconBg: cfg.iconBg, iconColor: cfg.iconColor, value, label: cfg.label, href: "/member/history" }
+      const value = stat.hours > 0 ? `${stat.hours}h` : "—"
+      return { icon: cfg.icon, iconBg: cfg.iconBg, iconColor: cfg.iconColor, value, label: cfg.label.toUpperCase(), href: "/member/history", count: stat.count }
     }),
-    { icon: BookOpen, iconBg: "rgba(167,139,250,0.1)", iconColor: "#A78BFA", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
+    { icon: BookOpen, iconBg: "rgba(167,139,250,0.1)", iconColor: "#A78BFA", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "LEARNING HRS", href: "/member/history" },
     ...(everTypes.has("other_activity") ? [
-      { icon: CalendarClock, iconBg: "rgba(107,114,128,0.1)", iconColor: "#6B7280", value: totalOtherActivityHrs > 0 ? `${totalOtherActivityHrs}h` : "—", label: "Other", href: "/member/history" },
+      { icon: CalendarClock, iconBg: "rgba(107,114,128,0.1)", iconColor: "#6B7280", value: totalOtherActivityHrs > 0 ? `${totalOtherActivityHrs}h` : "—", label: "OTHER", href: "/member/history" },
     ] : []),
   ]
 
@@ -657,7 +657,20 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
                 <stat.icon size={16} style={{ color: stat.iconColor }} />
               </div>
               <div className="flex-1">
-                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: stat.iconColor }}>{stat.value}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: stat.iconColor }}>{stat.value}</p>
+                  {stat.count != null && stat.count > 0 && (
+                    <div style={{
+                      width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                      background: `linear-gradient(145deg, ${stat.iconColor}EE 0%, ${stat.iconColor} 100%)`,
+                      boxShadow: `0 3px 8px ${stat.iconColor}55, 0 1px 3px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.3)`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 10, fontWeight: 900, color: "#fff",
+                    }}>
+                      {stat.count}
+                    </div>
+                  )}
+                </div>
                 <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>{stat.label}</p>
               </div>
               <ChevronRight size={16} style={{ color: "#D1D5DB" }} />

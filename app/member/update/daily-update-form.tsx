@@ -38,12 +38,12 @@ interface EditEntry {
   isRework: boolean; linkedToTitle: string; linkedToClient: string; linkedToDate: string
 }
 interface DevEntry {
-  id: string; project: string; isCreatingNew: boolean; subtitle: string
+  id: string; clientName: string; customClient: string; project: string; isCreatingNew: boolean; subtitle: string
   startTime: string; endTime: string; timeTaken: number
   participantIds: string[]
 }
 interface OtherEntry {
-  id: string; otherType: string; title: string
+  id: string; clientName: string; customClient: string; otherType: string; title: string
   startTime: string; endTime: string; timeTaken: number
   notes: string; participantIds: string[]
 }
@@ -495,7 +495,9 @@ function parseExistingDevelopments(existingUpdate: Record<string, unknown>): Dev
     .filter(e => e.task_type === 'development')
     .map(e => ({
       id: e.id ?? crypto.randomUUID(),
-      project: e.project_name ?? e.client_name ?? "",
+      clientName: e._client_type ?? e.client_name ?? "",
+      customClient: e._custom_client ?? "",
+      project: e.project_name ?? "",
       isCreatingNew: false,
       subtitle: e.title ?? "",
       startTime: e.start_time ?? "", endTime: e.end_time ?? "",
@@ -511,6 +513,8 @@ function parseExistingOthers(existingUpdate: Record<string, unknown>): OtherEntr
     .filter(e => e.task_type === 'other_activity')
     .map(e => ({
       id: e.id ?? crypto.randomUUID(),
+      clientName: e._client_type ?? e.client_name ?? "",
+      customClient: e._custom_client ?? "",
       otherType: e._other_type ?? "Meeting",
       title: e.title ?? "",
       startTime: e.start_time ?? "", endTime: e.end_time ?? "",
@@ -665,7 +669,7 @@ export default function DailyUpdateForm({
 
   // ── Development (non-media) ──────────────────────────────────────────────
   const [developments, setDevelopments] = useState<DevEntry[]>(() => existingUpdate ? parseExistingDevelopments(existingUpdate) : [])
-  const addDevelopment    = () => setDevelopments(p => [...p, { id: crypto.randomUUID(), project:"", isCreatingNew:false, subtitle:"", startTime:"09:00", endTime:"09:00", timeTaken:1, participantIds:[] }])
+  const addDevelopment    = () => setDevelopments(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", project:"", isCreatingNew:false, subtitle:"", startTime:"09:00", endTime:"09:00", timeTaken:1, participantIds:[] }])
   const patchDevelopment  = (id: string, patch: Partial<DevEntry>) => setDevelopments(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
   const removeDevelopment = (id: string) => setDevelopments(p => p.filter(e => e.id !== id))
 
@@ -742,7 +746,7 @@ export default function DailyUpdateForm({
 
   // ── Other (Meeting / Teaching / Misc) — Learning tab, both Media & Non-Media ──
   const [others, setOthers] = useState<OtherEntry[]>(() => existingUpdate ? parseExistingOthers(existingUpdate) : [])
-  const addOther    = () => setOthers(p => [...p, { id: crypto.randomUUID(), otherType:"Meeting", title:"", startTime:"09:00", endTime:"09:00", timeTaken:0.5, notes:"", participantIds:[] }])
+  const addOther    = () => setOthers(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", otherType:"Meeting", title:"", startTime:"09:00", endTime:"09:00", timeTaken:0.5, notes:"", participantIds:[] }])
   const patchOther  = (id: string, patch: Partial<OtherEntry>) => setOthers(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
   const removeOther = (id: string) => setOthers(p => p.filter(e => e.id !== id))
   const [learningParticipantIds, setLearningParticipantIds] = useState<string[]>(
@@ -999,10 +1003,11 @@ export default function DailyUpdateForm({
       if (toMins(s.endTime) <= toMins(s.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
-    // Development mandatory: project, sub-title, start/end time
+    // Development mandatory: client, project, sub-title, start/end time
     for (let i = 0; i < developments.length; i++) {
       const d = developments[i]
       const label = developments.length > 1 ? `Development ${i + 1}: ` : "Development: "
+      if (!d.clientName) { setWorkingError(`${label}Select a client.`); return }
       if (!d.project.trim()) { setWorkingError(`${label}Select or create a project.`); return }
       if (!d.subtitle.trim()) { setWorkingError(`${label}Enter what you worked on today.`); return }
       if (!d.startTime) { setWorkingError(`${label}Enter start time.`); return }
@@ -1112,8 +1117,8 @@ export default function DailyUpdateForm({
       })),
       ...developments.map(e => ({
         id: e.id,
-        client_id: null,
-        client_name: e.project || "Internal",
+        client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+        client_name: e.clientName || "Internal",
         client_names: [] as string[],
         is_multi_client: false,
         task_type: "development" as const,
@@ -1121,6 +1126,7 @@ export default function DailyUpdateForm({
         duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
         notes: undefined, video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
         project_name: e.project,
+        _client_type: e.clientName, _custom_client: e.customClient,
         participant_ids: e.participantIds,
       })),
     ]
@@ -1388,10 +1394,11 @@ export default function DailyUpdateForm({
       if (!b.topic.trim()) { setLearningError(`${label}Enter what you learned (Topic / Course).`); return }
       if (!b.from || !b.to || calcLearningHours(b.from, b.to) <= 0) { setLearningError(`${label}Set a valid From and To time.`); return }
     }
-    // Other (Meeting/Teaching/Misc) mandatory: title, start/end time
+    // Other (Meeting/Teaching/Misc) mandatory: client, title, start/end time
     for (let i = 0; i < others.length; i++) {
       const o = others[i]
       const label = others.length > 1 ? `Other ${i + 1}: ` : "Other: "
+      if (!o.clientName) { setLearningError(`${label}Select a client.`); return }
       if (!o.title.trim()) { setLearningError(`${label}Enter a title.`); return }
       if (!o.startTime) { setLearningError(`${label}Enter start time.`); return }
       if (!o.endTime)   { setLearningError(`${label}Enter end time.`); return }
@@ -1424,8 +1431,8 @@ export default function DailyUpdateForm({
           })),
           ...others.map(o => ({
             id: o.id,
-            client_id: null,
-            client_name: "Internal",
+            client_id: projects.find(p => p.business_name === o.clientName)?.id ?? null,
+            client_name: o.clientName || "Internal",
             client_names: [] as string[],
             is_multi_client: false,
             task_type: "other_activity" as const,
@@ -1433,6 +1440,7 @@ export default function DailyUpdateForm({
             duration_hours: calcDuration(o.startTime, o.endTime) || o.timeTaken,
             notes: o.notes || undefined,
             _other_type: o.otherType,
+            _client_type: o.clientName, _custom_client: o.customClient,
             participant_ids: o.participantIds,
             editing_videos: [],
           })),
@@ -2452,30 +2460,43 @@ export default function DailyUpdateForm({
                           <Trash2 size={12} style={{ color:"#6366F1" }} />
                         </button>
                       </div>
-                      <div style={{ marginBottom:8 }}>
-                        <label style={L}>Project</label>
-                        {e.isCreatingNew ? (
-                          <div style={{ display:"flex", gap:6 }}>
-                            <input autoFocus value={e.project} onChange={ev => patchDevelopment(e.id, { project: ev.target.value })} placeholder="Type new project name, e.g. TEAM APP" style={F} />
-                            <button type="button" onClick={() => patchDevelopment(e.id, { isCreatingNew: false, project: "" })}
-                              style={{ flexShrink:0, fontSize:11, fontWeight:700, color:"#6B7280", background:"#F3F4F6", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"0 10px", cursor:"pointer" }}>
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div style={{ position:"relative" }}>
-                            <select value={e.project} onChange={ev => {
-                                if (ev.target.value === "__new__") patchDevelopment(e.id, { isCreatingNew: true, project: "" })
-                                else patchDevelopment(e.id, { project: ev.target.value, isCreatingNew: false })
-                              }}
-                              style={{ ...F, paddingRight:28, appearance:"none" }}>
-                              <option value="">Select project…</option>
-                              <option value="__new__">+ Create New Project</option>
-                              {pastProjectNames.map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                        )}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Project</label>
+                          {e.isCreatingNew ? (
+                            <div style={{ display:"flex", gap:6 }}>
+                              <input autoFocus value={e.project} onChange={ev => patchDevelopment(e.id, { project: ev.target.value })} placeholder="Type new project name, e.g. TEAM APP" style={F} />
+                              <button type="button" onClick={() => patchDevelopment(e.id, { isCreatingNew: false, project: "" })}
+                                style={{ flexShrink:0, fontSize:11, fontWeight:700, color:"#6B7280", background:"#F3F4F6", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"0 10px", cursor:"pointer" }}>
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ position:"relative" }}>
+                              <select value={e.project} onChange={ev => {
+                                  if (ev.target.value === "__new__") patchDevelopment(e.id, { isCreatingNew: true, project: "" })
+                                  else patchDevelopment(e.id, { project: ev.target.value, isCreatingNew: false })
+                                }}
+                                style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                <option value="">Select project…</option>
+                                <option value="__new__">+ Create New Project</option>
+                                {pastProjectNames.map(p => <option key={p} value={p}>{p}</option>)}
+                              </select>
+                              <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label style={L}>Client Name</label>
+                          <ClientSelector
+                            label=""
+                            value={e.clientName}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onValueChange={v => patchDevelopment(e.id, { clientName: v })}
+                          />
+                        </div>
                       </div>
                       <div style={{ marginBottom:8 }}>
                         <label style={L}>Sub-title — what did you work on today?</label>
@@ -3435,6 +3456,17 @@ export default function DailyUpdateForm({
                         <label style={L}>Title / What was it?</label>
                         <input value={e.title} onChange={ev => patchOther(e.id, { title: ev.target.value })} placeholder="e.g. Weekly Sync with Marketing Team" style={F} />
                       </div>
+                    </div>
+                    <div style={{ marginBottom:8 }}>
+                      <label style={L}>Client Name</label>
+                      <ClientSelector
+                        label=""
+                        value={e.clientName}
+                        clientOptions={activeClientOptions}
+                        pastClientOptions={pastClientOptions}
+                        placeholder="Select client…"
+                        onValueChange={v => patchOther(e.id, { clientName: v })}
+                      />
                     </div>
                     <div style={{ marginBottom:8 }}>
                       <label style={L}>🗓️ Time</label>

@@ -544,9 +544,8 @@ export default function HistoryClient({
 
   async function saveEntry(updateId: string, allEntries: WorkEntry[], entryIdx: number) {
     const key = `${updateId}:${entryIdx}`
-    // Common: client + title required for most types. Development is project-linked, not
-    // client-linked, and Other has neither — both skip the client check but still need a title.
-    const NO_CLIENT_TYPES = ["break", "development", "other_activity"]
+    // Common: client + title required for most types. Break is the only exemption.
+    const NO_CLIENT_TYPES = ["break"]
     if (!NO_CLIENT_TYPES.includes(editDraft.task_type ?? "")) {
       const clientVal = (editDraft.client_names && editDraft.client_names.length > 0) ? editDraft.client_names[0] : editDraft.client_name
       if (!clientVal || clientVal === "Internal" || clientVal === "") { showToast("Select a client before saving."); return }
@@ -597,10 +596,8 @@ export default function HistoryClient({
       draftToSave = { ...editDraft, title: finalTitle, client_name: "Break", duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
     } else if (editDraft.task_type === "voiceover" || editDraft.task_type === "poster" || editDraft.task_type === "scripting") {
       draftToSave = { ...editDraft, duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
-    } else if (editDraft.task_type === "development") {
-      draftToSave = { ...editDraft, client_name: editDraft.project_name || "Internal", duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
-    } else if (editDraft.task_type === "other_activity") {
-      draftToSave = { ...editDraft, client_name: "Internal", duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
+    } else if (editDraft.task_type === "development" || editDraft.task_type === "other_activity") {
+      draftToSave = { ...editDraft, duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
     }
     const updatedEntry = { ...(allEntries[entryIdx] as unknown as Record<string, unknown>), ...draftToSave }
 
@@ -2812,9 +2809,23 @@ export default function HistoryClient({
                                       <input type="date" max="2099-12-31" value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
-                                    <div>
-                                      <label style={HL}>Project</label>
-                                      <input value={editDraft.project_name??""} onChange={ev=>setEditDraft(d=>({...d,project_name:ev.target.value}))} placeholder="e.g. TEAM APP" style={HF} />
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                      <div>
+                                        <label style={HL}>Project</label>
+                                        <input value={editDraft.project_name??""} onChange={ev=>setEditDraft(d=>({...d,project_name:ev.target.value}))} placeholder="e.g. TEAM APP" style={HF} />
+                                      </div>
+                                      <div>
+                                        <label style={HL}>Client Name *</label>
+                                        <ClientSelector
+                                          label=""
+                                          value={editDraft.client_name??""}
+                                          clientOptions={activeClientsForEdit}
+                                          pastClientOptions={pastClientsOnly}
+                                          placeholder="Select client…"
+                                          fieldStyle={HF}
+                                          onValueChange={v=>setEditDraft(d=>({...d,client_name:v}))}
+                                        />
+                                      </div>
                                     </div>
                                     <div><label style={HL}>Sub-title — what did you work on? *</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="e.g. Fixed dashboard filter bug" style={HF} /></div>
                                     <div>
@@ -2881,6 +2892,18 @@ export default function HistoryClient({
                                         </select>
                                       </div>
                                       <div><label style={HL}>Title / What was it? *</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="e.g. Weekly Sync with Marketing Team" style={HF} /></div>
+                                    </div>
+                                    <div>
+                                      <label style={HL}>Client Name *</label>
+                                      <ClientSelector
+                                        label=""
+                                        value={editDraft.client_name??""}
+                                        clientOptions={activeClientsForEdit}
+                                        pastClientOptions={pastClientsOnly}
+                                        placeholder="Select client…"
+                                        fieldStyle={HF}
+                                        onValueChange={v=>setEditDraft(d=>({...d,client_name:v}))}
+                                      />
                                     </div>
                                     <div>
                                       <label style={HL}>🗓️ Time</label>

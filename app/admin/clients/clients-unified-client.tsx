@@ -211,7 +211,7 @@ export default function ClientsUnifiedClient({
   selectedClientName: string | null
   selectedClientRow: ClientRow | null
   deliverables: DeliverableResult | null
-  mode: 'month' | 'all' | 'custom'
+  mode: 'month' | 'all'
   period: string
   today: string
   dateFrom: string
@@ -252,22 +252,15 @@ export default function ClientsUnifiedClient({
     router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=month&period=${newPeriod}`)
   }
 
-  function setQuick(q: 'this' | 'last' | 'all' | 'custom') {
+  function setQuick(q: 'this' | 'last' | 'all') {
     if (!selectedClientName) return
-    if (q === 'all')    router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=all`)
-    if (q === 'this')   router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=month&period=${thisMonthStr()}`)
-    if (q === 'last')   router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=month&period=${prevMonthStr()}`)
-    if (q === 'custom') router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=custom&from=${dateFrom}&to=${dateTo}`)
+    if (q === 'all')  router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=all`)
+    if (q === 'this') router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=month&period=${thisMonthStr()}`)
+    if (q === 'last') router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=month&period=${prevMonthStr()}`)
   }
 
-  function setCustomRange(newFrom: string, newTo: string) {
-    if (!selectedClientName) return
-    router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=custom&from=${newFrom}&to=${newTo}`)
-  }
-
-  const activeQuick: 'this' | 'last' | 'all' | 'custom' | null =
+  const activeQuick: 'this' | 'last' | 'all' | null =
     mode === 'all' ? 'all'
-    : mode === 'custom' ? 'custom'
     : period === thisMonthStr() ? 'this'
     : period === prevMonthStr() ? 'last'
     : null
@@ -525,11 +518,10 @@ export default function ClientsUnifiedClient({
               background: '#FFFFFF', borderRadius: 14, padding: '14px 18px',
               border: '1px solid #EBEDF2', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
             }}>
-              {/* Quick buttons — All Time first, then This Month, then Custom */}
+              {/* Quick buttons — All Time first, then Month */}
               {([
-                { key: 'all',    label: 'All Time'   },
-                { key: 'this',   label: 'Month'       },
-                { key: 'custom', label: 'Custom'     },
+                { key: 'all',  label: 'All Time' },
+                { key: 'this', label: 'Month'    },
               ] as const).map(({ key, label }) => (
                 <button key={key} onClick={() => setQuick(key)} style={{
                   padding: '7px 16px', borderRadius: 9, fontSize: 12, fontWeight: 700,
@@ -542,49 +534,20 @@ export default function ClientsUnifiedClient({
                 </button>
               ))}
 
-              {mode === 'custom' ? (
-                /* Custom from/to date range */
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <input
-                    type="date"
-                    value={dateFrom}
-                    max={dateTo}
-                    onChange={e => setCustomRange(e.target.value, dateTo)}
-                    style={{
-                      padding: '7px 12px', borderRadius: 10, border: '1.5px solid #DE1A1A',
-                      fontSize: 13, fontWeight: 600, color: '#111827', background: '#F9FAFB',
-                      outline: 'none', cursor: 'pointer',
-                    }}
-                  />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF' }}>to</span>
-                  <input
-                    type="date"
-                    value={dateTo}
-                    min={dateFrom}
-                    max={today}
-                    onChange={e => setCustomRange(dateFrom, e.target.value)}
-                    style={{
-                      padding: '7px 12px', borderRadius: 10, border: '1.5px solid #DE1A1A',
-                      fontSize: 13, fontWeight: 600, color: '#111827', background: '#F9FAFB',
-                      outline: 'none', cursor: 'pointer',
-                    }}
-                  />
-                </div>
-              ) : (
-                /* Month picker */
-                <input
-                  type="month"
-                  value={mode === 'all' ? today.slice(0, 7) : period.slice(0, 7)}
-                  max={today.slice(0, 7)}
-                  onChange={e => setPeriod(e.target.value)}
-                  style={{
-                    padding: '7px 12px', borderRadius: 10,
-                    border: activeQuick === null && mode !== 'all' ? '1.5px solid #DE1A1A' : '1.5px solid #E5E7EB',
-                    fontSize: 13, fontWeight: 600, color: '#111827', background: '#F9FAFB',
-                    outline: 'none', cursor: 'pointer',
-                  }}
-                />
-              )}
+              {/* Month picker — no min, so any past month is reachable; capped at
+                  the current month since future months can never have data. */}
+              <input
+                type="month"
+                value={mode === 'all' ? today.slice(0, 7) : period.slice(0, 7)}
+                max={today.slice(0, 7)}
+                onChange={e => setPeriod(e.target.value)}
+                style={{
+                  padding: '7px 12px', borderRadius: 10,
+                  border: activeQuick === null && mode !== 'all' ? '1.5px solid #DE1A1A' : '1.5px solid #E5E7EB',
+                  fontSize: 13, fontWeight: 600, color: '#111827', background: '#F9FAFB',
+                  outline: 'none', cursor: 'pointer',
+                }}
+              />
             </div>
 
             {/* ── Stat chips ───────────────────────────────────────────── */}

@@ -41,13 +41,12 @@ function lastDayOfMonth(year: number, month: number): string {
 export default async function ClientsUnifiedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string; mode?: string; period?: string; from?: string; to?: string }>
+  searchParams: Promise<{ client?: string; mode?: string; period?: string }>
 }) {
-  const { client: selectedClient, mode: rawMode, period: rawPeriod, from: rawFrom, to: rawTo } = await searchParams
+  const { client: selectedClient, mode: rawMode, period: rawPeriod } = await searchParams
 
   const todayStr = new Date().toISOString().split('T')[0]
-  const mode: 'month' | 'all' | 'custom' =
-    rawMode === 'all' ? 'all' : rawMode === 'custom' ? 'custom' : 'month'
+  const mode: 'month' | 'all' = rawMode === 'all' ? 'all' : 'month'
 
   function prevMonthStr(): string {
     const d = new Date()
@@ -64,10 +63,6 @@ export default async function ClientsUnifiedPage({
   if (mode === 'all') {
     dateFrom = '2020-01-01'
     dateTo   = todayStr
-  } else if (mode === 'custom') {
-    dateFrom = rawFrom ?? todayStr
-    dateTo   = rawTo ?? todayStr
-    if (dateFrom > dateTo) [dateFrom, dateTo] = [dateTo, dateFrom]
   } else {
     const [y, m] = period.split('-').map(Number)
     dateFrom = `${period}-01`

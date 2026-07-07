@@ -293,7 +293,7 @@ export default function ClientsUnifiedClient({
             height forced object-fit:cover to zoom in hard whenever the hero was taller/narrower than the
             image's native ~1.73:1 ratio (always true on mobile), cropping the woman's head and hands
             instead of showing the scene framed. */}
-        <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', width: 'clamp(150px,44vw,460px)', aspectRatio: '1774 / 1024', pointerEvents: 'none', zIndex: 0, borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)', width: 'clamp(140px,36vw,360px)', aspectRatio: '1774 / 1024', pointerEvents: 'none', zIndex: 0, borderRadius: 14, overflow: 'hidden' }}>
           <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '30%', background: 'linear-gradient(to right, #8B1A1A 0%, transparent 100%)', zIndex: 2 }} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/client-hero.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'left center', display: 'block', opacity: 0.92 }} />

@@ -70,7 +70,7 @@ function ClientCard({ c, isSelected, onClick }: { c: ClientRow; isSelected: bool
             {c.name}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
-            {c.industry && <span style={{ fontSize: 10, color: '#9CA3AF' }}>{c.industry}</span>}
+            {c.industry && <span style={{ fontSize: 10, color: "#37474F" }}>{c.industry}</span>}
             {c.package_name && (
               <span style={{
                 fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
@@ -158,7 +158,7 @@ function Section({ title, emoji, count, totalCost, children }: {
           {title}
         </span>
         {count != null && (
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#F3F4F6', color: '#6B7280' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#F3F4F6', color: "#37474F" }}>
             {count}
           </span>
         )}
@@ -177,7 +177,7 @@ function Section({ title, emoji, count, totalCost, children }: {
 
 function TH({ children }: { children: string }) {
   return (
-    <th style={{ padding: '8px 14px', fontSize: 10, fontWeight: 700, color: '#9CA3AF', textAlign: 'left', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+    <th style={{ padding: '8px 14px', fontSize: 10, fontWeight: 700, color: "#37474F", textAlign: 'left', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
       {children}
     </th>
   )
@@ -212,7 +212,7 @@ export default function ClientsUnifiedClient({
   selectedClientName: string | null
   selectedClientRow: ClientRow | null
   deliverables: DeliverableResult | null
-  mode: 'month' | 'all'
+  mode: 'month' | 'all' | 'custom'
   period: string
   today: string
   dateFrom: string
@@ -253,15 +253,22 @@ export default function ClientsUnifiedClient({
     router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=month&period=${newPeriod}`)
   }
 
-  function setQuick(q: 'this' | 'last' | 'all') {
+  function setQuick(q: 'this' | 'last' | 'all' | 'custom') {
     if (!selectedClientName) return
-    if (q === 'all')  router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=all`)
-    if (q === 'this') router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=month&period=${thisMonthStr()}`)
-    if (q === 'last') router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=month&period=${prevMonthStr()}`)
+    if (q === 'all')    router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=all`)
+    if (q === 'this')   router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=month&period=${thisMonthStr()}`)
+    if (q === 'last')   router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=month&period=${prevMonthStr()}`)
+    if (q === 'custom') router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=custom&from=${dateFrom}&to=${dateTo}`)
   }
 
-  const activeQuick: 'this' | 'last' | 'all' | null =
+  function setCustomRange(newFrom: string, newTo: string) {
+    if (!selectedClientName) return
+    router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=custom&from=${newFrom}&to=${newTo}`)
+  }
+
+  const activeQuick: 'this' | 'last' | 'all' | 'custom' | null =
     mode === 'all' ? 'all'
+    : mode === 'custom' ? 'custom'
     : period === thisMonthStr() ? 'this'
     : period === prevMonthStr() ? 'last'
     : null
@@ -342,7 +349,7 @@ export default function ClientsUnifiedClient({
 
           {/* Search */}
           <div style={{ position: 'relative' }}>
-            <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
+            <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: "#37474F" }} />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -356,7 +363,7 @@ export default function ClientsUnifiedClient({
             />
             {search && (
               <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
-                <X size={11} style={{ color: '#9CA3AF' }} />
+                <X size={11} style={{ color: "#37474F" }} />
               </button>
             )}
           </div>
@@ -365,7 +372,7 @@ export default function ClientsUnifiedClient({
         {/* Client list — virtual summary + 3 real sections */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {filteredInternal.length === 0 && filteredActive.length === 0 && filteredPast.length === 0 && (
-            <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '24px 0' }}>No clients found</p>
+            <p style={{ fontSize: 12, color: "#37474F", textAlign: 'center', padding: '24px 0' }}>No clients found</p>
           )}
 
           {/* Summary aggregates */}
@@ -392,10 +399,10 @@ export default function ClientsUnifiedClient({
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 18 }}>{vc.emoji}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: 12, fontWeight: 800, color: isSel ? vc.color : '#374151', margin: 0, fontFamily: 'var(--font-jakarta)' }}>
+                          <p style={{ fontSize: 12, fontWeight: 800, color: isSel ? vc.color : "#37474F", margin: 0, fontFamily: 'var(--font-jakarta)' }}>
                             {vc.label}
                           </p>
-                          <p style={{ fontSize: 10, color: '#9CA3AF', margin: '1px 0 0' }}>{vc.sub}</p>
+                          <p style={{ fontSize: 10, color: "#37474F", margin: '1px 0 0' }}>{vc.sub}</p>
                         </div>
                       </div>
                     </button>
@@ -408,7 +415,7 @@ export default function ClientsUnifiedClient({
           {/* Internal */}
           {filteredInternal.length > 0 && (
             <>
-              <p style={{ fontSize: 9, fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '6px 4px 4px' }}>
+              <p style={{ fontSize: 9, fontWeight: 800, color: "#37474F", textTransform: 'uppercase', letterSpacing: '0.1em', margin: '6px 4px 4px' }}>
                 Internal · {filteredInternal.length}
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
@@ -436,7 +443,7 @@ export default function ClientsUnifiedClient({
           {/* Past */}
           {filteredPast.length > 0 && (
             <>
-              <p style={{ fontSize: 9, fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '6px 4px 4px' }}>
+              <p style={{ fontSize: 9, fontWeight: 800, color: "#37474F", textTransform: 'uppercase', letterSpacing: '0.1em', margin: '6px 4px 4px' }}>
                 Past · {filteredPast.length}
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -456,8 +463,8 @@ export default function ClientsUnifiedClient({
         {!selectedClientName && (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, minHeight: '60vh' }}>
             <div style={{ fontSize: 48 }}>👈</div>
-            <p style={{ fontSize: 15, fontWeight: 700, color: '#374151', margin: 0 }}>Select a client</p>
-            <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>Pick a client from the left to see their deliverables and costs</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: "#37474F", margin: 0 }}>Select a client</p>
+            <p style={{ fontSize: 13, color: "#37474F", margin: 0 }}>Pick a client from the left to see their deliverables and costs</p>
           </div>
         )}
 
@@ -522,36 +529,66 @@ export default function ClientsUnifiedClient({
               background: '#FFFFFF', borderRadius: 14, padding: '14px 18px',
               border: '1px solid #EBEDF2', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
             }}>
-              {/* Quick buttons — All Time first, then Month */}
+              {/* Quick buttons — All Time first, then Month, then Custom */}
               {([
-                { key: 'all',  label: 'All Time' },
-                { key: 'this', label: 'Month'    },
+                { key: 'all',    label: 'All Time' },
+                { key: 'this',   label: 'Month'    },
+                { key: 'custom', label: 'Custom'   },
               ] as const).map(({ key, label }) => (
                 <button key={key} onClick={() => setQuick(key)} style={{
                   padding: '7px 16px', borderRadius: 9, fontSize: 12, fontWeight: 700,
                   border: activeQuick === key ? '1.5px solid #DE1A1A' : '1.5px solid #E5E7EB',
                   cursor: 'pointer', transition: 'all 0.15s',
                   background: activeQuick === key ? 'rgba(222,26,26,0.06)' : '#F9FAFB',
-                  color: activeQuick === key ? '#DE1A1A' : '#6B7280',
+                  color: activeQuick === key ? '#DE1A1A' : '#37474F',
                 }}>
                   {label}
                 </button>
               ))}
 
-              {/* Month picker — no min, so any past month is reachable; capped at
-                  the current month since future months can never have data. */}
-              <input
-                type="month"
-                value={mode === 'all' ? today.slice(0, 7) : period.slice(0, 7)}
-                max={today.slice(0, 7)}
-                onChange={e => setPeriod(e.target.value)}
-                style={{
-                  padding: '7px 12px', borderRadius: 10,
-                  border: activeQuick === null && mode !== 'all' ? '1.5px solid #DE1A1A' : '1.5px solid #E5E7EB',
-                  fontSize: 13, fontWeight: 600, color: '#111827', background: '#F9FAFB',
-                  outline: 'none', cursor: 'pointer',
-                }}
-              />
+              {mode === 'custom' ? (
+                /* Custom from/to date range */
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    max={dateTo}
+                    onChange={e => setCustomRange(e.target.value, dateTo)}
+                    style={{
+                      padding: '7px 12px', borderRadius: 10, border: '1.5px solid #DE1A1A',
+                      fontSize: 13, fontWeight: 600, color: '#111827', background: '#F9FAFB',
+                      outline: 'none', cursor: 'pointer',
+                    }}
+                  />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#37474F" }}>to</span>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    min={dateFrom}
+                    max={today}
+                    onChange={e => setCustomRange(dateFrom, e.target.value)}
+                    style={{
+                      padding: '7px 12px', borderRadius: 10, border: '1.5px solid #DE1A1A',
+                      fontSize: 13, fontWeight: 600, color: '#111827', background: '#F9FAFB',
+                      outline: 'none', cursor: 'pointer',
+                    }}
+                  />
+                </div>
+              ) : (
+                /* Month picker */
+                <input
+                  type="month"
+                  value={mode === 'all' ? today.slice(0, 7) : period.slice(0, 7)}
+                  max={today.slice(0, 7)}
+                  onChange={e => setPeriod(e.target.value)}
+                  style={{
+                    padding: '7px 12px', borderRadius: 10,
+                    border: activeQuick === null && mode !== 'all' ? '1.5px solid #DE1A1A' : '1.5px solid #E5E7EB',
+                    fontSize: 13, fontWeight: 600, color: '#111827', background: '#F9FAFB',
+                    outline: 'none', cursor: 'pointer',
+                  }}
+                />
+              )}
             </div>
 
             {/* ── Stat chips ───────────────────────────────────────────── */}
@@ -595,17 +632,17 @@ export default function ClientsUnifiedClient({
                 border: '1px dashed #E5E7EB', textAlign: 'center',
               }}>
                 <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#374151', margin: '0 0 6px' }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: "#37474F", margin: '0 0 6px' }}>
                   No work logged for this period
                 </p>
-                <p style={{ fontSize: 12, color: '#9CA3AF', margin: '0 0 16px' }}>
+                <p style={{ fontSize: 12, color: "#37474F", margin: '0 0 16px' }}>
                   Searched {fmtDate(dateFrom)}{dateFrom !== dateTo ? ` – ${fmtDate(dateTo)}` : ''} for client name &ldquo;{selectedClientRow.name}&rdquo;
                 </p>
                 <div style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-                  <p style={{ fontSize: 11, color: '#6B7280', margin: 0, background: '#F9FAFB', padding: '6px 14px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+                  <p style={{ fontSize: 11, color: "#37474F", margin: 0, background: '#F9FAFB', padding: '6px 14px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
                     Try a different month or &ldquo;All Time&rdquo; above
                   </p>
-                  <p style={{ fontSize: 11, color: '#6B7280', margin: 0, background: '#F9FAFB', padding: '6px 14px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+                  <p style={{ fontSize: 11, color: "#37474F", margin: 0, background: '#F9FAFB', padding: '6px 14px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
                     Members must select &ldquo;{selectedClientRow.name}&rdquo; exactly in their daily update
                   </p>
                 </div>
@@ -623,10 +660,10 @@ export default function ClientsUnifiedClient({
                   <tbody>
                     {deliverables.shoots.map((s, i) => (
                       <tr key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#6B7280' }}>{fmtDate(s.date)}</td>
+                        <td style={{ padding: '10px 14px', fontSize: 12, color: "#37474F" }}>{fmtDate(s.date)}</td>
                         {showClient && <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: '#6366F1' }}>{s.clientName}</td>}
-                        <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151' }}>{s.memberName}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>{s.title}</td>
+                        <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: "#37474F" }}>{s.memberName}</td>
+                        <td style={{ padding: '10px 14px', fontSize: 12, color: "#37474F" }}>{s.title}</td>
                         <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>{s.hours.toFixed(1)}h</td>
                         <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: '#111827' }}>{fmtRupee(s.cost)}</td>
                       </tr>
@@ -651,10 +688,10 @@ export default function ClientsUnifiedClient({
                     <tbody>
                       {allVideos.map((v, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid #F9FAFB', background: v.isRework ? 'rgba(245,158,11,0.04)' : undefined }}>
-                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#6B7280' }}>{fmtDate(v.date)}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: "#37474F" }}>{fmtDate(v.date)}</td>
                           {showClient && <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: '#6366F1' }}>{v.clientName}</td>}
-                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151' }}>{v.memberName}</td>
-                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>
+                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: "#37474F" }}>{v.memberName}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: "#37474F" }}>
                             {v.isRework && <span style={{ fontSize: 10, fontWeight: 700, color: '#B45309', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6, padding: '1px 6px', marginRight: 6 }}>↩ Revision</span>}
                             {v.videoName}
                           </td>
@@ -681,10 +718,10 @@ export default function ClientsUnifiedClient({
                     <tbody>
                       {entries.map((o, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid #F9FAFB', background: o.isRework ? 'rgba(245,158,11,0.04)' : undefined }}>
-                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#6B7280' }}>{fmtDate(o.date)}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: "#37474F" }}>{fmtDate(o.date)}</td>
                           {showClient && <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: '#6366F1' }}>{o.clientName}</td>}
-                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151' }}>{o.memberName}</td>
-                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>
+                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: "#37474F" }}>{o.memberName}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: "#37474F" }}>
                             {o.isRework && <span style={{ fontSize: 10, fontWeight: 700, color: '#B45309', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6, padding: '1px 6px', marginRight: 6 }}>↩ Revision</span>}
                             {o.title}
                           </td>

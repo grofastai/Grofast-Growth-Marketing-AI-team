@@ -54,16 +54,16 @@ export type WorkEntry = {
 const TEAM_CFG: Record<FreelancerTeam, {
   color: string; bg: string; border: string
   shortLabel: string; entryLabel: string; emoji: string; costLabel: string
-  heroBg: string; image: string; tagline: string
+  heroBg: string; image: string; tagline: string; mobileImageHeight?: number; desktopMaxHeight?: number; mobileImageBottom?: number
 }> = {
-  "Freelance RJ Voiceover":            { color: "#A855F7", bg: "rgba(168,85,247,0.07)", border: "rgba(168,85,247,0.2)", shortLabel: "RJ Voiceover",  entryLabel: "Voice",     emoji: "🎙️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #2D1B69 0%, #6D28D9 45%, #1E1040 100%)", image: "/brand/voiceover-rj-character.png", tagline: "Giving Voice to Every Brand" },
-  "Freelance Graphics Designer":        { color: "#F97316", bg: "rgba(249,115,22,0.07)",  border: "rgba(249,115,22,0.2)",  shortLabel: "Graphics",      entryLabel: "Design",    emoji: "🎨", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #431407 0%, #C2410C 45%, #1C0A00 100%)", image: "/brand/freelancer-graphics-character.png", tagline: "Designing Ideas Into Impact" },
+  "Freelance RJ Voiceover":            { color: "#A855F7", bg: "rgba(168,85,247,0.07)", border: "rgba(168,85,247,0.2)", shortLabel: "RJ Voiceover",  entryLabel: "Voice",     emoji: "🎙️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #2D1B69 0%, #6D28D9 45%, #1E1040 100%)", image: "/brand/voiceover-rj-character.png", tagline: "Giving Voice to Every Brand", desktopMaxHeight: 250 },
+  "Freelance Graphics Designer":        { color: "#F97316", bg: "rgba(249,115,22,0.07)",  border: "rgba(249,115,22,0.2)",  shortLabel: "Graphics",      entryLabel: "Design",    emoji: "🎨", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #431407 0%, #C2410C 45%, #1C0A00 100%)", image: "/brand/freelancer-graphics-character.png", tagline: "Designing Ideas Into Impact", mobileImageBottom: 80 },
   "Freelance Content Writer":           { color: "#14B8A6", bg: "rgba(20,184,166,0.07)",  border: "rgba(20,184,166,0.2)",  shortLabel: "Content",       entryLabel: "Content",   emoji: "✍️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #042F2E 0%, #0F766E 45%, #021B1A 100%)", image: "/brand/freelancer-content-writer-character.png", tagline: "Words That Convert" },
   "Freelance Software Development & Automation": { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "SW Dev & Auto", entryLabel: "Task",      emoji: "💻", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1E1B4B 0%, #3730A3 45%, #0F0D2E 100%)", image: "/brand/freelancer-software-dev-character.png", tagline: "Building Smart Solutions" },
   "Freelance Marketing & Operations":   { color: "#10B981", bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.2)",  shortLabel: "Marketing",     entryLabel: "Task",      emoji: "📊", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #022C22 0%, #047857 45%, #011A14 100%)", image: "/brand/freelancer-marketing-character.png", tagline: "Driving Growth, Every Day" },
   "Freelance AI Development & Creative Production": { color: "#8B5CF6", bg: "rgba(139,92,246,0.07)",  border: "rgba(139,92,246,0.2)",  shortLabel: "AI & Creative", entryLabel: "Task",      emoji: "🖥️", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1A0533 0%, #7C3AED 45%, #0D0020 100%)", image: "/brand/freelancer-ai-creative-character.png", tagline: "Innovating with AI & Creativity" },
-  "Freelance Video Editing":            { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Video Editing", entryLabel: "Edit",      emoji: "🎬", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #0F1547 0%, #1D4ED8 45%, #060B2A 100%)", image: "/brand/freelancer-video-editing-character.png", tagline: "Crafting Stories Frame by Frame" },
-  "Freelance Videography":              { color: "#0EA5E9", bg: "rgba(14,165,233,0.07)",  border: "rgba(14,165,233,0.2)",  shortLabel: "Videography",   entryLabel: "Shoot",     emoji: "📹", costLabel: "Cost (INR)",            heroBg: "linear-gradient(135deg, #082F49 0%, #0369A1 45%, #041520 100%)", image: "/brand/freelancer-videography-character.png", tagline: "Capturing Moments That Matter" },
+  "Freelance Video Editing":            { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Video Editing", entryLabel: "Edit",      emoji: "🎬", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #0F1547 0%, #1D4ED8 45%, #060B2A 100%)", image: "/brand/freelancer-video-editing-character.png", tagline: "Crafting Stories Frame by Frame", mobileImageHeight: 175, desktopMaxHeight: 295 },
+  "Freelance Videography":              { color: "#0EA5E9", bg: "rgba(14,165,233,0.07)",  border: "rgba(14,165,233,0.2)",  shortLabel: "Videography",   entryLabel: "Shoot",     emoji: "📹", costLabel: "Cost (INR)",            heroBg: "linear-gradient(135deg, #082F49 0%, #0369A1 45%, #041520 100%)", image: "/brand/freelancer-videography-character.png", tagline: "Capturing Moments That Matter", mobileImageHeight: 160, desktopMaxHeight: 285 },
 }
 
 function hexToRgba(hex: string, alpha: number) {
@@ -1242,7 +1242,7 @@ export default function FreelancersMemberClient({
               <div>
                 {/* HERO BANNER */}
                 <div className="sm:min-h-[210px] sm:max-h-[320px]" style={{ margin: "16px 16px 0", position: "relative", overflow: "visible", borderRadius: 24, boxShadow: `0 10px 38px rgba(0,0,0,0.4)` }}>
-                  {/* Background clipped to rounded corners via inner div — outer stays overflow:visible so the character can hang past the bottom edge */}
+                  {/* Background + character both clipped to the rounded corners by this inner div, so the character can never spill past the purple outline */}
                   <div style={{ position: "absolute", inset: 0, borderRadius: 24, background: cfg.heroBg, overflow: "hidden", zIndex: 0 }}>
                     <div style={{ position: "absolute", top: -50, right: -50, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.07)" }} />
                     <div style={{ position: "absolute", bottom: -30, left: 140, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
@@ -1255,15 +1255,15 @@ export default function FreelancersMemberClient({
                         ))}
                       </svg>
                     )}
+                    {/* Character image (desktop, all teams) — anchored bottom-right but nudged in from the edge toward center so it clears the top-right Add Work button; per-team desktopMaxHeight override keeps taller portrait crops (e.g. RJ) sized to fit */}
+                    <img src={cfg.image} alt="" aria-hidden="true"
+                      className="hidden sm:block"
+                      style={{ position: "absolute", bottom: 0, right: 110, height: "100%", maxHeight: cfg.desktopMaxHeight ?? 300, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 32px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
+                    {/* Character image (mobile, all teams) — grounded, shifted right for breathing room from the text; per-team mobileImageHeight/mobileImageBottom overrides let individual compositions size/reposition independently */}
+                    <img src={cfg.image} alt="" aria-hidden="true"
+                      className="block sm:hidden"
+                      style={{ position: "absolute", bottom: cfg.mobileImageBottom ?? 60, right: 10, height: cfg.mobileImageHeight ?? 210, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 24px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
                   </div>
-                  {/* Character image (desktop, all teams) — anchored bottom-right but nudged in from the edge toward center so it clears the top-right Add Work button */}
-                  <img src={cfg.image} alt="" aria-hidden="true"
-                    className="hidden sm:block"
-                    style={{ position: "absolute", bottom: -20, right: 110, height: "112%", maxHeight: 330, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 32px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
-                  {/* Character image (mobile, all teams) — grounded, shifted right for breathing room from the text; sized down so it doesn't dominate the compact card */}
-                  <img src={cfg.image} alt="" aria-hidden="true"
-                    className="block sm:hidden"
-                    style={{ position: "absolute", bottom: 60, right: -20, height: 210, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 24px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
                     {/* Desktop layout (all teams) — hidden on mobile in favor of the dedicated stacked block below */}
                     <div className="hidden sm:flex sm:items-start sm:flex-wrap sm:justify-between sm:gap-3">

@@ -871,19 +871,22 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
             <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
               <CalendarDays size={24} style={{ color: "#6366F1" }} />
             </div>
-            <p style={{ fontSize: 16, fontWeight: 900, color: "#0A0A0B", margin: "0 0 8px" }}>Free Up a WFH Day?</p>
-            <p style={{ fontSize: 13, color: "#6B7280", margin: "0 0 16px", lineHeight: 1.6 }}>
-              Your WFH is approved for {fmtShort(wfhWithdraw.from_date)} → {fmtShort(wfhWithdraw.to_date)}. Pick the one day you want to remove from this WFH — it becomes free so you can apply a new Leave (or WFH) for it. The rest of the range stays as WFH.
+            <p style={{ fontSize: 16, fontWeight: 900, color: "#0A0A0B", margin: "0 0 4px" }}>Withdraw a WFH Day</p>
+            <p style={{ fontSize: 12, color: "#9CA3AF", margin: "0 0 18px", fontWeight: 600 }}>
+              Approved: {fmtShort(wfhWithdraw.from_date)} – {fmtShort(wfhWithdraw.to_date)}
             </p>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#6B7280", marginBottom: 6 }}>Day to remove from WFH</label>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#6B7280", marginBottom: 6 }}>Select day to withdraw</label>
             <input
               type="date"
               value={wfhWithdrawDate}
               min={wfhWithdraw.from_date > today ? wfhWithdraw.from_date : today}
               max={wfhWithdraw.to_date}
               onChange={e => setWfhWithdrawDate(e.target.value)}
-              style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", fontSize: 13, fontWeight: 600, color: "#0A0A0B", marginBottom: 16 }}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", fontSize: 13, fontWeight: 600, color: "#0A0A0B", marginBottom: 10 }}
             />
+            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 16px" }}>
+              This day opens up for Leave or WFH. Other days stay unaffected.
+            </p>
             {wfhWithdrawError && (
               <p style={{ fontSize: 12, color: "#EF4444", margin: "0 0 16px" }}>{wfhWithdrawError}</p>
             )}

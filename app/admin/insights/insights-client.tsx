@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sparkles, Users, TrendingUp } from 'lucide-react'
-import type { MemberUtilization, ClientHour, InsightsKPIs, DailyTrend, SpendCategory } from './page'
+import type { MemberUtilization, ClientHour, InsightsKPIs, SpendCategory } from './page'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -97,14 +97,13 @@ export type AllMember = {
 }
 
 export default function InsightsClient({
-  month, today, kpis, memberUtilization, clientHours, dailyTrend, spendByCategory, allMembers,
+  month, today, kpis, memberUtilization, clientHours, spendByCategory, allMembers,
 }: {
   month: string
   today: string
   kpis: InsightsKPIs
   memberUtilization: MemberUtilization[]
   clientHours: ClientHour[]
-  dailyTrend: DailyTrend[]
   spendByCategory: SpendCategory[]
   allMembers: AllMember[]
 }) {
@@ -639,35 +638,6 @@ export default function InsightsClient({
         </SectionCard>
       </div>
 
-      {/* ── Daily Trend Bars ─────────────────────────────────────────────── */}
-      {dailyTrend.length > 0 && (
-        <SectionCard title="Daily Tracked Hours" emoji="📅">
-          <div style={{ padding: '16px 20px', overflowX: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80, minWidth: dailyTrend.length * 24 }}>
-              {(() => {
-                const maxH = Math.max(...dailyTrend.map(d => d.hours), 1)
-                return dailyTrend.map(d => {
-                  const pct = (d.hours / maxH) * 100
-                  const day = new Date(d.date + 'T12:00:00').getDate()
-                  return (
-                    <div key={d.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flex: 1, minWidth: 18 }}>
-                      <div
-                        title={`${d.date}: ${fmtH(d.hours)}`}
-                        style={{
-                          width: '100%', borderRadius: '3px 3px 0 0',
-                          height: `${Math.max(4, pct)}%`,
-                          background: pct > 70 ? 'linear-gradient(180deg,#22C55E,#16A34A)' : pct > 40 ? 'linear-gradient(180deg,#F59E0B,#D97706)' : 'linear-gradient(180deg,#E5E7EB,#D1D5DB)',
-                        }}
-                      />
-                      <span style={{ fontSize: 8, color: '#111827', fontWeight: 600 }}>{day}</span>
-                    </div>
-                  )
-                })
-              })()}
-            </div>
-          </div>
-        </SectionCard>
-      )}
 
       {/* ── Per-Hour Rate Reference Table ───────────────────────────────── */}
       <SectionCard title="Employee Per-Hour Rate Reference" emoji="💰">

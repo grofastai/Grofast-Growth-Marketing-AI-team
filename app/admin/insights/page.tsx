@@ -76,7 +76,6 @@ export type MemberUtilization = {
 }
 
 export type ClientHour    = { name: string; hours: number; cost: number }
-export type DailyTrend    = { date: string; hours: number; cost: number }
 
 export type SpendCategory = {
   label: string
@@ -230,7 +229,6 @@ export default async function InsightsPage({
     workHoursExclLearning: number
   }
   const accMap: Record<string, Acc> = {}
-  const dailyMap: Record<string, { hours: number; cost: number }> = {}
 
   for (const du of updates) {
     const member = memberMap.get(du.user_id)
@@ -288,10 +286,6 @@ export default async function InsightsPage({
       ? calcNetWorkHours(workEntries.filter(e => (e.task_type ?? '').toLowerCase() !== 'learning') as Parameters<typeof calcNetWorkHours>[0])
       : (du.working_hours ?? 0)
     acc.workHoursExclLearning += workHNoLearning
-
-    if (!dailyMap[du.date]) dailyMap[du.date] = { hours: 0, cost: 0 }
-    dailyMap[du.date].hours += workH
-    dailyMap[du.date].cost  += workH * hourly
   }
 
   // Add confirmed collab hours to each member's trackedHours + totalCost
@@ -369,11 +363,6 @@ export default async function InsightsPage({
     .sort((a, b) => b.hours - a.hours)
     .slice(0, 20)
 
-  // ── Daily trend ───────────────────────────────────────────────────────────
-  const dailyTrend: DailyTrend[] = Object.entries(dailyMap)
-    .map(([date, v]) => ({ date, ...v }))
-    .sort((a, b) => a.date.localeCompare(b.date))
-
   // ── KPIs ──────────────────────────────────────────────────────────────────
   const totalTrackedHours  = memberUtilization.reduce((s, m) => s + m.trackedHours, 0)
   const totalLearningHours = memberUtilization.reduce((s, m) => s + m.learningHours, 0)
@@ -444,7 +433,6 @@ export default async function InsightsPage({
       kpis={kpis}
       memberUtilization={memberUtilization}
       clientHours={clientHours}
-      dailyTrend={dailyTrend}
       spendByCategory={spendByCategory}
       allMembers={allMembers}
     />

@@ -152,6 +152,37 @@ export async function submitDailyUpdate(
     }
   }
 
+  // Fix 1b: Block work entries that overlap with an approved permission-leave time window
+  {
+    const { data: permissionLeave } = await admin
+      .from('leaves')
+      .select('permission_time, permission_end_time, permission_hours')
+      .eq('user_id', userId)
+      .eq('status', 'approved')
+      .eq('leave_type', 'permission')
+      .lte('from_date', today)
+      .gte('to_date', today)
+      .maybeSingle()
+    const leaveFrom = permissionLeave?.permission_time || null
+    let leaveTo = permissionLeave?.permission_end_time || null
+    if (!leaveTo && leaveFrom && permissionLeave?.permission_hours) {
+      const [fh, fm] = leaveFrom.split(':').map(Number)
+      const totalMins = fh * 60 + fm + Math.round(permissionLeave.permission_hours * 60)
+      leaveTo = `${String(Math.floor(totalMins / 60)).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`
+    }
+    if (leaveFrom && leaveTo) {
+      for (const entry of d.work_entries) {
+        if (!entry.start_time || !entry.end_time || entry.task_type === 'break') continue
+        if (entry.start_time < leaveTo && entry.end_time > leaveFrom) {
+          return {
+            success: false,
+            error: `"${(entry as { title?: string }).title || 'Work entry'}" (${entry.start_time}–${entry.end_time}) overlaps with your approved permission leave (${leaveFrom}–${leaveTo}). Please adjust the entry times.`,
+          }
+        }
+      }
+    }
+  }
+
   // Fix 2: Block past-date submission if no clock-in record exists for that date
   if (isPastDate && !isManagement && !isFreelancerMedia && !isAdmin) {
     const { data: pastAttLog } = await admin

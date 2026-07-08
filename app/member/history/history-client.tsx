@@ -1553,6 +1553,60 @@ export default function HistoryClient({
                   )
                 }
 
+                if (leave.leave_type === "wfh") {
+                  return (
+                    <div key={`leave-${item.date}`} style={{ background:"#fff", borderRadius:20, border:"1px solid rgba(14,165,233,0.2)", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid rgba(14,165,233,0.1)", background:"rgba(14,165,233,0.02)" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <div style={{ width:38, height:38, borderRadius:10, background:"rgba(14,165,233,0.1)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <span style={{ fontSize:14, fontWeight:900, color:"#0EA5E9", lineHeight:1 }}>{ld.getDate()}</span>
+                            <span style={{ fontSize:8, fontWeight:700, color:"#0EA5E9", textTransform:"uppercase" }}>{ldMon}</span>
+                          </div>
+                          <div>
+                            <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{ldLabel}</p>
+                            <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Work From Home</p>
+                          </div>
+                        </div>
+                        <span style={{ fontSize:11, fontWeight:700, color:"#0EA5E9", background:"rgba(14,165,233,0.12)", padding:"3px 10px", borderRadius:99 }}>Approved</span>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 18px" }}>
+                        <div style={{ fontSize:36, lineHeight:1 }}>🏠</div>
+                        <div>
+                          <p style={{ fontSize:14, fontWeight:900, color:"#0EA5E9", margin:"0 0 3px" }}>Work From Home</p>
+                          <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leave.reason ?? "Approved WFH"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (leave.leave_type === "shoot_day") {
+                  return (
+                    <div key={`leave-${item.date}`} style={{ background:"#fff", borderRadius:20, border:"1px solid rgba(219,39,119,0.2)", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid rgba(219,39,119,0.1)", background:"rgba(219,39,119,0.02)" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <div style={{ width:38, height:38, borderRadius:10, background:"rgba(219,39,119,0.1)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <span style={{ fontSize:14, fontWeight:900, color:"#DB2777", lineHeight:1 }}>{ld.getDate()}</span>
+                            <span style={{ fontSize:8, fontWeight:700, color:"#DB2777", textTransform:"uppercase" }}>{ldMon}</span>
+                          </div>
+                          <div>
+                            <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{ldLabel}</p>
+                            <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Shoot Day</p>
+                          </div>
+                        </div>
+                        <span style={{ fontSize:11, fontWeight:700, color:"#DB2777", background:"rgba(219,39,119,0.12)", padding:"3px 10px", borderRadius:99 }}>Approved</span>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 18px" }}>
+                        <div style={{ fontSize:36, lineHeight:1 }}>🎥</div>
+                        <div>
+                          <p style={{ fontSize:14, fontWeight:900, color:"#DB2777", margin:"0 0 3px" }}>Shoot Day</p>
+                          <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leave.reason ?? "Approved Shoot Day"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+
                 if (leave.leave_type === "half_day") {
                   const startT = leave.half_day_from_time ?? ""
                   const endT   = leave.half_day_to_time   ?? ""
@@ -1653,8 +1707,26 @@ export default function HistoryClient({
               const st = STATUS_STYLE[u.attendance_status] ?? STATUS_STYLE.present
               const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
               const holidayOnDay = holidayMap.get(u.date)
+              // Half day / permission / WFH / shoot-day leave banner — shown alongside real work
+              // entries (unlike full_day, these leave types normally coexist with a logged
+              // partial day, so this must not be gated on entries.length === 0).
+              const leaveOnDay = approvedLeaves.find(l => l.leave_type !== "full_day" && u.date >= l.from_date && u.date <= l.to_date)
+              const leaveBannerStyle: Record<string, { emoji: string; label: string; color: string; bg: string }> = {
+                half_day:   { emoji: "🌗", label: "Half Day Leave" + (leaveOnDay?.half_day_period ? ` · ${leaveOnDay.half_day_period}` : ""), color: "#D97706", bg: "rgba(245,158,11,0.08)" },
+                permission: { emoji: "🕐", label: "Permission", color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
+                wfh:        { emoji: "🏠", label: "Work From Home", color: "#0EA5E9", bg: "rgba(14,165,233,0.08)" },
+                shoot_day:  { emoji: "🎥", label: "Shoot Day", color: "#DB2777", bg: "rgba(219,39,119,0.08)" },
+              }
+              const leaveBanner = leaveOnDay ? leaveBannerStyle[leaveOnDay.leave_type] : undefined
               return (
                 <div key={u.id} style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                  {/* Leave banner (half day / permission / WFH / shoot day) */}
+                  {leaveBanner && (
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 18px", background:leaveBanner.bg, borderBottom:`1px solid ${leaveBanner.color}20` }}>
+                      <span style={{ fontSize:14 }}>{leaveBanner.emoji}</span>
+                      <span style={{ fontSize:11, fontWeight:700, color:leaveBanner.color }}>{leaveBanner.label}{leaveOnDay?.reason ? `: ${leaveOnDay.reason}` : ""}</span>
+                    </div>
+                  )}
                   {/* Holiday banner */}
                   {holidayOnDay && (
                     <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 18px", background:"rgba(30,64,175,0.08)", borderBottom:"1px solid rgba(30,64,175,0.12)" }}>
@@ -1883,18 +1955,9 @@ export default function HistoryClient({
                         </div>
                       )
                     }
-                    if (leaveForDay?.leave_type === "half_day") {
-                      return (
-                        <div style={{ display:"flex", alignItems:"center", gap:16, padding:"18px 18px", background:"rgba(99,102,241,0.03)", borderTop:"1px solid rgba(99,102,241,0.1)" }}>
-                          <div style={{ fontSize:32, lineHeight:1 }}>🌗</div>
-                          <div>
-                            <p style={{ fontSize:14, fontWeight:900, color:"#6366F1", margin:"0 0 3px" }}>Half Day Leave</p>
-                            <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leaveForDay.reason ?? "Approved Leave"}</p>
-                          </div>
-                          <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(99,102,241,0.12)", color:"#6366F1" }}>Approved</span>
-                        </div>
-                      )
-                    }
+                    // half_day/permission/wfh/shoot_day now render via the unconditional
+                    // leaveBanner at the top of the card (see leaveOnDay above), so they're
+                    // intentionally not duplicated here.
                     return (
                       <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>
                         {leaveForDay ? "You were on leave this day." : "No work entries logged"}

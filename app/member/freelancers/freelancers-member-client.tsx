@@ -1298,7 +1298,7 @@ export default function FreelancersMemberClient({
                   {/* Character image (desktop, all teams) — anchored bottom-right but nudged in from the edge toward center so it clears the top-right Add Work button */}
                   <img src={cfg.image} alt="" aria-hidden="true"
                     className="hidden sm:block"
-                    style={{ position: "absolute", bottom: 0, right: 70, height: "112%", maxHeight: 330, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 32px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
+                    style={{ position: "absolute", bottom: 0, right: 110, height: "112%", maxHeight: 330, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 32px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
                   {/* Character image (mobile, all teams) — grounded, shifted right for breathing room from the text; sized down so it doesn't dominate the compact card */}
                   <img src={cfg.image} alt="" aria-hidden="true"
                     className="block sm:hidden"

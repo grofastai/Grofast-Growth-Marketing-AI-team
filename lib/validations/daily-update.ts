@@ -72,7 +72,9 @@ export const dailyUpdateSchema = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Add at least one work entry', path: ['work_entries'] })
     }
     if (val.active_tab === 'learning') {
-      const hasLearningEntries = val.work_entries.some(e => e.task_type === 'learning')
+      // A valid "Other" (other_activity) entry is sufficient content on its own —
+      // don't demand the legacy learning_topic/learning_hours fields for it.
+      const hasLearningEntries = val.work_entries.some(e => e.task_type === 'learning' || e.task_type === 'other_activity')
       if (!hasLearningEntries) {
         if (!val.learning_topic?.trim()) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Learning topic is required', path: ['learning_topic'] })

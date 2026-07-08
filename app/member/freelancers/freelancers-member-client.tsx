@@ -1295,10 +1295,10 @@ export default function FreelancersMemberClient({
                       </svg>
                     )}
                   </div>
-                  {/* Character image (desktop, all teams) — anchored bottom-right, enlarged to fill the banner; a right-side gap keeps it inside the outline and clear of the top-right Add Work button */}
+                  {/* Character image (desktop, all teams) — anchored bottom-right but nudged in from the edge toward center so it clears the top-right Add Work button */}
                   <img src={cfg.image} alt="" aria-hidden="true"
                     className="hidden sm:block"
-                    style={{ position: "absolute", bottom: 0, right: 22, height: "112%", maxHeight: 330, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 32px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
+                    style={{ position: "absolute", bottom: 0, right: 70, height: "112%", maxHeight: 330, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 32px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
                   {/* Character image (mobile, all teams) — grounded & enlarged, shifted ~22px right for breathing room from the text; extra height goes downward behind the KPI card tops so the head keeps the same top clearance inside the fixed-height card */}
                   <img src={cfg.image} alt="" aria-hidden="true"
                     className="block sm:hidden"

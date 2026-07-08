@@ -482,8 +482,9 @@ export default function HistoryClient({
     setEditingKey(`${updateId}:${entryIdx}`)
     let notes = entry.notes ?? ""
     if (entry.task_type === "other") {
-      // Strip any legacy [status] marker so it never shows in the notes field
-      if (notes.match(/^\[(completed|in_progress|not_started)\]$/)) notes = ""
+      // Strip the leading [status] marker so it never shows in the notes field —
+      // any real free-text notes typed after it are kept for editing.
+      notes = notes.replace(/^\[(completed|in_progress|not_started)\]\s*/, "")
     }
     // For shoot entries: parse _travel_hours and _location from old concatenated notes as fallback
     let parsedTravelHours = entry._travel_hours ?? 0
@@ -582,9 +583,7 @@ export default function HistoryClient({
     }
     setSavingKey(key)
     let draftToSave: Partial<WorkEntry> = { ...editDraft }
-    if (editDraft.task_type === "other") {
-      draftToSave = { ...editDraft, notes: "" }
-    } else if (editDraft.task_type === "shoot") {
+    if (editDraft.task_type === "shoot") {
       const travelH = editDraft._travel_hours ?? 0
       const dur = calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0
       const droneH = editDraft._drone_hours ?? 0
@@ -2235,7 +2234,7 @@ export default function HistoryClient({
                                         </>)
                                       }
                                       const rawTxt = e.notes || e.description
-                                      const txt = (rawTxt ?? "").replace(/^\[(completed|in_progress|not_started)\]$/, "").trim() || null
+                                      const txt = (rawTxt ?? "").replace(/^\[(completed|in_progress|not_started)\]\s*/, "").trim() || null
                                       return txt ? <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{txt}</p> : null
                                     })()}
                                   </>)

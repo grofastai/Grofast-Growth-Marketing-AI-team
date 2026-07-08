@@ -39,7 +39,7 @@ interface EditEntry {
   isRework: boolean; linkedToTitle: string; linkedToClient: string; linkedToDate: string
 }
 interface DevEntry {
-  id: string; clientName: string; customClient: string; project: string; isCreatingNew: boolean; subtitle: string
+  id: string; clientName: string; customClient: string; project: string; isCreatingNew: boolean; subtitle: string; notes: string
   startTime: string; endTime: string; timeTaken: number
   participantIds: string[]
 }
@@ -51,7 +51,7 @@ interface OtherEntry {
 interface TimeBlock {
   id: string; isBreak: boolean; breakLabel: string; breakCustom?: string
   startTime: string; endTime: string
-  durationHours: number; description: string
+  durationHours: number; description: string; notes: string
   projectName: string; brand: string; customClient: string
   status: "completed" | "in_progress" | "not_started"
   isMultiClient: boolean; clientNames: string[]
@@ -255,10 +255,11 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
       endTime: e.end_time ?? '10:00',
       durationHours: e.duration_hours ?? 1,
       description: e.task_type === 'break' ? '' : (e.title ?? ''),
+      notes: e.task_type === 'break' ? '' : (e.notes?.replace(/^\[\w+\]\s*/, '') ?? ''),
       projectName: '',
       brand: '', customClient: '',
       status: (() => {
-        const rawStatus = e.notes?.replace(/^\[/, '').replace(/\]$/, '') ?? ''
+        const rawStatus = e.notes?.match(/^\[(\w+)\]/)?.[1] ?? ''
         const VALID = ['completed', 'in_progress', 'not_started'] as const
         return (VALID.includes(rawStatus as TimeBlock['status']) ? rawStatus : 'not_started') as TimeBlock['status']
       })(),
@@ -501,6 +502,7 @@ function parseExistingDevelopments(existingUpdate: Record<string, unknown>): Dev
       project: e.project_name ?? "",
       isCreatingNew: false,
       subtitle: e.title ?? "",
+      notes: e.notes ?? "",
       startTime: e.start_time ?? "", endTime: e.end_time ?? "",
       timeTaken: e.duration_hours ?? 0,
       participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
@@ -674,7 +676,7 @@ export default function DailyUpdateForm({
 
   // ── Development (non-media) ──────────────────────────────────────────────
   const [developments, setDevelopments] = useState<DevEntry[]>(() => existingUpdate ? parseExistingDevelopments(existingUpdate) : [])
-  const addDevelopment    = () => setDevelopments(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", project:"", isCreatingNew:false, subtitle:"", startTime:"09:00", endTime:"09:00", timeTaken:1, participantIds:[] }])
+  const addDevelopment    = () => setDevelopments(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", project:"", isCreatingNew:false, subtitle:"", notes:"", startTime:"09:00", endTime:"09:00", timeTaken:1, participantIds:[] }])
   const patchDevelopment  = (id: string, patch: Partial<DevEntry>) => setDevelopments(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
   const removeDevelopment = (id: string) => setDevelopments(p => p.filter(e => e.id !== id))
 
@@ -691,13 +693,13 @@ export default function DailyUpdateForm({
   const addTimeBlock = () => setTimeBlocks(p => [...p, {
     id: crypto.randomUUID(), isBreak: false, breakLabel: "",
     startTime: "09:00", endTime: "10:00",
-    durationHours: 1, description: "", projectName: "", brand: "", customClient: "",
+    durationHours: 1, description: "", notes: "", projectName: "", brand: "", customClient: "",
     status: "not_started" as const, isMultiClient: false, clientNames: [], participantIds: [],
   }])
   const addBreakBlock = () => setTimeBlocks(p => [...p, {
     id: crypto.randomUUID(), isBreak: true, breakLabel: "Lunch Break",
     startTime: "13:00", endTime: "13:30",
-    durationHours: 0.5, description: "", projectName: "", brand: "", customClient: "",
+    durationHours: 0.5, description: "", notes: "", projectName: "", brand: "", customClient: "",
     status: "not_started" as const, isMultiClient: false, clientNames: [], participantIds: [],
   }])
   const patchBlock = (id: string, patch: Partial<TimeBlock>) =>
@@ -1135,7 +1137,7 @@ export default function DailyUpdateForm({
         task_type: "development" as const,
         title: e.subtitle || "Development", start_time: e.startTime, end_time: e.endTime,
         duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
-        notes: undefined, video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
+        notes: e.notes || undefined, video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
         project_name: e.project,
         _client_type: e.clientName, _custom_client: e.customClient,
         participant_ids: e.participantIds,
@@ -1494,7 +1496,7 @@ export default function DailyUpdateForm({
             is_multi_client: t.clientNames.length > 1,
             task_type: "other" as const,
             title: t.description, start_time: t.startTime, end_time: t.endTime,
-            duration_hours: t.durationHours, notes: `[${t.status}]`,
+            duration_hours: t.durationHours, notes: [`[${t.status}]`, t.notes.trim()].filter(Boolean).join(" "),
             participant_ids: t.participantIds ?? [],
             video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
           }
@@ -1766,6 +1768,9 @@ export default function DailyUpdateForm({
               setMediaBreaks([])
               setVoiceovers([])
               setPosters([])
+              setScriptings([])
+              setDevelopments([])
+              setNmEdits([])
               setEditMode(true)
               setSubmitted(false)
               if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
@@ -2048,19 +2053,27 @@ export default function DailyUpdateForm({
                             </div>
                           )}
 
-                          {/* ── WORKING TIME ── */}
-                          <div>
-                            <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", margin:"0 0 5px" }}>⏱ Working Time</p>
-                            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                              <TimePicker value={block.startTime} onChange={v => patchBlock(block.id, { startTime: v })} />
-                              <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
-                              <TimePicker value={block.endTime} onChange={v => patchBlock(block.id, { endTime: v })} />
-                              {block.durationHours > 0 && (
-                                <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 10px", borderRadius:8, background:"rgba(99,102,241,0.08)", border:"1.5px solid rgba(99,102,241,0.2)" }}>
-                                  <span style={{ fontSize:12, fontWeight:700, color:"#6366F1" }}>{fmtTravel(block.durationHours)}</span>
-                                  <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
-                                </div>
-                              )}
+                          {/* ── WORKING TIME | NOTES (50/50 desktop, stacked mobile) ── */}
+                          <div className="grid md:grid-cols-2" style={{ gap:8 }}>
+                            <div>
+                              <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", margin:"0 0 5px" }}>⏱ Working Time</p>
+                              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                <TimePicker value={block.startTime} onChange={v => patchBlock(block.id, { startTime: v })} />
+                                <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                <TimePicker value={block.endTime} onChange={v => patchBlock(block.id, { endTime: v })} />
+                                {block.durationHours > 0 && (
+                                  <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 10px", borderRadius:8, background:"rgba(99,102,241,0.08)", border:"1.5px solid rgba(99,102,241,0.2)" }}>
+                                    <span style={{ fontSize:12, fontWeight:700, color:"#6366F1" }}>{fmtTravel(block.durationHours)}</span>
+                                    <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", margin:"0 0 5px" }}>Notes</p>
+                              <input value={block.notes} onChange={e => patchBlock(block.id, { notes: e.target.value })}
+                                placeholder="Any notes…"
+                                style={{ width:"100%", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"8px 10px", fontSize:12, color:"#111827", outline:"none", boxSizing:"border-box" as const }} />
                             </div>
                           </div>
 
@@ -2511,9 +2524,15 @@ export default function DailyUpdateForm({
                           />
                         </div>
                       </div>
-                      <div style={{ marginBottom:8 }}>
-                        <label style={L}>Sub-title — what did you work on today?</label>
-                        <input value={e.subtitle} onChange={ev => patchDevelopment(e.id, { subtitle: ev.target.value })} placeholder="e.g. Fixed dashboard filter bug" style={F} />
+                      <div className="grid md:grid-cols-2" style={{ gap:8, marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Sub-title — what did you work on today?</label>
+                          <input value={e.subtitle} onChange={ev => patchDevelopment(e.id, { subtitle: ev.target.value })} placeholder="e.g. Fixed dashboard filter bug" style={F} />
+                        </div>
+                        <div>
+                          <label style={L}>Notes</label>
+                          <input value={e.notes} onChange={ev => patchDevelopment(e.id, { notes: ev.target.value })} placeholder="Any notes…" style={F} />
+                        </div>
                       </div>
                       <div style={{ marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
                         <label style={L}>💻 Dev Time</label>

@@ -339,13 +339,13 @@ function TravelTab({ shoots, savedTravel }: {
           <table style={{ minWidth: 720 }} className="w-full">
             <thead>
               <tr style={{ background: "#FAFAFA", borderBottom: "1px solid #EDEDED" }}>
-                <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Date</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Client</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Shoot Title</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Member</th>
-                <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Hrs</th>
-                <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Travel ₹</th>
-                <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Action</th>
+                <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#1E293B" }}>Date</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#111111" }}>Client</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#6D28D9" }}>Shoot Title</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#047857" }}>Member</th>
+                <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#92400E" }}>Hrs</th>
+                <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#3B82F6" }}>Travel ₹</th>
+                <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#111111" }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -355,11 +355,11 @@ function TravelTab({ shoots, savedTravel }: {
                 const hasVal   = parseFloat(localAmounts[row.key] ?? "") > 0
                 return (
                   <tr key={row.key} style={{ borderBottom: i < shoots.length - 1 ? "1px solid #F5F5F5" : "none" }}>
-                    <td className="px-6 py-3 whitespace-nowrap text-[12px] font-semibold" style={{ color: "#000000" }}>{fmtDate(row.date)}</td>
+                    <td className="px-6 py-3 whitespace-nowrap text-[12px] font-bold uppercase" style={{ color: "#1E293B" }}>{fmtDate(row.date)}</td>
                     <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{row.clientName}</td>
-                    <td className="px-4 py-3 text-[12px] font-semibold whitespace-nowrap" style={{ color: "#000000", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{row.title || "—"}</td>
-                    <td className="px-4 py-3 text-[12px] font-semibold whitespace-nowrap" style={{ color: "#000000" }}>{row.memberName}</td>
-                    <td className="px-4 py-3 text-[12px] text-center" style={{ color: "#000000" }}>{row.durationHrs > 0 ? `${row.durationHrs}h` : "—"}</td>
+                    <td className="px-4 py-3 text-[12px] font-semibold whitespace-nowrap" style={{ color: "#6D28D9", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{row.title || "—"}</td>
+                    <td className="px-4 py-3 text-[12px] font-semibold whitespace-nowrap" style={{ color: "#047857" }}>{row.memberName}</td>
+                    <td className="px-4 py-3 text-[12px] font-semibold text-center" style={{ color: "#92400E" }}>{row.durationHrs > 0 ? `${row.durationHrs}h` : "—"}</td>
                     <td className="px-4 py-3">
                       <input
                         type="number" min="0"
@@ -695,28 +695,28 @@ export default function ExpensesClient({
                 <table style={{ minWidth: 720 }} className="w-full">
                   <thead>
                     <tr style={{ background: "#FAFAFA", borderBottom: "1px solid #EDEDED" }}>
-                      <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Date</th>
-                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Client</th>
-                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Type</th>
-                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Details</th>
-                      <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Amount</th>
-                      <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Action</th>
+                      <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#1E293B" }}>Date</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#111111" }}>Client</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#047857" }}>Type</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#6D28D9" }}>Details</th>
+                      <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#111111" }}>Amount</th>
+                      <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#111111" }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {clientExpenses.map((e, i) => (
                       <tr key={e.id} style={{ borderBottom: i < clientExpenses.length - 1 ? "1px solid #F5F5F5" : "none" }}>
-                        <td className="px-6 py-3 text-[12px] font-semibold whitespace-nowrap" style={{ color: "#000000" }}>{fmtDate(e.date)}</td>
+                        <td className="px-6 py-3 text-[12px] font-bold uppercase whitespace-nowrap" style={{ color: "#1E293B" }}>{fmtDate(e.date)}</td>
                         <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>{e.client_name}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           {e.type !== "other" ? (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded capitalize"
                               style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>{e.type}</span>
                           ) : (
-                            <span style={{ color: "#000000" }}>—</span>
+                            <span style={{ color: "#047857" }}>—</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-[12px] font-semibold" style={{ color: "#000000" }}>
+                        <td className="px-4 py-3 text-[12px] font-semibold" style={{ color: "#6D28D9" }}>
                           {e.shoot_title ? e.shoot_title : ""}{e.notes ? (e.shoot_title ? ` · ${e.notes}` : e.notes) : (!e.shoot_title ? "—" : "")}
                         </td>
                         <td className="px-4 py-3 text-right text-[13px] font-black whitespace-nowrap" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
@@ -765,11 +765,11 @@ export default function ExpensesClient({
                 <table style={{ minWidth: 640 }} className="w-full">
                   <thead>
                     <tr style={{ background: "#FAFAFA", borderBottom: "1px solid #EDEDED" }}>
-                      <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Name</th>
-                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Notes</th>
-                      <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Per Client</th>
-                      <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Amount</th>
-                      <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#000000" }}>Action</th>
+                      <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#111111" }}>Name</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#6D28D9" }}>Notes</th>
+                      <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#8B5CF6" }}>Per Client</th>
+                      <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#111111" }}>Amount</th>
+                      <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#111111" }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -778,8 +778,8 @@ export default function ExpensesClient({
                       return (
                         <tr key={e.id} style={{ borderBottom: i < commonExpenses.length - 1 ? "1px solid #F5F5F5" : "none" }}>
                           <td className="px-6 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>{e.name}</td>
-                          <td className="px-4 py-3 text-[12px] font-semibold" style={{ color: "#000000" }}>{e.notes || "—"}</td>
-                          <td className="px-4 py-3 text-right text-[12px] font-semibold whitespace-nowrap" style={{ color: share > 0 ? "#8B5CF6" : "#000000" }}>
+                          <td className="px-4 py-3 text-[12px] font-semibold" style={{ color: "#6D28D9" }}>{e.notes || "—"}</td>
+                          <td className="px-4 py-3 text-right text-[12px] font-semibold whitespace-nowrap" style={{ color: share > 0 ? "#8B5CF6" : "#111111" }}>
                             {share > 0 ? fmtRupee(share) : "—"}
                           </td>
                           <td className="px-4 py-3 text-right text-[13px] font-black whitespace-nowrap" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>

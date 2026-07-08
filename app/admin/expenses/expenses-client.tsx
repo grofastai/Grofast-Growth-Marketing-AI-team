@@ -559,21 +559,29 @@ export default function ExpensesClient({
 
         {/* Summary strip: total + 3 category stat cards — highlighted card mirrors the active tab below */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div
-            role="button" tabIndex={0}
-            onClick={() => setActiveTab("travel")}
-            className="rounded-2xl p-5 text-left transition-all"
-            style={{
-              background: "linear-gradient(135deg,#DE1A1A,#991111)",
-              position: "relative", overflow: "hidden", cursor: "pointer",
-              boxShadow: activeTab === "travel" ? "0 0 0 3px rgba(222,26,26,0.3), 0 10px 24px rgba(153,17,17,0.35)" : "none",
-              transform: activeTab === "travel" ? "translateY(-2px)" : "none",
-            }}>
-            <div style={{ position: "absolute", top: -30, right: -30, width: 110, height: 110, borderRadius: "50%", background: "rgba(255,255,255,0.08)" }} />
-            <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.75)", position: "relative" }}>Total Expenses</p>
-            <p className="text-[28px] font-black leading-none mt-2" style={{ fontFamily: "var(--font-jakarta)", color: "#fff", fontVariantNumeric: "tabular-nums", position: "relative" }}>{fmtRupee(grandTotal)}</p>
-            <p className="text-[11px] mt-3" style={{ color: "rgba(255,255,255,0.7)", position: "relative" }}>{MONTHS_SHORT[mo - 1]} {yr}</p>
-          </div>
+          {(() => {
+            const isTravelActive = activeTab === "travel"
+            return (
+              <div
+                role="button" tabIndex={0}
+                onClick={() => setActiveTab("travel")}
+                className="rounded-2xl p-5 text-left transition-all"
+                style={{
+                  background: isTravelActive ? "linear-gradient(135deg,#DE1A1A,#991111)" : "#FFFFFF",
+                  border: isTravelActive ? "none" : "1px solid #EDEDED",
+                  position: "relative", overflow: "hidden", cursor: "pointer",
+                  boxShadow: isTravelActive ? "0 10px 24px rgba(153,17,17,0.35)" : "none",
+                  transform: isTravelActive ? "translateY(-2px)" : "none",
+                }}>
+                {isTravelActive && (
+                  <div style={{ position: "absolute", top: -30, right: -30, width: 110, height: 110, borderRadius: "50%", background: "rgba(255,255,255,0.08)" }} />
+                )}
+                <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: isTravelActive ? "rgba(255,255,255,0.75)" : "#374151", position: "relative" }}>Total Expenses</p>
+                <p className="text-[28px] font-black leading-none mt-2" style={{ fontFamily: "var(--font-jakarta)", color: isTravelActive ? "#fff" : "#DE1A1A", fontVariantNumeric: "tabular-nums", position: "relative" }}>{fmtRupee(grandTotal)}</p>
+                <p className="text-[11px] mt-3" style={{ color: isTravelActive ? "rgba(255,255,255,0.7)" : "#9CA3AF", position: "relative" }}>{MONTHS_SHORT[mo - 1]} {yr}</p>
+              </div>
+            )
+          })()}
           {([
             { key: "direct" as const, label: "Client Direct", value: totalClientDirect, color: "#3B82F6", dark: "#1D4ED8", icon: <Receipt size={15} /> },
             { key: "common" as const, label: "Common / Shared", value: totalCommon, color: "#8B5CF6", dark: "#6D28D9", icon: <Layers size={15} /> },

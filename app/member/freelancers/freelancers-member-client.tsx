@@ -1302,7 +1302,7 @@ export default function FreelancersMemberClient({
                   {/* Character image (mobile, all teams) — grounded, shifted right for breathing room from the text; sized down so it doesn't dominate the compact card */}
                   <img src={cfg.image} alt="" aria-hidden="true"
                     className="block sm:hidden"
-                    style={{ position: "absolute", bottom: 34, right: -20, height: 210, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 24px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
+                    style={{ position: "absolute", bottom: 60, right: -20, height: 210, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 24px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
                     {/* Desktop layout (all teams) — hidden on mobile in favor of the dedicated stacked block below */}
                     <div className="hidden sm:flex sm:items-start sm:flex-wrap sm:justify-between sm:gap-3">

@@ -1711,20 +1711,49 @@ export default function HistoryClient({
               // entries (unlike full_day, these leave types normally coexist with a logged
               // partial day, so this must not be gated on entries.length === 0).
               const leaveOnDay = approvedLeaves.find(l => l.leave_type !== "full_day" && u.date >= l.from_date && u.date <= l.to_date)
-              const leaveBannerStyle: Record<string, { emoji: string; label: string; color: string; bg: string }> = {
-                half_day:   { emoji: "🌗", label: "Half Day Leave" + (leaveOnDay?.half_day_period ? ` · ${leaveOnDay.half_day_period}` : ""), color: "#D97706", bg: "rgba(245,158,11,0.08)" },
-                permission: { emoji: "🕐", label: "Permission", color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
-                wfh:        { emoji: "🏠", label: "Work From Home", color: "#0EA5E9", bg: "rgba(14,165,233,0.08)" },
-                shoot_day:  { emoji: "🎥", label: "Shoot Day", color: "#DB2777", bg: "rgba(219,39,119,0.08)" },
+              const leaveBannerStyle: Record<string, { emoji: string; title: string; color: string; bg: string }> = {
+                half_day:   { emoji: "🌗", title: "Half Day Leave" + (leaveOnDay?.half_day_period ? ` · ${leaveOnDay.half_day_period}` : ""), color: "#D97706", bg: "rgba(245,158,11,0.06)" },
+                permission: { emoji: "🕐", title: "Permission", color: "#6366F1", bg: "rgba(99,102,241,0.06)" },
+                wfh:        { emoji: "🏠", title: "Work From Home", color: "#0EA5E9", bg: "rgba(14,165,233,0.06)" },
+                shoot_day:  { emoji: "🎥", title: "Shoot Day", color: "#DB2777", bg: "rgba(219,39,119,0.06)" },
               }
               const leaveBanner = leaveOnDay ? leaveBannerStyle[leaveOnDay.leave_type] : undefined
+              let leaveStartT = "", leaveEndT = ""
+              if (leaveOnDay?.leave_type === "half_day") {
+                leaveStartT = leaveOnDay.half_day_from_time ?? ""
+                leaveEndT   = leaveOnDay.half_day_to_time ?? ""
+              } else if (leaveOnDay?.leave_type === "permission") {
+                leaveStartT = leaveOnDay.permission_time ?? ""
+                leaveEndT   = leaveOnDay.permission_end_time ?? ""
+                if (!leaveEndT && leaveStartT && leaveOnDay.permission_hours) {
+                  const [fh, fm] = leaveStartT.split(":").map(Number)
+                  const totalMins = fh * 60 + fm + Math.round(leaveOnDay.permission_hours * 60)
+                  leaveEndT = `${String(Math.floor(totalMins / 60)).padStart(2,"0")}:${String(totalMins % 60).padStart(2,"0")}`
+                }
+              }
+              const leaveDur = leaveStartT && leaveEndT ? calcDurationFromTimes(leaveStartT, leaveEndT) : null
               return (
                 <div key={u.id} style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                   {/* Leave banner (half day / permission / WFH / shoot day) */}
                   {leaveBanner && (
-                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 18px", background:leaveBanner.bg, borderBottom:`1px solid ${leaveBanner.color}20` }}>
-                      <span style={{ fontSize:14 }}>{leaveBanner.emoji}</span>
-                      <span style={{ fontSize:11, fontWeight:700, color:leaveBanner.color }}>{leaveBanner.label}{leaveOnDay?.reason ? `: ${leaveOnDay.reason}` : ""}</span>
+                    <div style={{ display:"flex", alignItems:"center", gap:16, padding:"18px 18px", background:leaveBanner.bg, borderBottom:`1px solid ${leaveBanner.color}20` }}>
+                      <div style={{ fontSize:34, lineHeight:1, flexShrink:0 }}>{leaveBanner.emoji}</div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <p style={{ fontSize:14, fontWeight:900, color:leaveBanner.color, margin:"0 0 3px" }}>{leaveBanner.title}</p>
+                        <p style={{ fontSize:12, color:"#6B7280", margin:"0 0 6px" }}>{leaveOnDay?.reason ?? "Approved"}</p>
+                        {leaveStartT && leaveEndT && (
+                          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                            <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
+                              <Clock size={11} style={{ color:"#9CA3AF" }}/>
+                              {fmt12(leaveStartT)} – {fmt12(leaveEndT)}
+                            </span>
+                            {leaveDur && leaveDur > 0 && (
+                              <span style={{ fontSize:10, fontWeight:700, color:leaveBanner.color, background:`${leaveBanner.color}1A`, padding:"2px 8px", borderRadius:99 }}>{fmtH(leaveDur)}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <span style={{ fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:`${leaveBanner.color}1A`, color:leaveBanner.color, flexShrink:0 }}>Approved</span>
                     </div>
                   )}
                   {/* Holiday banner */}

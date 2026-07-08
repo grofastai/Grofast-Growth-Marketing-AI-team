@@ -58,7 +58,7 @@ function KpiTile({ label, value, sub, emoji, color, isCost }: {
       <p style={{ fontSize: 22, fontWeight: 900, margin: 0, color: isCost ? color : '#111827', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>
         {value}
       </p>
-      {sub && <p style={{ fontSize: 11, color: '#6B7280', margin: '4px 0 0', fontWeight: 500 }}>{sub}</p>}
+      {sub && <p style={{ fontSize: 11, color: '#111827', margin: '4px 0 0', fontWeight: 700 }}>{sub}</p>}
     </div>
   )
 }
@@ -213,7 +213,7 @@ export default function InsightsClient({
                 <p style={{ fontSize: 20, fontWeight: 900, margin: '0 0 2px', color: '#111827', fontFamily: 'var(--font-jakarta)' }}>
                   {fmtRupee(cat.cost)}
                 </p>
-                <p style={{ fontSize: 11, color: '#6B7280', margin: 0, fontWeight: 600 }}>
+                <p style={{ fontSize: 11, color: '#111827', margin: 0, fontWeight: 600 }}>
                   {fmtH(cat.hours)} tracked
                 </p>
               </div>
@@ -229,7 +229,7 @@ export default function InsightsClient({
             <thead>
               <tr style={{ background: '#F9FAFB' }}>
                 {['Member', 'Team', 'Present', 'Login Hrs', 'Avg Login', 'Working Hrs', 'Avg Working', 'Learning Hrs', 'Break Hrs', 'Avg Break'].map(h => (
-                  <th key={h} style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#6B7280', textAlign: h === 'Member' || h === 'Team' ? 'left' : 'right', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                  <th key={h} style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#111827', textAlign: h === 'Member' || h === 'Team' ? 'left' : 'right', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                     {h}
                   </th>
                 ))}
@@ -237,7 +237,7 @@ export default function InsightsClient({
             </thead>
             <tbody>
               {memberUtilization.length === 0 ? (
-                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: '#6B7280', fontSize: 13 }}>No attendance data for this month</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: '#111827', fontSize: 13 }}>No attendance data for this month</td></tr>
               ) : memberUtilization.map((m, i) => (
                 <tr key={m.id} style={{ borderBottom: '1px solid #F9FAFB', background: i % 2 === 0 ? '#fff' : '#FAFBFF' }}>
                   {/* Member */}
@@ -252,13 +252,13 @@ export default function InsightsClient({
                       }}>{ini(m.name)}</div>
                       <div>
                         <p style={{ fontSize: 12, fontWeight: 700, color: '#111827', margin: 0 }}>{m.name}</p>
-                        <p style={{ fontSize: 10, color: '#6B7280', margin: 0 }}>{m.employeeId}</p>
+                        <p style={{ fontSize: 10, color: '#111827', margin: 0 }}>{m.employeeId}</p>
                       </div>
                     </div>
                   </td>
                   {/* Team */}
                   <td style={{ padding: '12px 14px' }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F3F4F6', color: '#6B7280' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F3F4F6', color: '#111827' }}>
                       {m.team ?? '—'}
                     </span>
                   </td>
@@ -271,7 +271,7 @@ export default function InsightsClient({
                     {fmtH(m.loginHours)}
                   </td>
                   {/* Avg Login */}
-                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#6B7280', textAlign: 'right' }}>
+                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#111827', textAlign: 'right' }}>
                     {m.avgLoginHours > 0 ? fmtH(m.avgLoginHours) : '—'}
                   </td>
                   {/* Working Hrs (excl. learning) */}
@@ -279,7 +279,7 @@ export default function InsightsClient({
                     {fmtH(m.workingHoursExclLearning)}
                   </td>
                   {/* Avg Working */}
-                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#6B7280', textAlign: 'right' }}>
+                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#111827', textAlign: 'right' }}>
                     {m.avgWorkingHoursExclLearning > 0 ? fmtH(m.avgWorkingHoursExclLearning) : '—'}
                   </td>
                   {/* Learning Hrs */}
@@ -287,11 +287,11 @@ export default function InsightsClient({
                     {m.learningHours > 0 ? fmtH(m.learningHours) : '—'}
                   </td>
                   {/* Break Hrs */}
-                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#6B7280', textAlign: 'right' }}>
+                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#111827', textAlign: 'right' }}>
                     {m.breakHours > 0 ? fmtH(m.breakHours) : '—'}
                   </td>
                   {/* Avg Break */}
-                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#6B7280', textAlign: 'right' }}>
+                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#111827', textAlign: 'right' }}>
                     {m.avgBreakHours > 0 ? fmtH(m.avgBreakHours) : '—'}
                   </td>
                 </tr>
@@ -307,18 +307,18 @@ export default function InsightsClient({
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: '#111827' }}>
                     {fmtH(memberUtilization.reduce((s, m) => s + m.loginHours, 0))}
                   </td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#6B7280' }}>—</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#111827' }}>—</td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: '#111827' }}>
                     {fmtH(memberUtilization.reduce((s, m) => s + m.workingHoursExclLearning, 0))}
                   </td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#6B7280' }}>—</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#111827' }}>—</td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#0EA5E9' }}>
                     {fmtH(kpis.totalLearningHours)}
                   </td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#6B7280' }}>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#111827' }}>
                     {fmtH(memberUtilization.reduce((s, m) => s + m.breakHours, 0))}
                   </td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#6B7280' }}>—</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#111827' }}>—</td>
                 </tr>
               </tfoot>
             )}
@@ -333,7 +333,7 @@ export default function InsightsClient({
             <thead>
               <tr style={{ background: '#F9FAFB' }}>
                 {['Member', 'Team', 'Days In', 'Expected', 'Tracked', 'Avg/Day', 'Overtime', 'Gap Hrs', 'Prod. Gap', 'Efficiency'].map(h => (
-                  <th key={h} style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#6B7280', textAlign: h === 'Member' || h === 'Team' ? 'left' : 'right', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                  <th key={h} style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#111827', textAlign: h === 'Member' || h === 'Team' ? 'left' : 'right', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                     {h}
                   </th>
                 ))}
@@ -341,7 +341,7 @@ export default function InsightsClient({
             </thead>
             <tbody>
               {memberUtilization.length === 0 ? (
-                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: '#6B7280', fontSize: 13 }}>No attendance data for this month</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: '#111827', fontSize: 13 }}>No attendance data for this month</td></tr>
               ) : memberUtilization.map((m, i) => {
                 const eColor = effColor(m.efficiency, m.overworked)
                 const eBg    = effBg(m.efficiency, m.overworked)
@@ -359,13 +359,13 @@ export default function InsightsClient({
                         }}>{ini(m.name)}</div>
                         <div>
                           <p style={{ fontSize: 12, fontWeight: 700, color: '#111827', margin: 0 }}>{m.name}</p>
-                          <p style={{ fontSize: 10, color: '#6B7280', margin: 0 }}>{m.employeeId}</p>
+                          <p style={{ fontSize: 10, color: '#111827', margin: 0 }}>{m.employeeId}</p>
                         </div>
                       </div>
                     </td>
                     {/* Team */}
                     <td style={{ padding: '12px 14px' }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F3F4F6', color: '#6B7280' }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F3F4F6', color: '#111827' }}>
                         {m.team ?? '—'}
                       </span>
                     </td>
@@ -374,7 +374,7 @@ export default function InsightsClient({
                       {m.workingDays}
                     </td>
                     {/* Expected */}
-                    <td style={{ padding: '12px 14px', fontSize: 12, color: '#6B7280', textAlign: 'right' }}>
+                    <td style={{ padding: '12px 14px', fontSize: 12, color: '#111827', textAlign: 'right' }}>
                       {fmtH(m.expectedHours)}
                     </td>
                     {/* Tracked */}
@@ -398,7 +398,7 @@ export default function InsightsClient({
                       {m.overtimeHours > 0 ? (
                         <span style={{ fontSize: 12, fontWeight: 700, color: '#6366F1' }}>+{fmtH(m.overtimeHours)}</span>
                       ) : (
-                        <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>—</span>
+                        <span style={{ fontSize: 12, color: '#111827', fontWeight: 600 }}>—</span>
                       )}
                     </td>
                     {/* Untracked */}
@@ -440,7 +440,7 @@ export default function InsightsClient({
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#374151' }}>
                     —
                   </td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#6B7280' }}>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#111827' }}>
                     {fmtH(memberUtilization.reduce((s, m) => s + m.expectedHours, 0))}
                   </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: '#111827' }}>
@@ -510,7 +510,7 @@ export default function InsightsClient({
         <SectionCard title="Client Hours This Month" emoji="🏢">
           <div style={{ padding: '8px 0', maxHeight: 400, overflowY: 'auto' }}>
             {clientHours.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#6B7280', fontSize: 12, padding: '32px 0' }}>No client data</p>
+              <p style={{ textAlign: 'center', color: '#111827', fontSize: 12, padding: '32px 0' }}>No client data</p>
             ) : clientHours.map((c, i) => {
               const pct = (c.hours / (clientHours[0]?.hours ?? 1)) * 100
               const isInternal = ['GROFAST DIGITAL', 'GROFAST AI', 'KARTHICK BRANDS'].includes(c.name.toUpperCase())
@@ -519,7 +519,7 @@ export default function InsightsClient({
                   display: 'flex', alignItems: 'center', gap: 12, padding: '10px 18px',
                   borderBottom: '1px solid #F9FAFB',
                 }}>
-                  <span style={{ fontSize: 11, fontWeight: 900, color: '#6B7280', width: 18, flexShrink: 0 }}>{i + 1}</span>
+                  <span style={{ fontSize: 11, fontWeight: 900, color: '#111827', width: 18, flexShrink: 0 }}>{i + 1}</span>
                   <div style={{
                     width: 28, height: 28, borderRadius: 8, flexShrink: 0,
                     background: isInternal ? 'rgba(222,26,26,0.1)' : 'rgba(99,102,241,0.1)',
@@ -536,7 +536,7 @@ export default function InsightsClient({
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <p style={{ fontSize: 12, fontWeight: 700, color: '#111827', margin: 0 }}>{fmtH(c.hours)}</p>
-                    <p style={{ fontSize: 10, color: '#6B7280', margin: 0 }}>{fmtRupee(c.cost)}</p>
+                    <p style={{ fontSize: 10, color: '#111827', margin: 0 }}>{fmtRupee(c.cost)}</p>
                   </div>
                 </div>
               )
@@ -548,7 +548,7 @@ export default function InsightsClient({
         <SectionCard title="Member Work Breakdown" emoji="👥">
           <div style={{ padding: '8px 0', maxHeight: 400, overflowY: 'auto' }}>
             {memberUtilization.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#6B7280', fontSize: 12, padding: '32px 0' }}>No data</p>
+              <p style={{ textAlign: 'center', color: '#111827', fontSize: 12, padding: '32px 0' }}>No data</p>
             ) : memberUtilization.map(m => {
               const isExpanded = expandedMember === m.id
               const eColor = effColor(m.efficiency, m.overworked)
@@ -570,7 +570,7 @@ export default function InsightsClient({
                     }}>{ini(m.name)}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 12, fontWeight: 700, color: '#111827', margin: 0 }}>{m.name}</p>
-                      <p style={{ fontSize: 10, color: '#6B7280', margin: 0 }}>{m.team ?? ''}</p>
+                      <p style={{ fontSize: 10, color: '#111827', margin: 0 }}>{m.team ?? ''}</p>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <p style={{ fontSize: 12, fontWeight: 800, color: '#111827', margin: 0 }}>{fmtH(m.trackedHours)}</p>
@@ -578,7 +578,7 @@ export default function InsightsClient({
                         {m.efficiency}%
                       </span>
                     </div>
-                    <span style={{ fontSize: 12, color: '#6B7280', marginLeft: 4 }}>{isExpanded ? '▲' : '▼'}</span>
+                    <span style={{ fontSize: 12, color: '#111827', marginLeft: 4 }}>{isExpanded ? '▲' : '▼'}</span>
                   </button>
 
                   {/* Expanded detail */}
@@ -589,7 +589,7 @@ export default function InsightsClient({
                         {WORK_CFG.filter(w => m.workBreakdown[w.key] > 0).map(w => (
                           <div key={w.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ fontSize: 12, width: 18 }}>{w.emoji}</span>
-                            <span style={{ fontSize: 10, color: '#6B7280', width: 72 }}>{w.label}</span>
+                            <span style={{ fontSize: 10, color: '#111827', width: 72 }}>{w.label}</span>
                             <div style={{ flex: 1, height: 6, background: '#F3F4F6', borderRadius: 3 }}>
                               <div style={{
                                 height: '100%', borderRadius: 3,
@@ -616,17 +616,17 @@ export default function InsightsClient({
                       {/* Cost summary */}
                       <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
                         <div>
-                          <p style={{ fontSize: 9, color: '#6B7280', margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Cost</p>
+                          <p style={{ fontSize: 9, color: '#111827', margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Cost</p>
                           <p style={{ fontSize: 13, fontWeight: 900, color: '#DE1A1A', margin: 0 }}>{fmtRupee(m.totalCost)}</p>
                         </div>
                         {m.wastedCost > 0 && (
                           <div>
-                            <p style={{ fontSize: 9, color: '#6B7280', margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Gap</p>
+                            <p style={{ fontSize: 9, color: '#111827', margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Gap</p>
                             <p style={{ fontSize: 13, fontWeight: 900, color: '#EF4444', margin: 0 }}>{fmtRupee(m.wastedCost)}</p>
                           </div>
                         )}
                         <div>
-                          <p style={{ fontSize: 9, color: '#6B7280', margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Salary</p>
+                          <p style={{ fontSize: 9, color: '#111827', margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Salary</p>
                           <p style={{ fontSize: 13, fontWeight: 900, color: '#374151', margin: 0 }}>{fmtRupee(m.monthlySalary)}</p>
                         </div>
                       </div>
@@ -659,7 +659,7 @@ export default function InsightsClient({
                           background: pct > 70 ? 'linear-gradient(180deg,#22C55E,#16A34A)' : pct > 40 ? 'linear-gradient(180deg,#F59E0B,#D97706)' : 'linear-gradient(180deg,#E5E7EB,#D1D5DB)',
                         }}
                       />
-                      <span style={{ fontSize: 8, color: '#6B7280', fontWeight: 600 }}>{day}</span>
+                      <span style={{ fontSize: 8, color: '#111827', fontWeight: 600 }}>{day}</span>
                     </div>
                   )
                 })
@@ -678,7 +678,7 @@ export default function InsightsClient({
                 {['Employee', 'ID', 'Team', 'Monthly Salary', 'Per Hour Rate'].map(h => (
                   <th key={h} style={{
                     padding: '10px 16px', textAlign: 'left', fontSize: 10,
-                    fontWeight: 800, color: '#6B7280', textTransform: 'uppercase',
+                    fontWeight: 800, color: '#111827', textTransform: 'uppercase',
                     letterSpacing: '0.06em', borderBottom: '1px solid #F3F4F6',
                     whiteSpace: 'nowrap',
                   }}>{h}</th>
@@ -689,8 +689,8 @@ export default function InsightsClient({
               {allMembers.map((m, i) => (
                 <tr key={m.employeeId} style={{ background: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
                   <td style={{ padding: '10px 16px', fontWeight: 700, color: '#111827' }}>{m.name.trim()}</td>
-                  <td style={{ padding: '10px 16px', color: '#6B7280', fontWeight: 600, fontFamily: 'monospace' }}>{m.employeeId}</td>
-                  <td style={{ padding: '10px 16px', color: '#6B7280', fontSize: 12 }}>{m.team ?? '—'}</td>
+                  <td style={{ padding: '10px 16px', color: '#111827', fontWeight: 600, fontFamily: 'monospace' }}>{m.employeeId}</td>
+                  <td style={{ padding: '10px 16px', color: '#111827', fontSize: 12 }}>{m.team ?? '—'}</td>
                   <td style={{ padding: '10px 16px', fontWeight: 700, color: '#374151' }}>
                     {m.monthlySalary > 0 ? `₹${m.monthlySalary.toLocaleString('en-IN')}` : '—'}
                   </td>
@@ -703,14 +703,14 @@ export default function InsightsClient({
                       }}>
                         ₹{m.hourlyRate.toFixed(2)}/hr
                       </span>
-                    ) : <span style={{ color: '#6B7280' }}>—</span>}
+                    ) : <span style={{ color: '#111827' }}>—</span>}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p style={{ fontSize: 10, color: '#6B7280', padding: '10px 16px', margin: 0 }}>
+        <p style={{ fontSize: 10, color: '#111827', padding: '10px 16px', margin: 0 }}>
           Formula: Monthly Salary ÷ 212.5 hrs (25 days × 8.5 hrs)
         </p>
       </SectionCard>

@@ -1281,7 +1281,7 @@ export default function FreelancersMemberClient({
               <div>
                 {/* HERO BANNER */}
                 <div className="sm:min-h-[210px] sm:max-h-[320px]" style={{ margin: "16px 16px 0", position: "relative", overflow: "visible", borderRadius: 24, boxShadow: `0 10px 38px rgba(0,0,0,0.4)` }}>
-                  {/* Background clipped to rounded corners via inner div — outer stays overflow:visible so the character can hang past the bottom edge */}
+                  {/* Background + character both clipped to the rounded corners by this inner div, so the character can never spill past the purple outline */}
                   <div style={{ position: "absolute", inset: 0, borderRadius: 24, background: cfg.heroBg, overflow: "hidden", zIndex: 0 }}>
                     <div style={{ position: "absolute", top: -50, right: -50, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.07)" }} />
                     <div style={{ position: "absolute", bottom: -30, left: 140, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
@@ -1294,15 +1294,15 @@ export default function FreelancersMemberClient({
                         ))}
                       </svg>
                     )}
+                    {/* Character image (desktop, all teams) — anchored bottom-right but nudged in from the edge toward center so it clears the top-right Add Work button; per-team desktopMaxHeight override keeps taller portrait crops (e.g. RJ) sized to fit */}
+                    <img src={cfg.image} alt="" aria-hidden="true"
+                      className="hidden sm:block"
+                      style={{ position: "absolute", bottom: 0, right: 110, height: "100%", maxHeight: cfg.desktopMaxHeight ?? 300, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 32px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
+                    {/* Character image (mobile, all teams) — grounded, shifted right for breathing room from the text; per-team mobileImageHeight/mobileImageBottom overrides let individual compositions size/reposition independently */}
+                    <img src={cfg.image} alt="" aria-hidden="true"
+                      className="block sm:hidden"
+                      style={{ position: "absolute", bottom: cfg.mobileImageBottom ?? 60, right: 10, height: cfg.mobileImageHeight ?? 210, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 24px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
                   </div>
-                  {/* Character image (desktop, all teams) — anchored bottom-right but nudged in from the edge toward center so it clears the top-right Add Work button; per-team desktopMaxHeight override keeps taller portrait crops (e.g. RJ) from spilling past the card's bottom edge */}
-                  <img src={cfg.image} alt="" aria-hidden="true"
-                    className="hidden sm:block"
-                    style={{ position: "absolute", bottom: -20, right: 110, height: "112%", maxHeight: cfg.desktopMaxHeight ?? 330, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 32px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
-                  {/* Character image (mobile, all teams) — grounded, shifted right for breathing room from the text; per-team mobileImageHeight/mobileImageBottom overrides let individual compositions size/reposition independently */}
-                  <img src={cfg.image} alt="" aria-hidden="true"
-                    className="block sm:hidden"
-                    style={{ position: "absolute", bottom: cfg.mobileImageBottom ?? 60, right: 10, height: cfg.mobileImageHeight ?? 210, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 24px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
                     {/* Desktop layout (all teams) — hidden on mobile in favor of the dedicated stacked block below */}
                     <div className="hidden sm:flex sm:items-start sm:flex-wrap sm:justify-between sm:gap-3">

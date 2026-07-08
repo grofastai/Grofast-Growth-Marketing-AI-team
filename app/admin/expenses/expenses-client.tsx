@@ -342,7 +342,7 @@ function TravelTab({ shoots, savedTravel }: {
                 <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#1E293B" }}>Date</th>
                 <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#111111" }}>Client</th>
                 <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#6D28D9" }}>Shoot Title</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#047857" }}>Member</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#064E3B" }}>Member</th>
                 <th className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#92400E" }}>Hrs</th>
                 <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#3B82F6" }}>Travel ₹</th>
                 <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#111111" }}>Action</th>
@@ -358,7 +358,7 @@ function TravelTab({ shoots, savedTravel }: {
                     <td className="px-6 py-3 whitespace-nowrap text-[12px] font-bold uppercase" style={{ color: "#1E293B" }}>{fmtDate(row.date)}</td>
                     <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{row.clientName}</td>
                     <td className="px-4 py-3 text-[12px] font-semibold whitespace-nowrap" style={{ color: "#6D28D9", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{row.title || "—"}</td>
-                    <td className="px-4 py-3 text-[12px] font-semibold whitespace-nowrap" style={{ color: "#047857" }}>{row.memberName}</td>
+                    <td className="px-4 py-3 text-[12px] font-semibold whitespace-nowrap" style={{ color: "#064E3B" }}>{row.memberName}</td>
                     <td className="px-4 py-3 text-[12px] font-semibold text-center" style={{ color: "#92400E" }}>{row.durationHrs > 0 ? `${row.durationHrs}h` : "—"}</td>
                     <td className="px-4 py-3">
                       <input
@@ -697,7 +697,7 @@ export default function ExpensesClient({
                     <tr style={{ background: "#FAFAFA", borderBottom: "1px solid #EDEDED" }}>
                       <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#1E293B" }}>Date</th>
                       <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#111111" }}>Client</th>
-                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#047857" }}>Type</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#064E3B" }}>Type</th>
                       <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#6D28D9" }}>Details</th>
                       <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#111111" }}>Amount</th>
                       <th className="px-6 py-3 text-right text-[10px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: "#111111" }}>Action</th>
@@ -713,7 +713,7 @@ export default function ExpensesClient({
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded capitalize"
                               style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>{e.type}</span>
                           ) : (
-                            <span style={{ color: "#047857" }}>—</span>
+                            <span style={{ color: "#064E3B" }}>—</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-[12px] font-semibold" style={{ color: "#6D28D9" }}>

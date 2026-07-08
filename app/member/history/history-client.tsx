@@ -1700,16 +1700,9 @@ export default function HistoryClient({
                 const puEnts = userId ? allEnts.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : []
                 return puEnts.map(entry => ({ type: 'collab' as const, entry, submitter, puId: pu.id }))
               })
-              const mergedTL = [
-                ...entries.map((e, idx) => ({ type: 'own' as const, entry: e, origIdx: idx })),
-                ...collabForDate
-              ].sort((a, b) => toMS(a.entry.start_time) - toMS(b.entry.start_time))
-              const st = STATUS_STYLE[u.attendance_status] ?? STATUS_STYLE.present
-              const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
-              const holidayOnDay = holidayMap.get(u.date)
-              // Half day / permission / WFH / shoot-day leave banner — shown alongside real work
-              // entries (unlike full_day, these leave types normally coexist with a logged
-              // partial day, so this must not be gated on entries.length === 0).
+              // Half day / permission / WFH / shoot-day leave — shown in its actual chronological
+              // slot among the real entries (unlike full_day, these leave types normally coexist
+              // with a logged partial day), not as a separate banner pinned above everything.
               const leaveOnDay = approvedLeaves.find(l => l.leave_type !== "full_day" && u.date >= l.from_date && u.date <= l.to_date)
               const leaveBannerStyle: Record<string, { emoji: string; title: string; color: string; bg: string }> = {
                 half_day:   { emoji: "🌗", title: "Half Day Leave" + (leaveOnDay?.half_day_period ? ` · ${leaveOnDay.half_day_period}` : ""), color: "#D97706", bg: "rgba(245,158,11,0.06)" },
@@ -1732,28 +1725,26 @@ export default function HistoryClient({
                 }
               }
               const leaveDur = leaveStartT && leaveEndT ? calcDurationFromTimes(leaveStartT, leaveEndT) : null
+              // Only fall back to a compact top strip when there's no time on file to place it.
+              const leaveNeedsFallbackBanner = leaveBanner && !(leaveStartT && leaveEndT)
+              const leaveTLItem = (leaveOnDay && leaveBanner && leaveStartT && leaveEndT)
+                ? [{ type: 'leave' as const, entry: { start_time: leaveStartT, end_time: leaveEndT }, leave: leaveOnDay, banner: leaveBanner, dur: leaveDur }]
+                : []
+              const mergedTL = [
+                ...entries.map((e, idx) => ({ type: 'own' as const, entry: e, origIdx: idx })),
+                ...collabForDate,
+                ...leaveTLItem,
+              ].sort((a, b) => toMS(a.entry.start_time) - toMS(b.entry.start_time))
+              const st = STATUS_STYLE[u.attendance_status] ?? STATUS_STYLE.present
+              const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
+              const holidayOnDay = holidayMap.get(u.date)
               return (
                 <div key={u.id} style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-                  {/* Leave banner (half day / permission / WFH / shoot day) */}
-                  {leaveBanner && (
-                    <div style={{ display:"flex", alignItems:"center", gap:16, padding:"18px 18px", background:leaveBanner.bg, borderBottom:`1px solid ${leaveBanner.color}20` }}>
-                      <div style={{ fontSize:34, lineHeight:1, flexShrink:0 }}>{leaveBanner.emoji}</div>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <p style={{ fontSize:14, fontWeight:900, color:leaveBanner.color, margin:"0 0 3px" }}>{leaveBanner.title}</p>
-                        <p style={{ fontSize:12, color:"#6B7280", margin:"0 0 6px" }}>{leaveOnDay?.reason ?? "Approved"}</p>
-                        {leaveStartT && leaveEndT && (
-                          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                            <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
-                              <Clock size={11} style={{ color:"#9CA3AF" }}/>
-                              {fmt12(leaveStartT)} – {fmt12(leaveEndT)}
-                            </span>
-                            {leaveDur && leaveDur > 0 && (
-                              <span style={{ fontSize:10, fontWeight:700, color:leaveBanner.color, background:`${leaveBanner.color}1A`, padding:"2px 8px", borderRadius:99 }}>{fmtH(leaveDur)}</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <span style={{ fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:`${leaveBanner.color}1A`, color:leaveBanner.color, flexShrink:0 }}>Approved</span>
+                  {/* Leave banner fallback — only when no time window is recorded on the leave */}
+                  {leaveNeedsFallbackBanner && (
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 18px", background:leaveBanner!.bg, borderBottom:`1px solid ${leaveBanner!.color}20` }}>
+                      <span style={{ fontSize:14 }}>{leaveBanner!.emoji}</span>
+                      <span style={{ fontSize:11, fontWeight:700, color:leaveBanner!.color }}>{leaveBanner!.title}{leaveOnDay?.reason ? `: ${leaveOnDay.reason}` : ""}</span>
                     </div>
                   )}
                   {/* Holiday banner */}
@@ -2108,6 +2099,33 @@ export default function HistoryClient({
 
                       {mergedTL.map((item, itemIdx) => {
                         const isLast = itemIdx === mergedTL.length - 1
+                        if (item.type === 'leave') {
+                          const { leave, banner, dur } = item
+                          return (
+                            <div key={`leave-${leave.id}`} style={{ borderBottom: isLast ? "none" : "1px solid #F5F6FA", background: banner.bg }}>
+                              <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
+                                <div style={{ width:34, height:34, borderRadius:10, background:`${banner.color}1A`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                                  <span style={{ fontSize:16 }}>{banner.emoji}</span>
+                                </div>
+                                <div style={{ flex:1, minWidth:0 }}>
+                                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
+                                    <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{banner.title}</span>
+                                    <span style={{ fontSize:10, fontWeight:700, color:banner.color, background:`${banner.color}1A`, padding:"2px 8px", borderRadius:99 }}>Approved</span>
+                                  </div>
+                                  {leave.reason && <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{leave.reason}</p>}
+                                  <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:4, flexWrap:"wrap" }}>
+                                    {dur && dur > 0 && (
+                                      <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:3 }}>
+                                        <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(dur)}
+                                      </span>
+                                    )}
+                                    <span style={{ fontSize:10, color:"#9CA3AF" }}>{fmt12(item.entry.start_time)} – {fmt12(item.entry.end_time)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        }
                         if (item.type === 'collab') {
                           const { entry: pe, submitter, puId } = item
                           const cfg = TASK_CFG[pe.task_type as keyof typeof TASK_CFG] ?? TASK_CFG.other

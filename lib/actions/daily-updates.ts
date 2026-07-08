@@ -215,16 +215,12 @@ export async function submitDailyUpdate(
   if (existingRecord) {
     const prevEntries = Array.isArray(existingRecord.work_entries) ? existingRecord.work_entries as Array<Record<string, unknown>> : []
 
-    let combinedEntries: Array<Record<string, unknown>>
-    if (isPastDate) {
-      // Past-date new entry = append to existing (History page handles editing/deleting old entries)
-      combinedEntries = [...prevEntries, ...d.work_entries]
-    } else {
-      // Today = merge/append: dedup by ID so new entries replace same-ID ones without losing unrelated entries
-      const newIds = new Set(d.work_entries.map(e => e.id).filter(Boolean))
-      const filteredPrev = prevEntries.filter(e => !newIds.has(e.id as string))
-      combinedEntries = [...filteredPrev, ...d.work_entries]
-    }
+    // Merge/append: dedup by ID so new entries replace same-ID ones without losing unrelated
+    // entries. Applies to past dates too — a resubmit (e.g. after "Edit Date's Update" following
+    // a slow/failed request) must replace, never duplicate, entries that share an ID.
+    const newIds = new Set(d.work_entries.map(e => e.id).filter(Boolean))
+    const filteredPrev = prevEntries.filter(e => !newIds.has(e.id as string))
+    let combinedEntries: Array<Record<string, unknown>> = [...filteredPrev, ...d.work_entries]
 
     // Always sync duration_hours to time span before saving
     combinedEntries = fixEntryDurations(combinedEntries)

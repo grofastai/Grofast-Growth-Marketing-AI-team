@@ -118,7 +118,7 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
           <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: 'var(--font-jakarta)' }}>
             Shoots
           </h1>
-          <p className="text-sm mt-1" style={{ color: "#014BAA" }}>Media team shoot schedules and logs</p>
+          <p className="text-sm mt-1" style={{ color: "#0F4C4C" }}>Media team shoot schedules and logs</p>
         </div>
         <button onClick={() => setShowForm(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold"
@@ -138,7 +138,7 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
           <div key={s.label} className="rounded-xl p-4" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
             <p className="text-[22px] font-black leading-none mb-1"
               style={{ fontFamily: 'var(--font-jakarta)', color: s.color }}>{s.value}</p>
-            <p className="text-[11px] font-medium" style={{ color: "#014BAA" }}>{s.label}</p>
+            <p className="text-[11px] font-medium" style={{ color: "#0F4C4C" }}>{s.label}</p>
           </div>
         ))}
       </div>
@@ -148,8 +148,8 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
         <div className="flex flex-col items-center py-20 rounded-2xl"
           style={{ background: 'rgba(0,0,0,0.02)', border: '1px solid #E5E7EB' }}>
           <Camera size={32} style={{ color: '#E5E7EB' }} className="mb-3" />
-          <p className="text-[13px] font-semibold" style={{ color: "#014BAA" }}>No shoots logged yet</p>
-          <p className="text-[12px] mt-1" style={{ color: "#014BAA" }}>Add the first shoot above.</p>
+          <p className="text-[13px] font-semibold" style={{ color: "#0F4C4C" }}>No shoots logged yet</p>
+          <p className="text-[12px] mt-1" style={{ color: "#0F4C4C" }}>Add the first shoot above.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -177,7 +177,7 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
                             <Icon size={9} /> {st.label}
                           </span>
                         </div>
-                        <p className="text-[13px] font-semibold mt-0.5" style={{ color: "#014BAA" }}>
+                        <p className="text-[13px] font-semibold mt-0.5" style={{ color: "#0F4C4C" }}>
                           {shoot.client}
                         </p>
                       </div>
@@ -214,8 +214,8 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
                           className="w-8 h-8 rounded-lg flex items-center justify-center"
                           style={{ background: 'rgba(0,0,0,0.04)' }}>
                           {pending && actionId === shoot.id + 'del'
-                            ? <Loader2 size={13} className="animate-spin" style={{ color: "#014BAA" }} />
-                            : <Trash2 size={13} style={{ color: "#014BAA" }} />}
+                            ? <Loader2 size={13} className="animate-spin" style={{ color: "#0F4C4C" }} />
+                            : <Trash2 size={13} style={{ color: "#0F4C4C" }} />}
                         </button>
                       </div>
                     </div>
@@ -223,25 +223,25 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
                     {/* Meta row */}
                     <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                       <div className="flex items-start gap-1.5">
-                        <MapPin size={12} className="mt-0.5 flex-shrink-0" style={{ color: "#014BAA" }} />
-                        <span className="text-[12px]" style={{ color: "#014BAA" }}>{shoot.location}</span>
+                        <MapPin size={12} className="mt-0.5 flex-shrink-0" style={{ color: "#0F4C4C" }} />
+                        <span className="text-[12px]" style={{ color: "#0F4C4C" }}>{shoot.location}</span>
                       </div>
                       <div className="flex items-start gap-1.5">
-                        <Clock size={12} className="mt-0.5 flex-shrink-0" style={{ color: "#014BAA" }} />
-                        <span className="text-[12px]" style={{ color: "#014BAA" }}>
+                        <Clock size={12} className="mt-0.5 flex-shrink-0" style={{ color: "#0F4C4C" }} />
+                        <span className="text-[12px]" style={{ color: "#0F4C4C" }}>
                           {fmt(shoot.start_time)} · {duration(shoot.start_time, shoot.end_time)}
                         </span>
                       </div>
                       {shoot.team_assigned && (
                         <div className="flex items-start gap-1.5">
-                          <Users size={12} className="mt-0.5 flex-shrink-0" style={{ color: "#014BAA" }} />
-                          <span className="text-[12px]" style={{ color: "#014BAA" }}>{shoot.team_assigned}</span>
+                          <Users size={12} className="mt-0.5 flex-shrink-0" style={{ color: "#0F4C4C" }} />
+                          <span className="text-[12px]" style={{ color: "#0F4C4C" }}>{shoot.team_assigned}</span>
                         </div>
                       )}
                       {shoot.equipment_used && (
                         <div className="flex items-start gap-1.5">
-                          <Wrench size={12} className="mt-0.5 flex-shrink-0" style={{ color: "#014BAA" }} />
-                          <span className="text-[12px]" style={{ color: "#014BAA" }}>{shoot.equipment_used}</span>
+                          <Wrench size={12} className="mt-0.5 flex-shrink-0" style={{ color: "#0F4C4C" }} />
+                          <span className="text-[12px]" style={{ color: "#0F4C4C" }}>{shoot.equipment_used}</span>
                         </div>
                       )}
                     </div>
@@ -250,21 +250,21 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
                     <div className="flex items-center gap-4 mt-3 pt-3 flex-wrap"
                       style={{ borderTop: '1px solid #F3F4F6' }}>
                       <div className="flex items-center gap-1.5">
-                        <IndianRupee size={11} style={{ color: "#014BAA" }} />
-                        <span className="text-[12px] font-semibold" style={{ color: "#014BAA" }}>
+                        <IndianRupee size={11} style={{ color: "#0F4C4C" }} />
+                        <span className="text-[12px] font-semibold" style={{ color: "#0F4C4C" }}>
                           ₹{(shoot.travel_expense ?? 0).toLocaleString('en-IN')} travel
                         </span>
                       </div>
                       {(shoot.travel_time_hours ?? 0) > 0 && (
                         <div className="flex items-center gap-1.5">
-                          <Clock size={11} style={{ color: "#014BAA" }} />
-                          <span className="text-[12px] font-semibold" style={{ color: "#014BAA" }}>
+                          <Clock size={11} style={{ color: "#0F4C4C" }} />
+                          <span className="text-[12px] font-semibold" style={{ color: "#0F4C4C" }}>
                             {shoot.travel_time_hours}h travel time
                           </span>
                         </div>
                       )}
                       {shoot.creator && (
-                        <span className="text-[11px]" style={{ color: "#014BAA" }}>
+                        <span className="text-[11px]" style={{ color: "#0F4C4C" }}>
                           Logged by {shoot.creator.name}
                         </span>
                       )}
@@ -292,50 +292,50 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
                 <button onClick={() => setShowForm(false)}
                   className="w-8 h-8 rounded-full flex items-center justify-center"
                   style={{ border: '1px solid #E5E7EB' }}>
-                  <X size={14} style={{ color: "#014BAA" }} />
+                  <X size={14} style={{ color: "#0F4C4C" }} />
                 </button>
               </div>
 
               <div className="px-6 py-5 space-y-4">
                 {/* Title */}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#014BAA" }}>Shoot Title *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#0F4C4C" }}>Shoot Title *</label>
                   <input placeholder="e.g. Product Launch Campaign" style={FIELD} value={form.title} onChange={set('title')} />
                 </div>
 
                 {/* Client */}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#014BAA" }}>Client *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#0F4C4C" }}>Client *</label>
                   <input placeholder="Client name" style={FIELD} value={form.client} onChange={set('client')} />
                 </div>
 
                 {/* Location */}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#014BAA" }}>Location *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#0F4C4C" }}>Location *</label>
                   <input placeholder="Shoot location / address" style={FIELD} value={form.location} onChange={set('location')} />
                 </div>
 
                 {/* Time */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#014BAA" }}>Start Time *</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#0F4C4C" }}>Start Time *</label>
                     <input type="datetime-local" style={{ ...FIELD, colorScheme: 'light' }} value={form.start_time} onChange={set('start_time')} />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#014BAA" }}>End Time *</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#0F4C4C" }}>End Time *</label>
                     <input type="datetime-local" style={{ ...FIELD, colorScheme: 'light' }} value={form.end_time} onChange={set('end_time')} />
                   </div>
                 </div>
 
                 {/* Team */}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#014BAA" }}>Team Assigned</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#0F4C4C" }}>Team Assigned</label>
                   <input placeholder="e.g. Ravi, Priya, Arun" style={FIELD} value={form.team_assigned} onChange={set('team_assigned')} />
                 </div>
 
                 {/* Equipment */}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#014BAA" }}>Equipment Used</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#0F4C4C" }}>Equipment Used</label>
                   <textarea rows={2} placeholder="e.g. Sony A7IV, DJI Ronin, LED Panel..." style={{ ...FIELD, resize: 'none' }}
                     value={form.equipment_used} onChange={set('equipment_used')} />
                 </div>
@@ -343,19 +343,19 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
                 {/* Travel Expense + Travel Time */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#014BAA" }}>Travel Expense (₹)</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#0F4C4C" }}>Travel Expense (₹)</label>
                     <input type="number" min="0" step="1" placeholder="0" style={FIELD}
                       value={form.travel_expense} onChange={set('travel_expense')} />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#014BAA" }}>Travel Time</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#0F4C4C" }}>Travel Time</label>
                     <select style={FIELD} value={form.travel_time_hours} onChange={set('travel_time_hours')}>
                       <option value="0">None</option>
                       {[0.5,1,1.5,2,2.5,3,3.5,4].map(h => (
                         <option key={h} value={String(h)}>{h}h</option>
                       ))}
                     </select>
-                    <p className="text-[10px] mt-1" style={{ color: "#014BAA" }}>Internal only · not billed</p>
+                    <p className="text-[10px] mt-1" style={{ color: "#0F4C4C" }}>Internal only · not billed</p>
                   </div>
                 </div>
 
@@ -371,7 +371,7 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
                 style={{ background: '#FFFFFF', borderTop: '1px solid #E5E7EB', paddingTop: '16px' }}>
                 <button onClick={() => setShowForm(false)}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
-                  style={{ background: '#F9FAFB', color: "#014BAA", border: '1px solid #E5E7EB' }}>
+                  style={{ background: '#F9FAFB', color: "#0F4C4C", border: '1px solid #E5E7EB' }}>
                   Cancel
                 </button>
                 <button onClick={handleCreate} disabled={pending && actionId === 'create'}

@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { useState, useMemo, useTransition } from "react"
+import Image from "next/image"
 import { X, Plus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Star, Link2, FileText, IndianRupee, Users, Pencil, CheckCircle2, Trash2 } from "lucide-react"
 import { FreelancersHero } from "@/components/freelancers/FreelancersHero"
 import { saveFreelancerWorkEntry, toggleFreelancerPaymentStatus, updateFreelancerWorkEntry, deleteFreelancerWorkEntry } from "@/lib/actions/freelancer-work"
@@ -51,16 +52,21 @@ export type WorkEntry = {
 const TEAM_CFG: Record<FreelancerTeam, {
   color: string; bg: string; border: string
   shortLabel: string; entryLabel: string; emoji: string; costLabel: string
-  heroBg: string
+  heroBg: string; image: string
 }> = {
-  "Freelance RJ Voiceover":            { color: "#A855F7", bg: "rgba(168,85,247,0.07)", border: "rgba(168,85,247,0.2)", shortLabel: "RJ Voiceover",  entryLabel: "Voice",     emoji: "🎙️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #2D1B69 0%, #6D28D9 45%, #1E1040 100%)" },
-  "Freelance Graphics Designer":        { color: "#F97316", bg: "rgba(249,115,22,0.07)",  border: "rgba(249,115,22,0.2)",  shortLabel: "Graphics",      entryLabel: "Design",    emoji: "🎨", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #431407 0%, #C2410C 45%, #1C0A00 100%)" },
-  "Freelance Content Writer":           { color: "#14B8A6", bg: "rgba(20,184,166,0.07)",  border: "rgba(20,184,166,0.2)",  shortLabel: "Content",       entryLabel: "Content",   emoji: "✍️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #042F2E 0%, #0F766E 45%, #021B1A 100%)" },
-  "Freelance Software Development & Automation": { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "SW Dev & Auto", entryLabel: "Task",      emoji: "💻", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1E1B4B 0%, #3730A3 45%, #0F0D2E 100%)" },
-  "Freelance Marketing & Operations":   { color: "#10B981", bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.2)",  shortLabel: "Marketing",     entryLabel: "Task",      emoji: "📊", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #022C22 0%, #047857 45%, #011A14 100%)" },
-  "Freelance AI Development & Creative Production": { color: "#8B5CF6", bg: "rgba(139,92,246,0.07)",  border: "rgba(139,92,246,0.2)",  shortLabel: "AI & Creative", entryLabel: "Task",      emoji: "🖥️", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1A0533 0%, #7C3AED 45%, #0D0020 100%)" },
-  "Freelance Video Editing":            { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Video Editing", entryLabel: "Edit",      emoji: "🎬", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #0F1547 0%, #1D4ED8 45%, #060B2A 100%)" },
-  "Freelance Videography":              { color: "#0EA5E9", bg: "rgba(14,165,233,0.07)",  border: "rgba(14,165,233,0.2)",  shortLabel: "Videography",   entryLabel: "Shoot",     emoji: "📹", costLabel: "Cost (INR)",            heroBg: "linear-gradient(135deg, #082F49 0%, #0369A1 45%, #041520 100%)" },
+  "Freelance RJ Voiceover":            { color: "#A855F7", bg: "rgba(168,85,247,0.07)", border: "rgba(168,85,247,0.2)", shortLabel: "RJ Voiceover",  entryLabel: "Voice",     emoji: "🎙️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #2D1B69 0%, #6D28D9 45%, #1E1040 100%)", image: "/brand/voiceover-rj-character.png" },
+  "Freelance Graphics Designer":        { color: "#F97316", bg: "rgba(249,115,22,0.07)",  border: "rgba(249,115,22,0.2)",  shortLabel: "Graphics",      entryLabel: "Design",    emoji: "🎨", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #431407 0%, #C2410C 45%, #1C0A00 100%)", image: "/brand/freelancer-graphics-character.png" },
+  "Freelance Content Writer":           { color: "#14B8A6", bg: "rgba(20,184,166,0.07)",  border: "rgba(20,184,166,0.2)",  shortLabel: "Content",       entryLabel: "Content",   emoji: "✍️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #042F2E 0%, #0F766E 45%, #021B1A 100%)", image: "/brand/freelancer-content-writer-character.png" },
+  "Freelance Software Development & Automation": { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "SW Dev & Auto", entryLabel: "Task",      emoji: "💻", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1E1B4B 0%, #3730A3 45%, #0F0D2E 100%)", image: "/brand/freelancer-software-dev-character.png" },
+  "Freelance Marketing & Operations":   { color: "#10B981", bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.2)",  shortLabel: "Marketing",     entryLabel: "Task",      emoji: "📊", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #022C22 0%, #047857 45%, #011A14 100%)", image: "/brand/freelancer-marketing-character.png" },
+  "Freelance AI Development & Creative Production": { color: "#8B5CF6", bg: "rgba(139,92,246,0.07)",  border: "rgba(139,92,246,0.2)",  shortLabel: "AI & Creative", entryLabel: "Task",      emoji: "🖥️", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1A0533 0%, #7C3AED 45%, #0D0020 100%)", image: "/brand/freelancer-ai-creative-character.png" },
+  "Freelance Video Editing":            { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Video Editing", entryLabel: "Edit",      emoji: "🎬", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #0F1547 0%, #1D4ED8 45%, #060B2A 100%)", image: "/brand/freelancer-video-editing-character.png" },
+  "Freelance Videography":              { color: "#0EA5E9", bg: "rgba(14,165,233,0.07)",  border: "rgba(14,165,233,0.2)",  shortLabel: "Videography",   entryLabel: "Shoot",     emoji: "📹", costLabel: "Cost (INR)",            heroBg: "linear-gradient(135deg, #082F49 0%, #0369A1 45%, #041520 100%)", image: "/brand/freelancer-videography-character.png" },
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  const n = parseInt(hex.replace("#", ""), 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`
 }
 
 const NO_LOGIN_TEAMS = Object.keys(TEAM_CFG) as FreelancerTeam[]
@@ -251,13 +257,19 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <label style={LABEL}>Select Work Type</label>
           {[
-            { cat: "voiceover", label: "VOICEOVER",  emoji: "🎙️", color: "#A855F7" },
-            { cat: "poster",    label: "POSTERS",     emoji: "🎨", color: "#F97316" },
-            { cat: "technical", label: "TECHNICAL",   emoji: "💻", color: "#6366F1" },
+            { cat: "voiceover", label: "VOICEOVER",  emoji: "🎙️", color: "#A855F7", image: "/brand/freelancer-content-writer-character.png" },
+            { cat: "poster",    label: "POSTERS",     emoji: "🎨", color: "#F97316", image: null },
+            { cat: "technical", label: "TECHNICAL",   emoji: "💻", color: "#6366F1", image: "/brand/freelancer-software-dev-character.png" },
           ].map(opt => (
             <button key={opt.cat} type="button" onClick={() => onChange("it_category", opt.cat)}
-              style={{ padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${opt.color}44`, background: `${opt.color}08`, color: opt.color, fontSize: 14, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, textAlign: "left", width: "100%" }}>
-              <span style={{ fontSize: 20 }}>{opt.emoji}</span>
+              style={{ padding: "10px 16px", borderRadius: 12, border: `1.5px solid ${opt.color}44`, background: `${opt.color}08`, color: opt.color, fontSize: 14, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", width: "100%" }}>
+              {opt.image ? (
+                <span style={{ width: 40, height: 40, borderRadius: "50%", overflow: "hidden", flexShrink: 0, position: "relative", background: `${opt.color}15` }}>
+                  <Image src={opt.image} alt="" fill style={{ objectFit: "cover", objectPosition: "50% 20%" }} sizes="40px" />
+                </span>
+              ) : (
+                <span style={{ fontSize: 20 }}>{opt.emoji}</span>
+              )}
               {opt.label}
             </button>
           ))}
@@ -1283,17 +1295,15 @@ export default function FreelancersMemberClient({
                       </svg>
                     )}
                   </div>
-                  {/* Character image (desktop) — anchored bottom-right, enlarged to fill the banner; a right-side gap keeps it inside the outline and clear of the top-right Add Work button */}
+                  {/* Character image (desktop, all teams) — anchored bottom-right, enlarged to fill the banner; a right-side gap keeps it inside the outline and clear of the top-right Add Work button */}
+                  <img src={cfg.image} alt="" aria-hidden="true"
+                    className="hidden sm:block"
+                    style={{ position: "absolute", bottom: 0, right: 22, height: "112%", maxHeight: 330, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 32px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
+                  {/* Character image (mobile) — grounded & enlarged, shifted ~22px right for breathing room from the text; extra height goes downward behind the KPI card tops so her head keeps the same top clearance inside the fixed-height card. RJ only for now — other teams keep the compact text-only mobile layout below. */}
                   {isRJ && (
-                    <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
-                      className="hidden sm:block"
-                      style={{ position: "absolute", bottom: 0, right: 22, height: "112%", maxHeight: 330, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
-                  )}
-                  {/* Character image (mobile) — grounded & enlarged, shifted ~22px right for breathing room from the text; extra height goes downward behind the KPI card tops so her head keeps the same top clearance inside the fixed-height card */}
-                  {isRJ && (
-                    <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
+                    <img src={cfg.image} alt="" aria-hidden="true"
                       className="block sm:hidden"
-                      style={{ position: "absolute", bottom: 14, right: -32, height: 286, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.5))", zIndex: 1 }} />
+                      style={{ position: "absolute", bottom: 14, right: -32, height: 286, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 24px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
                   )}
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
                     {/* Desktop layout (all teams) — for RJ, hidden on mobile in favor of the dedicated stacked block below */}

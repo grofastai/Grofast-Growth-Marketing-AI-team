@@ -3392,33 +3392,6 @@ export default function DailyUpdateForm({
                 </button>
               </div>
               )}
-
-              {/* Submit button for non-media team — only when form is open */}
-              {!isMediaTeam && (learningStarted || learningDone || others.length > 0) && (
-                <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
-                  <div>
-                    {learningError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{learningError}</p>}
-                    {!learningError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningSummaryTopic || "not set"}{filledLearningBlocks.length > 1 ? ` +${filledLearningBlocks.length - 1} more` : ""} · {learningHours}h{others.length > 0 ? ` · ${others.length} other` : ""}</p>}
-                  </div>
-                  {learningDone ? (
-                    <span style={{ fontSize:12, fontWeight:700, color:"#22C55E", display:"flex", alignItems:"center", gap:6 }}>
-                      <CheckCircle2 size={14} /> Submitted ✓
-                    </span>
-                  ) : (
-                    <button onClick={handleLearningSubmit} disabled={isPending}
-                      style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor:isPending?"not-allowed":"pointer", opacity:isPending?0.7:1, background:"#10B981", color:"#fff", boxShadow:"0 4px 14px rgba(16,185,129,0.4)" }}>
-                      {isPending ? <Loader2 size={14} className="animate-spin" /> : <SendHorizonal size={14} />}
-                      {isPending ? "Submitting…" : "Submit Learning"}
-                    </button>
-                  )}
-                </div>
-              )}
-              {!isMediaTeam && (learningStarted || learningDone || others.length > 0) && (
-                <p style={{ fontSize:11, marginTop:16, color:"#9CA3AF", textAlign:"center" }}>
-                  Saved entries appear in your{" "}
-                  <a href="/member/history" style={{ color:"#6366F1", fontWeight:600 }}>History tab ↗</a>
-                </p>
-              )}
             </div>
           )}
 
@@ -3532,6 +3505,34 @@ export default function DailyUpdateForm({
                 </button>
               )}
             </div>
+          )}
+
+          {/* Submit button for non-media team — placed after Learning + Other so it's
+              always the last thing on the page, not sandwiched between the two sections */}
+          {!isMediaTeam && tab === "learning" && (learningStarted || learningDone || others.length > 0) && (
+            <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", flexWrap:"wrap" }}>
+              <div>
+                {learningError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{learningError}</p>}
+                {!learningError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningSummaryTopic || "not set"}{filledLearningBlocks.length > 1 ? ` +${filledLearningBlocks.length - 1} more` : ""} · {learningHours}h{others.length > 0 ? ` · ${others.length} other` : ""}</p>}
+              </div>
+              {learningDone ? (
+                <span style={{ fontSize:12, fontWeight:700, color:"#22C55E", display:"flex", alignItems:"center", gap:6 }}>
+                  <CheckCircle2 size={14} /> Submitted ✓
+                </span>
+              ) : (
+                <button onClick={handleLearningSubmit} disabled={isPending}
+                  style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor:isPending?"not-allowed":"pointer", opacity:isPending?0.7:1, background:"#10B981", color:"#fff", boxShadow:"0 4px 14px rgba(16,185,129,0.4)" }}>
+                  {isPending ? <Loader2 size={14} className="animate-spin" /> : <SendHorizonal size={14} />}
+                  {isPending ? "Submitting…" : "Submit Learning"}
+                </button>
+              )}
+            </div>
+          )}
+          {!isMediaTeam && tab === "learning" && (learningStarted || learningDone || others.length > 0) && (
+            <p style={{ fontSize:11, color:"#9CA3AF", textAlign:"center" }}>
+              Saved entries appear in your{" "}
+              <a href="/member/history" style={{ color:"#6366F1", fontWeight:600 }}>History tab ↗</a>
+            </p>
           )}
 
           {/* ── Submit bar ─────────────────────────────────────────────────── */}

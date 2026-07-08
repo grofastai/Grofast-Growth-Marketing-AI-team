@@ -578,7 +578,7 @@ export default function ExpensesClient({
                 )}
                 <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: isTravelActive ? "rgba(255,255,255,0.75)" : "#374151", position: "relative" }}>Total Expenses</p>
                 <p className="text-[28px] font-black leading-none mt-2" style={{ fontFamily: "var(--font-jakarta)", color: isTravelActive ? "#fff" : "#DE1A1A", fontVariantNumeric: "tabular-nums", position: "relative" }}>{fmtRupee(grandTotal)}</p>
-                <p className="text-[11px] mt-3" style={{ color: isTravelActive ? "rgba(255,255,255,0.7)" : "#9CA3AF", position: "relative" }}>{MONTHS_SHORT[mo - 1]} {yr}</p>
+                <p className="text-[11px] mt-3" style={{ color: isTravelActive ? "rgba(255,255,255,0.7)" : "#6B7280", position: "relative" }}>{MONTHS_SHORT[mo - 1]} {yr}</p>
               </div>
             )
           })()}

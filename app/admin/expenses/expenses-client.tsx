@@ -557,31 +557,49 @@ export default function ExpensesClient({
           </div>
         </div>
 
-        {/* Summary strip: total + 3 category stat cards */}
+        {/* Summary strip: total + 3 category stat cards — highlighted card mirrors the active tab below */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="rounded-2xl p-5" style={{ background: "linear-gradient(135deg,#DE1A1A,#991111)", position: "relative", overflow: "hidden" }}>
+          <div
+            role="button" tabIndex={0}
+            onClick={() => setActiveTab("travel")}
+            className="rounded-2xl p-5 text-left transition-all"
+            style={{
+              background: "linear-gradient(135deg,#DE1A1A,#991111)",
+              position: "relative", overflow: "hidden", cursor: "pointer",
+              boxShadow: activeTab === "travel" ? "0 0 0 3px rgba(222,26,26,0.3), 0 10px 24px rgba(153,17,17,0.35)" : "none",
+              transform: activeTab === "travel" ? "translateY(-2px)" : "none",
+            }}>
             <div style={{ position: "absolute", top: -30, right: -30, width: 110, height: 110, borderRadius: "50%", background: "rgba(255,255,255,0.08)" }} />
             <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.75)", position: "relative" }}>Total Expenses</p>
             <p className="text-[28px] font-black leading-none mt-2" style={{ fontFamily: "var(--font-jakarta)", color: "#fff", fontVariantNumeric: "tabular-nums", position: "relative" }}>{fmtRupee(grandTotal)}</p>
             <p className="text-[11px] mt-3" style={{ color: "rgba(255,255,255,0.7)", position: "relative" }}>{MONTHS_SHORT[mo - 1]} {yr}</p>
           </div>
           {([
-            { label: "Client Direct", value: totalClientDirect, color: "#3B82F6", icon: <Receipt size={15} style={{ color: "#3B82F6" }} /> },
-            { label: "Common / Shared", value: totalCommon, color: "#8B5CF6", icon: <Layers size={15} style={{ color: "#8B5CF6" }} /> },
-            { label: "Per Client", value: perClientOverhead, color: "#10B981", icon: <TrendingUp size={15} style={{ color: "#10B981" }} /> },
-          ] as const).map(s => (
-            <FlatCard key={s.label} className="p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${s.color}15` }}>{s.icon}</div>
-                <p className="text-[12px] font-bold" style={{ color: "#374151" }}>{s.label}</p>
-              </div>
-              <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: s.color, fontVariantNumeric: "tabular-nums" }}>{fmtRupee(s.value)}</p>
-              <p className="text-[10px] mt-1" style={{ color: "#9CA3AF" }}>{pctOfTotal(s.value)}% of total</p>
-              <div style={{ height: 4, borderRadius: 2, background: "#F0F0F0", marginTop: 8, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${pctOfTotal(s.value)}%`, background: s.color, borderRadius: 2 }} />
-              </div>
-            </FlatCard>
-          ))}
+            { key: "direct" as const, label: "Client Direct", value: totalClientDirect, color: "#3B82F6", icon: <Receipt size={15} style={{ color: "#3B82F6" }} /> },
+            { key: "common" as const, label: "Common / Shared", value: totalCommon, color: "#8B5CF6", icon: <Layers size={15} style={{ color: "#8B5CF6" }} /> },
+            { key: "summary" as const, label: "Per Client", value: perClientOverhead, color: "#10B981", icon: <TrendingUp size={15} style={{ color: "#10B981" }} /> },
+          ] as const).map(s => {
+            const isActive = activeTab === s.key
+            return (
+              <FlatCard key={s.label} className="p-5 transition-all" onClick={() => setActiveTab(s.key)}
+                style={{
+                  border: `1.5px solid ${isActive ? s.color : "#EDEDED"}`,
+                  background: isActive ? `${s.color}0D` : "#FFFFFF",
+                  boxShadow: isActive ? `0 8px 20px ${s.color}26` : "none",
+                  transform: isActive ? "translateY(-2px)" : "none",
+                }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${s.color}15` }}>{s.icon}</div>
+                  <p className="text-[12px] font-bold" style={{ color: "#374151" }}>{s.label}</p>
+                </div>
+                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: s.color, fontVariantNumeric: "tabular-nums" }}>{fmtRupee(s.value)}</p>
+                <p className="text-[10px] mt-1" style={{ color: "#9CA3AF" }}>{pctOfTotal(s.value)}% of total</p>
+                <div style={{ height: 4, borderRadius: 2, background: "#F0F0F0", marginTop: 8, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${pctOfTotal(s.value)}%`, background: s.color, borderRadius: 2 }} />
+                </div>
+              </FlatCard>
+            )
+          })}
         </div>
 
         {/* Promo/tip card + Add Expense */}

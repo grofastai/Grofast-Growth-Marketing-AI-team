@@ -1724,8 +1724,11 @@ export default function HistoryClient({
                 }
               }
               const leaveDur = leaveStartT && leaveEndT ? calcDurationFromTimes(leaveStartT, leaveEndT) : null
+              // WFH/shoot_day are whole-day context, not a partial-day time slot to fill in —
+              // they're reflected in the day-header badge below instead of a banner or strip.
+              const isWholeDayContext = leaveOnDay?.leave_type === "wfh" || leaveOnDay?.leave_type === "shoot_day"
               // Only fall back to a compact top strip when there's no time on file to place it.
-              const leaveNeedsFallbackBanner = leaveBanner && !(leaveStartT && leaveEndT)
+              const leaveNeedsFallbackBanner = leaveBanner && !(leaveStartT && leaveEndT) && !isWholeDayContext
               const leaveTLItem = (leaveOnDay && leaveBanner && leaveStartT && leaveEndT)
                 ? [{ type: 'leave' as const, entry: { start_time: leaveStartT, end_time: leaveEndT }, leave: leaveOnDay, banner: leaveBanner, dur: leaveDur }]
                 : []
@@ -1734,7 +1737,15 @@ export default function HistoryClient({
                 ...collabForDate,
                 ...leaveTLItem,
               ].sort((a, b) => toMS(a.entry.start_time) - toMS(b.entry.start_time))
-              const st = STATUS_STYLE[u.attendance_status] ?? STATUS_STYLE.present
+              // Day-header badge: WFH/Shoot Day override the generic status; a normal present
+              // day reads as "Office" rather than the less specific "Present".
+              const st = leaveOnDay?.leave_type === "wfh"
+                ? { label:"WFH", color:"#0EA5E9", bg:"rgba(14,165,233,0.1)", dot:"#0EA5E9" }
+                : leaveOnDay?.leave_type === "shoot_day"
+                ? { label:"Shoot", color:"#DB2777", bg:"rgba(219,39,119,0.1)", dot:"#DB2777" }
+                : u.attendance_status === "present"
+                ? { ...STATUS_STYLE.present, label:"Office" }
+                : (STATUS_STYLE[u.attendance_status] ?? STATUS_STYLE.present)
               const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
               const holidayOnDay = holidayMap.get(u.date)
               return (

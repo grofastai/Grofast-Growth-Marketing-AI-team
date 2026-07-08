@@ -738,7 +738,13 @@ export default function DailyUpdateForm({
   )
   const addLearningBlock = () => setLearningBlocks(p => [...p, newLearningBlock()])
   const removeLearningBlock = (id: string) =>
-    setLearningBlocks(p => p.length > 1 ? p.filter(b => b.id !== id) : p)
+    setLearningBlocks(p => {
+      const next = p.filter(b => b.id !== id)
+      // Removing the last remaining block resets to the empty "Add Learning" prompt
+      // instead of leaving a single blank block with no way to clear it.
+      if (next.length === 0) { setLearningStarted(false); return [newLearningBlock()] }
+      return next
+    })
   const patchLearningBlock = (id: string, patch: Partial<LearningBlock>) =>
     setLearningBlocks(p => p.map(b => b.id === id ? { ...b, ...patch } : b))
   const learningHours = Math.round(
@@ -3305,12 +3311,10 @@ export default function DailyUpdateForm({
                   <div key={blk.id} style={{ border:"1.5px solid #EBEDF2", borderRadius:14, padding:"14px 16px", background:"#FCFEFD", display:"flex", flexDirection:"column", gap:12 }}>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                       <span style={{ fontSize:11, fontWeight:800, color:"#10B981", textTransform:"uppercase", letterSpacing:"0.08em" }}>📘 Learning #{idx + 1}</span>
-                      {learningBlocks.length > 1 && (
-                        <button type="button" onClick={() => removeLearningBlock(blk.id)} title="Remove this learning"
-                          style={{ width:26, height:26, borderRadius:8, border:"1.5px solid #FECACA", background:"#FEF2F2", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
-                          <Trash2 size={13} style={{ color:"#EF4444" }} />
-                        </button>
-                      )}
+                      <button type="button" onClick={() => removeLearningBlock(blk.id)} title="Remove this learning"
+                        style={{ width:26, height:26, borderRadius:8, border:"1.5px solid #FECACA", background:"#FEF2F2", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+                        <Trash2 size={13} style={{ color:"#EF4444" }} />
+                      </button>
                     </div>
                     {/* For Client (dropdown) + Topic on same row */}
                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>

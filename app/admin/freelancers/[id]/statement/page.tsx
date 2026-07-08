@@ -142,11 +142,11 @@ export default async function StatementPage({
         <div className="header">
           <div>
             <div className="logo">Gro<span>Fast</span></div>
-            <div style={{ fontSize: 12, color: "#1b365d", marginTop: 4 }}>{company?.name ?? "GroFast Digital"}</div>
+            <div style={{ fontSize: 12, color: "#7F011F", marginTop: 4 }}>{company?.name ?? "GroFast Digital"}</div>
           </div>
           <div className="header-right">
-            <div style={{ fontSize: 12, color: "#1b365d" }}>Printed on {printedOn}</div>
-            <div style={{ fontSize: 12, color: "#1b365d", marginTop: 2 }}>Statement ref: {id.slice(0, 8).toUpperCase()}</div>
+            <div style={{ fontSize: 12, color: "#7F011F" }}>Printed on {printedOn}</div>
+            <div style={{ fontSize: 12, color: "#7F011F", marginTop: 2 }}>Statement ref: {id.slice(0, 8).toUpperCase()}</div>
           </div>
         </div>
 
@@ -156,20 +156,20 @@ export default async function StatementPage({
           <div className="meta-card">
             <div className="meta-label">Freelancer</div>
             <div className="meta-value">{freelancer.name}</div>
-            <div style={{ fontSize: 12, color: "#1b365d", marginTop: 2 }}>{TYPE_LABEL[freelancer.type] ?? "Freelancer"}</div>
-            {freelancer.phone && <div style={{ fontSize: 12, color: "#1b365d" }}>{freelancer.phone}</div>}
+            <div style={{ fontSize: 12, color: "#7F011F", marginTop: 2 }}>{TYPE_LABEL[freelancer.type] ?? "Freelancer"}</div>
+            {freelancer.phone && <div style={{ fontSize: 12, color: "#7F011F" }}>{freelancer.phone}</div>}
           </div>
           <div className="meta-card">
             <div className="meta-label">Payment Details</div>
             {freelancer.upi_id && <div className="meta-value">UPI: {freelancer.upi_id}</div>}
             {freelancer.bank_name && (
               <>
-                <div style={{ fontSize: 12, color: "#1b365d", marginTop: 2 }}>{freelancer.bank_name}</div>
-                {freelancer.account_number && <div style={{ fontSize: 12, color: "#1b365d" }}>A/C: {freelancer.account_number}</div>}
-                {freelancer.ifsc && <div style={{ fontSize: 12, color: "#1b365d" }}>IFSC: {freelancer.ifsc}</div>}
+                <div style={{ fontSize: 12, color: "#7F011F", marginTop: 2 }}>{freelancer.bank_name}</div>
+                {freelancer.account_number && <div style={{ fontSize: 12, color: "#7F011F" }}>A/C: {freelancer.account_number}</div>}
+                {freelancer.ifsc && <div style={{ fontSize: 12, color: "#7F011F" }}>IFSC: {freelancer.ifsc}</div>}
               </>
             )}
-            {!freelancer.upi_id && !freelancer.bank_name && <div style={{ fontSize: 12, color: "#1b365d" }}>Not provided</div>}
+            {!freelancer.upi_id && !freelancer.bank_name && <div style={{ fontSize: 12, color: "#7F011F" }}>Not provided</div>}
           </div>
         </div>
 

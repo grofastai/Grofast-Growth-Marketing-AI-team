@@ -162,7 +162,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
-          <p style={{ fontSize: 11, color: "#1b365d", margin: "1px 0 0" }}>{user?.employee_id ?? "—"}</p>
+          <p style={{ fontSize: 11, color: "#A10856", margin: "1px 0 0" }}>{user?.employee_id ?? "—"}</p>
         </div>
         <span style={{
           fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 20, flexShrink: 0,
@@ -192,22 +192,22 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
         }}>
           {LEAVE_EMOJIS[leaveType] ?? "📋"} {leaveType}
         </span>
-        <span style={{ fontSize: 11, fontWeight: 700, color: "#1b365d", background: "#F9FAFB", padding: "3px 10px", borderRadius: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#A10856", background: "#F9FAFB", padding: "3px 10px", borderRadius: 8 }}>
           {isPerm ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : isHalfDay ? "Half Day" : `${days} day${days !== 1 ? "s" : ""}`}
         </span>
       </div>
 
       {/* Date range */}
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <CalendarDays size={13} style={{ color: "#1b365d", flexShrink: 0 }} />
-        <span style={{ fontSize: 12, color: "#1b365d", fontWeight: 600 }}>{fmtRange(leave.from_date, leave.to_date)}</span>
+        <CalendarDays size={13} style={{ color: "#A10856", flexShrink: 0 }} />
+        <span style={{ fontSize: 12, color: "#A10856", fontWeight: 600 }}>{fmtRange(leave.from_date, leave.to_date)}</span>
       </div>
 
       {/* Reason */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
-        <Paperclip size={12} style={{ color: "#1b365d", flexShrink: 0, marginTop: 2 }} />
+        <Paperclip size={12} style={{ color: "#A10856", flexShrink: 0, marginTop: 2 }} />
         <p style={{
-          fontSize: 12, color: "#1b365d", margin: 0, lineHeight: 1.45,
+          fontSize: 12, color: "#A10856", margin: 0, lineHeight: 1.45,
           display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
         } as React.CSSProperties}>
           {displayReason}
@@ -432,17 +432,17 @@ export default function LeavesClient({
                   padding: "8px 30px 8px 14px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
                   whiteSpace: "nowrap", outline: "none", border: "none", appearance: "none", WebkitAppearance: "none",
                   background: mode !== "all" && mode !== "holidays" ? gradBg : "#FFFFFF",
-                  color: mode !== "all" && mode !== "holidays" ? "#FFFFFF" : "#1b365d",
+                  color: mode !== "all" && mode !== "holidays" ? "#FFFFFF" : "#A10856",
                   boxShadow: mode !== "all" && mode !== "holidays" ? "0 4px 16px rgba(180,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
                 }}>
                 {MODE_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value} style={{ background: "#FFFFFF", color: "#1b365d" }}>{o.label}</option>
+                  <option key={o.value} value={o.value} style={{ background: "#FFFFFF", color: "#A10856" }}>{o.label}</option>
                 ))}
               </select>
               <ChevronDown size={14} strokeWidth={2.5}
                 style={{
                   position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none",
-                  color: mode !== "all" && mode !== "holidays" ? "#FFFFFF" : "#1b365d",
+                  color: mode !== "all" && mode !== "holidays" ? "#FFFFFF" : "#A10856",
                 }} />
             </div>
 
@@ -450,7 +450,7 @@ export default function LeavesClient({
               padding: "8px 18px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
               whiteSpace: "nowrap", border: "none", flexShrink: 0,
               background: mode === "holidays" ? gradBg : "#FFFFFF",
-              color: mode === "holidays" ? "#FFFFFF" : "#1b365d",
+              color: mode === "holidays" ? "#FFFFFF" : "#A10856",
               boxShadow: mode === "holidays" ? "0 4px 16px rgba(180,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
             }}>
               🏢 Holidays
@@ -460,7 +460,7 @@ export default function LeavesClient({
               <>
                 <div style={{ position: "relative", flexShrink: 0 }}>
                   <ListFilter size={12} strokeWidth={2.5}
-                    style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#1b365d" }} />
+                    style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#A10856" }} />
                   <select
                     value={dateMode}
                     onChange={e => setDateMode(e.target.value as typeof dateMode)}
@@ -468,29 +468,29 @@ export default function LeavesClient({
                     style={{
                       padding: "8px 26px 8px 30px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
                       whiteSpace: "nowrap", outline: "none", border: "1px solid #EBEDF2", appearance: "none", WebkitAppearance: "none",
-                      background: "#FFFFFF", color: "#1b365d", boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+                      background: "#FFFFFF", color: "#A10856", boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
                     }}>
                     <option value="all">All Time</option>
                     <option value="month">Monthly</option>
                     <option value="custom">Custom Range</option>
                   </select>
                   <ChevronDown size={13} strokeWidth={2.5}
-                    style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#1b365d" }} />
+                    style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#A10856" }} />
                 </div>
                 {dateMode === "month" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 2, background: "#FFFFFF", borderRadius: 24, padding: "2px 6px", flexShrink: 0, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                    <button onClick={() => setFilterMonth(m => shiftMonth(m, -1))} aria-label="Previous month" style={{ width: 30, height: 30, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}><ChevronLeft size={15} color="#1b365d" /></button>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#1b365d", minWidth: 82, textAlign: "center", whiteSpace: "nowrap" }}>{monthLabel(filterMonth)}</span>
-                    <button onClick={() => setFilterMonth(m => shiftMonth(m, 1))} aria-label="Next month" style={{ width: 30, height: 30, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}><ChevronRight size={15} color="#1b365d" /></button>
+                    <button onClick={() => setFilterMonth(m => shiftMonth(m, -1))} aria-label="Previous month" style={{ width: 30, height: 30, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}><ChevronLeft size={15} color="#A10856" /></button>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#A10856", minWidth: 82, textAlign: "center", whiteSpace: "nowrap" }}>{monthLabel(filterMonth)}</span>
+                    <button onClick={() => setFilterMonth(m => shiftMonth(m, 1))} aria-label="Next month" style={{ width: 30, height: 30, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}><ChevronRight size={15} color="#A10856" /></button>
                   </div>
                 )}
                 {dateMode === "custom" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                     <input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} aria-label="From date"
-                      style={{ padding: "7px 10px", borderRadius: 12, background: "#FFFFFF", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#1b365d", outline: "none", minHeight: 38 }} />
-                    <span style={{ fontSize: 12, color: "#1b365d" }}>–</span>
+                      style={{ padding: "7px 10px", borderRadius: 12, background: "#FFFFFF", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#A10856", outline: "none", minHeight: 38 }} />
+                    <span style={{ fontSize: 12, color: "#A10856" }}>–</span>
                     <input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)} aria-label="To date"
-                      style={{ padding: "7px 10px", borderRadius: 12, background: "#FFFFFF", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#1b365d", outline: "none", minHeight: 38 }} />
+                      style={{ padding: "7px 10px", borderRadius: 12, background: "#FFFFFF", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#A10856", outline: "none", minHeight: 38 }} />
                   </div>
                 )}
               </>
@@ -505,12 +505,12 @@ export default function LeavesClient({
                 <p style={{ fontSize:13, fontWeight:800, color:"#111827", margin:"0 0 14px", fontFamily:"var(--font-jakarta)" }}>Add Company Holiday</p>
                 <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"flex-end" }}>
                   <div style={{ display:"flex", flexDirection:"column", gap:5, flex:"0 0 160px" }}>
-                    <label style={{ fontSize:10, fontWeight:700, color:"#1b365d", textTransform:"uppercase", letterSpacing:"0.08em" }}>Date</label>
+                    <label style={{ fontSize:10, fontWeight:700, color:"#A10856", textTransform:"uppercase", letterSpacing:"0.08em" }}>Date</label>
                     <input type="date" max="2099-12-31" value={holidayDate} onChange={e => setHolidayDate(e.target.value)}
                       style={{ fontSize:13, fontWeight:600, color:"#111827", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"9px 12px", outline:"none", cursor:"pointer" }} />
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:5, flex:1, minWidth:160 }}>
-                    <label style={{ fontSize:10, fontWeight:700, color:"#1b365d", textTransform:"uppercase", letterSpacing:"0.08em" }}>Holiday Name</label>
+                    <label style={{ fontSize:10, fontWeight:700, color:"#A10856", textTransform:"uppercase", letterSpacing:"0.08em" }}>Holiday Name</label>
                     <input type="text" value={holidayName} onChange={e => setHolidayName(e.target.value)}
                       placeholder="e.g. Pongal, Diwali…"
                       onKeyDown={e => e.key === "Enter" && handleAddHoliday()}
@@ -538,7 +538,7 @@ export default function LeavesClient({
                 </div>
                 {companyLeaves.length === 0 ? (
                   <div style={{ padding:"40px 24px", textAlign:"center" }}>
-                    <p style={{ fontSize:14, color:"#1b365d", margin:0 }}>No holidays added yet.</p>
+                    <p style={{ fontSize:14, color:"#A10856", margin:0 }}>No holidays added yet.</p>
                   </div>
                 ) : (
                   <div>
@@ -564,7 +564,7 @@ export default function LeavesClient({
                               </button>
                               <button onClick={() => setEditingHolidayId(null)}
                                 style={{ width:28, height:28, borderRadius:8, background:"#F3F4F6", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                                <X size={12} style={{ color:"#1b365d" }} />
+                                <X size={12} style={{ color:"#A10856" }} />
                               </button>
                             </div>
                             {editHolidayError && (
@@ -584,7 +584,7 @@ export default function LeavesClient({
                           </div>
                           <div style={{ flex:1, minWidth:0 }}>
                             <p style={{ fontSize:13, fontWeight:700, color:"#111827", margin:0 }}>{h.name}</p>
-                            <p style={{ fontSize:11, color:"#1b365d", margin:"2px 0 0" }}>{dayName} · {dateFmt}</p>
+                            <p style={{ fontSize:11, color:"#A10856", margin:"2px 0 0" }}>{dayName} · {dateFmt}</p>
                           </div>
                           <button onClick={() => startEditHoliday(h)}
                             style={{ width:30, height:30, borderRadius:8, background:"rgba(30,64,175,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -638,7 +638,7 @@ export default function LeavesClient({
               <p style={{ fontSize: 16, fontWeight: 700, color: "#111827", margin: "0 0 6px", fontFamily: "var(--font-jakarta)" }}>
                 No leave requests match this filter
               </p>
-              <p style={{ fontSize: 13, color: "#1b365d", margin: 0 }}>Your team is fully available today.</p>
+              <p style={{ fontSize: 13, color: "#A10856", margin: 0 }}>Your team is fully available today.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
@@ -668,7 +668,7 @@ export default function LeavesClient({
                 </div>
                 <div>
                   <p style={{ fontSize: 14, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>Team Availability</p>
-                  <p style={{ fontSize: 11, color: "#1b365d", margin: "2px 0 0" }}>Real-time team status overview</p>
+                  <p style={{ fontSize: 11, color: "#A10856", margin: "2px 0 0" }}>Real-time team status overview</p>
                 </div>
               </div>
               <div style={{ textAlign: "right" }}>
@@ -684,7 +684,7 @@ export default function LeavesClient({
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, flexWrap: "wrap", gap: 8 }}>
               <p style={{ fontSize: 13, margin: 0 }}>
                 <span style={{ fontWeight: 900, color: donutColor, fontFamily: "var(--font-jakarta)" }}>{availableCount} / {totalTeamCount}</span>
-                <span style={{ color: "#1b365d", marginLeft: 6 }}>Members Available</span>
+                <span style={{ color: "#A10856", marginLeft: 6 }}>Members Available</span>
               </p>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, color: availabilityStatus.color, background: availabilityStatus.bg, padding: "5px 12px", borderRadius: 99 }}>
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: availabilityStatus.color }} />
@@ -706,7 +706,7 @@ export default function LeavesClient({
                   </div>
                   <p style={{ fontSize: 20, fontWeight: 900, color: s.color, margin: 0, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
                   <p style={{ fontSize: 11, fontWeight: 700, color: "#111827", margin: 0, textAlign: "center" }}>{s.label}</p>
-                  <p style={{ fontSize: 10, color: "#1b365d", margin: 0 }}>{pct(s.value)}%</p>
+                  <p style={{ fontSize: 10, color: "#A10856", margin: 0 }}>{pct(s.value)}%</p>
                 </div>
               ))}
             </div>

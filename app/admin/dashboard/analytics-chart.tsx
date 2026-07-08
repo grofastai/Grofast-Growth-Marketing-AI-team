@@ -46,11 +46,11 @@ export default function AnalyticsChart({ data }: { data: ChartPoint[] }) {
         <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
         <XAxis
           dataKey="day"
-          tick={{ fontSize: 11, fill: "#1b365d", fontWeight: 500 }}
+          tick={{ fontSize: 11, fill: "#4E0535", fontWeight: 500 }}
           tickLine={false} axisLine={false}
         />
         <YAxis
-          tick={{ fontSize: 11, fill: "#1b365d" }}
+          tick={{ fontSize: 11, fill: "#4E0535" }}
           tickLine={false} axisLine={false}
           allowDecimals={false}
         />
@@ -58,7 +58,7 @@ export default function AnalyticsChart({ data }: { data: ChartPoint[] }) {
         <Legend
           iconType="circle" iconSize={7}
           wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-          formatter={(v) => <span style={{ color: "#1b365d", fontWeight: 600 }}>{v}</span>}
+          formatter={(v) => <span style={{ color: "#4E0535", fontWeight: 600 }}>{v}</span>}
         />
         <Area
           type="monotone" dataKey="present" name="Present"

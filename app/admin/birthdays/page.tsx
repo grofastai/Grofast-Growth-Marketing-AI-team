@@ -129,7 +129,7 @@ export default async function BirthdaysPage() {
           style={{ fontFamily: "var(--font-jakarta)" }}>
           Birthdays &amp; Anniversaries
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#1b365d" }}>
+        <p className="text-sm mt-1" style={{ color: "#5D0565" }}>
           Upcoming celebrations in the next 30 days
         </p>
       </div>
@@ -147,7 +147,7 @@ export default async function BirthdaysPage() {
               style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
               <div className="flex items-center gap-2 mb-2">
                 <Icon size={13} style={{ color: s.color }} />
-                <p className="text-[10px] uppercase tracking-[0.15em] font-bold" style={{ color: "#1b365d" }}>
+                <p className="text-[10px] uppercase tracking-[0.15em] font-bold" style={{ color: "#5D0565" }}>
                   {s.label}
                 </p>
               </div>
@@ -164,8 +164,8 @@ export default async function BirthdaysPage() {
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
           style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #E5E7EB" }}>
           <Calendar size={36} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#1b365d" }}>No celebrations in the next 30 days</p>
-          <p className="text-[12px] mt-1" style={{ color: "#1b365d" }}>
+          <p className="text-[14px] font-semibold" style={{ color: "#5D0565" }}>No celebrations in the next 30 days</p>
+          <p className="text-[12px] mt-1" style={{ color: "#5D0565" }}>
             Add Date of Birth and Work Start Date in team member profiles.
           </p>
         </div>
@@ -193,13 +193,13 @@ export default async function BirthdaysPage() {
           {thisWeek.length > 0 && (
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <Calendar size={13} style={{ color: "#1b365d" }} />
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: "#1b365d" }}>
+                <Calendar size={13} style={{ color: "#5D0565" }} />
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: "#5D0565" }}>
                   This Week
                 </p>
                 <div className="flex-1 h-px" style={{ background: "#E5E7EB" }} />
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(0,0,0,0.04)", color: "#1b365d" }}>
+                  style={{ background: "rgba(0,0,0,0.04)", color: "#5D0565" }}>
                   {thisWeek.length}
                 </span>
               </div>
@@ -213,13 +213,13 @@ export default async function BirthdaysPage() {
           {laterThisMonth.length > 0 && (
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <Calendar size={13} style={{ color: "#1b365d" }} />
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: "#1b365d" }}>
+                <Calendar size={13} style={{ color: "#5D0565" }} />
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: "#5D0565" }}>
                   Later This Month
                 </p>
                 <div className="flex-1 h-px" style={{ background: "#E5E7EB" }} />
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(0,0,0,0.04)", color: "#1b365d" }}>
+                  style={{ background: "rgba(0,0,0,0.04)", color: "#5D0565" }}>
                   {laterThisMonth.length}
                 </span>
               </div>
@@ -239,20 +239,20 @@ export default async function BirthdaysPage() {
         return (
           <div className="mt-8 rounded-xl p-5" style={{ background: "#FAFAFA", border: "1px solid #E5E7EB" }}>
             <div className="flex items-center gap-2 mb-3">
-              <Users size={13} style={{ color: "#1b365d" }} />
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#1b365d" }}>
+              <Users size={13} style={{ color: "#5D0565" }} />
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#5D0565" }}>
                 Missing Dates ({noDates.length} members)
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               {noDates.map(m => (
                 <span key={m.id} className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                  style={{ background: "rgba(0,0,0,0.04)", color: "#1b365d" }}>
+                  style={{ background: "rgba(0,0,0,0.04)", color: "#5D0565" }}>
                   {m.name}
                 </span>
               ))}
             </div>
-            <p className="text-[11px] mt-2" style={{ color: "#1b365d" }}>
+            <p className="text-[11px] mt-2" style={{ color: "#5D0565" }}>
               Edit these members to add their Date of Birth and Work Start Date.
             </p>
           </div>
@@ -295,13 +295,13 @@ function CelebrationCard({ c, highlight }: { c: CelebrationEntry; highlight?: bo
           {isBday
             ? <Cake size={11} style={{ color }} />
             : <Star size={11} style={{ color }} />}
-          <p className="text-[12px]" style={{ color: "#1b365d" }}>
+          <p className="text-[12px]" style={{ color: "#5D0565" }}>
             {isBday
               ? `Birthday — ${c.monthDay}`
               : `${c.years} year${c.years !== 1 ? "s" : ""} work anniversary — ${c.monthDay}`}
           </p>
           {c.team && (
-            <span className="text-[11px]" style={{ color: "#1b365d" }}>· {c.team}</span>
+            <span className="text-[11px]" style={{ color: "#5D0565" }}>· {c.team}</span>
           )}
         </div>
       </div>
@@ -318,7 +318,7 @@ function CelebrationCard({ c, highlight }: { c: CelebrationEntry; highlight?: bo
           <div className="px-3 py-1.5 rounded-full text-center"
             style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #E5E7EB" }}>
             <p className="text-[16px] font-black leading-none" style={{ color }}>{c.daysUntil}</p>
-            <p className="text-[9px] font-medium" style={{ color: "#1b365d" }}>days</p>
+            <p className="text-[9px] font-medium" style={{ color: "#5D0565" }}>days</p>
           </div>
         )}
       </div>

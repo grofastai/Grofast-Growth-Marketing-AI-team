@@ -12,7 +12,7 @@ export function AttendanceDonut({ present, notLogged, absent, total }: DonutProp
   const slices = [
     { name: "Present",      value: present,   color: "#DE1A1A" },
     { name: "Not Logged In",value: notLogged,  color: "#F59E0B" },
-    { name: "Absent",       value: absent,     color: "#1b365d" },
+    { name: "Absent",       value: absent,     color: "#27187E" },
   ]
   const data = slices.filter(s => s.value > 0)
   const display = data.length === 0 ? [{ name: "No Data", value: 1, color: "#E5E7EB" }] : data
@@ -31,7 +31,7 @@ export function AttendanceDonut({ present, notLogged, absent, total }: DonutProp
         </ResponsiveContainer>
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
           <span style={{ fontSize: 22, fontWeight: 900, color: "#111827", lineHeight: 1 }}>{total}</span>
-          <span style={{ fontSize: 9, color: "#1b365d", fontWeight: 700, marginTop: 1 }}>Total</span>
+          <span style={{ fontSize: 9, color: "#27187E", fontWeight: 700, marginTop: 1 }}>Total</span>
         </div>
       </div>
 
@@ -40,7 +40,7 @@ export function AttendanceDonut({ present, notLogged, absent, total }: DonutProp
           <div key={s.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div style={{ width: 9, height: 9, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: "#1b365d", fontWeight: 600 }}>{s.name}</span>
+              <span style={{ fontSize: 12, color: "#27187E", fontWeight: 600 }}>{s.name}</span>
             </div>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>
               {s.value} ({total > 0 ? Math.round((s.value / total) * 100) : 0}%)
@@ -67,8 +67,8 @@ export function WeeklyTrendChart({ data }: { data: TrendPoint[] }) {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-          <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#1b365d" }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 10, fill: "#1b365d" }} axisLine={false} tickLine={false} allowDecimals={false} />
+          <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#27187E" }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: "#27187E" }} axisLine={false} tickLine={false} allowDecimals={false} />
           <Tooltip formatter={(v) => [`${v} present`, "Attendance"]} />
           <Area
             type="monotone" dataKey="count"

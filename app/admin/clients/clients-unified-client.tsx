@@ -70,7 +70,7 @@ function ClientCard({ c, isSelected, onClick }: { c: ClientRow; isSelected: bool
             {c.name}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
-            {c.industry && <span style={{ fontSize: 10, color: "#1b365d" }}>{c.industry}</span>}
+            {c.industry && <span style={{ fontSize: 10, color: "#7E0848" }}>{c.industry}</span>}
             {c.package_name && (
               <span style={{
                 fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
@@ -158,7 +158,7 @@ function Section({ title, emoji, count, totalCost, children }: {
           {title}
         </span>
         {count != null && (
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#F3F4F6', color: "#1b365d" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: '#F3F4F6', color: "#7E0848" }}>
             {count}
           </span>
         )}
@@ -177,7 +177,7 @@ function Section({ title, emoji, count, totalCost, children }: {
 
 function TH({ children }: { children: string }) {
   return (
-    <th style={{ padding: '8px 14px', fontSize: 10, fontWeight: 700, color: "#1b365d", textAlign: 'left', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+    <th style={{ padding: '8px 14px', fontSize: 10, fontWeight: 700, color: "#7E0848", textAlign: 'left', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
       {children}
     </th>
   )
@@ -348,7 +348,7 @@ export default function ClientsUnifiedClient({
 
           {/* Search */}
           <div style={{ position: 'relative' }}>
-            <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: "#1b365d" }} />
+            <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: "#7E0848" }} />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -362,7 +362,7 @@ export default function ClientsUnifiedClient({
             />
             {search && (
               <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
-                <X size={11} style={{ color: "#1b365d" }} />
+                <X size={11} style={{ color: "#7E0848" }} />
               </button>
             )}
           </div>
@@ -371,7 +371,7 @@ export default function ClientsUnifiedClient({
         {/* Client list — virtual summary + 3 real sections */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {filteredInternal.length === 0 && filteredActive.length === 0 && filteredPast.length === 0 && (
-            <p style={{ fontSize: 12, color: "#1b365d", textAlign: 'center', padding: '24px 0' }}>No clients found</p>
+            <p style={{ fontSize: 12, color: "#7E0848", textAlign: 'center', padding: '24px 0' }}>No clients found</p>
           )}
 
           {/* Summary aggregates */}
@@ -398,10 +398,10 @@ export default function ClientsUnifiedClient({
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 18 }}>{vc.emoji}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: 12, fontWeight: 800, color: isSel ? vc.color : "#1b365d", margin: 0, fontFamily: 'var(--font-jakarta)' }}>
+                          <p style={{ fontSize: 12, fontWeight: 800, color: isSel ? vc.color : "#7E0848", margin: 0, fontFamily: 'var(--font-jakarta)' }}>
                             {vc.label}
                           </p>
-                          <p style={{ fontSize: 10, color: "#1b365d", margin: '1px 0 0' }}>{vc.sub}</p>
+                          <p style={{ fontSize: 10, color: "#7E0848", margin: '1px 0 0' }}>{vc.sub}</p>
                         </div>
                       </div>
                     </button>
@@ -414,7 +414,7 @@ export default function ClientsUnifiedClient({
           {/* Internal */}
           {filteredInternal.length > 0 && (
             <>
-              <p style={{ fontSize: 9, fontWeight: 800, color: "#1b365d", textTransform: 'uppercase', letterSpacing: '0.1em', margin: '6px 4px 4px' }}>
+              <p style={{ fontSize: 9, fontWeight: 800, color: "#7E0848", textTransform: 'uppercase', letterSpacing: '0.1em', margin: '6px 4px 4px' }}>
                 Internal · {filteredInternal.length}
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
@@ -442,7 +442,7 @@ export default function ClientsUnifiedClient({
           {/* Past */}
           {filteredPast.length > 0 && (
             <>
-              <p style={{ fontSize: 9, fontWeight: 800, color: "#1b365d", textTransform: 'uppercase', letterSpacing: '0.1em', margin: '6px 4px 4px' }}>
+              <p style={{ fontSize: 9, fontWeight: 800, color: "#7E0848", textTransform: 'uppercase', letterSpacing: '0.1em', margin: '6px 4px 4px' }}>
                 Past · {filteredPast.length}
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -462,8 +462,8 @@ export default function ClientsUnifiedClient({
         {!selectedClientName && (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, minHeight: '60vh' }}>
             <div style={{ fontSize: 48 }}>👈</div>
-            <p style={{ fontSize: 15, fontWeight: 700, color: "#1b365d", margin: 0 }}>Select a client</p>
-            <p style={{ fontSize: 13, color: "#1b365d", margin: 0 }}>Pick a client from the left to see their deliverables and costs</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: "#7E0848", margin: 0 }}>Select a client</p>
+            <p style={{ fontSize: 13, color: "#7E0848", margin: 0 }}>Pick a client from the left to see their deliverables and costs</p>
           </div>
         )}
 
@@ -539,7 +539,7 @@ export default function ClientsUnifiedClient({
                   border: activeQuick === key ? '1.5px solid #DE1A1A' : '1.5px solid #E5E7EB',
                   cursor: 'pointer', transition: 'all 0.15s',
                   background: activeQuick === key ? 'rgba(222,26,26,0.06)' : '#F9FAFB',
-                  color: activeQuick === key ? '#DE1A1A' : '#1b365d',
+                  color: activeQuick === key ? '#DE1A1A' : '#7E0848',
                 }}>
                   {label}
                 </button>
@@ -559,7 +559,7 @@ export default function ClientsUnifiedClient({
                       outline: 'none', cursor: 'pointer',
                     }}
                   />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#1b365d" }}>to</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#7E0848" }}>to</span>
                   <input
                     type="date"
                     value={dateTo}
@@ -624,17 +624,17 @@ export default function ClientsUnifiedClient({
                 border: '1px dashed #E5E7EB', textAlign: 'center',
               }}>
                 <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: "#1b365d", margin: '0 0 6px' }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: "#7E0848", margin: '0 0 6px' }}>
                   No work logged for this period
                 </p>
-                <p style={{ fontSize: 12, color: "#1b365d", margin: '0 0 16px' }}>
+                <p style={{ fontSize: 12, color: "#7E0848", margin: '0 0 16px' }}>
                   Searched {fmtDate(dateFrom)}{dateFrom !== dateTo ? ` – ${fmtDate(dateTo)}` : ''} for client name &ldquo;{selectedClientRow.name}&rdquo;
                 </p>
                 <div style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-                  <p style={{ fontSize: 11, color: "#1b365d", margin: 0, background: '#F9FAFB', padding: '6px 14px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+                  <p style={{ fontSize: 11, color: "#7E0848", margin: 0, background: '#F9FAFB', padding: '6px 14px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
                     Try a different month or &ldquo;All Time&rdquo; above
                   </p>
-                  <p style={{ fontSize: 11, color: "#1b365d", margin: 0, background: '#F9FAFB', padding: '6px 14px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+                  <p style={{ fontSize: 11, color: "#7E0848", margin: 0, background: '#F9FAFB', padding: '6px 14px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
                     Members must select &ldquo;{selectedClientRow.name}&rdquo; exactly in their daily update
                   </p>
                 </div>
@@ -652,10 +652,10 @@ export default function ClientsUnifiedClient({
                   <tbody>
                     {deliverables.shoots.map((s, i) => (
                       <tr key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: "#1b365d" }}>{fmtDate(s.date)}</td>
+                        <td style={{ padding: '10px 14px', fontSize: 12, color: "#7E0848" }}>{fmtDate(s.date)}</td>
                         {showClient && <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: '#6366F1' }}>{s.clientName}</td>}
-                        <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: "#1b365d" }}>{s.memberName}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: "#1b365d" }}>{s.title}</td>
+                        <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: "#7E0848" }}>{s.memberName}</td>
+                        <td style={{ padding: '10px 14px', fontSize: 12, color: "#7E0848" }}>{s.title}</td>
                         <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>{s.hours.toFixed(1)}h</td>
                         <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: '#111827' }}>{fmtRupee(s.cost)}</td>
                       </tr>
@@ -680,10 +680,10 @@ export default function ClientsUnifiedClient({
                     <tbody>
                       {allVideos.map((v, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid #F9FAFB', background: v.isRework ? 'rgba(245,158,11,0.04)' : undefined }}>
-                          <td style={{ padding: '10px 14px', fontSize: 12, color: "#1b365d" }}>{fmtDate(v.date)}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: "#7E0848" }}>{fmtDate(v.date)}</td>
                           {showClient && <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: '#6366F1' }}>{v.clientName}</td>}
-                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: "#1b365d" }}>{v.memberName}</td>
-                          <td style={{ padding: '10px 14px', fontSize: 12, color: "#1b365d" }}>
+                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: "#7E0848" }}>{v.memberName}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: "#7E0848" }}>
                             {v.isRework && <span style={{ fontSize: 10, fontWeight: 700, color: '#B45309', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6, padding: '1px 6px', marginRight: 6 }}>↩ Revision</span>}
                             {v.videoName}
                           </td>
@@ -710,10 +710,10 @@ export default function ClientsUnifiedClient({
                     <tbody>
                       {entries.map((o, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid #F9FAFB', background: o.isRework ? 'rgba(245,158,11,0.04)' : undefined }}>
-                          <td style={{ padding: '10px 14px', fontSize: 12, color: "#1b365d" }}>{fmtDate(o.date)}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: "#7E0848" }}>{fmtDate(o.date)}</td>
                           {showClient && <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: '#6366F1' }}>{o.clientName}</td>}
-                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: "#1b365d" }}>{o.memberName}</td>
-                          <td style={{ padding: '10px 14px', fontSize: 12, color: "#1b365d" }}>
+                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: "#7E0848" }}>{o.memberName}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: "#7E0848" }}>
                             {o.isRework && <span style={{ fontSize: 10, fontWeight: 700, color: '#B45309', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6, padding: '1px 6px', marginRight: 6 }}>↩ Revision</span>}
                             {o.title}
                           </td>

@@ -173,8 +173,8 @@ export default function AdminFreelancersTabs({
             </div>
           )}
           <button onClick={() => { setSelected(null); setMobileShowRight(true) }} style={{ width: "100%", padding: "10px 14px 6px", display: "flex", alignItems: "center", justifyContent: "space-between", background: !selected ? "rgba(99,102,241,0.06)" : "transparent", border: "none", borderLeft: `3px solid ${!selected ? "#6366F1" : "transparent"}`, cursor: "pointer", textAlign: "left" }}>
-            <span style={{ fontSize: 9, fontWeight: 700, color: !selected ? "#6366F1" : "#1b365d", textTransform: "uppercase", letterSpacing: "0.1em" }}>All Members</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#1b365d", background: "#F0F0F5", borderRadius: 99, padding: "1px 7px" }}>{totalCount}</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: !selected ? "#6366F1" : "#7F011F", textTransform: "uppercase", letterSpacing: "0.1em" }}>All Members</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#7F011F", background: "#F0F0F5", borderRadius: 99, padding: "1px 7px" }}>{totalCount}</span>
           </button>
 
         {/* FL Media Production members (login-based) */}
@@ -189,7 +189,7 @@ export default function AdminFreelancersTabs({
               return (
                 <button key={m.id} onClick={() => setSelected(s => s?.id === m.id ? null : { type: "media", id: m.id })}
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", background: isActive ? "rgba(222,26,26,0.07)" : "transparent", border: "none", borderLeft: `3px solid ${isActive ? "#DE1A1A" : "transparent"}`, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
-                  <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, background: isActive ? "#DE1A1A" : "#F3F4F6", border: `1.5px solid ${isActive ? "transparent" : "#E5E7EB"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: isActive ? "#fff" : "#1b365d", boxShadow: isActive ? "0 4px 10px rgba(222,26,26,0.3)" : "none" }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, background: isActive ? "#DE1A1A" : "#F3F4F6", border: `1.5px solid ${isActive ? "transparent" : "#E5E7EB"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: isActive ? "#fff" : "#7F011F", boxShadow: isActive ? "0 4px 10px rgba(222,26,26,0.3)" : "none" }}>
                     {getInitials(m.name)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -209,7 +209,7 @@ export default function AdminFreelancersTabs({
         {/* Regular freelancers */}
         {visibleFreelancers.length > 0 && (
           <>
-            <div style={{ padding: "2px 14px 2px", fontSize: 8, fontWeight: 700, color: "#1b365d", textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.7 }}>
+            <div style={{ padding: "2px 14px 2px", fontSize: 8, fontWeight: 700, color: "#7F011F", textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.7 }}>
               Freelancers
             </div>
             {visibleFreelancers.map(f => {
@@ -238,7 +238,7 @@ export default function AdminFreelancersTabs({
         )}
 
           {totalCount === 0 && (
-            <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#1b365d" }}>No members yet</div>
+            <div style={{ padding: 20, textAlign: "center", fontSize: 12, color: "#7F011F" }}>No members yet</div>
           )}
         </div>
 

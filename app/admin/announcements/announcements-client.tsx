@@ -74,7 +74,7 @@ function PerfBar({ label, pct, color }: { label: string; pct: number; color: str
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-        <span style={{ fontSize: 12, color: "#1b365d", fontWeight: 600 }}>{label}</span>
+        <span style={{ fontSize: 12, color: "#7F011F", fontWeight: 600 }}>{label}</span>
         <span style={{ fontSize: 12, fontWeight: 700, color: "#111" }}>{pct}%</span>
       </div>
       <div style={{ height: 7, borderRadius: 4, background: "#F3F4F6" }}>
@@ -179,7 +179,7 @@ export default function AnnouncementsClient({
         <div className="flex flex-wrap gap-3 items-center">
           <button
             onClick={() => setShowPush(true)}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#fff", border: "1.5px solid #E5E7EB", color: "#1b365d", cursor: "pointer" }}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#fff", border: "1.5px solid #E5E7EB", color: "#7F011F", cursor: "pointer" }}
           >
             <Bell size={14} /> Send Push
           </button>
@@ -217,7 +217,7 @@ export default function AnnouncementsClient({
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: "#111", margin: "0 0 6px", fontFamily: "var(--font-jakarta)", lineHeight: 1.25 }}>
                   {announcements.length === 0 ? "No announcements yet" : `${announcements.length} Announcement${announcements.length !== 1 ? "s" : ""}`}
                 </h2>
-                <p style={{ fontSize: 13, color: "#1b365d", margin: 0, lineHeight: 1.5 }}>
+                <p style={{ fontSize: 13, color: "#7F011F", margin: 0, lineHeight: 1.5 }}>
                   {announcements.length === 0
                     ? "Post your first announcement\nto notify the team."
                     : `${pinnedCount} pinned · Keep your team informed`}
@@ -239,7 +239,7 @@ export default function AnnouncementsClient({
                     fontSize: 12,
                     fontWeight: 600,
                     background: activeFilter === f ? "#E53935" : "#F3F4F6",
-                    color: activeFilter === f ? "#fff" : "#1b365d",
+                    color: activeFilter === f ? "#fff" : "#7F011F",
                     border: "none",
                     cursor: "pointer",
                     transition: "all 0.15s",
@@ -250,7 +250,7 @@ export default function AnnouncementsClient({
               ))}
             </div>
             <div style={{ position: "relative" }}>
-              <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#1b365d" }} />
+              <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#7F011F" }} />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -264,9 +264,9 @@ export default function AnnouncementsClient({
               existing announcements; with zero announcements total, the hero card above already covers it */}
           {announcements.length > 0 && filtered.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px 0", borderRadius: 16, background: "#FAFAFA", border: "1px solid #E5E7EB" }}>
-              <Megaphone size={36} style={{ color: "#1b365d", marginBottom: 12 }} />
-              <p style={{ fontSize: 14, fontWeight: 600, color: "#1b365d", margin: 0 }}>No announcements found</p>
-              <p style={{ fontSize: 12, color: "#1b365d", marginTop: 4 }}>Try a different filter or create a new one.</p>
+              <Megaphone size={36} style={{ color: "#7F011F", marginBottom: 12 }} />
+              <p style={{ fontSize: 14, fontWeight: 600, color: "#7F011F", margin: 0 }}>No announcements found</p>
+              <p style={{ fontSize: 12, color: "#7F011F", marginTop: 4 }}>Try a different filter or create a new one.</p>
             </div>
           ) : filtered.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -291,7 +291,7 @@ export default function AnnouncementsClient({
                     <div style={{ width: 40, height: 40, borderRadius: 12, background: ann.pinned ? "rgba(229,57,53,0.1)" : "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {ann.pinned
                         ? <Pin size={16} style={{ color: "#E53935" }} />
-                        : <Megaphone size={16} style={{ color: "#1b365d" }} />}
+                        : <Megaphone size={16} style={{ color: "#7F011F" }} />}
                     </div>
 
                     {/* Content */}
@@ -309,25 +309,25 @@ export default function AnnouncementsClient({
                           {ann.title}
                         </h3>
                       </div>
-                      <p style={{ fontSize: 12, color: "#1b365d", margin: "0 0 6px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 440 }}>
+                      <p style={{ fontSize: 12, color: "#7F011F", margin: "0 0 6px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 440 }}>
                         {ann.message}
                       </p>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 11, color: "#1b365d" }}>By {creator?.name ?? "Admin"}</span>
-                        <span style={{ fontSize: 11, color: "#1b365d" }}>·</span>
-                        <span style={{ fontSize: 11, color: "#1b365d" }}>{formatDate(ann.created_at)}</span>
-                        <span style={{ fontSize: 11, color: "#1b365d" }}>·</span>
-                        <span style={{ fontSize: 11, color: "#1b365d" }}>{timeAgo(ann.created_at)}</span>
+                        <span style={{ fontSize: 11, color: "#7F011F" }}>By {creator?.name ?? "Admin"}</span>
+                        <span style={{ fontSize: 11, color: "#7F011F" }}>·</span>
+                        <span style={{ fontSize: 11, color: "#7F011F" }}>{formatDate(ann.created_at)}</span>
+                        <span style={{ fontSize: 11, color: "#7F011F" }}>·</span>
+                        <span style={{ fontSize: 11, color: "#7F011F" }}>{timeAgo(ann.created_at)}</span>
                       </div>
                     </div>
 
                     {/* Stats + Actions */}
                     <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <span style={{ fontSize: 12, color: "#1b365d", display: "flex", alignItems: "center", gap: 3 }}>
+                        <span style={{ fontSize: 12, color: "#7F011F", display: "flex", alignItems: "center", gap: 3 }}>
                           <span>👁</span> {(ann.id.charCodeAt(0) % 20) + 5}
                         </span>
-                        <span style={{ fontSize: 12, color: "#1b365d", display: "flex", alignItems: "center", gap: 3 }}>
+                        <span style={{ fontSize: 12, color: "#7F011F", display: "flex", alignItems: "center", gap: 3 }}>
                           <span>❤️</span> {(ann.id.charCodeAt(1) % 10) + 1}
                         </span>
                       </div>
@@ -338,7 +338,7 @@ export default function AnnouncementsClient({
                           title={ann.pinned ? "Unpin" : "Pin"}
                           style={{ width: 30, height: 30, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: ann.pinned ? "rgba(229,57,53,0.08)" : "#F3F4F6", border: "none", cursor: "pointer" }}
                         >
-                          <Pin size={13} style={{ color: ann.pinned ? "#E53935" : "#1b365d" }} />
+                          <Pin size={13} style={{ color: ann.pinned ? "#E53935" : "#7F011F" }} />
                         </button>
                         <button
                           onClick={() => handleDelete(ann.id)}
@@ -449,10 +449,10 @@ export default function AnnouncementsClient({
           <div style={{ borderRadius: 20, padding: 20, background: "#fff", border: "1.5px solid #E5E7EB", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: "#111", margin: 0 }}>Recent Notifications</h3>
-              <Bell size={14} style={{ color: "#1b365d" }} />
+              <Bell size={14} style={{ color: "#7F011F" }} />
             </div>
             {recentNotifications.length === 0 ? (
-              <p style={{ fontSize: 12, color: "#1b365d", textAlign: "center", padding: "16px 0" }}>No notifications yet</p>
+              <p style={{ fontSize: 12, color: "#7F011F", textAlign: "center", padding: "16px 0" }}>No notifications yet</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {recentNotifications.map((ann) => {
@@ -466,7 +466,7 @@ export default function AnnouncementsClient({
                         <p style={{ fontSize: 12, fontWeight: 600, color: "#111", margin: "0 0 2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {ann.title}
                         </p>
-                        <p style={{ fontSize: 11, color: "#1b365d", margin: 0 }}>{timeAgo(ann.created_at)}</p>
+                        <p style={{ fontSize: 11, color: "#7F011F", margin: 0 }}>{timeAgo(ann.created_at)}</p>
                       </div>
                     </div>
                   )
@@ -486,7 +486,7 @@ export default function AnnouncementsClient({
               />
             </div>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: "#111", margin: "0 0 4px" }}>Announcement Performance</h3>
-            <p style={{ fontSize: 11, color: "#1b365d", margin: "0 0 16px" }}>Estimated engagement metrics</p>
+            <p style={{ fontSize: 11, color: "#7F011F", margin: "0 0 16px" }}>Estimated engagement metrics</p>
             <PerfBar label="Open Rate" pct={94} color="linear-gradient(90deg,#3B82F6,#60A5FA)" />
             <PerfBar label="Engagement" pct={78} color="linear-gradient(90deg,#10B981,#34D399)" />
             <PerfBar label="Click-through" pct={45} color="linear-gradient(90deg,#8B5CF6,#A78BFA)" />
@@ -504,17 +504,17 @@ export default function AnnouncementsClient({
                 <h2 style={{ fontSize: 16, fontWeight: 700, color: "#111", margin: 0 }}>Send Push Notification</h2>
               </div>
               <button onClick={() => { setShowPush(false); setPushResult(null) }} style={{ background: "none", border: "none", cursor: "pointer" }}>
-                <X size={18} style={{ color: "#1b365d" }} />
+                <X size={18} style={{ color: "#7F011F" }} />
               </button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#1b365d", display: "block", marginBottom: 6 }}>Title</label>
+                <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7F011F", display: "block", marginBottom: 6 }}>Title</label>
                 <input value={pushTitle} onChange={(e) => setPushTitle(e.target.value)} placeholder="e.g. Meeting at 4PM"
                   style={{ width: "100%", padding: "10px 12px", borderRadius: 12, fontSize: 13, border: "1.5px solid #E5E7EB", outline: "none", background: "#F9FAFB", color: "#111", boxSizing: "border-box" }} />
               </div>
               <div>
-                <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#1b365d", display: "block", marginBottom: 6 }}>Message</label>
+                <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7F011F", display: "block", marginBottom: 6 }}>Message</label>
                 <textarea value={pushBody} onChange={(e) => setPushBody(e.target.value)} rows={3} placeholder="Notification message..."
                   style={{ width: "100%", padding: "10px 12px", borderRadius: 12, fontSize: 13, border: "1.5px solid #E5E7EB", outline: "none", background: "#F9FAFB", color: "#111", resize: "none", boxSizing: "border-box" }} />
               </div>
@@ -525,7 +525,7 @@ export default function AnnouncementsClient({
               )}
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={() => { setShowPush(false); setPushResult(null) }}
-                  style={{ flex: 1, padding: "10px", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#F9FAFB", border: "1.5px solid #E5E7EB", color: "#1b365d", cursor: "pointer" }}>
+                  style={{ flex: 1, padding: "10px", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#F9FAFB", border: "1.5px solid #E5E7EB", color: "#7F011F", cursor: "pointer" }}>
                   Cancel
                 </button>
                 <button onClick={handleSendPush} disabled={pushBusy || !pushTitle.trim() || !pushBody.trim()}
@@ -546,7 +546,7 @@ export default function AnnouncementsClient({
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>New Announcement</h2>
               <button onClick={() => setShowForm(false)} style={{ background: "none", border: "none", cursor: "pointer" }}>
-                <X size={18} style={{ color: "#1b365d" }} />
+                <X size={18} style={{ color: "#7F011F" }} />
               </button>
             </div>
             <form action={(fd) => {
@@ -554,17 +554,17 @@ export default function AnnouncementsClient({
               startTransition(() => { action(fd) })
             }} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#1b365d", display: "block", marginBottom: 6 }}>Title</label>
+                <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7F011F", display: "block", marginBottom: 6 }}>Title</label>
                 <input name="title" required maxLength={120} placeholder="Announcement title..."
                   style={{ width: "100%", padding: "10px 12px", borderRadius: 12, fontSize: 13, border: "1.5px solid #E5E7EB", outline: "none", background: "#F9FAFB", color: "#111", boxSizing: "border-box" }} />
               </div>
               <div>
-                <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#1b365d", display: "block", marginBottom: 6 }}>Message</label>
+                <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7F011F", display: "block", marginBottom: 6 }}>Message</label>
                 <textarea name="message" required rows={4} placeholder="Write your announcement..."
                   style={{ width: "100%", padding: "10px 12px", borderRadius: 12, fontSize: 13, border: "1.5px solid #E5E7EB", outline: "none", background: "#F9FAFB", color: "#111", resize: "none", boxSizing: "border-box" }} />
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#1b365d", display: "block", marginBottom: 6 }}>Category</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#7F011F", display: "block", marginBottom: 6 }}>Category</label>
                 <select name="category" defaultValue="General"
                   style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid #EBEDF2", fontSize: 13, color: "#111827", background: "#F9FAFB", outline: "none" }}>
                   <option value="General">General</option>
@@ -580,7 +580,7 @@ export default function AnnouncementsClient({
                     <div style={{ position: "absolute", top: 3, left: pinned ? 21 : 3, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }} />
                   </div>
                 </div>
-                <span style={{ fontSize: 13, color: "#1b365d" }}>Pin this announcement</span>
+                <span style={{ fontSize: 13, color: "#7F011F" }}>Pin this announcement</span>
               </label>
 
               {state && "error" in state && (
@@ -589,7 +589,7 @@ export default function AnnouncementsClient({
 
               <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
                 <button type="button" onClick={() => setShowForm(false)}
-                  style={{ flex: 1, padding: "10px", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#F9FAFB", border: "1.5px solid #E5E7EB", color: "#1b365d", cursor: "pointer" }}>
+                  style={{ flex: 1, padding: "10px", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#F9FAFB", border: "1.5px solid #E5E7EB", color: "#7F011F", cursor: "pointer" }}>
                   Cancel
                 </button>
                 <button type="submit" disabled={formPending}

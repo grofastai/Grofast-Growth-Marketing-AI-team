@@ -22,7 +22,7 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #F3F4F6" }}>
-      <span style={{ fontSize: 12, color: "#6B7280" }}>{label}</span>
+      <span style={{ fontSize: 12, color: "#000000" }}>{label}</span>
       <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", fontFamily: mono ? "monospace" : "inherit" }}>{value}</span>
     </div>
   )
@@ -65,7 +65,7 @@ export default function WhatsAppDiagnosticClient({
         <h1 style={{ fontSize: 22, fontWeight: 900, color: "#111827", margin: "0 0 4px", fontFamily: "var(--font-jakarta)" }}>
           WhatsApp Diagnostics
         </h1>
-        <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>
+        <p style={{ fontSize: 13, color: "#000000", margin: 0 }}>
           Debug why reminders aren't sending. Check env vars, Meta API token, and member phone numbers.
         </p>
       </div>
@@ -129,7 +129,7 @@ export default function WhatsAppDiagnosticClient({
             <p style={{ fontSize: 11, color: "#7F1D1D", margin: 0, fontFamily: "monospace", wordBreak: "break-all" }}>
               {d.metaApi.error}
             </p>
-            <div style={{ marginTop: 10, fontSize: 11, color: "#6B7280" }}>
+            <div style={{ marginTop: 10, fontSize: 11, color: "#000000" }}>
               <strong>Common fixes:</strong>
               <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
                 <li>Token expired → generate a new permanent token in Meta Business Manager</li>
@@ -144,7 +144,7 @@ export default function WhatsAppDiagnosticClient({
       {/* Templates */}
       <div style={{ background: "#FFFFFF", borderRadius: 16, border: "1px solid #EBEDF2", padding: "16px 20px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
         <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 4px" }}>Template Names</p>
-        <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 12px" }}>
+        <p style={{ fontSize: 11, color: "#000000", margin: "0 0 12px" }}>
           These must exactly match approved templates in Meta Business Manager → WhatsApp → Message Templates. Language code: <code>{d.templates.lang}</code>
         </p>
         <div style={{ display: "flex", flexDirection: "column" }}>
@@ -166,24 +166,24 @@ export default function WhatsAppDiagnosticClient({
         <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
           <div style={{ flex: 1, padding: "10px 14px", borderRadius: 10, background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.2)", textAlign: "center" }}>
             <p style={{ fontSize: 20, fontWeight: 900, color: "#6366F1", margin: 0 }}>{d.members.total}</p>
-            <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>Total active</p>
+            <p style={{ fontSize: 10, color: "#000000", margin: 0 }}>Total active</p>
           </div>
           <div style={{ flex: 1, padding: "10px 14px", borderRadius: 10, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", textAlign: "center" }}>
             <p style={{ fontSize: 20, fontWeight: 900, color: "#16A34A", margin: 0 }}>{d.members.withPhone}</p>
-            <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>Have phone</p>
+            <p style={{ fontSize: 10, color: "#000000", margin: 0 }}>Have phone</p>
           </div>
           <div style={{ flex: 1, padding: "10px 14px", borderRadius: 10, background: d.members.withoutPhone > 0 ? "rgba(239,68,68,0.06)" : "rgba(34,197,94,0.06)", border: `1px solid ${d.members.withoutPhone > 0 ? "rgba(239,68,68,0.2)" : "rgba(34,197,94,0.2)"}`, textAlign: "center" }}>
             <p style={{ fontSize: 20, fontWeight: 900, color: d.members.withoutPhone > 0 ? "#EF4444" : "#16A34A", margin: 0 }}>{d.members.withoutPhone}</p>
-            <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>No phone</p>
+            <p style={{ fontSize: 10, color: "#000000", margin: 0 }}>No phone</p>
           </div>
         </div>
         {d.members.sample.length > 0 && (
           <div>
-            <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px" }}>Sample (first 5)</p>
+            <p style={{ fontSize: 10, fontWeight: 700, color: "#000000", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px" }}>Sample (first 5)</p>
             {d.members.sample.map((m, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #F3F4F6", fontSize: 12 }}>
-                <span style={{ color: "#374151", fontWeight: 600 }}>{m.name}</span>
-                <span style={{ color: m.phone ? "#6B7280" : "#EF4444", fontFamily: "monospace" }}>
+                <span style={{ color: "#000000", fontWeight: 600 }}>{m.name}</span>
+                <span style={{ color: m.phone ? "#000000" : "#EF4444", fontFamily: "monospace" }}>
                   {m.phone ? `${m.phone} → ${m.formatted}` : "⚠️ no phone"}
                 </span>
               </div>
@@ -207,7 +207,7 @@ export default function WhatsAppDiagnosticClient({
       {/* Manual trigger */}
       <div style={{ background: "#FFFFFF", borderRadius: 16, border: "1px solid #EBEDF2", padding: "16px 20px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
         <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 4px" }}>Manually Trigger Reminders</p>
-        <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 14px" }}>Send to all members who haven't submitted today, right now — don't wait for the cron.</p>
+        <p style={{ fontSize: 11, color: "#000000", margin: "0 0 14px" }}>Send to all members who haven't submitted today, right now — don't wait for the cron.</p>
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={() => handleTrigger("morning")} disabled={isPending}
             style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px 0", borderRadius: 10, border: "1.5px solid #6366F1", background: "rgba(99,102,241,0.07)", color: "#6366F1", fontSize: 12, fontWeight: 700, cursor: isPending ? "not-allowed" : "pointer", opacity: isPending ? 0.6 : 1 }}>
@@ -219,7 +219,7 @@ export default function WhatsAppDiagnosticClient({
           </button>
         </div>
         {isPending && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 12, color: "#6B7280" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 12, color: "#000000" }}>
             <Loader2 size={13} className="animate-spin" /> Sending…
           </div>
         )}
@@ -228,7 +228,7 @@ export default function WhatsAppDiagnosticClient({
             <p style={{ fontSize: 12, fontWeight: 700, color: triggerResult.ok ? "#15803D" : "#DC2626", margin: "0 0 2px" }}>
               {triggerResult.type === "morning" ? "Morning" : "Evening"} trigger: {triggerResult.ok ? "Success" : "Failed"}
             </p>
-            <p style={{ fontSize: 11, color: "#6B7280", margin: 0, fontFamily: "monospace" }}>{triggerResult.detail}</p>
+            <p style={{ fontSize: 11, color: "#000000", margin: 0, fontFamily: "monospace" }}>{triggerResult.detail}</p>
           </div>
         )}
       </div>
@@ -236,7 +236,7 @@ export default function WhatsAppDiagnosticClient({
       {/* Send test message */}
       <div style={{ background: "#FFFFFF", borderRadius: 16, border: "1px solid #EBEDF2", padding: "16px 20px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
         <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 4px" }}>Send Test Message</p>
-        <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 12px" }}>
+        <p style={{ fontSize: 11, color: "#000000", margin: "0 0 12px" }}>
           Send a test using the <code>grofast_daily_reminder</code> template to any number. Enter as 10-digit Indian number or with country code.
         </p>
         <div style={{ display: "flex", gap: 10 }}>
@@ -257,7 +257,7 @@ export default function WhatsAppDiagnosticClient({
             <p style={{ fontSize: 12, fontWeight: 700, color: testResult.ok ? "#15803D" : "#DC2626", margin: "0 0 2px" }}>
               {testResult.ok ? "Message sent!" : "Failed"}
             </p>
-            <p style={{ fontSize: 11, color: "#6B7280", margin: 0, fontFamily: "monospace", wordBreak: "break-all" }}>{testResult.detail}</p>
+            <p style={{ fontSize: 11, color: "#000000", margin: 0, fontFamily: "monospace", wordBreak: "break-all" }}>{testResult.detail}</p>
           </div>
         )}
       </div>

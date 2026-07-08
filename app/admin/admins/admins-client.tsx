@@ -187,7 +187,7 @@ export default function AdminsClient({
               </div>
               <h1 style={{ fontSize: 24, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>Admin Accounts</h1>
             </div>
-            <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>Manage admin, founder and CEO accounts. These accounts have full panel access.</p>
+            <p style={{ fontSize: 13, color: "#000000", margin: 0 }}>Manage admin, founder and CEO accounts. These accounts have full panel access.</p>
           </div>
           <button onClick={openCreate} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 20px", borderRadius: 12, border: "none", background: "#DE1A1A", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(222,26,26,0.3)" }}>
             <Plus size={15} /> Add Admin
@@ -205,9 +205,9 @@ export default function AdminsClient({
         {/* Admin list */}
         {admins.length === 0 ? (
           <div style={{ background: "#FFFFFF", borderRadius: 16, border: "1px solid #E5E7EB", padding: "48px 24px", textAlign: "center" }}>
-            <Shield size={40} style={{ color: "#D1D5DB", margin: "0 auto 12px" }} />
-            <p style={{ fontSize: 15, fontWeight: 700, color: "#374151", margin: "0 0 4px" }}>No admin accounts yet</p>
-            <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0 }}>Click "Add Admin" to create the first admin account.</p>
+            <Shield size={40} style={{ color: "#000000", margin: "0 auto 12px" }} />
+            <p style={{ fontSize: 15, fontWeight: 700, color: "#000000", margin: "0 0 4px" }}>No admin accounts yet</p>
+            <p style={{ fontSize: 13, color: "#000000", margin: 0 }}>Click "Add Admin" to create the first admin account.</p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -230,20 +230,20 @@ export default function AdminsClient({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                       <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{a.name}</span>
-                      {isMe && <span style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", background: "#F3F4F6", padding: "2px 7px", borderRadius: 4 }}>You</span>}
+                      {isMe && <span style={{ fontSize: 10, fontWeight: 700, color: "#000000", background: "#F3F4F6", padding: "2px 7px", borderRadius: 4 }}>You</span>}
                       <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: ADMIN_CFG.bg, color: ADMIN_CFG.color }}>Admin</span>
                       {!isActive && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "rgba(239,68,68,0.08)", color: "#EF4444" }}>Disabled</span>}
                     </div>
-                    <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}>{a.email ?? "—"}</p>
-                    <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>Joined {new Date(a.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+                    <p style={{ fontSize: 12, color: "#000000", margin: 0 }}>{a.email ?? "—"}</p>
+                    <p style={{ fontSize: 11, color: "#000000", margin: "2px 0 0" }}>Joined {new Date(a.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
                   </div>
 
                   {/* Actions */}
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                    <button onClick={() => openEdit(a)} title="Edit" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 9, border: "1.5px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", color: "#374151" }}>
+                    <button onClick={() => openEdit(a)} title="Edit" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 9, border: "1.5px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", color: "#000000" }}>
                       <Edit2 size={14} />
                     </button>
-                    <button onClick={() => openPassword(a)} title="Reset Password" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 9, border: "1.5px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", color: "#374151" }}>
+                    <button onClick={() => openPassword(a)} title="Reset Password" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 9, border: "1.5px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", color: "#000000" }}>
                       <KeyRound size={14} />
                     </button>
                     {!isMe && (
@@ -276,7 +276,7 @@ export default function AdminsClient({
               <h2 style={{ fontSize: 18, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>
                 {sheet === "create" ? "Add Admin Account" : sheet === "edit" ? "Edit Admin" : "Reset Password"}
               </h2>
-              <button onClick={closeSheet} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", padding: 4 }}>
+              <button onClick={closeSheet} style={{ background: "none", border: "none", cursor: "pointer", color: "#000000", padding: 4 }}>
                 <X size={18} />
               </button>
             </div>
@@ -293,11 +293,11 @@ export default function AdminsClient({
             {sheet === "create" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Email *</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#000000", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Email *</label>
                   <input type="email" placeholder="admin@gmail.com" value={form.email} onChange={e => patch("email", e.target.value)} style={INP} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Password *</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#000000", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Password *</label>
                   <input type="password" placeholder="Min. 6 characters" value={form.password} onChange={e => patch("password", e.target.value)} style={INP} />
                 </div>
                 <button onClick={handleCreate} disabled={isPending}
@@ -311,11 +311,11 @@ export default function AdminsClient({
             {sheet === "edit" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Full Name *</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#000000", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Full Name *</label>
                   <input type="text" placeholder="e.g. Sanjay Kumar" value={form.name} onChange={e => patch("name", e.target.value)} style={INP} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Email *</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#000000", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Email *</label>
                   <input type="email" placeholder="admin@gmail.com" value={form.email} onChange={e => patch("email", e.target.value)} style={INP} />
                 </div>
                 <button onClick={handleEdit} disabled={isPending}
@@ -328,9 +328,9 @@ export default function AdminsClient({
             {/* Reset Password form */}
             {sheet === "password" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>Set a new password for <strong style={{ color: "#111827" }}>{editing?.name}</strong></p>
+                <p style={{ fontSize: 13, color: "#000000", margin: 0 }}>Set a new password for <strong style={{ color: "#111827" }}>{editing?.name}</strong></p>
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>New Password *</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#000000", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>New Password *</label>
                   <input type="password" placeholder="Min. 6 characters" value={newPassword} onChange={e => setNewPassword(e.target.value)} style={INP} />
                 </div>
                 <button onClick={handleResetPassword} disabled={isPending}
@@ -352,11 +352,11 @@ export default function AdminsClient({
               <Trash2 size={22} style={{ color: "#EF4444" }} />
             </div>
             <h3 style={{ fontSize: 17, fontWeight: 900, color: "#111827", textAlign: "center", margin: "0 0 8px", fontFamily: "var(--font-jakarta)" }}>Delete Admin?</h3>
-            <p style={{ fontSize: 13, color: "#6B7280", textAlign: "center", margin: "0 0 24px" }}>
+            <p style={{ fontSize: 13, color: "#000000", textAlign: "center", margin: "0 0 24px" }}>
               This will permanently delete <strong style={{ color: "#111827" }}>{confirmDelete.name}</strong> and revoke their access. This cannot be undone.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "11px 0", borderRadius: 11, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ flex: 1, padding: "11px 0", borderRadius: 11, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#000000", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                 Cancel
               </button>
               <button onClick={() => handleDelete(confirmDelete)} disabled={isPending}

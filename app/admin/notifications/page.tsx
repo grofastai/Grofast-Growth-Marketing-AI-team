@@ -25,7 +25,7 @@ function Section({ title, items }: { title: string; items: NotificationRow[] }) 
   return (
     <div style={{ marginBottom: 28 }}>
       <p style={{
-        fontSize: 11, fontWeight: 800, color: '#9CA3AF',
+        fontSize: 11, fontWeight: 800, color: "#000000",
         textTransform: 'uppercase', letterSpacing: '0.12em',
         margin: '0 0 10px', padding: '0 4px',
       }}>{title}</p>
@@ -56,7 +56,7 @@ export default async function AdminNotificationsPage() {
             <h1 style={{ fontSize: 22, fontWeight: 900, color: '#111111', fontFamily: 'var(--font-jakarta)', margin: '0 0 2px' }}>
               Notifications
             </h1>
-            <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0 }}>
+            <p style={{ fontSize: 12, color: "#000000", margin: 0 }}>
               {unread > 0 ? `${unread} unread message${unread !== 1 ? 's' : ''}` : 'All caught up'}
             </p>
           </div>
@@ -101,10 +101,10 @@ export default async function AdminNotificationsPage() {
         {!hasAny ? (
           <div style={{ textAlign: 'center', paddingTop: 80 }}>
             <div style={{ width: 72, height: 72, borderRadius: 24, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-              <Bell size={32} style={{ color: '#D1D5DB' }} />
+              <Bell size={32} style={{ color: "#000000" }} />
             </div>
-            <p style={{ fontSize: 16, fontWeight: 800, color: '#374151', margin: '0 0 6px' }}>No notifications yet</p>
-            <p style={{ fontSize: 13, color: '#9CA3AF', maxWidth: 280, margin: '0 auto' }}>
+            <p style={{ fontSize: 16, fontWeight: 800, color: "#000000", margin: '0 0 6px' }}>No notifications yet</p>
+            <p style={{ fontSize: 13, color: "#000000", maxWidth: 280, margin: '0 auto' }}>
               You&apos;ll be notified when team members apply for leave, complete tasks, raise support tickets, and more.
             </p>
           </div>

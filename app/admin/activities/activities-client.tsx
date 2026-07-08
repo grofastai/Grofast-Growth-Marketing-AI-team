@@ -168,7 +168,7 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates
               <span style={{ display: "inline-block", padding: "2px 9px", borderRadius: 6, background: badge.bg, color: badge.color, fontSize: 10, fontWeight: 700, marginTop: 4 }}>{badge.label}</span>
             </div>
             <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <X size={13} color="#6B7280" />
+              <X size={13} color="#000000" />
             </button>
           </div>
         </div>
@@ -178,13 +178,13 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates
 
           {/* Work entries grouped by date */}
           {dateGroups.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "48px 0", color: "#9CA3AF", fontSize: 13 }}>No work entries recorded</div>
+            <div style={{ textAlign: "center", padding: "48px 0", color: "#000000", fontSize: 13 }}>No work entries recorded</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {dateGroups.map(([date, entries]) => (
                 <div key={date}>
                   {/* Date header */}
-                  <div style={{ fontSize: 11, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid #F0F0F5" }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#000000", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid #F0F0F5" }}>
                     {(() => { try { return new Date(date + "T12:00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) } catch { return date } })()}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -227,14 +227,14 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates
                         </div>
                       )}
                       {startTime && endTime && (
-                        <p style={{ fontSize: 10, color: "#9CA3AF", margin: "5px 0 0" }}>{startTime} – {endTime}</p>
+                        <p style={{ fontSize: 10, color: "#000000", margin: "5px 0 0" }}>{startTime} – {endTime}</p>
                       )}
                     </div>
                     {/* Duration */}
                     {durationH > 0 && (
                       <div style={{ flexShrink: 0, textAlign: "right" }}>
                         <div style={{ fontSize: 12, fontWeight: 800, color: typeInfo.color }}>{fmtHours(durationH)}</div>
-                        <div style={{ fontSize: 9, color: "#9CA3AF", textTransform: "uppercase", marginTop: 1 }}>⏱</div>
+                        <div style={{ fontSize: 9, color: "#000000", textTransform: "uppercase", marginTop: 1 }}>⏱</div>
                       </div>
                     )}
                   </div>
@@ -250,13 +250,13 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates
           {notes && (
             <div style={{ marginTop: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>Notes</div>
-              <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.6 }}>{notes}</div>
+              <div style={{ fontSize: 12, color: "#000000", lineHeight: 1.6 }}>{notes}</div>
             </div>
           )}
 
           {/* Submission time */}
           {firstUpdate.created_at && (
-            <div style={{ marginTop: 14, fontSize: 11, color: "#D1D5DB", textAlign: "center" }}>
+            <div style={{ marginTop: 14, fontSize: 11, color: "#000000", textAlign: "center" }}>
               Submitted at {fmtTime(firstUpdate.created_at)}
             </div>
           )}
@@ -522,9 +522,9 @@ export default function ActivitiesClient({
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
             <div>
-              <div style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 500, marginBottom: 4 }}>{card.label}</div>
+              <div style={{ fontSize: 11, color: "#000000", fontWeight: 600, marginBottom: 4 }}>{card.label}</div>
               <div style={{ fontSize: 26, fontWeight: 800, color: "#111827", lineHeight: 1 }}>{card.value}</div>
-              <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 3 }}>{card.sub}</div>
+              <div style={{ fontSize: 11, color: "#000000", marginTop: 3 }}>{card.sub}</div>
             </div>
             <div style={{ width: 40, height: 40, borderRadius: 12, background: card.iconBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
               {card.icon}
@@ -542,7 +542,7 @@ export default function ActivitiesClient({
             style={{
               padding: "8px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
               background: curPreset === p.label ? "#E31E24" : "#F3F4F6",
-              color: curPreset === p.label ? "#fff" : "#374151",
+              color: curPreset === p.label ? "#fff" : "#000000",
               transition: "all 0.15s", flexShrink: 0, whiteSpace: "nowrap",
             }}
           >
@@ -554,7 +554,7 @@ export default function ActivitiesClient({
           style={{
             padding: "8px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
             background: curPreset === "Custom" ? "#E31E24" : "#F3F4F6",
-            color: curPreset === "Custom" ? "#fff" : "#374151",
+            color: curPreset === "Custom" ? "#fff" : "#000000",
             flexShrink: 0, whiteSpace: "nowrap",
           }}
         >
@@ -563,10 +563,10 @@ export default function ActivitiesClient({
         {showCustom && (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input type="date" max="2099-12-31" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#374151" }} />
-            <span style={{ fontSize: 12, color: "#9CA3AF" }}>to</span>
+              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#000000" }} />
+            <span style={{ fontSize: 12, color: "#000000" }}>to</span>
             <input type="date" max="2099-12-31" value={customTo} onChange={e => setCustomTo(e.target.value)}
-              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#374151" }} />
+              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#000000" }} />
             <button onClick={() => { navigate(customFrom, customTo); setShowCustom(false) }}
               style={{ padding: "6px 14px", borderRadius: 8, background: "#E31E24", color: "#fff", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
               Apply
@@ -587,14 +587,14 @@ export default function ActivitiesClient({
             </div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>Recent Activities</div>
-              <div style={{ fontSize: 11, color: "#9CA3AF" }}>{filteredPeople.length} member{filteredPeople.length !== 1 ? "s" : ""} updated · click to view details</div>
+              <div style={{ fontSize: 11, color: "#000000" }}>{filteredPeople.length} member{filteredPeople.length !== 1 ? "s" : ""} updated · click to view details</div>
             </div>
           </div>
 
           {/* People list */}
           <div style={{ padding: "8px 0 16px" }}>
             {filteredPeople.length === 0 && (
-              <div style={{ textAlign: "center", padding: "48px 24px", color: "#9CA3AF", fontSize: 13 }}>
+              <div style={{ textAlign: "center", padding: "48px 24px", color: "#000000", fontSize: 13 }}>
                 No activities found
               </div>
             )}
@@ -649,7 +649,7 @@ export default function ActivitiesClient({
                             <span style={{ fontSize: 12, letterSpacing: "0.05em" }}>{workTypes.join(" ")}</span>
                           )}
                           {entryCount > 0 && (
-                            <span style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600 }}>{entryCount} {entryCount === 1 ? "entry" : "entries"}</span>
+                            <span style={{ fontSize: 10, color: "#000000", fontWeight: 600 }}>{entryCount} {entryCount === 1 ? "entry" : "entries"}</span>
                           )}
                         </div>
                       </div>
@@ -658,12 +658,12 @@ export default function ActivitiesClient({
                     {/* Right: hours + time + arrow */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                       {totalHours > 0 && (
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 3 }}>
-                          <Clock size={11} color="#9CA3AF" /> {fmtHours(totalHours)}
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#000000", display: "flex", alignItems: "center", gap: 3 }}>
+                          <Clock size={11} color="#000000" /> {fmtHours(totalHours)}
                         </span>
                       )}
-                      <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap" }}>{time}</span>
-                      <ChevronRight size={15} color={isSelected ? "#E31E24" : "#D1D5DB"} style={{ transition: "color 0.15s" }} />
+                      <span style={{ fontSize: 11, color: "#000000", whiteSpace: "nowrap" }}>{time}</span>
+                      <ChevronRight size={15} color={isSelected ? "#E31E24" : "#000000"} style={{ transition: "color 0.15s" }} />
                     </div>
                   </div>
                 </div>
@@ -689,7 +689,7 @@ export default function ActivitiesClient({
               </ResponsiveContainer>
               <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#111827" }}>{completionPct}%</div>
-                <div style={{ fontSize: 10, color: "#9CA3AF", lineHeight: 1.2 }}>Update<br/>Completion</div>
+                <div style={{ fontSize: 10, color: "#000000", lineHeight: 1.2 }}>Update<br/>Completion</div>
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
@@ -697,9 +697,9 @@ export default function ActivitiesClient({
                 <div key={d.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ width: 10, height: 10, borderRadius: "50%", background: d.color }} />
-                    <span style={{ fontSize: 12, color: "#374151" }}>{d.name}</span>
+                    <span style={{ fontSize: 12, color: "#000000" }}>{d.name}</span>
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{d.pct}% ({d.value})</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#000000" }}>{d.pct}% ({d.value})</span>
                 </div>
               ))}
             </div>
@@ -708,7 +708,7 @@ export default function ActivitiesClient({
           {/* Members Awaiting Update */}
           <div style={{ background: "#fff", borderRadius: 20, padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.04)", position: "relative", overflow: "hidden" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 4 }}>Members Awaiting Update</div>
-            <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 16 }}>{stats.notUpdated} member{stats.notUpdated !== 1 ? "s" : ""} haven&apos;t updated yet</div>
+            <div style={{ fontSize: 11, color: "#000000", marginBottom: 16 }}>{stats.notUpdated} member{stats.notUpdated !== 1 ? "s" : ""} haven&apos;t updated yet</div>
             {stats.notUpdatedMembers.length > 0 ? (
               <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 16 }}>
                 {stats.notUpdatedMembers.slice(0, 5).map((m, i) => {
@@ -725,7 +725,7 @@ export default function ActivitiesClient({
                 })}
                 {stats.notUpdatedMembers.length > 5 && (
                   <div style={{
-                    width: 32, height: 32, borderRadius: "50%", background: "#F3F4F6", color: "#6B7280",
+                    width: 32, height: 32, borderRadius: "50%", background: "#F3F4F6", color: "#000000",
                     fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
                     border: "2px solid #fff", marginLeft: -8,
                   }}>
@@ -764,7 +764,7 @@ export default function ActivitiesClient({
                   })()}
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{topContributor.name}</div>
-                    <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>{topContributor.count} Update{topContributor.count !== 1 ? "s" : ""}</div>
+                    <div style={{ fontSize: 11, color: "#000000", marginTop: 2 }}>{topContributor.count} Update{topContributor.count !== 1 ? "s" : ""}</div>
                   </div>
                 </div>
                 <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(227,30,36,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>

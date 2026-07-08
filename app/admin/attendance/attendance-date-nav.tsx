@@ -29,7 +29,7 @@ export default function AttendanceDateNav({ selectedDate, today }: Props) {
         className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-gray-100"
         style={{ border: '1px solid #E5E7EB' }}
       >
-        <ChevronLeft size={16} style={{ color: '#6B7280' }} />
+        <ChevronLeft size={16} style={{ color: "#000000" }} />
       </button>
 
       <input
@@ -47,7 +47,7 @@ export default function AttendanceDateNav({ selectedDate, today }: Props) {
         className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
         style={{ border: '1px solid #E5E7EB' }}
       >
-        <ChevronRight size={16} style={{ color: '#6B7280' }} />
+        <ChevronRight size={16} style={{ color: "#000000" }} />
       </button>
 
       {!isToday && (

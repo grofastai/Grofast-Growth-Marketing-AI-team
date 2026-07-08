@@ -152,7 +152,7 @@ export default function FlMediaClient({
       {/* ── Left panel ──────────────────────────────────────────────────────── */}
       {!hideLeftPanel && (
         <div style={{ width: 220, flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", padding: "16px 0", overflowY: "auto" }}>
-          <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 16px 8px" }}>Members</p>
+          <p style={{ fontSize: 10, fontWeight: 700, color: "#000000", textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 16px 8px" }}>Members</p>
           {members.map(m => {
             const active = selectedMemberId === m.id
             const total = memberTotals[m.id] ?? 0
@@ -167,7 +167,7 @@ export default function FlMediaClient({
               </button>
             )
           })}
-          {members.length === 0 && <p style={{ fontSize: 12, color: "#9CA3AF", padding: "0 16px" }}>No members yet</p>}
+          {members.length === 0 && <p style={{ fontSize: 12, color: "#000000", padding: "0 16px" }}>No members yet</p>}
         </div>
       )}
 
@@ -221,7 +221,7 @@ export default function FlMediaClient({
         {/* Entry cards */}
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
           {filteredEntries.length === 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "#9CA3AF", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "#000000", gap: 8 }}>
               <span style={{ fontSize: 32, opacity: 0.3 }}>📋</span>
               <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>No entries for {monthLabel(selectedMonth)}</p>
             </div>
@@ -256,14 +256,14 @@ export default function FlMediaClient({
                   <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, overflow: "hidden" }}>
                     <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: "1 1 0", minWidth: 0 }}>{e.title || "—"}</p>
                     {e.client_name && <span style={{ fontSize: 11, color: "#DC143C", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>{e.client_name}</span>}
-                    {e.video_duration && <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap", flexShrink: 0 }}>· {e.video_duration}</span>}
-                    {e.duration_hours ? <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap", flexShrink: 0 }}>· {fmtH(e.duration_hours)}</span> : null}
+                    {e.video_duration && <span style={{ fontSize: 11, color: "#000000", whiteSpace: "nowrap", flexShrink: 0 }}>· {e.video_duration}</span>}
+                    {e.duration_hours ? <span style={{ fontSize: 11, color: "#000000", whiteSpace: "nowrap", flexShrink: 0 }}>· {fmtH(e.duration_hours)}</span> : null}
                   </div>
 
                   {/* Price input + save */}
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                     <div style={{ position: "relative" }}>
-                      <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 12, fontWeight: 800, color: hasPendingChange ? "#DC143C" : "#9CA3AF", pointerEvents: "none" }}>₹</span>
+                      <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 12, fontWeight: 800, color: hasPendingChange ? "#DC143C" : "#000000", pointerEvents: "none" }}>₹</span>
                       <input
                         type="number"
                         min="0"
@@ -282,7 +282,7 @@ export default function FlMediaClient({
                       <button
                         onClick={() => handleSavePrice(e)}
                         disabled={isSaving || !hasPendingChange}
-                        style={{ width: 36, height: 36, borderRadius: 10, border: "none", background: hasPendingChange ? "linear-gradient(135deg, #C41230, #DC143C)" : "#F3F4F6", color: hasPendingChange ? "#fff" : "#9CA3AF", fontSize: 14, fontWeight: 800, cursor: hasPendingChange ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: hasPendingChange ? "0 4px 14px rgba(220,20,60,0.4)" : "none", transition: "all 0.15s" }}>
+                        style={{ width: 36, height: 36, borderRadius: 10, border: "none", background: hasPendingChange ? "linear-gradient(135deg, #C41230, #DC143C)" : "#F3F4F6", color: hasPendingChange ? "#fff" : "#000000", fontSize: 14, fontWeight: 800, cursor: hasPendingChange ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: hasPendingChange ? "0 4px 14px rgba(220,20,60,0.4)" : "none", transition: "all 0.15s" }}>
                         {isSaving ? <Loader2 size={13} className="animate-spin" /> : "✓"}
                       </button>
                     )}

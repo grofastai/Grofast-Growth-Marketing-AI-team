@@ -1959,9 +1959,11 @@ export default function HistoryClient({
                       <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>Approved</span>
                     </div>
                   ) : entries.length === 0 && collabForDate.length === 0 ? (() => {
-                    const leaveForDay = u.attendance_status === "leave"
-                      ? approvedLeaves.find(l => u.date >= l.from_date && u.date <= l.to_date)
-                      : undefined
+                    // Driven entirely by the leaves table, not attendance_status — the DB's
+                    // attendance_status column can only ever be present/absent/holiday/outside
+                    // (see check constraint), so a stored 'leave' value can never exist and
+                    // must never be relied on here.
+                    const leaveForDay = approvedLeaves.find(l => u.date >= l.from_date && u.date <= l.to_date)
                     if (leaveForDay?.leave_type === "full_day") {
                       return (
                         <div style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 18px", background:"linear-gradient(135deg,rgba(16,185,129,0.06) 0%,rgba(16,185,129,0.02) 100%)", borderTop:"1px solid rgba(16,185,129,0.12)" }}>

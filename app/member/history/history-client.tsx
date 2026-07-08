@@ -2102,14 +2102,14 @@ export default function HistoryClient({
                         if (item.type === 'leave') {
                           const { leave, banner, dur } = item
                           return (
-                            <div key={`leave-${leave.id}`} style={{ borderBottom: isLast ? "none" : "1px solid #F5F6FA", background: banner.bg }}>
-                              <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
-                                <div style={{ width:34, height:34, borderRadius:10, background:`${banner.color}1A`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <div key={`leave-${leave.id}`} style={{ borderBottom: isLast ? "none" : "1px solid #F5F6FA", background: banner.bg, borderLeft:`3px solid ${banner.color}` }}>
+                              <div style={{ display:"flex", gap:14, padding:"14px 18px 14px 15px", alignItems:"flex-start" }}>
+                                <div style={{ width:34, height:34, borderRadius:10, background:banner.color, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:`0 2px 8px ${banner.color}40` }}>
                                   <span style={{ fontSize:16 }}>{banner.emoji}</span>
                                 </div>
                                 <div style={{ flex:1, minWidth:0 }}>
                                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
-                                    <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{banner.title}</span>
+                                    <span style={{ fontSize:13, fontWeight:900, color:banner.color }}>{banner.title}</span>
                                     <span style={{ fontSize:10, fontWeight:700, color:banner.color, background:`${banner.color}1A`, padding:"2px 8px", borderRadius:99 }}>Approved</span>
                                   </div>
                                   {leave.reason && <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{leave.reason}</p>}

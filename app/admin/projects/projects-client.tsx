@@ -121,7 +121,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
   const labelStyle: React.CSSProperties = {
     display: "block", fontSize: "10px", fontWeight: 700,
     textTransform: "uppercase", letterSpacing: "0.16em",
-    marginBottom: "8px", color: "#6B7280",
+    marginBottom: "8px", color: "#1b365d",
   }
 
   return (
@@ -138,13 +138,13 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
             <h2 className="text-[17px] font-black text-white" style={{ fontFamily: "var(--font-jakarta)" }}>
               {isEdit ? "Edit Client" : "Add New Client"}
             </h2>
-            <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
+            <p className="text-[12px] mt-0.5" style={{ color: "#1b365d" }}>
               {isEdit ? "Update client details" : "Create and track a new client engagement"}
             </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center"
             style={{ background: "#F4F5F7" }}>
-            <X size={14} style={{ color: "#6B7280" }} />
+            <X size={14} style={{ color: "#1b365d" }} />
           </button>
         </div>
 
@@ -167,7 +167,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
                     className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all border"
                     style={active
                       ? { background: "rgba(222,26,26,0.12)", borderColor: "rgba(222,26,26,0.35)", color: "#F87171" }
-                      : { background: "#F4F5F7", borderColor: "#2E2E2E", color: "#6B7280" }
+                      : { background: "#F4F5F7", borderColor: "#2E2E2E", color: "#1b365d" }
                     }>
                     {active && "✓ "}{s}
                   </button>
@@ -203,7 +203,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
             <input value={form.package_name} onChange={set("package_name")}
               placeholder="e.g. 3-Month Social Media — ₹15,000/mo"
               className="ps-input" style={inputStyle} />
-            <p className="text-[10px] mt-1.5" style={{ color: "#D1D5DB" }}>
+            <p className="text-[10px] mt-1.5" style={{ color: "#1b365d" }}>
               Describe the service package or pricing plan for this client
             </p>
           </div>
@@ -213,17 +213,17 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
             <label style={labelStyle}>Engagement Period</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <p className="text-[10px] mb-1.5" style={{ color: "#D1D5DB" }}>From Month</p>
+                <p className="text-[10px] mb-1.5" style={{ color: "#1b365d" }}>From Month</p>
                 <input type="month" value={form.start_month} onChange={set("start_month")}
                   className="ps-input" style={inputStyle} />
               </div>
               <div>
-                <p className="text-[10px] mb-1.5" style={{ color: "#D1D5DB" }}>To Month</p>
+                <p className="text-[10px] mb-1.5" style={{ color: "#1b365d" }}>To Month</p>
                 <input type="month" value={form.end_month} onChange={set("end_month")}
                   className="ps-input" style={inputStyle} />
               </div>
             </div>
-            <p className="text-[10px] mt-1.5" style={{ color: "#D1D5DB" }}>
+            <p className="text-[10px] mt-1.5" style={{ color: "#1b365d" }}>
               The months this client engagement runs — used to track how long the project is active
             </p>
           </div>
@@ -240,7 +240,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
                     className="flex-1 py-2.5 rounded-lg text-[12px] font-bold transition-all"
                     style={isActive
                       ? { background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }
-                      : { background: "#F4F5F7", border: "1px solid #2E2E2E", color: "#6B7280" }
+                      : { background: "#F4F5F7", border: "1px solid #2E2E2E", color: "#1b365d" }
                     }>
                     {cfg.label}
                   </button>
@@ -263,7 +263,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
             <div className="flex justify-between text-[10px] mt-1" style={{ color: "rgba(0,0,0,0.1)" }}>
               <span>0% — Not started</span><span>50%</span><span>100% — Done</span>
             </div>
-            <p className="text-[10px] mt-1.5" style={{ color: "#D1D5DB" }}>
+            <p className="text-[10px] mt-1.5" style={{ color: "#1b365d" }}>
               How much of the overall work / deliverables are completed for this client
             </p>
           </div>
@@ -281,7 +281,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
           style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
           <button onClick={onClose}
             className="flex-1 py-3 rounded-xl text-[13px] font-semibold"
-            style={{ background: "#F4F5F7", border: "1px solid #2E2E2E", color: "#6B7280" }}>
+            style={{ background: "#F4F5F7", border: "1px solid #2E2E2E", color: "#1b365d" }}>
             Cancel
           </button>
           <button onClick={handleSubmit} disabled={isPending}
@@ -318,13 +318,13 @@ function DeleteConfirm({ project, onCancel }: { project: Project; onCancel: () =
           <h3 className="text-[16px] font-black mb-1 text-white" style={{ fontFamily: "var(--font-jakarta)" }}>
             Delete Client?
           </h3>
-          <p className="text-[13px] mb-6" style={{ color: "#6B7280" }}>
+          <p className="text-[13px] mb-6" style={{ color: "#1b365d" }}>
             <span className="text-white font-semibold">{project.business_name}</span> will be permanently removed.
           </p>
           <div className="flex gap-3">
             <button onClick={onCancel}
               className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
-              style={{ background: "#F4F5F7", border: "1px solid #2E2E2E", color: "#6B7280" }}>
+              style={{ background: "#F4F5F7", border: "1px solid #2E2E2E", color: "#1b365d" }}>
               Cancel
             </button>
             <button onClick={handleDelete} disabled={isPending}
@@ -426,7 +426,7 @@ export default function ProjectsClient({
             </div>
             <div>
               <p className="text-[28px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>{value}</p>
-              <p className="text-[11px] font-medium mt-1" style={{ color: "#6B7280" }}>{label}</p>
+              <p className="text-[11px] font-medium mt-1" style={{ color: "#1b365d" }}>{label}</p>
             </div>
           </div>
         ))}
@@ -436,7 +436,7 @@ export default function ProjectsClient({
       <div className="flex items-center gap-3 flex-wrap mb-6">
         <div className="relative flex-1 min-w-[200px] max-w-[280px]">
           <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#6B7280" }} />
+            style={{ color: "#1b365d" }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search client, business, package…"
             className="w-full pl-9 pr-4 py-2.5 rounded-xl text-[13px] outline-none"
@@ -444,15 +444,15 @@ export default function ProjectsClient({
         </div>
         <div className="relative">
           <Briefcase size={12} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#6B7280" }} />
+            style={{ color: "#1b365d" }} />
           <select value={serviceFilter} onChange={e => setServiceFilter(e.target.value)}
             className="appearance-none pl-8 pr-8 py-2.5 rounded-xl text-[12px] outline-none min-w-[190px]"
-            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)", color: "#374151" }}>
+            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)", color: "#1b365d" }}>
             <option value="">All Services</option>
             {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#6B7280" }} />
+            style={{ color: "#1b365d" }} />
         </div>
         <div className="flex items-center gap-1 p-1 rounded-xl"
           style={{ background: "#F3F4F6", border: "1px solid #E5E7EB" }}>
@@ -461,13 +461,13 @@ export default function ProjectsClient({
               className="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
               style={statusFilter === s
                 ? { background: "#FFFFFF", color: "#de1a1a", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }
-                : { color: "#6B7280" }
+                : { color: "#1b365d" }
               }>
               {s === "ALL" ? "All" : STATUS_CONFIG[s].label}
             </button>
           ))}
         </div>
-        <span className="ml-auto text-[12px]" style={{ color: "#6B7280" }}>
+        <span className="ml-auto text-[12px]" style={{ color: "#1b365d" }}>
           {filtered.length} of {projects.length}
         </span>
       </div>
@@ -477,7 +477,7 @@ export default function ProjectsClient({
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
           style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
           <FolderOpen size={36} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#6B7280" }}>
+          <p className="text-[14px] font-semibold" style={{ color: "#1b365d" }}>
             {projects.length === 0 ? "No clients yet" : "No clients match your filter"}
           </p>
           {projects.length === 0 && !readOnly && (
@@ -540,7 +540,7 @@ export default function ProjectsClient({
                         ))}
                         {project.service_types.length > 2 && (
                           <span className="text-[10px] px-2 py-0.5 rounded-full"
-                            style={{ background: "#F3F4F6", color: "#6B7280" }}>
+                            style={{ background: "#F3F4F6", color: "#1b365d" }}>
                             +{project.service_types.length - 2}
                           </span>
                         )}
@@ -552,14 +552,14 @@ export default function ProjectsClient({
                       <button onClick={() => setOpenDropdown(openDropdown === project.id ? null : project.id)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
                         style={{ background: "#F3F4F6" }}>
-                        <MoreVertical size={14} style={{ color: "#6B7280" }} />
+                        <MoreVertical size={14} style={{ color: "#1b365d" }} />
                       </button>
                       {openDropdown === project.id && (
                         <div className="absolute right-0 top-9 w-36 rounded-xl overflow-hidden py-1 z-20"
                           style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
                           <button onClick={() => { setEditProject(project); setSheetOpen(true); setOpenDropdown(null) }}
                             className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all hover:bg-gray-50"
-                            style={{ color: "#374151" }}>
+                            style={{ color: "#1b365d" }}>
                             <Pencil size={12} /> Edit
                           </button>
                           <button onClick={() => { setDeleteTarget(project); setOpenDropdown(null) }}
@@ -576,27 +576,27 @@ export default function ProjectsClient({
                 {/* Client + Location + Package + Period */}
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <User size={11} style={{ color: "#6B7280" }} />
-                    <span className="text-[12px] truncate" style={{ color: "#374151" }}>{project.client_name}</span>
+                    <User size={11} style={{ color: "#1b365d" }} />
+                    <span className="text-[12px] truncate" style={{ color: "#1b365d" }}>{project.client_name}</span>
                   </div>
                   {project.location && (
                     <div className="flex items-center gap-2">
-                      <MapPin size={11} style={{ color: "#6B7280" }} />
-                      <span className="text-[12px] truncate" style={{ color: "#6B7280" }}>{project.location}</span>
+                      <MapPin size={11} style={{ color: "#1b365d" }} />
+                      <span className="text-[12px] truncate" style={{ color: "#1b365d" }}>{project.location}</span>
                     </div>
                   )}
                   {project.package_name && (
                     <div className="flex items-start gap-2">
                       <Package size={11} style={{ color: "#de1a1a", marginTop: 1, flexShrink: 0 }} />
-                      <span className="text-[12px] leading-snug" style={{ color: "#374151", fontWeight: 500 }}>
+                      <span className="text-[12px] leading-snug" style={{ color: "#1b365d", fontWeight: 600 }}>
                         {project.package_name}
                       </span>
                     </div>
                   )}
                   {(project.start_month || project.end_month) && (
                     <div className="flex items-center gap-2">
-                      <CalendarRange size={11} style={{ color: "#6B7280" }} />
-                      <span className="text-[12px]" style={{ color: "#6B7280" }}>
+                      <CalendarRange size={11} style={{ color: "#1b365d" }} />
+                      <span className="text-[12px]" style={{ color: "#1b365d" }}>
                         {fmtMonth(project.start_month)} → {fmtMonth(project.end_month)}
                       </span>
                     </div>
@@ -609,15 +609,15 @@ export default function ProjectsClient({
                     style={{ background: "rgba(222,26,26,0.05)", border: "1px solid rgba(222,26,26,0.1)" }}>
                     <Target size={11} style={{ color: "#de1a1a" }} />
                     <span className="text-[11px] font-semibold" style={{ color: "#de1a1a" }}>{ts.active} active</span>
-                    <span className="text-[11px]" style={{ color: "#D1D5DB" }}>·</span>
-                    <span className="text-[11px]" style={{ color: "#6B7280" }}>{ts.completed}/{ts.total} done</span>
+                    <span className="text-[11px]" style={{ color: "#1b365d" }}>·</span>
+                    <span className="text-[11px]" style={{ color: "#1b365d" }}>{ts.completed}/{ts.total} done</span>
                   </div>
                 )}
 
                 {/* Work Completion bar */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#6B7280" }}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#1b365d" }}>
                       Work Completion
                     </span>
                     <span className="text-[12px] font-bold" style={{ color: "#111827" }}>
@@ -637,7 +637,7 @@ export default function ProjectsClient({
                       }}
                     />
                   </div>
-                  <p className="text-[10px] mt-1" style={{ color: "#D1D5DB" }}>
+                  <p className="text-[10px] mt-1" style={{ color: "#1b365d" }}>
                     {taskProgress != null ? "Based on completed tasks" : "Manually set by admin"}
                   </p>
                 </div>

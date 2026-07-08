@@ -249,7 +249,7 @@ export default async function AttendancePage({
                 <div style={{ width: 30, height: 30, borderRadius: 9, background: s.accentBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   {s.icon}
                 </div>
-                <p style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.07em", minWidth: 0 }}>{s.label}</p>
+                <p style={{ fontSize: 11, color: "#27187E", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.07em", minWidth: 0 }}>{s.label}</p>
               </div>
               <p style={{ fontSize: "clamp(34px,9vw,56px)", fontWeight: 900, color: s.numColor, margin: "0 0 2px", lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
             </div>
@@ -274,7 +274,7 @@ export default async function AttendancePage({
               <h2 style={{ fontSize: 15, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>
                 Team Attendance
               </h2>
-              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "3px 0 0", fontWeight: 500 }}>
+              <p style={{ fontSize: 11, color: "#27187E", margin: "3px 0 0", fontWeight: 600 }}>
                 {isToday ? "Today" : displayDate}
               </p>
             </div>
@@ -291,7 +291,7 @@ export default async function AttendancePage({
               {/* Column headers */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px 40px", padding: "10px 22px", borderBottom: "1px solid #F5F5F5", background: "#FAFAFA" }}>
                 {["EMPLOYEE", "CLOCK IN", "CLOCK OUT", "DURATION", "STATUS", ""].map(h => (
-                  <span key={h} style={{ fontSize: 10, fontWeight: 800, color: "#9CA3AF", letterSpacing: "0.1em" }}>{h}</span>
+                  <span key={h} style={{ fontSize: 10, fontWeight: 800, color: "#27187E", letterSpacing: "0.1em" }}>{h}</span>
                 ))}
               </div>
 
@@ -300,9 +300,9 @@ export default async function AttendancePage({
                 {!members || members.length === 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "56px 0", gap: 10 }}>
                     <div style={{ width: 56, height: 56, borderRadius: 18, background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Users size={24} style={{ color: "#D1D5DB" }} />
+                      <Users size={24} style={{ color: "#27187E" }} />
                     </div>
-                    <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0, fontWeight: 600 }}>No team members found</p>
+                    <p style={{ fontSize: 13, color: "#27187E", margin: 0, fontWeight: 600 }}>No team members found</p>
                   </div>
                 ) : (
                   (members ?? []).map((m, i) => {
@@ -341,10 +341,10 @@ export default async function AttendancePage({
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                           {log?.clock_in && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10B981", flexShrink: 0 }} />}
-                          <span style={{ fontSize: 12, fontWeight: 600, color: log?.clock_in ? "#111827" : "#D1D5DB" }}>{fmtTime(log?.clock_in ?? null)}</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: log?.clock_in ? "#111827" : "#27187E" }}>{fmtTime(log?.clock_in ?? null)}</span>
                         </div>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: log?.clock_out ? "#111827" : "#D1D5DB" }}>{fmtTime(log?.clock_out ?? null)}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: dur ? "#374151" : "#D1D5DB" }}>{dur ?? "—"}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: log?.clock_out ? "#111827" : "#27187E" }}>{fmtTime(log?.clock_out ?? null)}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: dur ? "#27187E" : "#27187E" }}>{dur ?? "—"}</span>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 10, background: statusBg, color: statusColor }}>
                           <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusDot, flexShrink: 0 }} />
                           {statusLabel}
@@ -364,7 +364,7 @@ export default async function AttendancePage({
 
           {/* Footer */}
           <div style={{ padding: "14px 22px", borderTop: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 11, color: "#9CA3AF" }}>{(members ?? []).length} employees total</span>
+            <span style={{ fontSize: 11, color: "#27187E" }}>{(members ?? []).length} employees total</span>
             <Link href="/admin/activities" style={{ fontSize: 12, fontWeight: 800, color: "#de1a1a", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 16px", borderRadius: 10, background: "rgba(222,26,26,0.07)" }}>
               Full Report <ArrowRight size={13} />
             </Link>
@@ -424,7 +424,7 @@ export default async function AttendancePage({
             background: lateEntries.length > 0 ? "rgba(222,26,26,0.1)" : "rgba(16,185,129,0.1)",
             color: lateEntries.length > 0 ? "#de1a1a" : "#10B981",
           }}>{lateEntries.length}</span>
-          <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 600 }}>after 10:00 AM</span>
+          <span style={{ fontSize: 11, color: "#27187E", fontWeight: 600 }}>after 10:00 AM</span>
         </div>
 
         {lateEntries.length === 0 ? (
@@ -434,7 +434,7 @@ export default async function AttendancePage({
             </div>
             <div>
               <p style={{ fontSize: 18, fontWeight: 900, color: "#111827", margin: "0 0 6px", fontFamily: "var(--font-jakarta)" }}>All on time today! 🎉</p>
-              <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0 }}>No one clocked in after 10:00 AM — great team discipline!</p>
+              <p style={{ fontSize: 13, color: "#27187E", margin: 0 }}>No one clocked in after 10:00 AM — great team discipline!</p>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 10, background: "rgba(16,185,129,0.1)", borderRadius: 20, padding: "5px 14px" }}>
                 <CheckCircle2 size={13} style={{ color: "#10B981" }} />
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#10B981" }}>Perfect Punctuality</span>
@@ -462,8 +462,8 @@ export default async function AttendancePage({
                     <p style={{ fontSize: 10, color: "#C4C4C4", margin: 0, fontWeight: 600 }}>#{entry.member!.employee_id}</p>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10, padding: "5px 12px" }}>
-                    <Clock size={11} style={{ color: "#9CA3AF" }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{clockInIST}</span>
+                    <Clock size={11} style={{ color: "#27187E" }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#27187E" }}>{clockInIST}</span>
                   </div>
                   <span style={{ fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 10, background: "rgba(245,158,11,0.1)", color: "#D97706", border: "1px solid rgba(245,158,11,0.2)" }}>{lateStr}</span>
                 </div>

@@ -38,7 +38,7 @@ export default function TaskSummaryChart({ completed, inProgress, todo, overdue 
         </ResponsiveContainer>
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
           <span style={{ fontSize: 26, fontWeight: 900, color: "#111827", lineHeight: 1 }}>{total}</span>
-          <span style={{ fontSize: 10, color: "#6B7280", fontWeight: 600, marginTop: 2 }}>Total Tasks</span>
+          <span style={{ fontSize: 10, color: "#4E0535", fontWeight: 600, marginTop: 2 }}>Total Tasks</span>
         </div>
       </div>
 
@@ -46,7 +46,7 @@ export default function TaskSummaryChart({ completed, inProgress, todo, overdue 
         {SLICES.map(s => (
           <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 500, flex: 1 }}>{s.label}</span>
+            <span style={{ fontSize: 11, color: "#4E0535", fontWeight: 600, flex: 1 }}>{s.label}</span>
             <span style={{ fontSize: 12, fontWeight: 800, color: "#111827" }}>{vals[s.key]}</span>
           </div>
         ))}

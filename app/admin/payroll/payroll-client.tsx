@@ -84,8 +84,8 @@ function SalaryHealthDonut({ pct }: { pct: number }) {
       <circle cx={72} cy={126} r={4} fill="#E5E7EB" />
       <circle cx={18} cy={72} r={4} fill="#E5E7EB" />
       <text x={cx} y={cy - 10} textAnchor="middle" fontSize={26} fontWeight={900} fill="#111">{pct}%</text>
-      <text x={cx} y={cy + 10} textAnchor="middle" fontSize={10} fill="#9CA3AF">Salary</text>
-      <text x={cx} y={cy + 23} textAnchor="middle" fontSize={10} fill="#9CA3AF">Processed</text>
+      <text x={cx} y={cy + 10} textAnchor="middle" fontSize={10} fill="#61063B">Salary</text>
+      <text x={cx} y={cy + 23} textAnchor="middle" fontSize={10} fill="#61063B">Processed</text>
     </svg>
   )
 }
@@ -158,7 +158,7 @@ function MiniCalendar({
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
         {DAYS.map((d, i) => (
-          <div key={i} style={{ textAlign: "center", fontSize: 9, fontWeight: 700, color: "#9CA3AF" }}>{d}</div>
+          <div key={i} style={{ textAlign: "center", fontSize: 9, fontWeight: 700, color: "#61063B" }}>{d}</div>
         ))}
       </div>
       {weeks.map((week, wi) => (
@@ -183,7 +183,7 @@ function MiniCalendar({
         ].map((item) => (
           <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: item.color, display: "inline-block" }} />
-            <span style={{ fontSize: 9, color: "#6B7280" }}>{item.label}</span>
+            <span style={{ fontSize: 9, color: "#61063B" }}>{item.label}</span>
           </div>
         ))}
       </div>
@@ -302,7 +302,7 @@ function EmployeeCard({
           <div style={{ fontSize: 15, fontWeight: 800, color: "#111", fontFamily: "var(--font-jakarta)", marginBottom: 2 }}>
             {r.name}
           </div>
-          <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 5 }}>#{r.employee_id}</div>
+          <div style={{ fontSize: 11, color: "#61063B", marginBottom: 5 }}>#{r.employee_id}</div>
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
             {r.team && (
               <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: tClr.bg, color: tClr.color }}>
@@ -331,7 +331,7 @@ function EmployeeCard({
         {/* Attendance donut */}
         <div style={{ flexShrink: 0, textAlign: "center" }}>
           <AttendanceRing pct={attendPct} size={54} />
-          <div style={{ fontSize: 9, color: "#9CA3AF", marginTop: 2, fontWeight: 500 }}>Attendance</div>
+          <div style={{ fontSize: 9, color: "#61063B", marginTop: 2, fontWeight: 600 }}>Attendance</div>
         </div>
 
         {/* Salary chips */}
@@ -347,7 +347,7 @@ function EmployeeCard({
               textAlign: "center", padding: "8px 14px", borderRadius: 12,
               background: "#F9FAFB", border: "1px solid #F0F0F0", minWidth: 80,
             }}>
-              <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 3, fontWeight: 500 }}>{chip.label}</div>
+              <div style={{ fontSize: 10, color: "#61063B", marginBottom: 3, fontWeight: 600 }}>{chip.label}</div>
               <div style={{ fontSize: 14, fontWeight: 900, color: chip.color, fontFamily: "var(--font-jakarta)" }}>{chip.value}</div>
             </div>
           ))}
@@ -375,8 +375,8 @@ function EmployeeCard({
             style={{ width: 34, height: 34, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "#F9FAFB", border: "1.5px solid #E5E7EB", cursor: "pointer" }}
           >
             {isExpanded
-              ? <ChevronUp size={15} style={{ color: "#6B7280" }} />
-              : <ChevronDown size={15} style={{ color: "#6B7280" }} />}
+              ? <ChevronUp size={15} style={{ color: "#61063B" }} />
+              : <ChevronDown size={15} style={{ color: "#61063B" }} />}
           </button>
           <a
             href={`/api/payslip?userId=${r.id}&month=${month}`}
@@ -396,7 +396,7 @@ function EmployeeCard({
 
           {/* LEFT: Payroll Breakdown bars */}
           <div style={{ padding: "22px 24px", borderRight: "1px solid #F5F5F5" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 18 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#61063B", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 18 }}>
               Payroll Breakdown
             </div>
             {[
@@ -408,8 +408,8 @@ function EmployeeCard({
             ].map((item) => (
               <div key={item.label} style={{ marginBottom: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                  <span style={{ fontSize: 12, color: "#6B7280" }}>{item.label}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: item.amount < 0 ? "#DC2626" : item.amount === 0 ? "#D1D5DB" : "#111" }}>
+                  <span style={{ fontSize: 12, color: "#61063B" }}>{item.label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: item.amount < 0 ? "#DC2626" : item.amount === 0 ? "#61063B" : "#111" }}>
                     {item.amount === 0 ? "—" : item.amount < 0 ? `-${fmt(Math.abs(item.amount))}` : fmt(item.amount)}
                   </span>
                 </div>
@@ -426,7 +426,7 @@ function EmployeeCard({
 
           {/* CENTER: Attendance Calendar */}
           <div style={{ padding: "22px 24px", borderRight: "1px solid #F5F5F5" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 18 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#61063B", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 18 }}>
               {new Date(year, mon - 1).toLocaleString("en-IN", { month: "long", year: "numeric" })} Attendance
             </div>
             <MiniCalendar
@@ -440,13 +440,13 @@ function EmployeeCard({
 
           {/* RIGHT: Bonus & Adjustments */}
           <div style={{ padding: "22px 24px", background: "#FAFAFA" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 18 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#61063B", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 18 }}>
               Bonus &amp; Adjustments
             </div>
 
             {/* Bonus input */}
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "block", marginBottom: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#61063B", display: "block", marginBottom: 6 }}>
                 Bonus (₹)
               </label>
               <input
@@ -464,7 +464,7 @@ function EmployeeCard({
 
             {/* Incentive input */}
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "block", marginBottom: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#61063B", display: "block", marginBottom: 6 }}>
                 Incentive (₹)
               </label>
               <input
@@ -482,7 +482,7 @@ function EmployeeCard({
 
             {/* Advance / Recovery input */}
             <div style={{ marginBottom: 18 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "block", marginBottom: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#61063B", display: "block", marginBottom: 6 }}>
                 Advance Recovery (₹)
               </label>
               <input
@@ -509,7 +509,7 @@ function EmployeeCard({
                 {fmt(localFinalNetPay)}
               </div>
               {(bonus > 0 || incentive > 0 || advance > 0) && (
-                <div style={{ fontSize: 10, color: "#6B7280", marginTop: 4 }}>
+                <div style={{ fontSize: 10, color: "#61063B", marginTop: 4 }}>
                   {fmt(r.netPay)}
                   {bonus > 0     ? ` + ${fmt(bonus)} bonus`     : ""}
                   {incentive > 0 ? ` + ${fmt(incentive)} incentive` : ""}
@@ -524,7 +524,7 @@ function EmployeeCard({
               style={{
                 width: "100%", padding: "10px", borderRadius: 12,
                 background: savingBonus ? "#E5E7EB" : "linear-gradient(135deg, #6366F1, #4F46E5)",
-                color: savingBonus ? "#9CA3AF" : "#fff",
+                color: savingBonus ? "#61063B" : "#fff",
                 border: "none", fontSize: 13, fontWeight: 700, cursor: savingBonus ? "not-allowed" : "pointer",
                 boxShadow: savingBonus ? "none" : "0 4px 14px rgba(99,102,241,0.35)",
               }}
@@ -720,10 +720,10 @@ export default function PayrollClient({
       <style>
         body{font-family:Arial,sans-serif;padding:32px;color:#111}
         h1{font-size:20px;margin:0 0 4px}
-        p.sub{color:#6B7280;margin:0 0 20px;font-size:13px}
+        p.sub{color: #000000;margin:0 0 20px;font-size:13px}
         table{width:100%;border-collapse:collapse;font-size:12px}
         th,td{padding:8px 10px;border-bottom:1px solid #E5E7EB;text-align:left}
-        th{background:#F9FAFB;font-weight:700;color:#374151}
+        th{background:#F9FAFB;font-weight:700;color: #000000}
         .totals{display:flex;gap:24px;margin-bottom:20px}
         .totals div{background:#F9FAFB;border-radius:10px;padding:10px 16px}
         .totals strong{display:block;font-size:16px}
@@ -804,14 +804,14 @@ export default function PayrollClient({
             <h2 style={{ fontSize: 20, fontWeight: 900, color: "#111", textAlign: "center", margin: "0 0 8px", fontFamily: "var(--font-jakarta)" }}>
               Run Payroll
             </h2>
-            <p style={{ fontSize: 13, color: "#6B7280", textAlign: "center", margin: "0 0 20px", lineHeight: 1.6 }}>
+            <p style={{ fontSize: 13, color: "#61063B", textAlign: "center", margin: "0 0 20px", lineHeight: 1.6 }}>
               Mark <strong>{unpaidRows.length} employee{unpaidRows.length !== 1 ? "s" : ""}</strong> as paid for <strong>{monthName}</strong>?<br />
               Total payout: <strong style={{ color: "#16A34A" }}>{fmt(unpaidRows.reduce((s, r) => s + r.finalNetPay, 0))}</strong>
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 onClick={() => setShowConfirm(false)}
-                style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1.5px solid #E5E7EB", background: "#F9FAFB", fontSize: 13, fontWeight: 700, color: "#374151", cursor: "pointer" }}
+                style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1.5px solid #E5E7EB", background: "#F9FAFB", fontSize: 13, fontWeight: 700, color: "#61063B", cursor: "pointer" }}
               >
                 Cancel
               </button>
@@ -838,14 +838,14 @@ export default function PayrollClient({
               <h2 style={{ fontSize: 20, fontWeight: 900, color: "#111", textAlign: "center", margin: "0 0 8px", fontFamily: "var(--font-jakarta)" }}>
                 Mark Selected as Paid
               </h2>
-              <p style={{ fontSize: 13, color: "#6B7280", textAlign: "center", margin: "0 0 20px", lineHeight: 1.6 }}>
+              <p style={{ fontSize: 13, color: "#61063B", textAlign: "center", margin: "0 0 20px", lineHeight: 1.6 }}>
                 Mark <strong>{selectedRows.length} employee{selectedRows.length !== 1 ? "s" : ""}</strong> as paid for <strong>{monthName}</strong>?<br />
                 Total payout: <strong style={{ color: "#16A34A" }}>{fmt(selectedRows.reduce((s, r) => s + r.finalNetPay, 0))}</strong>
               </p>
               <div style={{ display: "flex", gap: 10 }}>
                 <button
                   onClick={() => setShowBulkConfirm(false)}
-                  style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1.5px solid #E5E7EB", background: "#F9FAFB", fontSize: 13, fontWeight: 700, color: "#374151", cursor: "pointer" }}
+                  style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1.5px solid #E5E7EB", background: "#F9FAFB", fontSize: 13, fontWeight: 700, color: "#61063B", cursor: "pointer" }}
                 >
                   Cancel
                 </button>
@@ -870,11 +870,11 @@ export default function PayrollClient({
             <h2 style={{ fontSize: 18, fontWeight: 900, color: "#111", margin: "0 0 4px", fontFamily: "var(--font-jakarta)" }}>
               Payroll Settings
             </h2>
-            <p style={{ fontSize: 12, color: "#9CA3AF", margin: "0 0 20px" }}>
+            <p style={{ fontSize: 12, color: "#61063B", margin: "0 0 20px" }}>
               Changes apply from the next calculation onward — past paid months are not recalculated.
             </p>
 
-            <p style={{ fontSize: 11, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Attendance Rules</p>
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#61063B", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Attendance Rules</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
               {([
                 ["ot_threshold_hrs", "OT Threshold (hrs/day)"],
@@ -882,7 +882,7 @@ export default function PayrollClient({
                 ["salary_basis_days", "Salary Basis (days/month)"],
               ] as const).map(([key, label]) => (
                 <label key={key} style={{ display: "block" }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>{label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#61063B", display: "block", marginBottom: 4 }}>{label}</span>
                   <input type="number" step="0.1" value={settingsForm[key]}
                     onChange={e => setSettingsForm(prev => ({ ...prev, [key]: Number(e.target.value) }))}
                     style={{ width: "100%", padding: "9px 10px", borderRadius: 10, border: "1.5px solid #E5E7EB", fontSize: 13 }} />
@@ -890,7 +890,7 @@ export default function PayrollClient({
               ))}
             </div>
 
-            <p style={{ fontSize: 11, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Salary Breakdown (payslip only)</p>
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#61063B", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Salary Breakdown (payslip only)</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 6 }}>
               {([
                 ["basic_pct", "Basic (% of gross)"],
@@ -899,21 +899,21 @@ export default function PayrollClient({
                 ["medical_pct", "Medical (% of gross)"],
               ] as const).map(([key, label]) => (
                 <label key={key} style={{ display: "block" }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>{label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#61063B", display: "block", marginBottom: 4 }}>{label}</span>
                   <input type="number" step="0.5" value={settingsForm[key]}
                     onChange={e => setSettingsForm(prev => ({ ...prev, [key]: Number(e.target.value) }))}
                     style={{ width: "100%", padding: "9px 10px", borderRadius: 10, border: "1.5px solid #E5E7EB", fontSize: 13 }} />
                 </label>
               ))}
             </div>
-            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 20px" }}>
+            <p style={{ fontSize: 11, color: "#61063B", margin: "0 0 20px" }}>
               Whatever remains of gross salary after Basic + Travel + Medical is deducted shows on the payslip as &quot;Other Allowance&quot;.
             </p>
 
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 onClick={() => setShowSettings(false)}
-                style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1.5px solid #E5E7EB", background: "#F9FAFB", fontSize: 13, fontWeight: 700, color: "#374151", cursor: "pointer" }}
+                style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1.5px solid #E5E7EB", background: "#F9FAFB", fontSize: 13, fontWeight: 700, color: "#61063B", cursor: "pointer" }}
               >
                 Cancel
               </button>
@@ -941,8 +941,8 @@ export default function PayrollClient({
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 12, background: "#fff", border: "1.5px solid #E5E7EB" }}>
                 <span style={{ fontSize: 14 }}>📅</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{monthName}</span>
-                <button onClick={() => changeMonth(-1)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>‹</button>
-                <button onClick={() => changeMonth(1)}  style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>›</button>
+                <button onClick={() => changeMonth(-1)} style={{ background: "none", border: "none", cursor: "pointer", color: "#61063B", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>‹</button>
+                <button onClick={() => changeMonth(1)}  style={{ background: "none", border: "none", cursor: "pointer", color: "#61063B", fontSize: 18, lineHeight: 1, padding: "0 2px" }}>›</button>
               </div>
               <button
                 onClick={handleRunPayroll}
@@ -1024,13 +1024,13 @@ export default function PayrollClient({
                 padding: "17px 18px",
                 boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
               }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#61063B", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
                   {card.label}
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 900, color: card.color, fontFamily: "var(--font-jakarta)", lineHeight: 1, marginBottom: 4 }}>
                   {card.value}
                 </div>
-                <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 8 }}>{card.sub}</div>
+                <div style={{ fontSize: 10, color: "#61063B", marginBottom: 8 }}>{card.sub}</div>
                 <MiniSparkline color={card.color} idx={card.idx} />
               </div>
             ))}
@@ -1057,7 +1057,7 @@ export default function PayrollClient({
                 <p style={{ fontSize: 13, fontWeight: 800, color: "#111111", margin: 0 }}>
                   Next Salary Date — <span style={{ color: nextSalaryDaysLeft <= 2 ? "#D97706" : "#16A34A" }}>5th of every month</span>
                 </p>
-                <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>
+                <p style={{ fontSize: 11, color: "#61063B", margin: 0 }}>
                   Upcoming: {nextSalaryLabel}
                 </p>
               </div>
@@ -1082,18 +1082,18 @@ export default function PayrollClient({
               </h2>
               {selectMode ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{selectedIds.size} selected</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#61063B" }}>{selectedIds.size} selected</span>
                   <button onClick={handleBulkMarkPaid} disabled={selectedIds.size === 0 || isBulkRunning} style={{
                     padding: "7px 16px", borderRadius: 10, border: "none",
                     background: selectedIds.size === 0 ? "#E5E7EB" : "linear-gradient(135deg, #16A34A, #15803D)",
-                    color: selectedIds.size === 0 ? "#9CA3AF" : "#fff",
+                    color: selectedIds.size === 0 ? "#61063B" : "#fff",
                     fontSize: 12, fontWeight: 700, cursor: selectedIds.size === 0 ? "not-allowed" : "pointer",
                   }}>
                     {isBulkRunning ? "Marking…" : "Mark Selected as Paid"}
                   </button>
                 </div>
               ) : (
-                <span style={{ fontSize: 12, color: "#9CA3AF" }}>
+                <span style={{ fontSize: 12, color: "#61063B" }}>
                   {paidCount} paid · {unpaidRows.length} pending
                 </span>
               )}
@@ -1102,8 +1102,8 @@ export default function PayrollClient({
             {rows.length === 0 ? (
               <div style={{ textAlign: "center", padding: "56px 0", borderRadius: 22, background: "#FAFAFA", border: "1.5px solid #E5E7EB" }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>👥</div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: "#6B7280", margin: 0 }}>No active members found</p>
-                <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>Add team members to process payroll</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: "#61063B", margin: 0 }}>No active members found</p>
+                <p style={{ fontSize: 12, color: "#61063B", marginTop: 4 }}>Add team members to process payroll</p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1134,7 +1134,7 @@ export default function PayrollClient({
           {/* Salary Health */}
           <div style={{ borderRadius: 20, background: "#fff", border: "1.5px solid #EBEBEB", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
             <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111", margin: "0 0 2px", fontFamily: "var(--font-jakarta)" }}>Salary Health</h3>
-            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 16px" }}>Payroll processing status</p>
+            <p style={{ fontSize: 11, color: "#61063B", margin: "0 0 16px" }}>Payroll processing status</p>
             <SalaryHealthDonut pct={processedPct} />
             <p style={{ fontSize: 11, color: processedPct === 100 ? "#16A34A" : "#F59E0B", fontWeight: 700, textAlign: "center", margin: "12px 0 0" }}>
               {processedPct === 100 ? "✓ All employees paid" : `${paidCount} of ${configuredCount} paid`}
@@ -1152,7 +1152,7 @@ export default function PayrollClient({
               <p style={{ fontSize: 26, fontWeight: 900, color: "#E53935", fontFamily: "var(--font-jakarta)", margin: "0 0 4px", lineHeight: 1.1 }}>
                 {daysLeft} days 🚀
               </p>
-              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 14px" }}>Due 3rd {payMonthName} · Process before then.</p>
+              <p style={{ fontSize: 11, color: "#61063B", margin: "0 0 14px" }}>Due 3rd {payMonthName} · Process before then.</p>
               <button
                 onClick={handleRunPayroll}
                 disabled={isRunning || unpaidRows.length === 0}
@@ -1190,7 +1190,7 @@ export default function PayrollClient({
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 7,
                 }}>
                   <span style={{ fontSize: 22 }}>{action.emoji}</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: action.active ? "#E53935" : "#374151", textAlign: "center" }}>{action.label}</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: action.active ? "#E53935" : "#61063B", textAlign: "center" }}>{action.label}</span>
                 </button>
               ))}
             </div>

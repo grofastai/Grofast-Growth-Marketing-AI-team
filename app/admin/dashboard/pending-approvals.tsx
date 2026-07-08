@@ -58,7 +58,7 @@ export default function PendingApprovalsCard({ leaves: initialLeaves }: { leaves
       {leaves.length === 0 ? (
         <div className="flex flex-col items-center py-10 gap-2">
           <CheckCircle2 size={28} style={{ color: "#E5E7EB" }} />
-          <p className="text-[13px]" style={{ color: "#6B7280" }}>No pending leave requests</p>
+          <p className="text-[13px]" style={{ color: "#4E0535" }}>No pending leave requests</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -81,11 +81,11 @@ export default function PendingApprovalsCard({ leaves: initialLeaves }: { leaves
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold leading-tight" style={{ color: "#111827" }}>
                       {member?.name ?? "—"}
-                      <span className="ml-1.5 text-[11px] font-medium" style={{ color: "#6B7280" }}>
+                      <span className="ml-1.5 text-[11px] font-medium" style={{ color: "#4E0535" }}>
                         #{member?.employee_id}
                       </span>
                     </p>
-                    <p className="text-[11px] mt-0.5 truncate" style={{ color: "#6B7280" }}>
+                    <p className="text-[11px] mt-0.5 truncate" style={{ color: "#4E0535" }}>
                       {fmt(leave.from_date)} → {fmt(leave.to_date)} · {shortReason}
                     </p>
                   </div>

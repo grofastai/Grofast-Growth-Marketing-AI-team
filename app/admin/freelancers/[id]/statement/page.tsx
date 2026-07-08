@@ -109,23 +109,23 @@ export default async function StatementPage({
           .title { font-size: 28px; font-weight: 900; color: #111827; margin-bottom: 24px; }
           .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
           .meta-card { background: #F9FAFB; border-radius: 10px; padding: 16px; }
-          .meta-label { font-size: 10px; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+          .meta-label { font-size: 10px; font-weight: 700; color: #000000; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
           .meta-value { font-size: 14px; font-weight: 700; color: #111827; }
           table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-          th { background: #F3F4F6; padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.04em; }
+          th { background: #F3F4F6; padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; color: #000000; text-transform: uppercase; letter-spacing: 0.04em; }
           td { padding: 11px 14px; border-bottom: 1px solid #F3F4F6; font-size: 13px; color: #111827; }
           tr:last-child td { border-bottom: none; }
           .amount { text-align: right; font-weight: 700; }
           .summary { background: #F9FAFB; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
           .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #E5E7EB; }
           .summary-row:last-child { border-bottom: none; padding-top: 12px; }
-          .summary-label { font-size: 13px; color: #374151; font-weight: 600; }
+          .summary-label { font-size: 13px; color: #000000; font-weight: 600; }
           .summary-value { font-size: 14px; font-weight: 800; color: #111827; }
           .balance-positive { color: #DE1A1A; }
           .balance-zero { color: #16A34A; }
-          .footer { font-size: 11px; color: #9CA3AF; text-align: center; margin-top: 32px; border-top: 1px solid #E5E7EB; padding-top: 16px; }
+          .footer { font-size: 11px; color: #000000; text-align: center; margin-top: 32px; border-top: 1px solid #E5E7EB; padding-top: 16px; }
           .print-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 10px; background: #DE1A1A; color: #fff; border: none; font-size: 13px; font-weight: 700; cursor: pointer; margin-bottom: 24px; }
-          .empty { text-align: center; padding: 24px; color: #9CA3AF; font-size: 13px; }
+          .empty { text-align: center; padding: 24px; color: #000000; font-size: 13px; }
           .method-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; background: rgba(16,185,129,0.1); color: #059669; }
           h2 { font-size: 15px; font-weight: 800; color: #111827; margin-bottom: 12px; }
         `}</style>
@@ -142,11 +142,11 @@ export default async function StatementPage({
         <div className="header">
           <div>
             <div className="logo">Gro<span>Fast</span></div>
-            <div style={{ fontSize: 12, color: "#6B7280", marginTop: 4 }}>{company?.name ?? "GroFast Digital"}</div>
+            <div style={{ fontSize: 12, color: "#7F011F", marginTop: 4 }}>{company?.name ?? "GroFast Digital"}</div>
           </div>
           <div className="header-right">
-            <div style={{ fontSize: 12, color: "#6B7280" }}>Printed on {printedOn}</div>
-            <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>Statement ref: {id.slice(0, 8).toUpperCase()}</div>
+            <div style={{ fontSize: 12, color: "#7F011F" }}>Printed on {printedOn}</div>
+            <div style={{ fontSize: 12, color: "#7F011F", marginTop: 2 }}>Statement ref: {id.slice(0, 8).toUpperCase()}</div>
           </div>
         </div>
 
@@ -156,20 +156,20 @@ export default async function StatementPage({
           <div className="meta-card">
             <div className="meta-label">Freelancer</div>
             <div className="meta-value">{freelancer.name}</div>
-            <div style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>{TYPE_LABEL[freelancer.type] ?? "Freelancer"}</div>
-            {freelancer.phone && <div style={{ fontSize: 12, color: "#6B7280" }}>{freelancer.phone}</div>}
+            <div style={{ fontSize: 12, color: "#7F011F", marginTop: 2 }}>{TYPE_LABEL[freelancer.type] ?? "Freelancer"}</div>
+            {freelancer.phone && <div style={{ fontSize: 12, color: "#7F011F" }}>{freelancer.phone}</div>}
           </div>
           <div className="meta-card">
             <div className="meta-label">Payment Details</div>
             {freelancer.upi_id && <div className="meta-value">UPI: {freelancer.upi_id}</div>}
             {freelancer.bank_name && (
               <>
-                <div style={{ fontSize: 12, color: "#374151", marginTop: 2 }}>{freelancer.bank_name}</div>
-                {freelancer.account_number && <div style={{ fontSize: 12, color: "#374151" }}>A/C: {freelancer.account_number}</div>}
-                {freelancer.ifsc && <div style={{ fontSize: 12, color: "#374151" }}>IFSC: {freelancer.ifsc}</div>}
+                <div style={{ fontSize: 12, color: "#7F011F", marginTop: 2 }}>{freelancer.bank_name}</div>
+                {freelancer.account_number && <div style={{ fontSize: 12, color: "#7F011F" }}>A/C: {freelancer.account_number}</div>}
+                {freelancer.ifsc && <div style={{ fontSize: 12, color: "#7F011F" }}>IFSC: {freelancer.ifsc}</div>}
               </>
             )}
-            {!freelancer.upi_id && !freelancer.bank_name && <div style={{ fontSize: 12, color: "#9CA3AF" }}>Not provided</div>}
+            {!freelancer.upi_id && !freelancer.bank_name && <div style={{ fontSize: 12, color: "#7F011F" }}>Not provided</div>}
           </div>
         </div>
 

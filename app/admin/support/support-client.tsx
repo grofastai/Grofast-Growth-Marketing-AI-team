@@ -266,7 +266,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                 {card.icon}
               </div>
               <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{card.label}</p>
+                <p style={{ fontSize: 10, fontWeight: 700, color: "#7F011F", margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{card.label}</p>
                 <p style={{ fontSize: 24, fontWeight: 900, color: '#1F2430', margin: 0, lineHeight: 1, fontFamily: 'var(--font-jakarta)' }}>{card.value}</p>
                 <p style={{ fontSize: 10.5, color: card.dot, margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: card.dot, display: 'inline-block', flexShrink: 0 }} />
@@ -333,7 +333,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ fontSize: 13, fontWeight: 700, color: isActive ? '#FFFFFF' : '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.title}</span>
-                          <span style={{ fontSize: 10, color: isActive ? 'rgba(255,255,255,0.6)' : '#6B7280', flexShrink: 0 }}>{timeAgo(t.updated_at)}</span>
+                          <span style={{ fontSize: 10, color: isActive ? 'rgba(255,255,255,0.6)' : '#7F011F', flexShrink: 0 }}>{timeAgo(t.updated_at)}</span>
                         </div>
                         <p style={{ margin: '2px 0 0', fontSize: 11.5, color: isActive ? 'rgba(255,255,255,0.75)' : '#4B5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {requesterName(t)} · {preview}
@@ -367,14 +367,14 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <button onClick={() => setShowThreadMobile(false)} className="lg:hidden"
                           style={{ width: 32, height: 32, borderRadius: 9, border: '1px solid #EDEFF3', background: '#F6F7F9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-                          <ChevronLeft size={16} color="#6B7280" />
+                          <ChevronLeft size={16} color="#7F011F" />
                         </button>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             <span style={{ fontSize: 15, fontWeight: 800, color: '#1F2430' }}>{active.title}</span>
                             <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: pr.bg, color: pr.color }}>{pr.label}</span>
                           </div>
-                          <span style={{ fontSize: 11.5, color: '#9CA3AF' }}>
+                          <span style={{ fontSize: 11.5, color: "#7F011F" }}>
                             {ticketNum(indexMap[active.id] ?? 0)} · {cat.emoji} {cat.label} · from {requesterName(active)}
                           </span>
                         </div>
@@ -438,7 +438,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                           <input ref={replyFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={pickReplyImage} />
                           <button onClick={() => replyFileRef.current?.click()} disabled={uploading || pending} title="Attach image"
                             style={{ width: 40, height: 40, borderRadius: 11, border: '1px solid #EDEFF3', background: replyPreview ? 'rgba(222,26,26,0.06)' : '#F6F7F9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-                            {uploading ? <Loader2 size={15} className="animate-spin" color="#9CA3AF" /> : <Paperclip size={15} color={replyPreview ? '#DE1A1A' : '#9CA3AF'} />}
+                            {uploading ? <Loader2 size={15} className="animate-spin" color="#7F011F" /> : <Paperclip size={15} color={replyPreview ? '#DE1A1A' : '#7F011F'} />}
                           </button>
                           <textarea value={reply} onChange={e => setReply(e.target.value)} rows={1} placeholder="Reply to the member…"
                             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
@@ -451,7 +451,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                         </div>
                       </div>
                     ) : (
-                      <div style={{ padding: 14, borderTop: '1px solid #F1F2F5', textAlign: 'center', fontSize: 12.5, color: '#9CA3AF' }}>
+                      <div style={{ padding: 14, borderTop: '1px solid #F1F2F5', textAlign: 'center', fontSize: 12.5, color: "#7F011F" }}>
                         This ticket is closed.
                       </div>
                     )}
@@ -469,7 +469,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                   </div>
 
                   <h3 style={{ fontSize: 18, fontWeight: 900, color: '#1F2430', margin: '0 0 8px', fontFamily: 'var(--font-jakarta)', letterSpacing: '-0.01em' }}>Select a ticket</h3>
-                  <p style={{ fontSize: 13, color: '#9CA3AF', margin: '0 0 24px', maxWidth: 220, lineHeight: 1.65 }}>
+                  <p style={{ fontSize: 13, color: "#7F011F", margin: '0 0 24px', maxWidth: 220, lineHeight: 1.65 }}>
                     Choose a conversation from the left panel. Replies will appear here.
                   </p>
 
@@ -488,7 +488,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                         )}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                           <div style={{ width: 40, height: 40, borderRadius: 12, background: step.bg, border: `1.5px solid ${step.color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, boxShadow: `0 2px 8px ${step.color}18` }}>{step.emoji}</div>
-                          <span style={{ fontSize: 9, color: '#6B7280', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{step.label}</span>
+                          <span style={{ fontSize: 9, color: "#7F011F", fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{step.label}</span>
                         </div>
                       </div>
                     ))}
@@ -513,9 +513,9 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                 <XCircle size={22} color="#DE1A1A" />
               </div>
               <h3 style={{ fontSize: 16.5, fontWeight: 800, color: '#1F2430', margin: '0 0 6px' }}>Close this ticket?</h3>
-              <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 18px', lineHeight: 1.5 }}>The member won&apos;t be able to send more messages on it.</p>
+              <p style={{ fontSize: 13, color: "#7F011F", margin: '0 0 18px', lineHeight: 1.5 }}>The member won&apos;t be able to send more messages on it.</p>
               <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => setCloseConfirm(null)} style={{ flex: 1, padding: 11, borderRadius: 12, fontSize: 13.5, fontWeight: 700, color: '#6B7280', background: '#F6F7F9', border: '1px solid #EDEFF3', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={() => setCloseConfirm(null)} style={{ flex: 1, padding: 11, borderRadius: 12, fontSize: 13.5, fontWeight: 700, color: "#7F011F", background: '#F6F7F9', border: '1px solid #EDEFF3', cursor: 'pointer' }}>Cancel</button>
                 <button onClick={() => handleClose(closeConfirm)} disabled={pending}
                   style={{ flex: 1, padding: 11, borderRadius: 12, fontSize: 13.5, fontWeight: 800, color: '#fff', background: '#DE1A1A', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: pending ? 0.7 : 1 }}>
                   {pending && <Loader2 size={14} className="animate-spin" />} Close
@@ -566,7 +566,7 @@ function NewTicketModal({ onClose, onCreated }: { onClose: () => void; onCreated
           <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F1F2F5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ fontSize: 17, fontWeight: 800, color: '#1F2430', margin: 0 }}>New ticket</h2>
             <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid #EDEFF3', background: '#F6F7F9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              <X size={15} color="#6B7280" />
+              <X size={15} color="#7F011F" />
             </button>
           </div>
           <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -578,7 +578,7 @@ function NewTicketModal({ onClose, onCreated }: { onClose: () => void; onCreated
                 return (
                   <button key={c.key} onClick={() => setCategory(c.key)}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                      border: on ? '1.5px solid #DE1A1A' : '1.5px solid #EDEFF3', background: on ? 'rgba(222,26,26,0.06)' : '#FFFFFF', color: on ? '#DE1A1A' : '#6B7280' }}>
+                      border: on ? '1.5px solid #DE1A1A' : '1.5px solid #EDEFF3', background: on ? 'rgba(222,26,26,0.06)' : '#FFFFFF', color: on ? '#DE1A1A' : '#7F011F' }}>
                     <span style={{ fontSize: 14 }}>{c.emoji}</span> {c.label}
                   </button>
                 )
@@ -590,7 +590,7 @@ function NewTicketModal({ onClose, onCreated }: { onClose: () => void; onCreated
                 return (
                   <button key={p} onClick={() => setPriority(p)}
                     style={{ flex: 1, padding: '8px 0', borderRadius: 11, fontSize: 12, fontWeight: 700, textTransform: 'capitalize', cursor: 'pointer',
-                      border: on ? `1.5px solid ${tok.color}` : '1.5px solid #EDEFF3', background: on ? tok.bg : '#FFFFFF', color: on ? tok.color : '#9CA3AF' }}>
+                      border: on ? `1.5px solid ${tok.color}` : '1.5px solid #EDEFF3', background: on ? tok.bg : '#FFFFFF', color: on ? tok.color : "#7F011F" }}>
                     {p}
                   </button>
                 )
@@ -605,7 +605,7 @@ function NewTicketModal({ onClose, onCreated }: { onClose: () => void; onCreated
             )}
           </div>
           <div style={{ padding: '0 20px 22px', display: 'flex', gap: 10 }}>
-            <button onClick={onClose} style={{ flex: 1, padding: 12, borderRadius: 13, fontSize: 13.5, fontWeight: 700, color: '#6B7280', background: '#F6F7F9', border: '1px solid #EDEFF3', cursor: 'pointer' }}>Cancel</button>
+            <button onClick={onClose} style={{ flex: 1, padding: 12, borderRadius: 13, fontSize: 13.5, fontWeight: 700, color: "#7F011F", background: '#F6F7F9', border: '1px solid #EDEFF3', cursor: 'pointer' }}>Cancel</button>
             <button onClick={submit} disabled={pending}
               style={{ flex: 1.4, padding: 12, borderRadius: 13, fontSize: 13.5, fontWeight: 800, color: '#fff', background: 'linear-gradient(135deg,#DE1A1A,#9B0F0F)', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, opacity: pending ? 0.7 : 1 }}>
               {pending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Create
@@ -652,12 +652,12 @@ function AssignHandlerModal({ onClose, onChanged }: { onClose: () => void; onCha
               <h2 style={{ fontSize: 17, fontWeight: 800, color: '#1F2430', margin: 0, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                 <LifeBuoy size={16} color="#DE1A1A" /> Support handlers
               </h2>
-              <p style={{ fontSize: 12, color: '#9CA3AF', margin: '3px 0 0' }}>
+              <p style={{ fontSize: 12, color: "#7F011F", margin: '3px 0 0' }}>
                 Anyone you turn on sees this Support Inbox and gets ticket alerts. {activeCount} active.
               </p>
             </div>
             <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid #EDEFF3', background: '#F6F7F9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-              <X size={15} color="#6B7280" />
+              <X size={15} color="#7F011F" />
             </button>
           </div>
 
@@ -671,7 +671,7 @@ function AssignHandlerModal({ onClose, onChanged }: { onClose: () => void; onCha
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px 16px', minHeight: 120 }}>
             {loading ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '32px 0', color: '#9CA3AF', fontSize: 13 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '32px 0', color: "#7F011F", fontSize: 13 }}>
                 <Loader2 size={15} className="animate-spin" /> Loading members…
               </div>
             ) : filtered.length === 0 ? (
@@ -686,13 +686,13 @@ function AssignHandlerModal({ onClose, onChanged }: { onClose: () => void; onCha
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#1F2430', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
-                    <p style={{ margin: '1px 0 0', fontSize: 11, color: '#9CA3AF' }}>{p.employee_id ?? '—'}{on ? ' · Support handler' : ''}</p>
+                    <p style={{ margin: '1px 0 0', fontSize: 11, color: "#7F011F" }}>{p.employee_id ?? '—'}{on ? ' · Support handler' : ''}</p>
                   </div>
                   <button onClick={() => toggle(p.id, !on)} disabled={savingId === p.id} aria-pressed={on}
                     style={{ width: 46, height: 26, borderRadius: 99, border: 'none', cursor: 'pointer', flexShrink: 0, position: 'relative', transition: 'background .15s',
                       background: on ? '#DE1A1A' : '#D7DAE0', opacity: savingId === p.id ? 0.6 : 1 }}>
                     <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .15s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {savingId === p.id ? <Loader2 size={11} className="animate-spin" color="#9CA3AF" /> : on ? <Check size={12} color="#DE1A1A" /> : null}
+                      {savingId === p.id ? <Loader2 size={11} className="animate-spin" color="#7F011F" /> : on ? <Check size={12} color="#DE1A1A" /> : null}
                     </span>
                   </button>
                 </div>

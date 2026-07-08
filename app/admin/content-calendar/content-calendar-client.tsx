@@ -122,7 +122,7 @@ function DonutChart({ total, posted, inProgress, ready, pending }: {
     <svg width="130" height="130">
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="#E5E7EB" strokeWidth="15" />
       <text x={cx} y={cy - 4} textAnchor="middle" fontSize="20" fontWeight="900" fill="#111827">0</text>
-      <text x={cx} y={cy + 13} textAnchor="middle" fontSize="9" fill="#9CA3AF">Total Content</text>
+      <text x={cx} y={cy + 13} textAnchor="middle" fontSize="9" fill="#61063B">Total Content</text>
     </svg>
   )
   const segs = [
@@ -149,7 +149,7 @@ function DonutChart({ total, posted, inProgress, ready, pending }: {
         )
       })}
       <text x={cx} y={cy - 4} textAnchor="middle" fontSize="20" fontWeight="900" fill="#111827">{total}</text>
-      <text x={cx} y={cy + 13} textAnchor="middle" fontSize="9" fill="#9CA3AF">Total Content</text>
+      <text x={cx} y={cy + 13} textAnchor="middle" fontSize="9" fill="#61063B">Total Content</text>
     </svg>
   )
 }
@@ -475,7 +475,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             <button key={mode} onClick={() => setContentMode(mode)} style={{
               flex: 1, padding: isMobile ? "10px 10px 10px 14px" : "12px 14px 12px 20px", borderRadius: 14, border: "none", cursor: "pointer",
               background: contentMode === mode ? grad : "transparent",
-              color: contentMode === mode ? "#FFF" : "#6B7280",
+              color: contentMode === mode ? "#FFF" : "#61063B",
               textAlign: "left", transition: "all 0.18s",
               boxShadow: contentMode === mode ? `0 4px 20px ${shadow}` : "none",
               display: "flex", alignItems: "center", gap: 8,
@@ -495,11 +495,11 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           <p style={{ fontSize: 10, fontWeight: 800, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px" }}>View Schedule Of</p>
           <div style={{ position: "relative" }}>
             <select value={memberFilter} onChange={e => setMemberFilter(e.target.value)}
-              style={{ width: "100%", padding: "8px 30px 8px 12px", borderRadius: 10, border: `1.5px solid ${memberFilter === "all" ? "#E5E7EB" : "#DE1A1A"}`, background: memberFilter === "all" ? "#FAFAFA" : "rgba(222,26,26,0.04)", fontSize: 13, fontWeight: 700, color: memberFilter === "all" ? "#6B7280" : "#DE1A1A", cursor: "pointer", outline: "none", appearance: "none" }}>
+              style={{ width: "100%", padding: "8px 30px 8px 12px", borderRadius: 10, border: `1.5px solid ${memberFilter === "all" ? "#E5E7EB" : "#DE1A1A"}`, background: memberFilter === "all" ? "#FAFAFA" : "rgba(222,26,26,0.04)", fontSize: 13, fontWeight: 700, color: memberFilter === "all" ? "#61063B" : "#DE1A1A", cursor: "pointer", outline: "none", appearance: "none" }}>
               <option value="all">👥 All Team Members</option>
               {members.map(m => <option key={m.id} value={m.id}>👤 {m.name}</option>)}
             </select>
-            <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+            <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#61063B", pointerEvents: "none" }} />
           </div>
         </div>
       </div>
@@ -549,14 +549,14 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: "1px solid #F3F4F6", flexWrap: "wrap", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <button onClick={prevMonth} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <ChevronLeft size={13} color="#6B7280" />
+                  <ChevronLeft size={13} color="#61063B" />
                 </button>
                 <button onClick={() => { setYear(initialYear); setMonth(initialMonth); setSelectedDate(today) }}
-                  style={{ padding: "6px 13px", fontSize: 11, fontWeight: 700, color: "#374151", background: "#F3F4F6", borderRadius: 8, border: "none", cursor: "pointer" }}>
+                  style={{ padding: "6px 13px", fontSize: 11, fontWeight: 700, color: "#61063B", background: "#F3F4F6", borderRadius: 8, border: "none", cursor: "pointer" }}>
                   Today
                 </button>
                 <button onClick={nextMonth} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <ChevronRight size={13} color="#6B7280" />
+                  <ChevronRight size={13} color="#61063B" />
                 </button>
               </div>
 
@@ -566,11 +566,11 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 {clientOptions.length > 0 && (
                   <div style={{ position: "relative" }}>
                     <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
-                      style={{ fontSize: 11, fontWeight: 600, color: clientFilter === "all" ? "#6B7280" : "#DE1A1A", background: clientFilter === "all" ? "#F9FAFB" : "rgba(222,26,26,0.05)", border: `1.5px solid ${clientFilter === "all" ? "#E5E7EB" : "rgba(222,26,26,0.3)"}`, borderRadius: 8, padding: "5px 22px 5px 9px", cursor: "pointer", outline: "none", appearance: "none" }}>
+                      style={{ fontSize: 11, fontWeight: 600, color: clientFilter === "all" ? "#61063B" : "#DE1A1A", background: clientFilter === "all" ? "#F9FAFB" : "rgba(222,26,26,0.05)", border: `1.5px solid ${clientFilter === "all" ? "#E5E7EB" : "rgba(222,26,26,0.3)"}`, borderRadius: 8, padding: "5px 22px 5px 9px", cursor: "pointer", outline: "none", appearance: "none" }}>
                       <option value="all">All Clients</option>
                       {clientOptions.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
-                    <ChevronDown size={10} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                    <ChevronDown size={10} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", color: "#61063B", pointerEvents: "none" }} />
                   </div>
                 )}
                 <div style={{ display: "flex", background: "#F3F4F6", borderRadius: 9, padding: 2, gap: 1 }}>
@@ -578,7 +578,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     <button key={v} onClick={() => setView(v)} style={{
                       padding: "5px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700,
                       background: view === v ? "linear-gradient(135deg,#FF4D4D,#DE1A1A)" : "transparent",
-                      color: view === v ? "#FFF" : "#6B7280",
+                      color: view === v ? "#FFF" : "#61063B",
                       boxShadow: view === v ? "0 2px 8px rgba(222,26,26,0.3)" : "none",
                     }}>{label}</button>
                   ))}
@@ -591,7 +591,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 {/* Day headers */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
                   {DAYS.map(d => (
-                    <div key={d} style={{ padding: "8px 0", textAlign: "center", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: "1px solid #F3F4F6" }}>{d}</div>
+                    <div key={d} style={{ padding: "8px 0", textAlign: "center", fontSize: 10, fontWeight: 700, color: "#61063B", textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: "1px solid #F3F4F6" }}>{d}</div>
                   ))}
                 </div>
                 {/* Grid cells */}
@@ -621,7 +621,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                         transition: "background 0.12s",
                       }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isMobile ? 3 : 4 }}>
-                          <span style={{ fontSize: isMobile ? 10 : 12, fontWeight: isToday ? 900 : 500, width: isMobile ? 18 : 22, height: isMobile ? 18 : 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent", color: isToday ? "#FFF" : isSelected ? "#DE1A1A" : "#374151" }}>
+                          <span style={{ fontSize: isMobile ? 10 : 12, fontWeight: isToday ? 900 : 500, width: isMobile ? 18 : 22, height: isMobile ? 18 : 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent", color: isToday ? "#FFF" : isSelected ? "#DE1A1A" : "#61063B" }}>
                             {day}
                           </span>
                           {total > 0 && (
@@ -642,7 +642,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                           </div>
                         )}
                         {!isMobile && more > 0 && (
-                          <span style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", paddingLeft: 5 }}>+{more} more</span>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: "#61063B", paddingLeft: 5 }}>+{more} more</span>
                         )}
                       </div>
                     )
@@ -650,7 +650,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 </div>
                 {/* Legend */}
                 <div style={{ padding: "10px 18px", borderTop: "1px solid #F3F4F6", display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
-                  <span style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600 }}>Legend:</span>
+                  <span style={{ fontSize: 10, color: "#61063B", fontWeight: 600 }}>Legend:</span>
                   <span style={{ fontSize: 10, color: "#9B6BFF", fontWeight: 600 }}>🎥 Shoot</span>
                   <span style={{ fontSize: 10, color: "#D97706", fontWeight: 600 }}>⏰ Task</span>
                   {PLATFORMS.slice(0, 4).map(p => (
@@ -665,13 +665,13 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     {contentMode === "shoot" ? "📹 Shoot Schedule" : "📄 Post Schedule"} — {memberFilter !== "all" ? (members.find(m => m.id === memberFilter)?.name ?? "Team Member") : "All Members"} · {MONTHS[month]} {year}
                   </h3>
                   {memberFilter !== "all" && (
-                    <button onClick={() => setMemberFilter("all")} style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, border: "1.5px solid #E5E7EB", background: "#F3F4F6", color: "#6B7280", cursor: "pointer" }}>
+                    <button onClick={() => setMemberFilter("all")} style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, border: "1.5px solid #E5E7EB", background: "#F3F4F6", color: "#61063B", cursor: "pointer" }}>
                       Show All ×
                     </button>
                   )}
                 </div>
                 {filteredPosts.length === 0 ? (
-                  <div style={{ padding: "60px 24px", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>No content scheduled this month.</div>
+                  <div style={{ padding: "60px 24px", textAlign: "center", color: "#61063B", fontSize: 13 }}>No content scheduled this month.</div>
                 ) : (
                   <div>
                     {filteredPosts.map((p, i) => {
@@ -684,13 +684,13 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                           </div>
                           <div style={{ flex: 1, minWidth: 120 }}>
                             <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                            <p style={{ fontSize: 11, color: "#6B7280", margin: "2px 0 0" }}>
+                            <p style={{ fontSize: 11, color: "#61063B", margin: "2px 0 0" }}>
                               {platformLabel(p.platform)} · {p.client_name || "—"} · {p.assignee?.name ?? "Unassigned"}
                               {p.content_pillar && <span style={{ marginLeft: 6, padding: "1px 7px", borderRadius: 10, background: "rgba(155,107,255,0.1)", color: "#9B6BFF", fontWeight: 600 }}>{p.content_pillar}</span>}
                             </p>
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, flexShrink: 0 }}>
-                            <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap" }}>{p.scheduled_date}</span>
+                            <span style={{ fontSize: 11, color: "#61063B", whiteSpace: "nowrap" }}>{p.scheduled_date}</span>
                             {formatTime(p.scheduled_time) && (
                               <span style={{ fontSize: 11, fontWeight: 800, color: "#DE1A1A", whiteSpace: "nowrap", background: "rgba(222,26,26,0.08)", padding: "2px 8px", borderRadius: 6 }}>🕐 {formatTime(p.scheduled_time)}</span>
                             )}
@@ -738,7 +738,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 11, fontWeight: 800, color: a.from, margin: 0 }}>{a.label}</p>
-                    <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.sub}</p>
+                    <p style={{ fontSize: 10, color: "#61063B", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.sub}</p>
                   </div>
                 </button>
               ))}
@@ -776,8 +776,8 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 if (total === 0) return (
                   <div style={{ padding: "28px 20px", textAlign: "center" }}>
                     <div style={{ fontSize: 30, marginBottom: 8 }}>📭</div>
-                    <p style={{ fontSize: 13, color: "#9CA3AF", margin: "0 0 4px", fontWeight: 600 }}>No content scheduled</p>
-                    <p style={{ fontSize: 11, color: "#D1D5DB", margin: 0 }}>Click Add Post to schedule something</p>
+                    <p style={{ fontSize: 13, color: "#61063B", margin: "0 0 4px", fontWeight: 600 }}>No content scheduled</p>
+                    <p style={{ fontSize: 11, color: "#61063B", margin: 0 }}>Click Add Post to schedule something</p>
                   </div>
                 )
                 return (
@@ -818,7 +818,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                              <p style={{ fontSize: 11, color: shoot ? "#9B6BFF" : "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: shoot ? 600 : 400 }}>
+                              <p style={{ fontSize: 11, color: shoot ? "#9B6BFF" : "#61063B", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: shoot ? 600 : 400 }}>
                                 {shoot ? "📹 Video Shoot" : platformLabel(p.platform)}{p.client_name ? ` · ${p.client_name}` : ""}{time ? ` · ${time}` : ""}
                               </p>
                             </div>
@@ -850,7 +850,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 <button onClick={() => setView("list")} style={{ fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>View All →</button>
               </div>
               {upcomingPosts.length === 0 ? (
-                <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "16px", margin: 0 }}>No upcoming posts</p>
+                <p style={{ fontSize: 12, color: "#61063B", textAlign: "center", padding: "16px", margin: 0 }}>No upcoming posts</p>
               ) : (
                 <div>
                   {upcomingPosts.slice(0, 5).map(p => {
@@ -863,7 +863,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: 12, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                          <p style={{ fontSize: 10, color: shoot ? "#9B6BFF" : "#9CA3AF", margin: "1px 0 0", fontWeight: shoot ? 600 : 400 }}>{shoot ? "📹 Shoot · " : ""}{p.scheduled_date === today ? "Today" : p.scheduled_date.slice(5)}</p>
+                          <p style={{ fontSize: 10, color: shoot ? "#9B6BFF" : "#61063B", margin: "1px 0 0", fontWeight: shoot ? 600 : 400 }}>{shoot ? "📹 Shoot · " : ""}{p.scheduled_date === today ? "Today" : p.scheduled_date.slice(5)}</p>
                         </div>
                         <span style={{ width: 7, height: 7, borderRadius: "50%", background: pColor, flexShrink: 0 }} />
                       </div>
@@ -901,12 +901,12 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 <h3 style={{ fontSize: 17, fontWeight: 800, color: "#111827", margin: 0 }}>
                   {isEdit ? "Edit Content" : "Schedule Content"}
                 </h3>
-                {!isEdit && <p style={{ fontSize: 12, color: "#6B7280", margin: "2px 0 0" }}>
+                {!isEdit && <p style={{ fontSize: 12, color: "#61063B", margin: "2px 0 0" }}>
                   {schedType === "shoot" ? "📹 Video Shoot Schedule" : schedType === "post" ? "📱 Post (Videos & Poster)" : "Choose what to schedule"}
                 </p>}
               </div>
               <button onClick={() => setModalMode(null)} style={{ background: "none", border: "none", cursor: "pointer" }}>
-                <X size={18} color="#6B7280" />
+                <X size={18} color="#61063B" />
               </button>
             </div>
 
@@ -921,14 +921,14 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     style={{ padding: "22px 16px", borderRadius: 16, border: `2px solid ${opt.border}`, background: opt.bg, cursor: "pointer", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 32 }}>{opt.emoji}</span>
                     <span style={{ fontSize: 14, fontWeight: 800, color: opt.color }}>{opt.label}</span>
-                    <span style={{ fontSize: 11, color: "#6B7280" }}>{opt.sub}</span>
+                    <span style={{ fontSize: 11, color: "#61063B" }}>{opt.sub}</span>
                   </button>
                 ))}
               </div>
             )}
             {!isEdit && schedType && (
               <button type="button" onClick={() => setSchedType("")}
-                style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", padding: "0 0 6px", textAlign: "left" }}>
+                style={{ fontSize: 11, fontWeight: 700, color: "#61063B", background: "none", border: "none", cursor: "pointer", padding: "0 0 6px", textAlign: "left" }}>
                 ← Change type
               </button>
             )}
@@ -990,7 +990,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               </div>
 
               <div>
-                <label style={LABEL}>Date{!isEdit ? "s" : ""} * {!isEdit && <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>— select one or more</span>}</label>
+                <label style={LABEL}>Date{!isEdit ? "s" : ""} * {!isEdit && <span style={{ fontWeight: 600, color: "#61063B", textTransform: "none" }}>— select one or more</span>}</label>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <input type="date" max="2099-12-31" value={schedDateInput}
                     onChange={e => {
@@ -1011,21 +1011,21 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
               {(isEdit ? contentType !== "shoot" : schedType !== "shoot") && (
                 <div>
-                  <label style={LABEL}>Post Time <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
+                  <label style={LABEL}>Post Time <span style={{ fontWeight: 600, color: "#61063B", textTransform: "none" }}>(optional)</span></label>
                   <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={FIELD} />
                 </div>
               )}
 
               {(isEdit ? contentType === "shoot" : schedType === "shoot") ? (
                 <div>
-                  <label style={LABEL}>Assign To <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(select all crew members)</span></label>
+                  <label style={LABEL}>Assign To <span style={{ fontWeight: 600, color: "#61063B", textTransform: "none" }}>(select all crew members)</span></label>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
                     {members.map(m => {
                       const sel = shootTeam.includes(m.id)
                       return (
                         <button key={m.id} type="button"
                           onClick={() => setShootTeam(prev => sel ? prev.filter(id => id !== m.id) : [...prev, m.id])}
-                          style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${sel ? "#DE1A1A" : "#E2E8F0"}`, background: sel ? "rgba(222,26,26,0.08)" : "#FAFAFA", color: sel ? "#DE1A1A" : "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                          style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${sel ? "#DE1A1A" : "#E2E8F0"}`, background: sel ? "rgba(222,26,26,0.08)" : "#FAFAFA", color: sel ? "#DE1A1A" : "#61063B", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                           {sel ? "✓ " : ""}{m.name}
                         </button>
                       )
@@ -1072,7 +1072,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               )}
 
               <div>
-                <label style={LABEL}>Instructions <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
+                <label style={LABEL}>Instructions <span style={{ fontWeight: 600, color: "#61063B", textTransform: "none" }}>(optional)</span></label>
                 <textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={3}
                   placeholder="Content guidelines, reminders, or instructions…"
                   style={{ ...FIELD, resize: "vertical", lineHeight: 1.5 }} />
@@ -1095,7 +1095,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
               <div style={{ display: "flex", gap: 10 }}>
                 <button type="button" onClick={() => setModalMode(null)}
-                  style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#FAFAFA", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#6B7280" }}>
+                  style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#FAFAFA", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#61063B" }}>
                   Cancel
                 </button>
                 <button type="submit" disabled={isPending}

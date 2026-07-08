@@ -110,7 +110,7 @@ function VerifDonut({ pct }: { pct: number }) {
         strokeDasharray={`${dash} ${circ}`} transform="rotate(-90 60 60)" />
       <text x={60} y={55} textAnchor="middle" dominantBaseline="middle"
         fontSize={22} fontWeight="800" fill="#111">{pct}%</text>
-      <text x={60} y={72} textAnchor="middle" fontSize={9} fontWeight="600" fill="#6B7280">Profile Verified</text>
+      <text x={60} y={72} textAnchor="middle" fontSize={9} fontWeight="600" fill="#1b365d">Profile Verified</text>
     </svg>
   )
 }
@@ -127,13 +127,13 @@ function HeroStatCard({ label, value, sub, icon, color, up }: {
     }}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, marginBottom: 3 }}>{label}</p>
+          <p style={{ fontSize: 11, color: "#1b365d", fontWeight: 600, marginBottom: 3 }}>{label}</p>
           <p style={{ fontSize: 26, fontWeight: 900, color: "#111", lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{value}</p>
           <div className="flex items-center gap-1 mt-1.5">
             <span style={{ fontSize: 10, fontWeight: 700, color: up !== false ? "#16A34A" : "#EF4444" }}>
               {up !== false ? "▲" : "▼"} {sub}
             </span>
-            <span style={{ fontSize: 10, color: "#9CA3AF" }}>vs last month</span>
+            <span style={{ fontSize: 10, color: "#1b365d" }}>vs last month</span>
           </div>
         </div>
         <div style={{
@@ -153,11 +153,11 @@ function InfoRow({ icon: Icon, label, value, url }: {
   return (
     <div className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>
       <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.04)" }}>
-        <Icon size={12} style={{ color: empty ? "#D1D5DB" : "#6B7280" }} />
+        <Icon size={12} style={{ color: empty ? "#9CA3AF" : "#1b365d" }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{label}</p>
-        <p style={{ fontSize: 12, fontWeight: 600, color: empty ? "#D1D5DB" : "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <p className="text-[10px] uppercase tracking-wider" style={{ color: "#1b365d" }}>{label}</p>
+        <p style={{ fontSize: 12, fontWeight: 600, color: empty ? "#9CA3AF" : "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {value || "—"}
         </p>
       </div>
@@ -196,7 +196,7 @@ function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => v
         }}>{badge.ext}</div>
         <div style={{ position: "relative" }}>
           <button onClick={() => setMenu(p => !p)} style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(0,0,0,0.04)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <MoreVertical size={13} style={{ color: "#6B7280" }} />
+            <MoreVertical size={13} style={{ color: "#1b365d" }} />
           </button>
           {menu && (
             <div style={{ position: "absolute", right: 0, top: 32, background: "#fff", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.15)", zIndex: 50, minWidth: 140, border: "1px solid #E5E7EB", overflow: "hidden" }}
@@ -229,7 +229,7 @@ function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => v
       {/* Name */}
       <div>
         <p style={{ fontSize: 12, fontWeight: 700, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</p>
-        <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 2 }}>{formatDateShort(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}</p>
+        <p style={{ fontSize: 10, color: "#1b365d", marginTop: 2 }}>{formatDateShort(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}</p>
       </div>
       {/* Status + actions */}
       <div className="flex items-center justify-between">
@@ -248,7 +248,7 @@ function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => v
       {/* Action buttons */}
       <div className="flex gap-2">
         <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
-          style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px", borderRadius: 10, background: "rgba(0,0,0,0.04)", fontSize: 11, fontWeight: 600, color: "#374151", textDecoration: "none" }}>
+          style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px", borderRadius: 10, background: "rgba(0,0,0,0.04)", fontSize: 11, fontWeight: 600, color: "#1b365d", textDecoration: "none" }}>
           <Eye size={11} /> View
         </a>
         <a href={doc.file_url} download
@@ -279,12 +279,12 @@ function DocRowList({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => vo
             {verified ? "✓ Verified" : "Pending"}
           </span>
         </div>
-        <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>{formatDate(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}</p>
+        <p style={{ fontSize: 11, color: "#1b365d", marginTop: 2 }}>{formatDate(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}</p>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
           style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(0,0,0,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Download size={13} style={{ color: "#6B7280" }} />
+          <Download size={13} style={{ color: "#1b365d" }} />
         </a>
         {!doc.id.startsWith("kyc__") && (
           <button onClick={onDelete} disabled={isPending}
@@ -493,7 +493,7 @@ export default function DocumentsClient({
           </div>
           <div>
             <p style={{ fontSize: 13, fontWeight: 700, color: "#111", margin: 0 }}>Upload Successful</p>
-            <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>{uploadSuccess}</p>
+            <p style={{ fontSize: 11, color: "#1b365d", margin: 0 }}>{uploadSuccess}</p>
           </div>
         </div>
       )}
@@ -564,7 +564,7 @@ export default function DocumentsClient({
               <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>{members.length}</span>
             </div>
             <div style={{ position: "relative" }}>
-              <Search size={12} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+              <Search size={12} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#1b365d" }} />
               <input
                 placeholder="Search employee..."
                 value={empSearch} onChange={e => setEmpSearch(e.target.value)}
@@ -606,15 +606,15 @@ export default function DocumentsClient({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 12, fontWeight: 700, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF" }}>#{m.employee_id}</span>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: "#1b365d" }}>#{m.employee_id}</span>
                       {m.team && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: `${tc2}14`, color: tc2 }}>{m.team}</span>}
                     </div>
                   </div>
                   {/* Doc count + online dot */}
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                     <div style={{ width: 7, height: 7, borderRadius: "50%", background: m.status === "active" ? "#22C55E" : "#D1D5DB" }} />
-                    <span style={{ fontSize: 10, fontWeight: 800, color: "#6B7280" }}>{mDocs}</span>
-                    <span style={{ fontSize: 8, color: "#9CA3AF", marginTop: -3 }}>docs</span>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: "#1b365d" }}>{mDocs}</span>
+                    <span style={{ fontSize: 8, color: "#1b365d", marginTop: -3 }}>docs</span>
                   </div>
                 </button>
               )
@@ -632,7 +632,7 @@ export default function DocumentsClient({
           {/* Mobile/tablet employee switcher — the Employees list is desktop-only (lg:flex), so this is the
               only way to change whose documents are shown below lg */}
           <div className="lg:hidden" style={{ position: "relative" }}>
-            <Users size={13} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+            <Users size={13} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#1b365d", pointerEvents: "none" }} />
             <select
               value={selectedId}
               onChange={e => { setSelectedId(e.target.value); setActiveTab("documents"); setDocFilter("All"); setDocSearch("") }}
@@ -643,7 +643,7 @@ export default function DocumentsClient({
               }}>
               {members.map(m => <option key={m.id} value={m.id}>{m.name} (#{m.employee_id})</option>)}
             </select>
-            <ChevronRight size={13} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%) rotate(90deg)", color: "#9CA3AF", pointerEvents: "none" }} />
+            <ChevronRight size={13} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%) rotate(90deg)", color: "#1b365d", pointerEvents: "none" }} />
           </div>
           {selectedMember ? (
             <>
@@ -675,21 +675,21 @@ export default function DocumentsClient({
                         <span style={{ fontSize: 9, fontWeight: 800, padding: "3px 8px", borderRadius: 20, background: "rgba(22,163,74,0.1)", color: "#16A34A" }}>● Active</span>
                       </div>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <span style={{ fontSize: 10, color: "#6B7280" }}>{selectedMember.employment_type ?? selectedMember.role}</span>
+                        <span style={{ fontSize: 10, color: "#1b365d" }}>{selectedMember.employment_type ?? selectedMember.role}</span>
                         {selectedMember.team && (
                           <>
-                            <span style={{ fontSize: 10, color: "#D1D5DB" }}>•</span>
+                            <span style={{ fontSize: 10, color: "#1b365d" }}>•</span>
                             <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 5, background: `${tc}14`, color: tc }}>{selectedMember.team}</span>
                           </>
                         )}
-                        <span style={{ fontSize: 10, color: "#D1D5DB" }}>•</span>
-                        <span style={{ fontSize: 10, color: "#9CA3AF" }}>Joined {formatDate(selectedMember.created_at)}</span>
+                        <span style={{ fontSize: 10, color: "#1b365d" }}>•</span>
+                        <span style={{ fontSize: 10, color: "#1b365d" }}>Joined {formatDate(selectedMember.created_at)}</span>
                       </div>
                     </div>
                     {/* Completion ring */}
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                       <CompletionRing pct={completionPct} size={68} />
-                      <p style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600 }}>Profile Complete</p>
+                      <p style={{ fontSize: 9, color: "#1b365d", fontWeight: 600 }}>Profile Complete</p>
                     </div>
                   </div>
                   {/* Action pills */}
@@ -703,7 +703,7 @@ export default function DocumentsClient({
                       <button key={a.label} onClick={a.onClick} style={{
                         display: "flex", alignItems: "center", gap: 5, padding: "6px 12px",
                         borderRadius: 10, fontSize: 11, fontWeight: 700, cursor: "pointer",
-                        background: "rgba(0,0,0,0.03)", color: "#374151",
+                        background: "rgba(0,0,0,0.03)", color: "#1b365d",
                         border: "1px solid rgba(0,0,0,0.08)",
                       }}>
                         {a.icon} {a.label}
@@ -718,7 +718,7 @@ export default function DocumentsClient({
                       style={{
                         flex: 1, padding: "11px 8px", fontSize: 12, fontWeight: 700, cursor: "pointer",
                         border: "none", background: "none", borderBottom: `2px solid ${activeTab === tab.id ? "#de1a1a" : "transparent"}`,
-                        color: activeTab === tab.id ? "#de1a1a" : "#6B7280",
+                        color: activeTab === tab.id ? "#de1a1a" : "#1b365d",
                         transition: "all 0.15s",
                       }}>
                       {tab.label}
@@ -737,22 +737,22 @@ export default function DocumentsClient({
                         <button key={chip} onClick={() => setDocFilter(chip)} style={{
                           padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "none",
                           background: docFilter === chip ? "#de1a1a" : "rgba(0,0,0,0.04)",
-                          color: docFilter === chip ? "#fff" : "#6B7280",
+                          color: docFilter === chip ? "#fff" : "#1b365d",
                         }}>{chip}</button>
                       ))}
                     </div>
                     {/* Search + view toggle */}
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <div style={{ position: "relative" }}>
-                        <Search size={11} style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+                        <Search size={11} style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#1b365d" }} />
                         <input placeholder="Search documents..." value={docSearch} onChange={e => setDocSearch(e.target.value)}
                           style={{ padding: "7px 10px 7px 26px", borderRadius: 9, fontSize: 11, border: "1px solid #E5E7EB", outline: "none", width: 160, color: "#111", background: "#F9FAFB" }} />
                       </div>
                       <button onClick={() => setViewMode("grid")} style={{ width: 30, height: 30, borderRadius: 8, border: "none", cursor: "pointer", background: viewMode === "grid" ? "#de1a1a" : "rgba(0,0,0,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <LayoutGrid size={13} style={{ color: viewMode === "grid" ? "#fff" : "#6B7280" }} />
+                        <LayoutGrid size={13} style={{ color: viewMode === "grid" ? "#fff" : "#1b365d" }} />
                       </button>
                       <button onClick={() => setViewMode("list")} style={{ width: 30, height: 30, borderRadius: 8, border: "none", cursor: "pointer", background: viewMode === "list" ? "#de1a1a" : "rgba(0,0,0,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <List size={13} style={{ color: viewMode === "list" ? "#fff" : "#6B7280" }} />
+                        <List size={13} style={{ color: viewMode === "list" ? "#fff" : "#1b365d" }} />
                       </button>
                     </div>
                   </div>
@@ -773,19 +773,19 @@ export default function DocumentsClient({
                       transition: "all 0.2s",
                     }}
                     onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}>
-                    <CloudUpload size={22} style={{ color: dragOver ? "#de1a1a" : "#D1D5DB", margin: "0 auto 6px" }} />
-                    <p style={{ fontSize: 12, fontWeight: 600, color: dragOver ? "#de1a1a" : "#9CA3AF" }}>
+                    <CloudUpload size={22} style={{ color: dragOver ? "#de1a1a" : "#1b365d", margin: "0 auto 6px" }} />
+                    <p style={{ fontSize: 12, fontWeight: 600, color: dragOver ? "#de1a1a" : "#1b365d" }}>
                       Drag &amp; drop files here or click to upload
                     </p>
-                    <p style={{ fontSize: 10, color: "#D1D5DB", marginTop: 3 }}>Supports: PDF, DOC, DOCX, PNG, JPG (Max 10MB)</p>
+                    <p style={{ fontSize: 10, color: "#1b365d", marginTop: 3 }}>Supports: PDF, DOC, DOCX, PNG, JPG (Max 10MB)</p>
                   </div>
 
                   {/* Documents */}
                   {shownDocs.length === 0 ? (
                     <div style={{ background: "#fff", borderRadius: 20, padding: "48px 20px", textAlign: "center", border: "1px solid rgba(0,0,0,0.07)" }}>
                       <FolderOpen size={36} style={{ color: "#E5E7EB", margin: "0 auto 12px" }} />
-                      <p style={{ fontSize: 14, fontWeight: 700, color: "#374151" }}>No documents found</p>
-                      <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>Upload the first document for {selectedMember.name}</p>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: "#1b365d" }}>No documents found</p>
+                      <p style={{ fontSize: 12, color: "#1b365d", marginTop: 4 }}>Upload the first document for {selectedMember.name}</p>
                       <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}
                         style={{ marginTop: 16, display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 10, fontSize: 12, fontWeight: 700, background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)", cursor: "pointer" }}>
                         <Upload size={12} /> Upload Document
@@ -802,7 +802,7 @@ export default function DocumentsClient({
                   )}
 
                   {shownDocs.length > 0 && (
-                    <button style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px", borderRadius: 14, fontSize: 12, fontWeight: 700, color: "#6B7280", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", cursor: "pointer" }}>
+                    <button style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px", borderRadius: 14, fontSize: 12, fontWeight: 700, color: "#1b365d", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", cursor: "pointer" }}>
                       View More Documents <ChevronRight size={13} />
                     </button>
                   )}
@@ -812,7 +812,7 @@ export default function DocumentsClient({
               {/* ── Tab: Personal Info ─────────────────────────────────────── */}
               {activeTab === "personal" && (
                 <div style={{ background: "#fff", borderRadius: 20, padding: "20px", border: "1px solid rgba(0,0,0,0.07)" }}>
-                  <p style={{ fontSize: 11, fontWeight: 800, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>Personal Details</p>
+                  <p style={{ fontSize: 11, fontWeight: 800, color: "#1b365d", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>Personal Details</p>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     <InfoRow icon={Mail}      label="Email"            value={selectedMember.email} />
                     <InfoRow icon={Phone}     label="Phone"            value={selectedMember.phone} />
@@ -829,7 +829,7 @@ export default function DocumentsClient({
               {/* ── Tab: KYC Details ───────────────────────────────────────── */}
               {activeTab === "kyc" && (
                 <div style={{ background: "#fff", borderRadius: 20, padding: "20px", border: "1px solid rgba(0,0,0,0.07)" }}>
-                  <p style={{ fontSize: 11, fontWeight: 800, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>KYC &amp; Bank Details</p>
+                  <p style={{ fontSize: 11, fontWeight: 800, color: "#1b365d", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>KYC &amp; Bank Details</p>
                   {selectedKYC ? (
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                       <InfoRow icon={Landmark}   label="Bank Name"    value={selectedKYC.bank_name} />
@@ -842,7 +842,7 @@ export default function DocumentsClient({
                   ) : (
                     <div style={{ textAlign: "center", padding: "32px 20px" }}>
                       <Shield size={32} style={{ color: "#E5E7EB", margin: "0 auto 10px" }} />
-                      <p style={{ fontSize: 13, fontWeight: 600, color: "#9CA3AF" }}>No KYC records found for this employee</p>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: "#1b365d" }}>No KYC records found for this employee</p>
                     </div>
                   )}
                 </div>
@@ -851,9 +851,9 @@ export default function DocumentsClient({
               {/* ── Tab: Activity ──────────────────────────────────────────── */}
               {activeTab === "activity" && (
                 <div style={{ background: "#fff", borderRadius: 20, padding: "20px", border: "1px solid rgba(0,0,0,0.07)" }}>
-                  <p style={{ fontSize: 11, fontWeight: 800, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 16 }}>Activity Timeline</p>
+                  <p style={{ fontSize: 11, fontWeight: 800, color: "#1b365d", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 16 }}>Activity Timeline</p>
                   {activityFeed.length === 0 ? (
-                    <p style={{ fontSize: 13, color: "#9CA3AF", textAlign: "center", padding: "24px 0" }}>No activity yet</p>
+                    <p style={{ fontSize: 13, color: "#1b365d", textAlign: "center", padding: "24px 0" }}>No activity yet</p>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                       {activityFeed.map((item, i) => (
@@ -864,8 +864,8 @@ export default function DocumentsClient({
                           <ActivityDot type={item.type} />
                           <div style={{ flex: 1 }}>
                             <p style={{ fontSize: 12, fontWeight: 700, color: "#111" }}>{item.title}</p>
-                            <p style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{item.desc}</p>
-                            <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>{item.time}</p>
+                            <p style={{ fontSize: 11, color: "#1b365d", marginTop: 2 }}>{item.desc}</p>
+                            <p style={{ fontSize: 10, color: "#1b365d", marginTop: 3 }}>{item.time}</p>
                           </div>
                         </div>
                       ))}
@@ -877,8 +877,8 @@ export default function DocumentsClient({
           ) : (
             <div style={{ background: "#fff", borderRadius: 20, padding: "64px 20px", textAlign: "center", border: "1px solid rgba(0,0,0,0.07)" }}>
               <Building2 size={40} style={{ color: "#E5E7EB", margin: "0 auto 14px" }} />
-              <p style={{ fontSize: 15, fontWeight: 700, color: "#374151" }}>Select an employee</p>
-              <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 6 }}>Choose an employee from the list to view their documents</p>
+              <p style={{ fontSize: 15, fontWeight: 700, color: "#1b365d" }}>Select an employee</p>
+              <p style={{ fontSize: 12, color: "#1b365d", marginTop: 6 }}>Choose an employee from the list to view their documents</p>
             </div>
           )}
         </div>
@@ -907,8 +907,8 @@ export default function DocumentsClient({
                   <ActivityDot type={item.type} />
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 11, fontWeight: 700, color: "#111" }}>{item.title}</p>
-                    <p style={{ fontSize: 10, color: "#6B7280", marginTop: 1 }}>{item.desc}</p>
-                    <p style={{ fontSize: 9, color: "#9CA3AF", marginTop: 2 }}>{item.time}</p>
+                    <p style={{ fontSize: 10, color: "#1b365d", marginTop: 1 }}>{item.desc}</p>
+                    <p style={{ fontSize: 9, color: "#1b365d", marginTop: 2 }}>{item.time}</p>
                   </div>
                 </div>
               ))}
@@ -923,12 +923,12 @@ export default function DocumentsClient({
               {[["#22C55E","Verified"],["#F59E0B","Pending"],["#EF4444","Rejected"]].map(([c,l]) => (
                 <div key={l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <div style={{ width: 7, height: 7, borderRadius: "50%", background: c }} />
-                  <span style={{ fontSize: 10, color: "#6B7280", fontWeight: 600 }}>{l}</span>
+                  <span style={{ fontSize: 10, color: "#1b365d", fontWeight: 600 }}>{l}</span>
                 </div>
               ))}
             </div>
             <p style={{ fontSize: 10, color: "#22C55E", fontWeight: 700, marginTop: 10 }}>
-              ▲ 12% <span style={{ color: "#9CA3AF", fontWeight: 500 }}>vs last month</span>
+              ▲ 12% <span style={{ color: "#1b365d", fontWeight: 600 }}>vs last month</span>
             </p>
           </div>
 
@@ -939,7 +939,7 @@ export default function DocumentsClient({
           }}>
             <div style={{ padding: "16px 16px 0", textAlign: "center" }}>
               <p style={{ fontSize: 12, fontWeight: 800, color: "#111", fontFamily: "var(--font-jakarta)", marginBottom: 6 }}>HR Assistant</p>
-              <p style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.5 }}>All employee records are synced ☁️</p>
+              <p style={{ fontSize: 11, color: "#1b365d", lineHeight: 1.5 }}>All employee records are synced ☁️</p>
             </div>
             <div style={{ display: "flex", justifyContent: "center" }}>
               <Image src="/brand/documents/hr-assistant.png" alt="HR Assistant" width={180} height={140}
@@ -972,7 +972,7 @@ export default function DocumentsClient({
             <div style={{ height: 8, borderRadius: 99, background: "#F3F4F6", overflow: "hidden", marginBottom: 8 }}>
               <div style={{ height: "100%", width: `${coveragePct}%`, borderRadius: 99, background: "linear-gradient(90deg, #3B82F6, #0EA5E9)" }} />
             </div>
-            <p style={{ fontSize: 11, color: "#6B7280" }}>{membersWithDocs} of {members.length} members have uploaded documents</p>
+            <p style={{ fontSize: 11, color: "#1b365d" }}>{membersWithDocs} of {members.length} members have uploaded documents</p>
           </div>
         </div>
 
@@ -992,13 +992,13 @@ export default function DocumentsClient({
                   <div style={{ width: 48, height: 48, borderRadius: 14, background: badge.bg, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px" }}>
                     <FileText size={20} style={{ color: badge.color }} />
                   </div>
-                  <p style={{ fontSize: 10, fontWeight: 600, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 72 }}>{doc.name}</p>
-                  <p style={{ fontSize: 9, color: "#9CA3AF", marginTop: 2 }}>{formatDateShort(doc.created_at)}</p>
+                  <p style={{ fontSize: 10, fontWeight: 600, color: "#1b365d", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 72 }}>{doc.name}</p>
+                  <p style={{ fontSize: 9, color: "#1b365d", marginTop: 2 }}>{formatDateShort(doc.created_at)}</p>
                 </div>
               )
             })}
             {recentUploads.length === 0 && (
-              <p style={{ fontSize: 12, color: "#9CA3AF" }}>No uploads yet</p>
+              <p style={{ fontSize: 12, color: "#1b365d" }}>No uploads yet</p>
             )}
           </div>
         </div>
@@ -1018,11 +1018,11 @@ export default function DocumentsClient({
                   </div>
                   <div>
                     <h2 style={{ fontSize: 15, fontWeight: 800, color: "#111" }}>Upload Document</h2>
-                    <p style={{ fontSize: 11, color: "#9CA3AF" }}>Add a new document to employee records</p>
+                    <p style={{ fontSize: 11, color: "#1b365d" }}>Add a new document to employee records</p>
                   </div>
                 </div>
                 <button onClick={() => setShowUpload(false)} style={{ width: 32, height: 32, borderRadius: 10, border: "1px solid #E5E7EB", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <X size={14} style={{ color: "#6B7280" }} />
+                  <X size={14} style={{ color: "#1b365d" }} />
                 </button>
               </div>
               <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -1046,18 +1046,18 @@ export default function DocumentsClient({
                   )},
                 ].map(({ label, el }) => (
                   <div key={label}>
-                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#6B7280", marginBottom: 6 }}>{label}</label>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#1b365d", marginBottom: 6 }}>{label}</label>
                     {el}
                   </div>
                 ))}
                 <div>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#6B7280", marginBottom: 6 }}>File *</label>
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#1b365d", marginBottom: 6 }}>File *</label>
                   <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={e => setFile(e.target.files?.[0] ?? null)} style={{ display: "none" }} />
                   <button onClick={() => fileRef.current?.click()}
                     style={{
                       width: "100%", padding: "20px 12px", borderRadius: 14, fontSize: 13, fontWeight: 600, cursor: "pointer",
                       border: `2px dashed ${file ? "#de1a1a" : "#E5E7EB"}`,
-                      color: file ? "#de1a1a" : "#6B7280", background: file ? "rgba(222,26,26,0.04)" : "#F9FAFB",
+                      color: file ? "#de1a1a" : "#1b365d", background: file ? "rgba(222,26,26,0.04)" : "#F9FAFB",
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                     }}>
                     <CloudUpload size={16} />
@@ -1070,7 +1070,7 @@ export default function DocumentsClient({
               </div>
               <div style={{ padding: "0 24px 20px", display: "flex", gap: 10 }}>
                 <button onClick={() => setShowUpload(false)}
-                  style={{ flex: 1, padding: "11px", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#F9FAFB", color: "#6B7280", border: "1px solid #E5E7EB", cursor: "pointer" }}>
+                  style={{ flex: 1, padding: "11px", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#F9FAFB", color: "#1b365d", border: "1px solid #E5E7EB", cursor: "pointer" }}>
                   Cancel
                 </button>
                 <button onClick={handleUpload} disabled={isUploading || isPending}

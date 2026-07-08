@@ -38,7 +38,7 @@ const STATUS_CONFIG = {
 } as const
 
 const PRIORITY_COLORS = {
-  low:    { color: "#6B7280", bg: "rgba(156,163,175,0.1)",  border: "#E5E7EB" },
+  low:    { color: "#9CA3AF", bg: "rgba(156,163,175,0.1)",  border: "#E5E7EB" },
   medium: { color: "#F59E0B", bg: "rgba(245,158,11,0.1)",   border: "#FDE68A" },
   high:   { color: "#de1a1a", bg: "rgba(222,26,26,0.10)",   border: "#FECACA" },
 }
@@ -147,7 +147,7 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
         </div>
       </div>
       {task.description && (
-        <p className="text-[11px] mb-2.5 leading-relaxed" style={{ color: "#9CA3AF" }}>{task.description}</p>
+        <p className="text-[11px] mb-2.5 leading-relaxed" style={{ color: "#27187E" }}>{task.description}</p>
       )}
       <div className="flex flex-wrap gap-1.5 mb-2.5">
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
@@ -163,7 +163,7 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
         )}
         {task.due_date && (
           <span className="flex items-center gap-0.5 text-[10px] px-2 py-0.5 rounded-full"
-            style={{ background: overdue ? "rgba(222,26,26,0.08)" : "#F3F4F6", color: overdue ? "#de1a1a" : "#9CA3AF" }}>
+            style={{ background: overdue ? "rgba(222,26,26,0.08)" : "#F3F4F6", color: overdue ? "#de1a1a" : "#27187E" }}>
             <Calendar size={9} /> {fmt(task.due_date)}{overdue ? " ⚠" : ""}
           </span>
         )}
@@ -174,7 +174,7 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
               style={{ background: "rgba(16,185,129,0.1)", color: "#10B981" }}>✓ Seen</span>
           ) : (
             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-              style={{ background: "rgba(156,163,175,0.12)", color: "#9CA3AF" }}>Not seen</span>
+              style={{ background: "rgba(156,163,175,0.12)", color: "#27187E" }}>Not seen</span>
           )
         )}
       </div>
@@ -182,8 +182,8 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
       {(task.attachments ?? []).length > 0 && (
         <div style={{ marginBottom: 8, display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-            <Paperclip size={9} style={{ color: "#6B7280" }} />
-            <span style={{ fontSize: 9, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <Paperclip size={9} style={{ color: "#27187E" }} />
+            <span style={{ fontSize: 9, fontWeight: 700, color: "#27187E", textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Attachments ({(task.attachments ?? []).length})
             </span>
           </div>
@@ -201,7 +201,7 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
                 <span style={{ flex: 1, fontSize: 10, color: "#6366F1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {name.length > 40 ? name.slice(0, 37) + "…" : name}
                 </span>
-                <ExternalLink size={9} style={{ color: "#9CA3AF", flexShrink: 0 }} />
+                <ExternalLink size={9} style={{ color: "#27187E", flexShrink: 0 }} />
               </a>
             )
           })}
@@ -212,7 +212,7 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
         {prev && (
           <button onClick={() => onMove(task.id, prev)} disabled={isMoving}
             className="flex-1 text-[10px] font-semibold py-1.5 rounded-lg"
-            style={{ background: "#F9FAFB", color: "#9CA3AF", border: "1px solid #E5E7EB" }}>← Back</button>
+            style={{ background: "#F9FAFB", color: "#27187E", border: "1px solid #E5E7EB" }}>← Back</button>
         )}
         {next && (
           <button onClick={() => onMove(task.id, next)} disabled={isMoving}
@@ -434,7 +434,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
             <div style={{ position: "absolute", top: -20, right: -20, width: 90, height: 90, borderRadius: "50%", background: card.accentBg }} />
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", position: "relative" }}>
               <div>
-                <p style={{ fontSize: 12, color: "#9CA3AF", fontWeight: 600, margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "0.08em" }}>{card.label}</p>
+                <p style={{ fontSize: 12, color: "#27187E", fontWeight: 600, margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "0.08em" }}>{card.label}</p>
                 <p style={{ fontSize: 52, fontWeight: 900, color: card.numColor, margin: 0, lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>
                   {card.count}
                 </p>
@@ -481,20 +481,20 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                       display: "flex", alignItems: "center", justifyContent: "center",
                       fontSize: 13, fontWeight: 900,
                       background: isUnassigned ? "#F3F4F6" : `linear-gradient(135deg, ${tc.from}, ${tc.to})`,
-                      color: isUnassigned ? "#9CA3AF" : "#FFFFFF",
+                      color: isUnassigned ? "#27187E" : "#FFFFFF",
                       boxShadow: isUnassigned ? "none" : `0 4px 12px ${tc.from}40`,
                     }}>
                       {col.initials}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, lineHeight: 1.3 }}>{col.label}</p>
-                      {col.team && <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{col.team}</p>}
+                      {col.team && <p style={{ fontSize: 10, color: "#27187E", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{col.team}</p>}
                     </div>
                     <div style={{
                       minWidth: 28, height: 28, borderRadius: 8, fontSize: 12, fontWeight: 800,
                       display: "flex", alignItems: "center", justifyContent: "center",
                       background: isUnassigned ? "#F3F4F6" : `${tc.from}18`,
-                      color: isUnassigned ? "#9CA3AF" : tc.from,
+                      color: isUnassigned ? "#27187E" : tc.from,
                       padding: "0 6px",
                     }}>{col.tasks.length}</div>
                   </div>
@@ -506,7 +506,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                         <div style={{ position: "relative", width: 120, height: 110 }}>
                           <Image src={col.illustration} alt="" fill style={{ objectFit: "contain" }} />
                         </div>
-                        <p style={{ fontSize: 12, color: "#D1D5DB", fontWeight: 600, margin: 0 }}>No tasks assigned yet</p>
+                        <p style={{ fontSize: 12, color: "#27187E", fontWeight: 600, margin: 0 }}>No tasks assigned yet</p>
                       </div>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px 14px" }}>
@@ -527,7 +527,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                       display: "flex", alignItems: "center", gap: 6,
                       padding: "7px 14px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700,
                       background: isUnassigned ? "#F3F4F6" : `${tc.from}12`,
-                      color: isUnassigned ? "#9CA3AF" : tc.from,
+                      color: isUnassigned ? "#27187E" : tc.from,
                     }}>
                       <Plus size={13} /> Add Task
                     </button>
@@ -553,7 +553,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   className="flex-shrink-0 px-4 py-2 rounded-xl text-[13px] font-bold transition-all"
                   style={mobileCol === col
                     ? { background: "#DE1A1A", color: "#fff", border: "none" }
-                    : { background: "#F3F4F6", color: "#6B7280", border: "none" }}
+                    : { background: "#F3F4F6", color: "#27187E", border: "none" }}
                 >
                   {col === "todo" ? `To Do (${tasks.filter(t => t.status === "todo").length})` : `In Progress (${tasks.filter(t => t.status === "in_progress").length})`}
                 </button>
@@ -562,7 +562,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
             {/* Single-column task list */}
             <div className="flex flex-col gap-3">
               {tasks.filter(t => t.status === mobileCol).length === 0 ? (
-                <div style={{ textAlign: "center", padding: "40px 0", color: "#D1D5DB", fontSize: 13, fontWeight: 600 }}>
+                <div style={{ textAlign: "center", padding: "40px 0", color: "#27187E", fontSize: 13, fontWeight: 600 }}>
                   No tasks here
                 </div>
               ) : (
@@ -600,7 +600,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                     <div style={{ width: 48, height: 48, borderRadius: 16, background: col.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <span style={{ width: 16, height: 16, borderRadius: "50%", background: col.dot, display: "inline-block", opacity: 0.4 }} />
                     </div>
-                    <p style={{ fontSize: 12, color: "#D1D5DB", fontWeight: 600 }}>No tasks here</p>
+                    <p style={{ fontSize: 12, color: "#27187E", fontWeight: 600 }}>No tasks here</p>
                   </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px 14px" }}>
@@ -636,19 +636,19 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
             </div>
             <div style={{ textAlign: "left" }}>
               <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Archive</p>
-              <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>{archivedTasks.length} completed task{archivedTasks.length !== 1 ? "s" : ""}</p>
+              <p style={{ fontSize: 11, color: "#27187E", margin: 0 }}>{archivedTasks.length} completed task{archivedTasks.length !== 1 ? "s" : ""}</p>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 20, background: "rgba(16,185,129,0.1)", color: "#10B981" }}>{archivedTasks.length}</span>
-            {archiveOpen ? <ChevronUp size={16} style={{ color: "#9CA3AF" }} /> : <ChevronDown size={16} style={{ color: "#9CA3AF" }} />}
+            {archiveOpen ? <ChevronUp size={16} style={{ color: "#27187E" }} /> : <ChevronDown size={16} style={{ color: "#27187E" }} />}
           </div>
         </button>
 
         {archiveOpen && (
           <div style={{ background: "#FAFBFC", border: "1px solid #EBEDF2", borderTop: "none", borderRadius: "0 0 20px 20px", padding: "16px 18px" }}>
             {archivedTasks.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "32px 0", color: "#D1D5DB", fontSize: 13, fontWeight: 600 }}>
+              <div style={{ textAlign: "center", padding: "32px 0", color: "#27187E", fontSize: 13, fontWeight: 600 }}>
                 No archived tasks yet
               </div>
             ) : (
@@ -713,12 +713,12 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                 </div>
                 <div>
                   <h2 style={{ fontSize: 18, fontWeight: 900, color: "#111827", fontFamily: "var(--font-jakarta)", margin: 0 }}>Create Task</h2>
-                  <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Assign work to your team</p>
+                  <p style={{ fontSize: 11, color: "#27187E", margin: 0 }}>Assign work to your team</p>
                 </div>
               </div>
               <button onClick={() => { setShowForm(false); setSelectedMembers([]); setManagerNote(""); setChecklistItems([]); setNewCheckItem(""); setAttachmentLinks([]); setNewAttachUrl("") }}
                 style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <X size={15} style={{ color: "#6B7280" }} />
+                <X size={15} style={{ color: "#27187E" }} />
               </button>
             </div>
 
@@ -727,20 +727,20 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
             <form action={action} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "0 28px 20px", overflowY: "auto", flex: 1 }}>
               <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Title *</label>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#27187E", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Title *</label>
                 <input name="title" required placeholder="Task title…" className="ti" />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Description</label>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#27187E", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Description</label>
                 <textarea name="description" rows={2} placeholder="Optional details…" className="ti" style={{ resize: "none" }} />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8 }}>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#27187E", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8 }}>
                   Assign To {selectedMembers.length > 0 && <span style={{ color: "#de1a1a" }}>({selectedMembers.length} selected)</span>}
                 </label>
                 {selectedMembers.map(id => <input key={id} type="hidden" name="assigned_to" value={id} />)}
                 {members.length === 0 ? (
-                  <p style={{ fontSize: 12, color: "#9CA3AF" }}>No team members yet</p>
+                  <p style={{ fontSize: 12, color: "#27187E" }}>No team members yet</p>
                 ) : (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                     {members.map(m => {
@@ -752,9 +752,9 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                             fontSize: 12, fontWeight: 600, border: "1.5px solid", cursor: "pointer", transition: "all 0.15s",
                             background: sel ? "rgba(222,26,26,0.07)" : "#F9FAFB",
                             borderColor: sel ? "#de1a1a" : "#E5E7EB",
-                            color: sel ? "#de1a1a" : "#6B7280",
+                            color: sel ? "#de1a1a" : "#27187E",
                           }}>
-                          <span style={{ width: 22, height: 22, borderRadius: "50%", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", background: sel ? "rgba(222,26,26,0.15)" : "#E5E7EB", color: sel ? "#de1a1a" : "#9CA3AF" }}>
+                          <span style={{ width: 22, height: 22, borderRadius: "50%", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", background: sel ? "rgba(222,26,26,0.15)" : "#E5E7EB", color: sel ? "#de1a1a" : "#27187E" }}>
                             {m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                           </span>
                           {m.name.split(" ")[0]}
@@ -791,7 +791,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Priority</label>
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#27187E", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Priority</label>
                   <select name="priority" defaultValue="medium" className="ti">
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -799,7 +799,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Project</label>
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#27187E", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Project</label>
                   <select name="project_id" className="ti">
                     <option value="">No project</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.business_name}{p.client_name && p.client_name !== "__member_quick__" ? ` — ${p.client_name}` : ""}</option>)}
@@ -807,13 +807,13 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                 </div>
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Due Date</label>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#27187E", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Due Date</label>
                 <input name="due_date" type="date" max="2099-12-31" className="ti" style={{ colorScheme: "light" }} />
               </div>
 
               {/* Manager Note */}
               <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#D97706", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>📌 Manager Note <span style={{ color: "#9CA3AF", fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(shown on task card)</span></label>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#D97706", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>📌 Manager Note <span style={{ color: "#27187E", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>(shown on task card)</span></label>
                 <textarea
                   name="manager_note"
                   rows={2}
@@ -827,8 +827,8 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
 
               {/* Checklist */}
               <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>
-                  Checklist <span style={{ color: "#9CA3AF", fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(optional — shown to assignee)</span>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#27187E", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>
+                  Checklist <span style={{ color: "#27187E", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>(optional — shown to assignee)</span>
                 </label>
                 <input type="hidden" name="checklist_json" value={JSON.stringify(checklistItems.map(text => ({ text, done: false })))} />
                 <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
@@ -860,7 +860,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {checklistItems.map((item, idx) => (
                       <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", borderRadius: 10, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
-                        <span style={{ fontSize: 11, color: "#6B7280", flex: 1 }}>☐ {item}</span>
+                        <span style={{ fontSize: 11, color: "#27187E", flex: 1 }}>☐ {item}</span>
                         <button type="button" onClick={() => setChecklistItems(prev => prev.filter((_, i) => i !== idx))}
                           style={{ background: "none", border: "none", cursor: "pointer", color: "#de1a1a", fontSize: 14, lineHeight: 1, padding: 2 }}>×</button>
                       </div>
@@ -871,8 +871,8 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
 
               {/* Attachments / Links */}
               <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>
-                  Attachments / Links <span style={{ color: "#9CA3AF", fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#27187E", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>
+                  Attachments / Links <span style={{ color: "#27187E", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>(optional)</span>
                 </label>
                 <input type="hidden" name="attachments_json" value={JSON.stringify(attachmentLinks.map(i => ({ type: i.type, url: i.url, name: i.name })))} />
                 {attachmentLinks.length > 0 && (
@@ -885,7 +885,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                         <span style={{ fontSize: 11, color: "#6366F1", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name || item.url}</span>
                         <button type="button" onClick={() => setAttachmentLinks(p => p.filter(i => i.id !== item.id))}
                           style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0 }}>
-                          <X size={11} style={{ color: "#9CA3AF" }} />
+                          <X size={11} style={{ color: "#27187E" }} />
                         </button>
                       </div>
                     ))}
@@ -934,7 +934,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
 
               <div style={{ display: "flex", gap: 10, padding: "16px 28px 24px", borderTop: "1px solid #F0F0F0", flexShrink: 0 }}>
                 <button type="button" onClick={() => { setShowForm(false); setSelectedMembers([]); setMediaClientType(""); setMediaBrand(""); setMediaCustomClient(""); setManagerNote(""); setChecklistItems([]); setNewCheckItem(""); setAttachmentLinks([]); setNewAttachUrl("") }}
-                  style={{ flex: 1, padding: "12px 0", borderRadius: 12, fontSize: 13, fontWeight: 600, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: "pointer" }}>
+                  style={{ flex: 1, padding: "12px 0", borderRadius: 12, fontSize: 13, fontWeight: 600, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#27187E", cursor: "pointer" }}>
                   Cancel
                 </button>
                 <button type="submit" disabled={formPending}

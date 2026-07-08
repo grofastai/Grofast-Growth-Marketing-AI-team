@@ -306,10 +306,10 @@ export default async function DashboardPage() {
                   <div style={{ width: 38, height: 38, borderRadius: 11, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Icon size={17} style={{ color: s.color }} />
                   </div>
-                  <ArrowRight size={13} style={{ color: "#D1D5DB" }} />
+                  <ArrowRight size={13} style={{ color: "#4E0535" }} />
                 </div>
                 <p style={{ fontSize: 32, fontWeight: 900, color: "#111827", margin: 0, lineHeight: 1 }}>{s.value}</p>
-                <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 6px", fontWeight: 600 }}>{s.label}</p>
+                <p style={{ fontSize: 12, color: "#4E0535", margin: "4px 0 6px", fontWeight: 600 }}>{s.label}</p>
                 <p style={{ fontSize: 11, color: s.subColor, margin: 0, fontWeight: 600 }}>{s.sub}</p>
               </div>
             </Link>
@@ -335,9 +335,9 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div style={{ padding: "4px 18px 18px" }}>
-            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 2px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Today&apos;s Overview</p>
+            <p style={{ fontSize: 11, color: "#4E0535", margin: "0 0 2px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Today&apos;s Overview</p>
             <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: "0 0 8px" }}>{adminName}</h3>
-            <p style={{ fontSize: 11, color: "#6B7280", margin: 0, lineHeight: 1.6 }}>
+            <p style={{ fontSize: 11, color: "#4E0535", margin: 0, lineHeight: 1.6 }}>
               {presentToday ?? 0} present · {onLeaveTodayCount ?? 0} on leave · {recentUpdates.length} updates submitted
             </p>
           </div>
@@ -351,7 +351,7 @@ export default async function DashboardPage() {
             </div>
             <div>
               <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Task Summary</h3>
-              <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0, fontWeight: 500 }}>All tasks overview</p>
+              <p style={{ fontSize: 10, color: "#4E0535", margin: 0, fontWeight: 600 }}>All tasks overview</p>
             </div>
           </div>
           <TaskSummaryChart {...taskBreakdown} />
@@ -370,7 +370,7 @@ export default async function DashboardPage() {
             </div>
             <div>
               <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Leave Calendar</h3>
-              <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0, fontWeight: 500 }}>Approved leaves</p>
+              <p style={{ fontSize: 10, color: "#4E0535", margin: 0, fontWeight: 600 }}>Approved leaves</p>
             </div>
           </div>
           <MiniCalendar
@@ -405,7 +405,7 @@ export default async function DashboardPage() {
           {notUpdatedYesterdayNames.length === 0 ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 0", gap: 8 }}>
               <CheckCircle2 size={28} style={{ color: "#E5E7EB" }} />
-              <p style={{ fontSize: 13, color: "#6B7280", margin: 0, fontWeight: 500 }}>Everyone submitted yesterday</p>
+              <p style={{ fontSize: 13, color: "#4E0535", margin: 0, fontWeight: 600 }}>Everyone submitted yesterday</p>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -456,16 +456,16 @@ export default async function DashboardPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)" }}>
               <p style={{ fontSize: 28, fontWeight: 900, color: "#4F46E5", margin: 0, lineHeight: 1 }}>{collabToday}</p>
-              <p style={{ fontSize: 11, color: "#6B7280", margin: "4px 0 0", fontWeight: 600 }}>Collaborative sessions today</p>
+              <p style={{ fontSize: 11, color: "#4E0535", margin: "4px 0 0", fontWeight: 600 }}>Collaborative sessions today</p>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
                 <p style={{ fontSize: 18, fontWeight: 900, color: "#111827", margin: 0 }}>{collabMonth}</p>
-                <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", fontWeight: 600 }}>This month</p>
+                <p style={{ fontSize: 10, color: "#4E0535", margin: "2px 0 0", fontWeight: 600 }}>This month</p>
               </div>
               <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
                 <p style={{ fontSize: 18, fontWeight: 900, color: "#111827", margin: 0 }}>{totalTagsMonth}</p>
-                <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", fontWeight: 600 }}>Member tags</p>
+                <p style={{ fontSize: 10, color: "#4E0535", margin: "2px 0 0", fontWeight: 600 }}>Member tags</p>
               </div>
             </div>
             <Link href="/admin/activities"
@@ -503,7 +503,7 @@ export default async function DashboardPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</p>
-                    <p style={{ fontSize: 11, color: "#6B7280", margin: "2px 0 0", fontWeight: 500 }}>{empId}</p>
+                    <p style={{ fontSize: 11, color: "#4E0535", margin: "2px 0 0", fontWeight: 600 }}>{empId}</p>
                   </div>
                   <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: typeBg, color: typeColor, flexShrink: 0 }}>{typeLabel}</span>
                 </div>

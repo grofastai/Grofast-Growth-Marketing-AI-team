@@ -40,11 +40,11 @@ export default function ClearAttendanceBtn({ userId, userName, date }: Props) {
                 <AlertTriangle size={22} style={{ color: "#EF4444" }} />
               </div>
               <button onClick={() => setConfirm(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                <X size={18} style={{ color: "#000000" }} />
+                <X size={18} style={{ color: "#1b365d" }} />
               </button>
             </div>
             <p style={{ fontSize: 16, fontWeight: 900, color: "#0A0A0B", margin: "0 0 8px" }}>Clear Attendance Record?</p>
-            <p style={{ fontSize: 13, color: "#000000", margin: "0 0 6px", lineHeight: 1.6 }}>
+            <p style={{ fontSize: 13, color: "#1b365d", margin: "0 0 6px", lineHeight: 1.6 }}>
               This will delete <strong>{userName}</strong>'s clock-in record for <strong>{date}</strong>.
             </p>
             <p style={{ fontSize: 12, color: "#EF4444", margin: "0 0 24px", fontWeight: 600 }}>
@@ -52,7 +52,7 @@ export default function ClearAttendanceBtn({ userId, userName, date }: Props) {
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setConfirm(false)}
-                style={{ flex: 1, padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#000000", border: "1px solid #EBEDF2", cursor: "pointer" }}>
+                style={{ flex: 1, padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#1b365d", border: "1px solid #EBEDF2", cursor: "pointer" }}>
                 Cancel
               </button>
               <button onClick={handleDelete} disabled={pending}

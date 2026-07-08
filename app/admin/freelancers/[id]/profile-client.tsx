@@ -87,7 +87,7 @@ const inputStyle: React.CSSProperties = {
 }
 
 function Label({ text }: { text: string }) {
-  return <label style={{ fontSize: 11, fontWeight: 700, color: "#000000", textTransform: "uppercase", letterSpacing: "0.05em" }}>{text}</label>
+  return <label style={{ fontSize: 11, fontWeight: 700, color: "#1b365d", textTransform: "uppercase", letterSpacing: "0.05em" }}>{text}</label>
 }
 
 // ── Tab definitions ──────────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ export default function FreelancerProfileClient({
       <div className="flex items-center gap-3 flex-wrap">
         <Link href="/admin/freelancers"
           style={{ width: 36, height: 36, borderRadius: 10, background: "#FFF", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <ArrowLeft size={16} style={{ color: "#000000" }} />
+          <ArrowLeft size={16} style={{ color: "#1b365d" }} />
         </Link>
         <div style={{ flex: 1 }}>
           <h1 style={{ fontSize: 20, fontWeight: 900, color: "#111827", margin: 0 }}>{freelancer.name}</h1>
@@ -137,7 +137,7 @@ export default function FreelancerProfileClient({
         <span style={{
           padding: "4px 12px", borderRadius: 99, fontSize: 11, fontWeight: 700,
           background: freelancer.status === "active" ? "rgba(22,163,74,0.08)" : "rgba(107,114,128,0.08)",
-          color: freelancer.status === "active" ? "#16A34A" : "#000000",
+          color: freelancer.status === "active" ? "#16A34A" : "#1b365d",
         }}>
           {freelancer.status === "active" ? "Active" : "Inactive"}
         </span>
@@ -151,7 +151,7 @@ export default function FreelancerProfileClient({
           return (
             <button key={t.key} onClick={() => setActiveTab(t.key)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all flex-shrink-0"
-              style={active ? { background: "#DE1A1A", color: "#FFF" } : { color: "#000000" }}>
+              style={active ? { background: "#DE1A1A", color: "#FFF" } : { color: "#1b365d" }}>
               <Icon size={13} />{t.label}
             </button>
           )
@@ -199,7 +199,7 @@ function OverviewTab({ freelancer, stats, typeColor }: {
         {statCards.map(s => (
           <div key={s.label} style={{ ...CARD, padding: 16 }}>
             <p style={{ fontSize: 20, fontWeight: 900, color: s.color, margin: 0 }}>{s.value}</p>
-            <p style={{ fontSize: 11, color: "#000000", margin: "4px 0 0", fontWeight: 600 }}>{s.label}</p>
+            <p style={{ fontSize: 11, color: "#1b365d", margin: "4px 0 0", fontWeight: 600 }}>{s.label}</p>
           </div>
         ))}
       </div>
@@ -209,7 +209,7 @@ function OverviewTab({ freelancer, stats, typeColor }: {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {details.map(row => (
             <div key={row.label}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: "#000000", textTransform: "uppercase", margin: 0 }}>{row.label}</p>
+              <p style={{ fontSize: 10, fontWeight: 700, color: "#1b365d", textTransform: "uppercase", margin: 0 }}>{row.label}</p>
               <p style={{ fontSize: 13, fontWeight: 600, color: "#111827", margin: "2px 0 0" }}>{row.value}</p>
             </div>
           ))}
@@ -223,19 +223,19 @@ function OverviewTab({ freelancer, stats, typeColor }: {
             {freelancer.cost_per_video && (
               <div style={{ padding: "10px 16px", borderRadius: 10, background: `${typeColor}10`, border: `1px solid ${typeColor}30` }}>
                 <p style={{ fontSize: 18, fontWeight: 900, color: typeColor, margin: 0 }}>₹{freelancer.cost_per_video}</p>
-                <p style={{ fontSize: 11, color: "#000000", margin: "2px 0 0" }}>Per Video</p>
+                <p style={{ fontSize: 11, color: "#1b365d", margin: "2px 0 0" }}>Per Video</p>
               </div>
             )}
             {freelancer.cost_per_minute && (
               <div style={{ padding: "10px 16px", borderRadius: 10, background: `${typeColor}10`, border: `1px solid ${typeColor}30` }}>
                 <p style={{ fontSize: 18, fontWeight: 900, color: typeColor, margin: 0 }}>₹{freelancer.cost_per_minute}</p>
-                <p style={{ fontSize: 11, color: "#000000", margin: "2px 0 0" }}>Per Minute</p>
+                <p style={{ fontSize: 11, color: "#1b365d", margin: "2px 0 0" }}>Per Minute</p>
               </div>
             )}
             {freelancer.cost_per_hour && (
               <div style={{ padding: "10px 16px", borderRadius: 10, background: `${typeColor}10`, border: `1px solid ${typeColor}30` }}>
                 <p style={{ fontSize: 18, fontWeight: 900, color: typeColor, margin: 0 }}>₹{freelancer.cost_per_hour}</p>
-                <p style={{ fontSize: 11, color: "#000000", margin: "2px 0 0" }}>Per Hour</p>
+                <p style={{ fontSize: 11, color: "#1b365d", margin: "2px 0 0" }}>Per Hour</p>
               </div>
             )}
           </div>
@@ -287,8 +287,8 @@ function ProfileClientSelect({ value, onChange, activeClientNames, pastClientNam
     <div ref={ref} style={{ position: "relative" }}>
       {!isManual && (
         <button type="button" onClick={() => setOpen(o => !o)} style={btnStyle}>
-          <span style={{ color: value ? "#111827" : "#000000" }}>{value || "Select client…"}</span>
-          <ChevronDown size={13} style={{ color: "#000000", flexShrink: 0 }} />
+          <span style={{ color: value ? "#111827" : "#1b365d" }}>{value || "Select client…"}</span>
+          <ChevronDown size={13} style={{ color: "#1b365d", flexShrink: 0 }} />
         </button>
       )}
       {isManual && (
@@ -296,7 +296,7 @@ function ProfileClientSelect({ value, onChange, activeClientNames, pastClientNam
           <input style={{ ...inputStyle, marginTop: 0, flex: 1 }} placeholder="Type client name…" value={value}
             onChange={e => onChange(e.target.value)} autoFocus />
           <button type="button" onClick={() => { onChange(""); setView("main"); setOpen(true) }}
-            style={{ padding: "0 10px", borderRadius: 8, border: "1px solid #E5E7EB", background: "#FFF", color: "#000000", cursor: "pointer", fontSize: 12 }}>✕</button>
+            style={{ padding: "0 10px", borderRadius: 8, border: "1px solid #E5E7EB", background: "#FFF", color: "#1b365d", cursor: "pointer", fontSize: 12 }}>✕</button>
         </div>
       )}
       {open && !isManual && (
@@ -311,7 +311,7 @@ function ProfileClientSelect({ value, onChange, activeClientNames, pastClientNam
             ))}
             {activeClientNames.length > 0 && <div style={{ height: 1, background: "#F3F4F6", margin: "2px 0" }} />}
             {activeClientNames.map(n => (
-              <button key={n} type="button" onClick={() => pick(n)} style={{ ...rowStyle, color: "#000000" }}
+              <button key={n} type="button" onClick={() => pick(n)} style={{ ...rowStyle, color: "#1b365d" }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
                 onMouseLeave={e => (e.currentTarget.style.background = "none")}>
                 {n}
@@ -334,13 +334,13 @@ function ProfileClientSelect({ value, onChange, activeClientNames, pastClientNam
           </>}
           {view === "past" && <>
             <button type="button" onClick={() => setView("main")}
-              style={{ ...rowStyle, color: "#000000", fontSize: 12, borderBottom: "1px solid #F3F4F6" }}
+              style={{ ...rowStyle, color: "#1b365d", fontSize: 12, borderBottom: "1px solid #F3F4F6" }}
               onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
               onMouseLeave={e => (e.currentTarget.style.background = "none")}>
               ← Back
             </button>
             {pastClientNames.map(n => (
-              <button key={n} type="button" onClick={() => pick(n)} style={{ ...rowStyle, color: "#000000" }}
+              <button key={n} type="button" onClick={() => pick(n)} style={{ ...rowStyle, color: "#1b365d" }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#FFFBEB")}
                 onMouseLeave={e => (e.currentTarget.style.background = "none")}>
                 {n}
@@ -421,7 +421,7 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, activeClient
           <div style={{ background: "#FFF", borderRadius: 20, padding: 24, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
             <div className="flex items-center justify-between mb-5">
               <h2 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: 0 }}>Add Work Entry</h2>
-              <button onClick={() => setShowAdd(false)}><X size={18} style={{ color: "#000000" }} /></button>
+              <button onClick={() => setShowAdd(false)}><X size={18} style={{ color: "#1b365d" }} /></button>
             </div>
             <div className="space-y-3">
               <div><Label text="Date" /><input type="date" max="2099-12-31" value={form.date} onChange={e => setForm(p => ({ ...p, date: clampDate(e.target.value) }))} style={inputStyle} /></div>
@@ -449,13 +449,13 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, activeClient
                   onChange={e => setForm(p => ({ ...p, manual_amount: e.target.value }))}
                   style={inputStyle} />
                 {total > 0 && !form.manual_amount && (
-                  <p style={{ fontSize: 11, color: "#000000", marginTop: 4 }}>Auto-calculated: ₹{total}. Override above if different.</p>
+                  <p style={{ fontSize: 11, color: "#1b365d", marginTop: 4 }}>Auto-calculated: ₹{total}. Override above if different.</p>
                 )}
               </div>
               <div><Label text="Notes" /><textarea rows={2} placeholder="Optional notes..." value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} style={{ ...inputStyle, resize: "vertical" }} /></div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowAdd(false)} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FFF", fontSize: 13, fontWeight: 700, color: "#000000", cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => setShowAdd(false)} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FFF", fontSize: 13, fontWeight: 700, color: "#1b365d", cursor: "pointer" }}>Cancel</button>
               <button onClick={handleAdd} disabled={isPending || !form.title || (total <= 0 && !form.manual_amount)} style={{ flex: 2, padding: 11, borderRadius: 10, background: "#DE1A1A", color: "#FFF", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", opacity: isPending ? 0.6 : 1 }}>
                 {isPending ? "Saving..." : "Add Entry"}
               </button>
@@ -472,7 +472,7 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, activeClient
             <textarea placeholder="Reason for rejection..." value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3}
               style={{ ...inputStyle, resize: "vertical" }} />
             <div className="flex gap-2 mt-4">
-              <button onClick={() => { setRejectId(null); setRejectReason("") }} style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FFF", fontSize: 13, fontWeight: 700, color: "#000000", cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => { setRejectId(null); setRejectReason("") }} style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FFF", fontSize: 13, fontWeight: 700, color: "#1b365d", cursor: "pointer" }}>Cancel</button>
               <button onClick={() => startTransition(async () => { await rejectWorkEntry(rejectId, rejectReason); setRejectId(null); setRejectReason("") })}
                 disabled={isPending || !rejectReason.trim()}
                 style={{ flex: 2, padding: 10, borderRadius: 10, background: "#DE1A1A", color: "#FFF", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", opacity: isPending ? 0.6 : 1 }}>
@@ -486,7 +486,7 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, activeClient
       {/* Entries */}
       {workEntries.length === 0 ? (
         <div style={{ ...CARD, padding: 40, textAlign: "center" }}>
-          <p style={{ color: "#000000", fontSize: 14 }}>No work entries yet.</p>
+          <p style={{ color: "#1b365d", fontSize: 14 }}>No work entries yet.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -495,17 +495,17 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, activeClient
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>{e.title}</p>
-                  <p style={{ fontSize: 12, color: "#000000", margin: "2px 0 0" }}>
+                  <p style={{ fontSize: 12, color: "#1b365d", margin: "2px 0 0" }}>
                     {e.client_name && `${e.client_name} · `}{fmtDate(e.date)}
                   </p>
-                  {e.notes && <p style={{ fontSize: 11, color: "#000000", margin: "4px 0 0" }}>{e.notes}</p>}
+                  {e.notes && <p style={{ fontSize: 11, color: "#1b365d", margin: "4px 0 0" }}>{e.notes}</p>}
                   {e.approval_status === "rejected" && e.rejected_reason && (
                     <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>Reason: {e.rejected_reason}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
                   <span style={{ fontSize: 16, fontWeight: 800, color: "#111827" }}>{fmt(e.amount)}</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: APPROVAL_BG[e.approval_status] ?? "rgba(107,114,128,0.08)", color: APPROVAL_COLOR[e.approval_status] ?? "#000000" }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: APPROVAL_BG[e.approval_status] ?? "rgba(107,114,128,0.08)", color: APPROVAL_COLOR[e.approval_status] ?? "#1b365d" }}>
                     {APPROVAL_LABEL[e.approval_status] ?? e.approval_status}
                   </span>
                   {canApprove && e.approval_status === "pending" && (
@@ -577,7 +577,7 @@ function PaymentsTab({ freelancer, payments, stats, currentUserRole }: {
         {balanceSummary.map(s => (
           <div key={s.label} style={{ ...CARD, padding: 16 }}>
             <p style={{ fontSize: 18, fontWeight: 900, color: s.color, margin: 0 }}>{s.value}</p>
-            <p style={{ fontSize: 11, color: "#000000", margin: "4px 0 0" }}>{s.label}</p>
+            <p style={{ fontSize: 11, color: "#1b365d", margin: "4px 0 0" }}>{s.label}</p>
           </div>
         ))}
       </div>
@@ -594,7 +594,7 @@ function PaymentsTab({ freelancer, payments, stats, currentUserRole }: {
           <div style={{ background: "#FFF", borderRadius: 20, padding: 24, width: "100%", maxWidth: 440 }}>
             <div className="flex items-center justify-between mb-5">
               <h2 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: 0 }}>Add Payment</h2>
-              <button onClick={() => setShowAdd(false)}><X size={18} style={{ color: "#000000" }} /></button>
+              <button onClick={() => setShowAdd(false)}><X size={18} style={{ color: "#1b365d" }} /></button>
             </div>
             <div className="space-y-3">
               <div><Label text="Date" /><input type="date" max="2099-12-31" value={form.paid_date} onChange={e => setForm(p => ({ ...p, paid_date: clampDate(e.target.value) }))} style={inputStyle} /></div>
@@ -611,7 +611,7 @@ function PaymentsTab({ freelancer, payments, stats, currentUserRole }: {
               <div><Label text="Notes" /><textarea rows={2} placeholder="Optional" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} style={{ ...inputStyle, resize: "vertical" }} /></div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowAdd(false)} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FFF", fontSize: 13, fontWeight: 700, color: "#000000", cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => setShowAdd(false)} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FFF", fontSize: 13, fontWeight: 700, color: "#1b365d", cursor: "pointer" }}>Cancel</button>
               <button onClick={handleAdd} disabled={isPending || !form.amount} style={{ flex: 2, padding: 11, borderRadius: 10, background: "#DE1A1A", color: "#FFF", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", opacity: isPending ? 0.6 : 1 }}>
                 {isPending ? "Saving..." : "Add Payment"}
               </button>
@@ -622,7 +622,7 @@ function PaymentsTab({ freelancer, payments, stats, currentUserRole }: {
 
       {payments.length === 0 ? (
         <div style={{ ...CARD, padding: 40, textAlign: "center" }}>
-          <p style={{ color: "#000000", fontSize: 14 }}>No payments recorded yet.</p>
+          <p style={{ color: "#1b365d", fontSize: 14 }}>No payments recorded yet.</p>
         </div>
       ) : (
         <div style={CARD}>
@@ -633,12 +633,12 @@ function PaymentsTab({ freelancer, payments, stats, currentUserRole }: {
               </div>
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>
-                  {fmt(p.amount)} <span style={{ fontSize: 11, fontWeight: 600, color: "#000000" }}>via {METHOD_LABEL[p.payment_method] ?? p.payment_method}</span>
+                  {fmt(p.amount)} <span style={{ fontSize: 11, fontWeight: 600, color: "#1b365d" }}>via {METHOD_LABEL[p.payment_method] ?? p.payment_method}</span>
                 </p>
-                <p style={{ fontSize: 11, color: "#000000", margin: "2px 0 0" }}>
+                <p style={{ fontSize: 11, color: "#1b365d", margin: "2px 0 0" }}>
                   {fmtDate(p.paid_date)}{p.reference_number ? ` · Ref: ${p.reference_number}` : ""}
                 </p>
-                {p.notes && <p style={{ fontSize: 11, color: "#000000", margin: "2px 0 0" }}>{p.notes}</p>}
+                {p.notes && <p style={{ fontSize: 11, color: "#1b365d", margin: "2px 0 0" }}>{p.notes}</p>}
               </div>
               {canDelete && (
                 <button onClick={() => startTransition(async () => { await deleteFreelancerPayment(p.id, freelancer.id) })}
@@ -673,7 +673,7 @@ function StatementsTab({ freelancer }: { freelancer: FreelancerRecord }) {
             <select value={month} onChange={e => setMonth(parseInt(e.target.value))} style={{ ...inputStyle, appearance: "none", paddingRight: 32 }}>
               {months.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
             </select>
-            <ChevronDown size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#000000", pointerEvents: "none" }} />
+            <ChevronDown size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#1b365d", pointerEvents: "none" }} />
           </div>
         </div>
         <div>
@@ -684,7 +684,7 @@ function StatementsTab({ freelancer }: { freelancer: FreelancerRecord }) {
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
-            <ChevronDown size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#000000", pointerEvents: "none" }} />
+            <ChevronDown size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#1b365d", pointerEvents: "none" }} />
           </div>
         </div>
         <button
@@ -692,7 +692,7 @@ function StatementsTab({ freelancer }: { freelancer: FreelancerRecord }) {
           style={{ width: "100%", marginTop: 8, padding: 12, borderRadius: 12, background: "#DE1A1A", color: "#FFF", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer" }}>
           View Statement
         </button>
-        <p style={{ fontSize: 11, color: "#000000", textAlign: "center" }}>
+        <p style={{ fontSize: 11, color: "#1b365d", textAlign: "center" }}>
           Opens in new tab · use browser Print to save as PDF
         </p>
       </div>
@@ -706,7 +706,7 @@ function ActivityTab({ activityLogs }: { activityLogs: ActivityRecord[] }) {
   if (activityLogs.length === 0) {
     return (
       <div style={{ ...CARD, padding: 40, textAlign: "center" }}>
-        <p style={{ color: "#000000", fontSize: 14 }}>No activity yet.</p>
+        <p style={{ color: "#1b365d", fontSize: 14 }}>No activity yet.</p>
       </div>
     )
   }
@@ -718,8 +718,8 @@ function ActivityTab({ activityLogs }: { activityLogs: ActivityRecord[] }) {
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#DE1A1A", marginTop: 5, flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: "#111827", margin: 0 }}>{log.action}</p>
-            {log.remarks && <p style={{ fontSize: 11, color: "#000000", margin: "2px 0 0" }}>{log.remarks}</p>}
-            <p style={{ fontSize: 11, color: "#000000", margin: "4px 0 0" }}>
+            {log.remarks && <p style={{ fontSize: 11, color: "#1b365d", margin: "2px 0 0" }}>{log.remarks}</p>}
+            <p style={{ fontSize: 11, color: "#1b365d", margin: "4px 0 0" }}>
               {log.actor_name ?? "System"} · {fmtDateTime(log.created_at)}
             </p>
           </div>

@@ -39,18 +39,18 @@ export default function AnalyticsChart({ data }: { data: ChartPoint[] }) {
             <stop offset="100%" stopColor="#de1a1a" stopOpacity={0} />
           </linearGradient>
           <linearGradient id="grayGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#000000" stopOpacity={0.12} />
-            <stop offset="100%" stopColor="#000000" stopOpacity={0} />
+            <stop offset="0%" stopColor="#6B7280" stopOpacity={0.12} />
+            <stop offset="100%" stopColor="#6B7280" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
         <XAxis
           dataKey="day"
-          tick={{ fontSize: 11, fill: "#000000", fontWeight: 500 }}
+          tick={{ fontSize: 11, fill: "#1b365d", fontWeight: 500 }}
           tickLine={false} axisLine={false}
         />
         <YAxis
-          tick={{ fontSize: 11, fill: "#000000" }}
+          tick={{ fontSize: 11, fill: "#1b365d" }}
           tickLine={false} axisLine={false}
           allowDecimals={false}
         />
@@ -58,7 +58,7 @@ export default function AnalyticsChart({ data }: { data: ChartPoint[] }) {
         <Legend
           iconType="circle" iconSize={7}
           wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-          formatter={(v) => <span style={{ color: "#000000", fontWeight: 600 }}>{v}</span>}
+          formatter={(v) => <span style={{ color: "#1b365d", fontWeight: 600 }}>{v}</span>}
         />
         <Area
           type="monotone" dataKey="present" name="Present"

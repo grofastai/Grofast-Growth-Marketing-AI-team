@@ -73,8 +73,8 @@ export default function BlastClient({ members }: { members: Member[] }) {
           {skippedCount > 0 && (
             <div className="flex items-center gap-2 px-4 py-2 rounded-lg"
               style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #E5E7EB" }}>
-              <Phone size={14} style={{ color: "#000000" }} />
-              <span className="text-[13px] font-medium" style={{ color: "#000000" }}>
+              <Phone size={14} style={{ color: "#1b365d" }} />
+              <span className="text-[13px] font-medium" style={{ color: "#1b365d" }}>
                 {skippedCount} skipped (no phone)
               </span>
             </div>
@@ -88,7 +88,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
               style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{r.name}</p>
-                <p className="text-[11px] mt-0.5" style={{ color: "#000000" }}>
+                <p className="text-[11px] mt-0.5" style={{ color: "#1b365d" }}>
                   {r.phone ?? "No phone number"}
                 </p>
                 {r.error && (
@@ -97,7 +97,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
               </div>
               {r.status === "sent"     && <CheckCircle2 size={16} style={{ color: "#16A34A", flexShrink: 0 }} />}
               {r.status === "failed"   && <XCircle      size={16} style={{ color: "#de1a1a", flexShrink: 0 }} />}
-              {r.status === "no_phone" && <Phone        size={16} style={{ color: "#000000", flexShrink: 0 }} />}
+              {r.status === "no_phone" && <Phone        size={16} style={{ color: "#1b365d", flexShrink: 0 }} />}
             </div>
           ))}
         </div>
@@ -122,7 +122,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
           style={{ fontFamily: "var(--font-jakarta)" }}>
           WhatsApp Blast
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#000000" }}>
+        <p className="text-sm mt-1" style={{ color: "#1b365d" }}>
           Send a WhatsApp message to your team instantly
         </p>
       </div>
@@ -134,7 +134,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
           <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
             <div className="flex items-center gap-2 mb-3">
               <MessageSquare size={13} style={{ color: "#25D366" }} />
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#000000" }}>Message</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#1b365d" }}>Message</p>
             </div>
             <textarea
               value={message}
@@ -145,7 +145,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
               className="w-full resize-none rounded-lg px-3 py-2.5 text-[13px] outline-none leading-relaxed"
               style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}
             />
-            <p className="text-[11px] mt-1.5 text-right tabular-nums" style={{ color: "#000000" }}>
+            <p className="text-[11px] mt-1.5 text-right tabular-nums" style={{ color: "#1b365d" }}>
               {message.length} / 1000
             </p>
           </div>
@@ -154,7 +154,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
             className="flex items-center gap-2 px-6 py-3 rounded-xl text-[14px] font-bold transition-all"
             style={{
               background: canSend ? "#25D366" : "#E5E7EB",
-              color:      canSend ? "#FFFFFF" : "#000000",
+              color:      canSend ? "#FFFFFF" : "#1b365d",
               cursor:     canSend ? "pointer" : "not-allowed",
             }}>
             <Send size={14} />
@@ -169,7 +169,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Users size={13} style={{ color: "#de1a1a" }} />
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#000000" }}>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#1b365d" }}>
                 Recipients
               </p>
               {recipientCount > 0 && (
@@ -200,11 +200,11 @@ export default function BlastClient({ members }: { members: Member[] }) {
                     className="w-4 h-4 accent-red-600 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold truncate" style={{ color: "#111111" }}>{m.name}</p>
-                    <p className="text-[11px]" style={{ color: m.phone ? "#000000" : "#000000" }}>
+                    <p className="text-[11px]" style={{ color: m.phone ? "#1b365d" : "#1b365d" }}>
                       {m.phone ?? "No phone number"}
                     </p>
                   </div>
-                  {!m.phone && <Phone size={11} style={{ color: "#000000", flexShrink: 0 }} />}
+                  {!m.phone && <Phone size={11} style={{ color: "#1b365d", flexShrink: 0 }} />}
                 </label>
               )
             })}

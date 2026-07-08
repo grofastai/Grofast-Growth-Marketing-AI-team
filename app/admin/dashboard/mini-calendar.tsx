@@ -42,17 +42,17 @@ export default function MiniCalendar({ leaveMap, today, initYear, initMonth }: P
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <button onClick={prev} style={btnStyle}>
-          <ChevronLeft size={13} style={{ color: "#000000" }} />
+          <ChevronLeft size={13} style={{ color: "#1b365d" }} />
         </button>
         <span style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>{monthLabel}</span>
         <button onClick={next} style={btnStyle}>
-          <ChevronRight size={13} style={{ color: "#000000" }} />
+          <ChevronRight size={13} style={{ color: "#1b365d" }} />
         </button>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
         {["S","M","T","W","T","F","S"].map((d, i) => (
-          <div key={i} style={{ textAlign: "center", fontSize: 9, fontWeight: 700, color: "#000000", paddingBottom: 3 }}>{d}</div>
+          <div key={i} style={{ textAlign: "center", fontSize: 9, fontWeight: 700, color: "#1b365d", paddingBottom: 3 }}>{d}</div>
         ))}
       </div>
 
@@ -83,7 +83,7 @@ export default function MiniCalendar({ leaveMap, today, initYear, initMonth }: P
                 }}>
                 <span style={{
                   fontSize: 10, fontWeight: isToday ? 800 : 500,
-                  color: isToday ? "#FFFFFF" : isWeekend ? "#000000" : "#000000",
+                  color: isToday ? "#FFFFFF" : isWeekend ? "#1b365d" : "#1b365d",
                 }}>{day}</span>
                 {hasLeave && !isToday && (
                   <div style={{ display: "flex", alignItems: "center", gap: 1, position: "absolute", bottom: 2 }}>
@@ -111,7 +111,7 @@ export default function MiniCalendar({ leaveMap, today, initYear, initMonth }: P
                         <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(217,119,6,0.12)", color: "#D97706", fontSize: 9, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                           {getInitials(p.name)}
                         </div>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: "#000000", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: "#1b365d", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
                       </div>
                     ))}
                   </div>
@@ -125,11 +125,11 @@ export default function MiniCalendar({ leaveMap, today, initYear, initMonth }: P
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <div style={{ width: 10, height: 10, borderRadius: 3, background: "#DE1A1A" }} />
-          <span style={{ fontSize: 10, color: "#000000" }}>Today</span>
+          <span style={{ fontSize: 10, color: "#1b365d" }}>Today</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#D97706" }} />
-          <span style={{ fontSize: 10, color: "#000000" }}>On Leave</span>
+          <span style={{ fontSize: 10, color: "#1b365d" }}>On Leave</span>
         </div>
       </div>
     </div>

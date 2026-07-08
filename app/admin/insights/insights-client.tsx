@@ -263,7 +263,7 @@ export default function InsightsClient({
                     </span>
                   </td>
                   {/* Present */}
-                  <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: "#000000", textAlign: 'right' }}>
+                  <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: "#1b365d", textAlign: 'right' }}>
                     {m.workingDays}
                   </td>
                   {/* Login Hrs */}
@@ -300,8 +300,8 @@ export default function InsightsClient({
             {memberUtilization.length > 0 && (
               <tfoot>
                 <tr style={{ borderTop: '2px solid #EBEDF2', background: '#F9FAFB' }}>
-                  <td colSpan={2} style={{ padding: '10px 14px', fontSize: 11, fontWeight: 800, color: "#000000" }}>TOTAL / AVG</td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: "#000000" }}>
+                  <td colSpan={2} style={{ padding: '10px 14px', fontSize: 11, fontWeight: 800, color: "#1b365d" }}>TOTAL / AVG</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: "#1b365d" }}>
                     {memberUtilization.reduce((s, m) => s + m.workingDays, 0)}
                   </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: '#111827' }}>
@@ -370,7 +370,7 @@ export default function InsightsClient({
                       </span>
                     </td>
                     {/* Days In */}
-                    <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: "#000000", textAlign: 'right' }}>
+                    <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: "#1b365d", textAlign: 'right' }}>
                       {m.workingDays}
                     </td>
                     {/* Expected */}
@@ -436,8 +436,8 @@ export default function InsightsClient({
             {memberUtilization.length > 0 && (
               <tfoot>
                 <tr style={{ borderTop: '2px solid #EBEDF2', background: '#F9FAFB' }}>
-                  <td colSpan={2} style={{ padding: '10px 14px', fontSize: 11, fontWeight: 800, color: "#000000" }}>TOTAL / AVG</td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: "#000000" }}>
+                  <td colSpan={2} style={{ padding: '10px 14px', fontSize: 11, fontWeight: 800, color: "#1b365d" }}>TOTAL / AVG</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: "#1b365d" }}>
                     —
                   </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#111827' }}>
@@ -486,7 +486,7 @@ export default function InsightsClient({
           {workTotals.map(w => (
             <div key={w.key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 16, width: 22, flexShrink: 0 }}>{w.emoji}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#000000", width: 90, flexShrink: 0 }}>{w.label}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#1b365d", width: 90, flexShrink: 0 }}>{w.label}</span>
               <div style={{ flex: 1, height: 10, background: '#F3F4F6', borderRadius: 99, overflow: 'hidden' }}>
                 <div style={{
                   height: '100%', borderRadius: 99,
@@ -527,7 +527,7 @@ export default function InsightsClient({
                     fontSize: 10, fontWeight: 900, color: isInternal ? '#DE1A1A' : '#6366F1',
                   }}>{ini(c.name)}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: "#000000", margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#1b365d", margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {c.name}
                     </p>
                     <div style={{ height: 4, background: '#F3F4F6', borderRadius: 99, marginTop: 4 }}>
@@ -607,7 +607,7 @@ export default function InsightsClient({
                       {m.clients.length > 0 && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {m.clients.map(c => (
-                            <span key={c} style={{ fontSize: 9, padding: '2px 7px', borderRadius: 5, background: '#F3F4F6', color: "#000000", fontWeight: 600 }}>
+                            <span key={c} style={{ fontSize: 9, padding: '2px 7px', borderRadius: 5, background: '#F3F4F6', color: "#1b365d", fontWeight: 600 }}>
                               {c}
                             </span>
                           ))}
@@ -627,7 +627,7 @@ export default function InsightsClient({
                         )}
                         <div>
                           <p style={{ fontSize: 9, color: '#111827', margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Salary</p>
-                          <p style={{ fontSize: 13, fontWeight: 900, color: "#000000", margin: 0 }}>{fmtRupee(m.monthlySalary)}</p>
+                          <p style={{ fontSize: 13, fontWeight: 900, color: "#1b365d", margin: 0 }}>{fmtRupee(m.monthlySalary)}</p>
                         </div>
                       </div>
                     </div>
@@ -691,7 +691,7 @@ export default function InsightsClient({
                   <td style={{ padding: '10px 16px', fontWeight: 700, color: '#111827' }}>{m.name.trim()}</td>
                   <td style={{ padding: '10px 16px', color: '#111827', fontWeight: 600, fontFamily: 'monospace' }}>{m.employeeId}</td>
                   <td style={{ padding: '10px 16px', color: '#111827', fontSize: 12 }}>{m.team ?? '—'}</td>
-                  <td style={{ padding: '10px 16px', fontWeight: 700, color: "#000000" }}>
+                  <td style={{ padding: '10px 16px', fontWeight: 700, color: "#1b365d" }}>
                     {m.monthlySalary > 0 ? `₹${m.monthlySalary.toLocaleString('en-IN')}` : '—'}
                   </td>
                   <td style={{ padding: '10px 16px' }}>

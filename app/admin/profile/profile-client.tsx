@@ -74,7 +74,7 @@ function DocUploadButton({ label, url, loading, onFile }: {
       <input ref={ref} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }}
         onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f) }} />
       <button onClick={() => ref.current?.click()} disabled={loading}
-        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px", borderRadius: 10, border: `1.5px dashed ${url ? "#16A34A" : "#EBEDF2"}`, background: url ? "rgba(34,197,94,0.04)" : "#F8F9FC", fontSize: 11, fontWeight: 600, color: url ? "#16A34A" : "#000000", cursor: "pointer" }}>
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px", borderRadius: 10, border: `1.5px dashed ${url ? "#16A34A" : "#EBEDF2"}`, background: url ? "rgba(34,197,94,0.04)" : "#F8F9FC", fontSize: 11, fontWeight: 600, color: url ? "#16A34A" : "#1b365d", cursor: "pointer" }}>
         {loading ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : url ? <CheckCircle2 size={12} /> : <Upload size={12} />}
         {loading ? "Uploading…" : url ? "Uploaded ✓" : label}
       </button>
@@ -281,7 +281,7 @@ export default function AdminProfileClient({
                 </div>
                 <button onClick={() => setShowPicker(true)} disabled={photoBusy}
                   style={{ position: "absolute", bottom: -4, left: "50%", transform: "translateX(-50%)", width: 26, height: 26, borderRadius: "50%", background: "#fff", border: "2px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}>
-                  {photoBusy ? <Loader2 size={11} style={{ color: "#000000", animation: "spin 1s linear infinite" }} /> : <Camera size={11} style={{ color: "#000000" }} />}
+                  {photoBusy ? <Loader2 size={11} style={{ color: "#1b365d", animation: "spin 1s linear infinite" }} /> : <Camera size={11} style={{ color: "#1b365d" }} />}
                 </button>
                 <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }}
                   onChange={e => { const f = e.target.files?.[0]; if (f) { setShowPicker(false); handlePhotoUpload(f) } }} />
@@ -305,7 +305,7 @@ export default function AdminProfileClient({
                         {savePending ? <Loader2 size={11} style={{ animation: "spin 1s linear infinite" }} /> : <Check size={11} />} Save
                       </button>
                       <button onClick={() => { setEditing(false); setEditName(profile?.name ?? ""); setEditPhone(profile?.phone ?? "") }}
-                        style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 700, color: "#000000", cursor: "pointer" }}>
+                        style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 700, color: "#1b365d", cursor: "pointer" }}>
                         <X size={11} /> Cancel
                       </button>
                     </div>
@@ -318,7 +318,7 @@ export default function AdminProfileClient({
                         <span style={{ fontSize: 11, fontWeight: 800, padding: "4px 12px", borderRadius: 99, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", border: "1px solid rgba(222,26,26,0.18)", letterSpacing: "0.04em" }}>
                           {profile?.role ?? "ADMIN"}
                         </span>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "#F5F6FA", color: "#000000", border: "1px solid #EBEDF2" }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "#F5F6FA", color: "#1b365d", border: "1px solid #EBEDF2" }}>
                           #{profile?.employee_id ?? "—"}
                         </span>
                         <span style={{ fontSize: 11, fontWeight: 700, color: "#16A34A", display: "flex", alignItems: "center", gap: 4 }}>
@@ -350,7 +350,7 @@ export default function AdminProfileClient({
                 { label: "Joined",   value: profile?.joined ?? "—" },
               ].map(r => (
                 <div key={r.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderRadius: 12, background: "#F9FAFB", border: "1px solid #EBEDF2" }}>
-                  <span style={{ fontSize: 11, color: "#000000", fontWeight: 600 }}>{r.label}</span>
+                  <span style={{ fontSize: 11, color: "#1b365d", fontWeight: 600 }}>{r.label}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: "#111111" }}>{r.value}</span>
                 </div>
               ))}
@@ -364,7 +364,7 @@ export default function AdminProfileClient({
             <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <User size={16} style={{ color: "#000000" }} />
+                  <User size={16} style={{ color: "#1b365d" }} />
                   <span style={{ fontSize: 14, fontWeight: 800, color: "#111111" }}>Personal Details</span>
                 </div>
                 {!editPersonal && (
@@ -378,27 +378,27 @@ export default function AdminProfileClient({
               {editPersonal ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   <div>
-                    <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#000000", display: "block", marginBottom: 7 }}>Blood Group</label>
+                    <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#1b365d", display: "block", marginBottom: 7 }}>Blood Group</label>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {BLOOD_GROUPS.map(bg => (
                         <button key={bg} onClick={() => setPersonal(p => ({ ...p, blood_group: bg }))}
-                          style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "none", background: personal.blood_group === bg ? "#DE1A1A" : "#F5F6FA", color: personal.blood_group === bg ? "#fff" : "#000000" }}>
+                          style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "none", background: personal.blood_group === bg ? "#DE1A1A" : "#F5F6FA", color: personal.blood_group === bg ? "#fff" : "#1b365d" }}>
                           {bg}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#000000", display: "block", marginBottom: 5 }}>Address</label>
+                    <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#1b365d", display: "block", marginBottom: 5 }}>Address</label>
                     <textarea value={personal.address} onChange={e => setPersonal(p => ({ ...p, address: e.target.value }))} rows={2} className="ap-in" style={{ ...IS, resize: "none" }} placeholder="Full address…" />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     <div>
-                      <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#000000", display: "block", marginBottom: 5 }}>Emergency Name</label>
+                      <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1b365d", display: "block", marginBottom: 5 }}>Emergency Name</label>
                       <input value={personal.emergency_contact_name} onChange={e => setPersonal(p => ({ ...p, emergency_contact_name: e.target.value }))} className="ap-in" style={IS} placeholder="Name" />
                     </div>
                     <div>
-                      <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#000000", display: "block", marginBottom: 5 }}>Emergency Phone</label>
+                      <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1b365d", display: "block", marginBottom: 5 }}>Emergency Phone</label>
                       <input value={personal.emergency_contact_phone} onChange={e => setPersonal(p => ({ ...p, emergency_contact_phone: e.target.value }))} className="ap-in" style={IS} placeholder="Phone" />
                     </div>
                   </div>
@@ -414,7 +414,7 @@ export default function AdminProfileClient({
                       {personalPending ? <Loader2 size={11} style={{ animation: "spin 1s linear infinite" }} /> : <Check size={11} />} Save
                     </button>
                     <button onClick={() => setEditPersonal(false)}
-                      style={{ display: "flex", alignItems: "center", gap: 5, padding: "9px 14px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 700, color: "#000000", cursor: "pointer" }}>
+                      style={{ display: "flex", alignItems: "center", gap: 5, padding: "9px 14px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 700, color: "#1b365d", cursor: "pointer" }}>
                       <X size={11} /> Cancel
                     </button>
                   </div>
@@ -428,11 +428,11 @@ export default function AdminProfileClient({
                   ].map(({ Icon, label, value }) => (
                     <div key={label} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                       <div style={{ width: 32, height: 32, borderRadius: 10, background: "#F8F9FC", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                        <Icon size={13} style={{ color: value === "—" ? "#000000" : "#000000" }} />
+                        <Icon size={13} style={{ color: value === "—" ? "#1b365d" : "#1b365d" }} />
                       </div>
                       <div>
-                        <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "#000000", margin: "0 0 3px", fontWeight: 600 }}>{label}</p>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: value === "—" ? "#000000" : "#111111", margin: 0, lineHeight: 1.5 }}>{value}</p>
+                        <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1b365d", margin: "0 0 3px", fontWeight: 600 }}>{label}</p>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: value === "—" ? "#1b365d" : "#111111", margin: 0, lineHeight: 1.5 }}>{value}</p>
                       </div>
                     </div>
                   ))}
@@ -444,7 +444,7 @@ export default function AdminProfileClient({
             <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <Landmark size={16} style={{ color: "#000000" }} />
+                  <Landmark size={16} style={{ color: "#1b365d" }} />
                   <span style={{ fontSize: 14, fontWeight: 800, color: "#111111" }}>KYC &amp; Bank Details</span>
                 </div>
                 {!editKYC && (
@@ -464,7 +464,7 @@ export default function AdminProfileClient({
               {editKYC ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   <div>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: "#000000", margin: "0 0 8px" }}>Bank Account</p>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#1b365d", margin: "0 0 8px" }}>Bank Account</p>
                     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                       <select value={kycForm.bank_name} onChange={e => setKYCForm(p => ({ ...p, bank_name: e.target.value }))} className="ap-in" style={{ ...IS, appearance: "none" }}>
                         <option value="">Select bank…</option>
@@ -478,11 +478,11 @@ export default function AdminProfileClient({
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
                     <div>
-                      <label style={{ fontSize: 10, color: "#000000", fontWeight: 600, display: "block", marginBottom: 4 }}>Aadhaar No.</label>
+                      <label style={{ fontSize: 10, color: "#1b365d", fontWeight: 600, display: "block", marginBottom: 4 }}>Aadhaar No.</label>
                       <input value={kycForm.aadhaar_number} onChange={e => setKYCForm(p => ({ ...p, aadhaar_number: e.target.value }))} placeholder="12-digit" maxLength={14} className="ap-in" style={IS} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 10, color: "#000000", fontWeight: 600, display: "block", marginBottom: 4 }}>PAN No.</label>
+                      <label style={{ fontSize: 10, color: "#1b365d", fontWeight: 600, display: "block", marginBottom: 4 }}>PAN No.</label>
                       <input value={kycForm.pan_number} onChange={e => setKYCForm(p => ({ ...p, pan_number: e.target.value.toUpperCase() }))} placeholder="ABCDE1234F" maxLength={10} className="ap-in" style={IS} />
                     </div>
                   </div>
@@ -491,11 +491,11 @@ export default function AdminProfileClient({
                     { title: "PAN Card",     fields: [{ f: "pan_front_url" as const, l: "Front" }, { f: "pan_back_url" as const, l: "Back" }] },
                   ]).map(sec => (
                     <div key={sec.title}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: "#000000", margin: "0 0 7px" }}>{sec.title}</p>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: "#1b365d", margin: "0 0 7px" }}>{sec.title}</p>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
                         {sec.fields.map(({ f, l }) => (
                           <div key={f}>
-                            <label style={{ fontSize: 9, color: "#000000", fontWeight: 600, display: "block", marginBottom: 4 }}>{l}</label>
+                            <label style={{ fontSize: 9, color: "#1b365d", fontWeight: 600, display: "block", marginBottom: 4 }}>{l}</label>
                             <DocUploadButton label={`Upload ${l}`} url={kycForm[f]} loading={uploadingField === f} onFile={fl => handleDocUpload(f, fl)} />
                           </div>
                         ))}
@@ -514,7 +514,7 @@ export default function AdminProfileClient({
                       {kycPending ? <Loader2 size={11} style={{ animation: "spin 1s linear infinite" }} /> : <Check size={11} />} Save KYC
                     </button>
                     <button onClick={() => setEditKYC(false)}
-                      style={{ display: "flex", alignItems: "center", gap: 5, padding: "9px 14px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 700, color: "#000000", cursor: "pointer" }}>
+                      style={{ display: "flex", alignItems: "center", gap: 5, padding: "9px 14px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 700, color: "#1b365d", cursor: "pointer" }}>
                       <X size={11} /> Cancel
                     </button>
                   </div>
@@ -529,15 +529,15 @@ export default function AdminProfileClient({
                   ].map(({ Icon, label, value }) => (
                     <div key={label} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                       <div style={{ width: 32, height: 32, borderRadius: 10, background: "#F8F9FC", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                        <Icon size={13} style={{ color: value === "—" ? "#000000" : "#000000" }} />
+                        <Icon size={13} style={{ color: value === "—" ? "#1b365d" : "#1b365d" }} />
                       </div>
                       <div>
-                        <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "#000000", margin: "0 0 3px", fontWeight: 600 }}>{label}</p>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: value === "—" ? "#000000" : "#111111", margin: 0 }}>{value}</p>
+                        <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1b365d", margin: "0 0 3px", fontWeight: 600 }}>{label}</p>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: value === "—" ? "#1b365d" : "#111111", margin: 0 }}>{value}</p>
                       </div>
                     </div>
                   ))}
-                  <button style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px", borderRadius: 12, background: "#F8F9FC", border: "1.5px solid #EBEDF2", fontSize: 12, fontWeight: 700, color: "#000000", cursor: "pointer", marginTop: 4 }}>
+                  <button style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px", borderRadius: 12, background: "#F8F9FC", border: "1.5px solid #EBEDF2", fontSize: 12, fontWeight: 700, color: "#1b365d", cursor: "pointer", marginTop: 4 }}>
                     <FolderOpen size={14} style={{ color: "#DE1A1A" }} /> View All Documents
                   </button>
                 </div>
@@ -548,10 +548,10 @@ export default function AdminProfileClient({
           {/* Account Actions */}
           <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", padding: "20px 22px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-              <Settings size={16} style={{ color: "#000000" }} />
+              <Settings size={16} style={{ color: "#1b365d" }} />
               <span style={{ fontSize: 14, fontWeight: 800, color: "#111111" }}>Account Actions</span>
             </div>
-            <p style={{ fontSize: 12, color: "#000000", margin: "0 0 16px" }}>Manage your account security and preferences</p>
+            <p style={{ fontSize: 12, color: "#1b365d", margin: "0 0 16px" }}>Manage your account security and preferences</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {[
                 { Icon: Lock,   title: "Change Password",       desc: "Update your password",   action: () => router.push("/change-password") },
@@ -561,13 +561,13 @@ export default function AdminProfileClient({
                 <button key={title} onClick={action}
                   style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 14, border: "1px solid #EBEDF2", background: "#F8F9FC", cursor: "pointer", textAlign: "left" }}>
                   <div style={{ width: 38, height: 38, borderRadius: 11, background: "#fff", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Icon size={15} style={{ color: "#000000" }} />
+                    <Icon size={15} style={{ color: "#1b365d" }} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: "#111111", margin: "0 0 2px" }}>{title}</p>
-                    <p style={{ fontSize: 10, color: "#000000", margin: 0 }}>{desc}</p>
+                    <p style={{ fontSize: 10, color: "#1b365d", margin: 0 }}>{desc}</p>
                   </div>
-                  <ChevronRight size={13} style={{ color: "#000000", flexShrink: 0 }} />
+                  <ChevronRight size={13} style={{ color: "#1b365d", flexShrink: 0 }} />
                 </button>
               ))}
             </div>
@@ -578,9 +578,9 @@ export default function AdminProfileClient({
               </div>
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: "#DE1A1A", margin: "0 0 2px" }}>{logoutPending ? "Signing out…" : "Sign Out"}</p>
-                <p style={{ fontSize: 10, color: "#000000", margin: 0 }}>End your current session</p>
+                <p style={{ fontSize: 10, color: "#1b365d", margin: 0 }}>End your current session</p>
               </div>
-              <ChevronRight size={13} style={{ color: "#000000" }} />
+              <ChevronRight size={13} style={{ color: "#1b365d" }} />
             </button>
           </div>
         </div>
@@ -600,7 +600,7 @@ export default function AdminProfileClient({
                   <div style={{ width: 34, height: 34, borderRadius: 10, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <Icon size={14} style={{ color }} />
                   </div>
-                  <p style={{ flex: 1, fontSize: 12, color: "#000000", margin: 0 }}>{label}</p>
+                  <p style={{ flex: 1, fontSize: 12, color: "#1b365d", margin: 0 }}>{label}</p>
                   <p style={{ fontSize: 20, fontWeight: 900, color, margin: 0, fontFamily: "var(--font-jakarta)" }}>{value}</p>
                 </div>
               ))}
@@ -610,7 +610,7 @@ export default function AdminProfileClient({
           {/* Avatar Picker */}
           <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
             <p style={{ fontSize: 14, fontWeight: 800, color: "#111111", margin: "0 0 4px" }}>Choose Avatar</p>
-            <p style={{ fontSize: 11, color: "#000000", margin: "0 0 14px" }}>Click any photo to set as profile picture</p>
+            <p style={{ fontSize: 11, color: "#1b365d", margin: "0 0 14px" }}>Click any photo to set as profile picture</p>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
               {PRESET_AVATARS.slice(0, 16).map(url => (
                 <button key={url} onClick={() => handlePresetPick(url)} disabled={photoBusy}
@@ -621,7 +621,7 @@ export default function AdminProfileClient({
                 </button>
               ))}
             </div>
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 12, padding: "10px", borderRadius: 12, background: "#F9FAFB", border: "1.5px dashed #EBEDF2", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#000000" }}>
+            <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 12, padding: "10px", borderRadius: 12, background: "#F9FAFB", border: "1.5px dashed #EBEDF2", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#1b365d" }}>
               <Upload size={13} /> Upload your own
               <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f) }} disabled={photoBusy} />
             </label>
@@ -639,10 +639,10 @@ export default function AdminProfileClient({
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
               <div>
                 <p style={{ fontSize: 17, fontWeight: 900, color: "#111111", margin: 0 }}>Choose Profile Photo</p>
-                <p style={{ fontSize: 12, color: "#000000", margin: "3px 0 0" }}>Select from our collection or upload your own</p>
+                <p style={{ fontSize: 12, color: "#1b365d", margin: "3px 0 0" }}>Select from our collection or upload your own</p>
               </div>
               <button onClick={() => setShowPicker(false)} style={{ width: 32, height: 32, borderRadius: "50%", background: "#F5F6FA", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <X size={14} style={{ color: "#000000" }} />
+                <X size={14} style={{ color: "#1b365d" }} />
               </button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 16 }}>
@@ -655,7 +655,7 @@ export default function AdminProfileClient({
                 </button>
               ))}
             </div>
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px", borderRadius: 12, background: "#F8F9FC", border: "2px dashed #D1D5DB", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#000000" }}>
+            <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px", borderRadius: 12, background: "#F8F9FC", border: "2px dashed #D1D5DB", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#1b365d" }}>
               <Upload size={14} /> Upload your own photo
               <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) { setShowPicker(false); handlePhotoUpload(f) } }} />
             </label>

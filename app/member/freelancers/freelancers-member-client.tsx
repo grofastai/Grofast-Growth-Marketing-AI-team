@@ -52,16 +52,16 @@ export type WorkEntry = {
 const TEAM_CFG: Record<FreelancerTeam, {
   color: string; bg: string; border: string
   shortLabel: string; entryLabel: string; emoji: string; costLabel: string
-  heroBg: string; image: string
+  heroBg: string; image: string; tagline: string
 }> = {
-  "Freelance RJ Voiceover":            { color: "#A855F7", bg: "rgba(168,85,247,0.07)", border: "rgba(168,85,247,0.2)", shortLabel: "RJ Voiceover",  entryLabel: "Voice",     emoji: "🎙️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #2D1B69 0%, #6D28D9 45%, #1E1040 100%)", image: "/brand/voiceover-rj-character.png" },
-  "Freelance Graphics Designer":        { color: "#F97316", bg: "rgba(249,115,22,0.07)",  border: "rgba(249,115,22,0.2)",  shortLabel: "Graphics",      entryLabel: "Design",    emoji: "🎨", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #431407 0%, #C2410C 45%, #1C0A00 100%)", image: "/brand/freelancer-graphics-character.png" },
-  "Freelance Content Writer":           { color: "#14B8A6", bg: "rgba(20,184,166,0.07)",  border: "rgba(20,184,166,0.2)",  shortLabel: "Content",       entryLabel: "Content",   emoji: "✍️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #042F2E 0%, #0F766E 45%, #021B1A 100%)", image: "/brand/freelancer-content-writer-character.png" },
-  "Freelance Software Development & Automation": { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "SW Dev & Auto", entryLabel: "Task",      emoji: "💻", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1E1B4B 0%, #3730A3 45%, #0F0D2E 100%)", image: "/brand/freelancer-software-dev-character.png" },
-  "Freelance Marketing & Operations":   { color: "#10B981", bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.2)",  shortLabel: "Marketing",     entryLabel: "Task",      emoji: "📊", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #022C22 0%, #047857 45%, #011A14 100%)", image: "/brand/freelancer-marketing-character.png" },
-  "Freelance AI Development & Creative Production": { color: "#8B5CF6", bg: "rgba(139,92,246,0.07)",  border: "rgba(139,92,246,0.2)",  shortLabel: "AI & Creative", entryLabel: "Task",      emoji: "🖥️", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1A0533 0%, #7C3AED 45%, #0D0020 100%)", image: "/brand/freelancer-ai-creative-character.png" },
-  "Freelance Video Editing":            { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Video Editing", entryLabel: "Edit",      emoji: "🎬", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #0F1547 0%, #1D4ED8 45%, #060B2A 100%)", image: "/brand/freelancer-video-editing-character.png" },
-  "Freelance Videography":              { color: "#0EA5E9", bg: "rgba(14,165,233,0.07)",  border: "rgba(14,165,233,0.2)",  shortLabel: "Videography",   entryLabel: "Shoot",     emoji: "📹", costLabel: "Cost (INR)",            heroBg: "linear-gradient(135deg, #082F49 0%, #0369A1 45%, #041520 100%)", image: "/brand/freelancer-videography-character.png" },
+  "Freelance RJ Voiceover":            { color: "#A855F7", bg: "rgba(168,85,247,0.07)", border: "rgba(168,85,247,0.2)", shortLabel: "RJ Voiceover",  entryLabel: "Voice",     emoji: "🎙️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #2D1B69 0%, #6D28D9 45%, #1E1040 100%)", image: "/brand/voiceover-rj-character.png", tagline: "Giving Voice to Every Brand" },
+  "Freelance Graphics Designer":        { color: "#F97316", bg: "rgba(249,115,22,0.07)",  border: "rgba(249,115,22,0.2)",  shortLabel: "Graphics",      entryLabel: "Design",    emoji: "🎨", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #431407 0%, #C2410C 45%, #1C0A00 100%)", image: "/brand/freelancer-graphics-character.png", tagline: "Designing Ideas Into Impact" },
+  "Freelance Content Writer":           { color: "#14B8A6", bg: "rgba(20,184,166,0.07)",  border: "rgba(20,184,166,0.2)",  shortLabel: "Content",       entryLabel: "Content",   emoji: "✍️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #042F2E 0%, #0F766E 45%, #021B1A 100%)", image: "/brand/freelancer-content-writer-character.png", tagline: "Words That Convert" },
+  "Freelance Software Development & Automation": { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "SW Dev & Auto", entryLabel: "Task",      emoji: "💻", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1E1B4B 0%, #3730A3 45%, #0F0D2E 100%)", image: "/brand/freelancer-software-dev-character.png", tagline: "Building Smart Solutions" },
+  "Freelance Marketing & Operations":   { color: "#10B981", bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.2)",  shortLabel: "Marketing",     entryLabel: "Task",      emoji: "📊", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #022C22 0%, #047857 45%, #011A14 100%)", image: "/brand/freelancer-marketing-character.png", tagline: "Driving Growth, Every Day" },
+  "Freelance AI Development & Creative Production": { color: "#8B5CF6", bg: "rgba(139,92,246,0.07)",  border: "rgba(139,92,246,0.2)",  shortLabel: "AI & Creative", entryLabel: "Task",      emoji: "🖥️", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1A0533 0%, #7C3AED 45%, #0D0020 100%)", image: "/brand/freelancer-ai-creative-character.png", tagline: "Innovating with AI & Creativity" },
+  "Freelance Video Editing":            { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Video Editing", entryLabel: "Edit",      emoji: "🎬", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #0F1547 0%, #1D4ED8 45%, #060B2A 100%)", image: "/brand/freelancer-video-editing-character.png", tagline: "Crafting Stories Frame by Frame" },
+  "Freelance Videography":              { color: "#0EA5E9", bg: "rgba(14,165,233,0.07)",  border: "rgba(14,165,233,0.2)",  shortLabel: "Videography",   entryLabel: "Shoot",     emoji: "📹", costLabel: "Cost (INR)",            heroBg: "linear-gradient(135deg, #082F49 0%, #0369A1 45%, #041520 100%)", image: "/brand/freelancer-videography-character.png", tagline: "Capturing Moments That Matter" },
 }
 
 function hexToRgba(hex: string, alpha: number) {
@@ -1299,15 +1299,13 @@ export default function FreelancersMemberClient({
                   <img src={cfg.image} alt="" aria-hidden="true"
                     className="hidden sm:block"
                     style={{ position: "absolute", bottom: 0, right: 22, height: "112%", maxHeight: 330, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 32px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
-                  {/* Character image (mobile) — grounded & enlarged, shifted ~22px right for breathing room from the text; extra height goes downward behind the KPI card tops so her head keeps the same top clearance inside the fixed-height card. RJ only for now — other teams keep the compact text-only mobile layout below. */}
-                  {isRJ && (
-                    <img src={cfg.image} alt="" aria-hidden="true"
-                      className="block sm:hidden"
-                      style={{ position: "absolute", bottom: 14, right: -32, height: 286, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 24px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
-                  )}
+                  {/* Character image (mobile, all teams) — grounded & enlarged, shifted ~22px right for breathing room from the text; extra height goes downward behind the KPI card tops so the head keeps the same top clearance inside the fixed-height card */}
+                  <img src={cfg.image} alt="" aria-hidden="true"
+                    className="block sm:hidden"
+                    style={{ position: "absolute", bottom: 14, right: -32, height: 286, width: "auto", objectFit: "contain", pointerEvents: "none", filter: `drop-shadow(0 8px 24px ${hexToRgba(cfg.color, 0.5)})`, zIndex: 1 }} />
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
-                    {/* Desktop layout (all teams) — for RJ, hidden on mobile in favor of the dedicated stacked block below */}
-                    <div className={isRJ ? "hidden sm:flex sm:items-start sm:flex-wrap sm:justify-between sm:gap-3" : "flex flex-col items-start text-left gap-3 sm:flex-row sm:flex-wrap sm:justify-between"}>
+                    {/* Desktop layout (all teams) — hidden on mobile in favor of the dedicated stacked block below */}
+                    <div className="hidden sm:flex sm:items-start sm:flex-wrap sm:justify-between sm:gap-3">
                       <div className="flex items-center gap-3 sm:gap-[14px]">
                         <div style={{ width: 56, height: 56, borderRadius: 18, background: "rgba(255,255,255,0.25)", border: "2.5px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
                           <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)" }}>{getInitials(selectedFreelancer.name)}</span>
@@ -1324,11 +1322,9 @@ export default function FreelancersMemberClient({
                             </div>
                             {joinedDate && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Since {joinedDate}</span>}
                           </div>
-                          {isRJ && (
-                            <div style={{ marginTop: 10 }}>
-                              <p style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>🎙️ Giving Voice to Every Brand</p>
-                            </div>
-                          )}
+                          <div style={{ marginTop: 10 }}>
+                            <p style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>{cfg.emoji} {cfg.tagline}</p>
+                          </div>
                         </div>
                       </div>
                       <button onClick={() => setAddWorkFor(selectedFreelancer)}
@@ -1338,28 +1334,26 @@ export default function FreelancersMemberClient({
                         <Plus size={14} /> Add Work
                       </button>
                     </div>
-                    {/* Mobile-only layout for RJ Voiceover — no avatar (the character image already carries identity),
+                    {/* Mobile-only layout (all teams) — no avatar (the character image already carries identity),
                         generous spacing between sections, button flows under the heading instead of sitting top-right */}
-                    {isRJ && (
-                      <div className="flex sm:hidden flex-col" style={{ maxWidth: "40%" }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", alignSelf: "flex-start" }}>
-                          {cfg.emoji} {cfg.shortLabel}
-                        </span>
-                        <h2 style={{ fontSize: "clamp(18px,4vw,24px)", fontWeight: 900, color: "#fff", margin: "12px 0 0", fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{selectedFreelancer.name}</h2>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                            <Star size={12} fill="#FACC15" color="#FACC15" />
-                            <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{selectedFreelancer.rating.toFixed(1)}</span>
-                          </div>
-                          {joinedDate && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Since {joinedDate}</span>}
+                    <div className="flex sm:hidden flex-col" style={{ maxWidth: "40%" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", alignSelf: "flex-start" }}>
+                        {cfg.emoji} {cfg.shortLabel}
+                      </span>
+                      <h2 style={{ fontSize: "clamp(18px,4vw,24px)", fontWeight: 900, color: "#fff", margin: "12px 0 0", fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{selectedFreelancer.name}</h2>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                          <Star size={12} fill="#FACC15" color="#FACC15" />
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{selectedFreelancer.rating.toFixed(1)}</span>
                         </div>
-                        <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", margin: "16px 0 0", letterSpacing: "-0.01em", lineHeight: 1.3 }}>Giving Voice to Every Brand</p>
-                        <button onClick={() => setAddWorkFor(selectedFreelancer)}
-                          style={{ marginTop: 16, padding: "9px 16px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0, alignSelf: "flex-start" }}>
-                          <Plus size={14} /> Add Work
-                        </button>
+                        {joinedDate && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Since {joinedDate}</span>}
                       </div>
-                    )}
+                      <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", margin: "16px 0 0", letterSpacing: "-0.01em", lineHeight: 1.3 }}>{cfg.tagline}</p>
+                      <button onClick={() => setAddWorkFor(selectedFreelancer)}
+                        style={{ marginTop: 16, padding: "9px 16px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0, alignSelf: "flex-start" }}>
+                        <Plus size={14} /> Add Work
+                      </button>
+                    </div>
                     {/* KPI glass strip */}
                     <div style={{ display: "flex", gap: 10, marginTop: 22, paddingBottom: 24, overflowX: "auto" }}>
                       {[

@@ -101,7 +101,8 @@ function calcDur(start?: string | null, end?: string | null): number {
   if (!start || !end) return 0
   const [sh, sm] = start.split(":").map(Number)
   const [eh, em] = end.split(":").map(Number)
-  const diff = (eh * 60 + em) - (sh * 60 + sm)
+  let diff = (eh * 60 + em) - (sh * 60 + sm)
+  if (diff <= 0) diff += 1440 // crosses midnight into the next day
   return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 0
 }
 function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m }
@@ -118,7 +119,12 @@ function calcNetWorkHours(entries: WorkEntry[], layout?: string): number {
   // Build and merge work intervals
   const workIntervals = workEntries
     .filter(e => e.start_time && e.end_time)
-    .map(e => ({ start: toMins(e.start_time!), end: toMins(e.end_time!) }))
+    .map(e => {
+      const start = toMins(e.start_time!)
+      let end = toMins(e.end_time!)
+      if (end <= start) end += 1440 // crosses midnight into the next day
+      return { start, end }
+    })
     .filter(i => i.end > i.start)
     .sort((a, b) => a.start - b.start)
 
@@ -135,7 +141,12 @@ function calcNetWorkHours(entries: WorkEntry[], layout?: string): number {
   // Subtract break intervals that overlap with work intervals
   const breakIntervals = breakEntries
     .filter(e => e.start_time && e.end_time)
-    .map(e => ({ start: toMins(e.start_time!), end: toMins(e.end_time!) }))
+    .map(e => {
+      const start = toMins(e.start_time!)
+      let end = toMins(e.end_time!)
+      if (end <= start) end += 1440 // crosses midnight into the next day
+      return { start, end }
+    })
     .filter(i => i.end > i.start)
   for (const brk of breakIntervals) {
     const next: { start: number; end: number }[] = []

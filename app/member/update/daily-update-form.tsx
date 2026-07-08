@@ -98,14 +98,17 @@ function calcDuration(start: string, end: string) {
   if (!start || !end) return 0
   const [sh, sm] = start.split(":").map(Number)
   const [eh, em] = end.split(":").map(Number)
-  const diff = (eh * 60 + em) - (sh * 60 + sm)
+  let diff = (eh * 60 + em) - (sh * 60 + sm)
+  if (diff <= 0) diff += 1440 // crosses midnight into the next day
   return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 0
 }
 function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m }
 function timesOverlap(s1: string, e1: string, s2: string, e2: string, thresholdMins = 0): boolean {
   if (!s1 || !e1 || !s2 || !e2) return false
-  const a = toMins(s1), b = toMins(e1), c = toMins(s2), d = toMins(e2)
-  if (b <= a || d <= c) return false
+  const a = toMins(s1), c = toMins(s2)
+  let b = toMins(e1), d = toMins(e2)
+  if (b <= a) b += 1440 // crosses midnight into the next day
+  if (d <= c) d += 1440
   return Math.min(b, d) - Math.max(a, c) > thresholdMins
 }
 export type ActiveLeave = {

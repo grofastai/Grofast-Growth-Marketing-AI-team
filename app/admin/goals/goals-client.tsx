@@ -251,6 +251,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
   const [checklistItems, setChecklistItems] = useState<string[]>([])
   const [newCheckItem, setNewCheckItem] = useState("")
   const [attachmentLinks, setAttachmentLinks] = useState<{ id: string; url: string; name: string; type: "link" | "file" }[]>([])
+  const [recurringTask, setRecurringTask] = useState("none")
   const [newAttachUrl, setNewAttachUrl] = useState("")
   const [attachUploading, setAttachUploading] = useState(false)
   const attachFileRef = useRef<HTMLInputElement>(null)
@@ -285,7 +286,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
       setSelectedMembers([])
       setMediaClientType(""); setMediaBrand(""); setMediaCustomClient("")
       setManagerNote(""); setChecklistItems([]); setNewCheckItem("")
-      setAttachmentLinks([]); setNewAttachUrl("")
+      setAttachmentLinks([]); setNewAttachUrl(""); setRecurringTask("none")
       startTransition(() => { router.refresh() })
     }
   }, [state]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -806,9 +807,30 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   </select>
                 </div>
               </div>
-              <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Due Date</label>
-                <input name="due_date" type="date" max="2099-12-31" className="ti" style={{ colorScheme: "light" }} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>
+                    Due Date{recurringTask !== "none" && <span style={{ color: "#DE1A1A" }}> *</span>}
+                  </label>
+                  <input name="due_date" type="date" max="2099-12-31" required={recurringTask !== "none"}
+                    className="ti" style={{ colorScheme: "light" }} />
+                  {recurringTask !== "none" && (
+                    <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 4 }}>Sets the {recurringTask} repeat anchor</p>
+                  )}
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Recurring Task</label>
+                  <div style={{ position: "relative" }}>
+                    <select name="recurring_task" value={recurringTask} onChange={e => setRecurringTask(e.target.value)}
+                      className="ti" style={{ appearance: "none", paddingRight: 30 }}>
+                      <option value="none">None</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                    <ChevronDown size={12} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                  </div>
+                </div>
               </div>
 
               {/* Manager Note */}

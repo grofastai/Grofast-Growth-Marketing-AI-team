@@ -43,6 +43,12 @@ export async function createTask(
   const parsed = taskSchema.safeParse(raw)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
+  const recurringTaskRaw = (formData.get('recurring_task') as string) || 'none'
+  const recurringTask    = isRecurringInterval(recurringTaskRaw) ? recurringTaskRaw : 'none'
+  if (recurringTask !== 'none' && !parsed.data.due_date) {
+    return { error: 'Due date is required for a recurring task' }
+  }
+
   // Support multiple assigned_to values (one task per member)
   const assignedToList = (formData.getAll('assigned_to') as string[]).filter(v => v && v.trim())
 
@@ -72,6 +78,9 @@ export async function createTask(
     manager_note: managerNote,
     checklist: adminChecklist,
     attachments: adminAttachments,
+    recurring_task:     recurringTask,
+    recurring_active:   recurringTask !== 'none',
+    recurring_next_run: recurringTask !== 'none' ? computeNextRun(parsed.data.due_date!, recurringTask) : null,
   }
 
   if (assignedToList.length === 0) {

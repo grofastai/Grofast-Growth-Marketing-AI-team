@@ -649,7 +649,6 @@ export default function MemberTasksClient({
   const [showSort, setShowSort]             = useState(false)
   const [groupByProject, setGroupByProject] = useState(false)
   const [filterClient, setFilterClient]     = useState("")
-  const [filterManualClient, setFilterManualClient] = useState("")
   const [assignClientType, setAssignClientType] = useState("")
   const [deletedProjectIds, setDeletedProjectIds] = useState<Set<string>>(new Set())
   const [activeMobileCol, setActiveMobileCol] = useState<"todo" | "in_progress" | "review" | "completed">("todo")
@@ -866,11 +865,10 @@ export default function MemberTasksClient({
     else if (filter === "high_priority")  list = list.filter(t => t.assigned_to === currentUserId && t.priority === "high")
     else if (filter === "today")          list = list.filter(t => t.assigned_to === currentUserId && t.due_date === today)
     else if (filter === "pending_review") list = list.filter(t => t.assigned_to === currentUserId)
-    const effectiveFilterClient = filterClient === "__manual__" ? filterManualClient.trim() : filterClient
-    if (effectiveFilterClient) {
+    if (filterClient) {
       list = list.filter(t => {
         const proj = Array.isArray(t.projects) ? t.projects[0] : t.projects
-        return proj?.client_name === effectiveFilterClient || proj?.business_name === effectiveFilterClient
+        return proj?.client_name === filterClient || proj?.business_name === filterClient
       })
     }
     if (search.trim()) {
@@ -1061,44 +1059,20 @@ export default function MemberTasksClient({
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {/* Client filter */}
-            <div className="relative flex-shrink-0 flex items-center gap-1.5">
-              <div className="relative">
-                <select
-                  value={filterClient}
-                  onChange={e => { setFilterClient(e.target.value); setFilterManualClient("") }}
-                  className="px-3 py-1.5 rounded-xl text-[12px] font-semibold"
-                  style={{
-                    background: filterClient ? "#de1a1a" : "#FFFFFF",
-                    border: `1px solid ${filterClient ? "#de1a1a" : "#E5E7EB"}`,
-                    color: filterClient ? "#FFFFFF" : "#374151",
-                    outline: "none", appearance: "none", paddingRight: 26, cursor: "pointer",
-                  }}>
-                  <option value="">All Clients</option>
-                  {INTERNAL_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-                  {clients
-                    .filter(c => !INTERNAL_BRANDS.includes(c.name))
-                    .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  {pastClients.length > 0 && (
-                    <optgroup label="── Past Clients ──">
-                      {pastClients
-                        .filter(c => !INTERNAL_BRANDS.includes(c.name))
-                        .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    </optgroup>
-                  )}
-                  <option value="__manual__">✏️ Type manually...</option>
-                </select>
-                <ChevronDown size={10} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", color: filterClient ? "#FFF" : "#9CA3AF", pointerEvents: "none" }} />
-              </div>
-              {filterClient === "__manual__" && (
-                <input
-                  type="text"
-                  value={filterManualClient}
-                  onChange={e => setFilterManualClient(e.target.value)}
-                  placeholder="Client name..."
-                  className="px-3 py-1.5 rounded-xl text-[12px] font-semibold"
-                  style={{ border: "1px solid #de1a1a", outline: "none", width: 120, color: "#374151" }}
-                />
-              )}
+            <div className="relative flex-shrink-0">
+              <ClientSelector
+                value={filterClient}
+                onValueChange={setFilterClient}
+                clientOptions={[...INTERNAL_BRANDS, ...clients.filter(c => !INTERNAL_BRANDS.includes(c.name)).map(c => c.name)]}
+                pastClientOptions={pastClients.filter(c => !INTERNAL_BRANDS.includes(c.name)).map(c => c.name)}
+                placeholder="All Clients"
+                fieldStyle={{
+                  background: filterClient ? "#de1a1a" : "#FFFFFF",
+                  border: `1px solid ${filterClient ? "#de1a1a" : "#E5E7EB"}`,
+                  color: filterClient ? "#FFFFFF" : "#374151",
+                  padding: "6px 26px 6px 12px", fontSize: 12, fontWeight: 600, borderRadius: 12,
+                }}
+              />
             </div>
 
             {/* Group by Project toggle */}

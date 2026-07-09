@@ -537,6 +537,8 @@ export default function MemberTasksClient({
   const assignFileRef                           = useRef<HTMLInputElement>(null)
   const [approvalRequired, setApprovalRequired] = useState(false)
   const [recurringTask, setRecurringTask]       = useState("none")
+  const [customDates, setCustomDates]           = useState<string[]>([])
+  const [newCustomDate, setNewCustomDate]       = useState("")
 
   // Detail modal
   const [detailTask, setDetailTask]     = useState<Task | null>(null)
@@ -570,6 +572,7 @@ export default function MemberTasksClient({
     setChecklistItems([]); setNewCheckItem("")
     setAttachmentLinks([]); setNewAttachUrl("")
     setApprovalRequired(false); setRecurringTask("none")
+    setCustomDates([]); setNewCustomDate("")
     setAssignError(null)
   }
 
@@ -602,7 +605,11 @@ export default function MemberTasksClient({
   async function handleAssignSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
-    if (recurringTask !== "none" && !fd.get("due_date")) {
+    if (recurringTask === "custom" && customDates.length === 0) {
+      setAssignError("Add at least one due date")
+      return
+    }
+    if (recurringTask !== "none" && recurringTask !== "custom" && !fd.get("due_date")) {
       setAssignError("Due date is required for a recurring task")
       return
     }
@@ -2186,13 +2193,19 @@ export default function MemberTasksClient({
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>
-                      Due Date{recurringTask !== "none" && <span style={{ color: "#DE1A1A" }}> *</span>}
+                      Due Date{recurringTask !== "none" && recurringTask !== "custom" && <span style={{ color: "#DE1A1A" }}> *</span>}
                     </label>
-                    <input type="date" max="2099-12-31" name="due_date" min={today}
-                      required={recurringTask !== "none"}
-                      className="w-full px-3 py-2.5 rounded-xl text-[13px]"
-                      style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
-                    {recurringTask !== "none" && (
+                    {recurringTask === "custom" ? (
+                      <div className="w-full px-3 py-2.5 rounded-xl text-[13px]" style={{ border: "1.5px solid #EBEDF2", color: "#9CA3AF" }}>
+                        Pick dates below ↓
+                      </div>
+                    ) : (
+                      <input type="date" max="2099-12-31" name="due_date" min={today}
+                        required={recurringTask !== "none"}
+                        className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                        style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
+                    )}
+                    {recurringTask !== "none" && recurringTask !== "custom" && (
                       <p className="text-[10px] mt-1" style={{ color: "#9CA3AF" }}>
                         Sets the {recurringTask} repeat anchor
                       </p>
@@ -2340,11 +2353,52 @@ export default function MemberTasksClient({
                         <option value="daily">Daily</option>
                         <option value="weekly">Weekly</option>
                         <option value="monthly">Monthly</option>
+                        <option value="custom">Custom Dates</option>
                       </select>
                       <ChevronDown size={10} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
                     </div>
                   </div>
                 </div>
+
+                {/* Custom Dates picker — one independent task per date, no cron involved */}
+                {recurringTask === "custom" && (
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>
+                      Due Dates{customDates.length === 0 && <span style={{ color: "#DE1A1A" }}> *</span>}
+                    </label>
+                    {customDates.map(d => <input key={d} type="hidden" name="custom_due_dates" value={d} />)}
+                    <div className="flex gap-2">
+                      <input type="date" max="2099-12-31" min={today} value={newCustomDate} onChange={e => setNewCustomDate(e.target.value)}
+                        className="flex-1 px-3 py-2 rounded-xl text-[13px]"
+                        style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
+                      <button type="button"
+                        onClick={() => {
+                          if (newCustomDate && !customDates.includes(newCustomDate)) {
+                            setCustomDates(p => [...p, newCustomDate].sort())
+                            setNewCustomDate("")
+                          }
+                        }}
+                        className="px-3 py-2 rounded-xl text-[12px] font-bold"
+                        style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.15)" }}>
+                        + Add
+                      </button>
+                    </div>
+                    {customDates.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {customDates.map(d => (
+                          <span key={d} className="flex items-center gap-1.5 text-[12px] font-bold"
+                            style={{ padding: "4px 6px 4px 10px", borderRadius: 20, background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.15)", color: "#374151" }}>
+                            {new Date(d + "T12:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                            <button type="button" onClick={() => setCustomDates(p => p.filter(x => x !== d))}
+                              style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex" }}>
+                              <X size={11} style={{ color: "#de1a1a" }} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {assignError && (
                   <p className="text-[12px] px-3 py-2 rounded-lg"
@@ -2361,9 +2415,9 @@ export default function MemberTasksClient({
                   style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#6B7280" }}>
                   Cancel
                 </button>
-                <button type="submit" disabled={assignPending}
+                <button type="submit" disabled={assignPending || (recurringTask === "custom" && customDates.length === 0)}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2"
-                  style={{ background: "linear-gradient(135deg, #DE1A1A, #7F1D1D)", opacity: assignPending ? 0.7 : 1 }}>
+                  style={{ background: "linear-gradient(135deg, #DE1A1A, #7F1D1D)", opacity: assignPending || (recurringTask === "custom" && customDates.length === 0) ? 0.7 : 1 }}>
                   {assignPending ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : null}
                   {assignPending ? "Assigning…" : "Assign Task"}
                 </button>

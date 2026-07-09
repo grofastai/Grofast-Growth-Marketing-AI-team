@@ -44,8 +44,16 @@ export async function createTask(
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const recurringTaskRaw = (formData.get('recurring_task') as string) || 'none'
-  const recurringTask    = isRecurringInterval(recurringTaskRaw) ? recurringTaskRaw : 'none'
-  if (recurringTask !== 'none' && !parsed.data.due_date) {
+  const isCustomDates    = recurringTaskRaw === 'custom'
+  const recurringTask    = isCustomDates ? 'none' : (isRecurringInterval(recurringTaskRaw) ? recurringTaskRaw : 'none')
+
+  // Custom Dates mode creates one independent task per picked date (per
+  // assignee) — no cron, no recurring_next_run chain, every date is known upfront.
+  const customDates = isCustomDates ? (formData.getAll('custom_due_dates') as string[]).filter(Boolean) : []
+  if (isCustomDates && customDates.length === 0) {
+    return { error: 'Add at least one due date' }
+  }
+  if (!isCustomDates && recurringTask !== 'none' && !parsed.data.due_date) {
     return { error: 'Due date is required for a recurring task' }
   }
 
@@ -72,7 +80,6 @@ export async function createTask(
     description: parsed.data.description || null,
     project_id: parsed.data.project_id || null,
     priority: parsed.data.priority,
-    due_date: parsed.data.due_date || null,
     status: 'todo' as const,
     created_by: user.id,
     manager_note: managerNote,
@@ -83,14 +90,17 @@ export async function createTask(
     recurring_next_run: recurringTask !== 'none' ? computeNextRun(parsed.data.due_date!, recurringTask) : null,
   }
 
-  if (assignedToList.length === 0) {
-    const { error } = await admin.from('tasks').insert({ ...base, assigned_to: null })
-    if (error) return { error: error.message }
-  } else {
-    const rows = assignedToList.map(id => ({ ...base, assigned_to: id }))
-    const { data: insertedTasks, error } = await admin.from('tasks').insert(rows).select('id, assigned_to')
-    if (error) return { error: error.message }
-    // Notify each assignee (skip self-assignment)
+  const assigneeTargets: (string | null)[] = assignedToList.length === 0 ? [null] : assignedToList
+  const dueDatesForRows: (string | null)[] = isCustomDates ? customDates : [parsed.data.due_date || null]
+  const rows = assigneeTargets.flatMap(assigned_to =>
+    dueDatesForRows.map(due_date => ({ ...base, due_date, assigned_to }))
+  )
+
+  const { data: insertedTasks, error } = await admin.from('tasks').insert(rows).select('id, assigned_to')
+  if (error) return { error: error.message }
+
+  if (assignedToList.length > 0) {
+    // Notify each assignee once (skip self-assignment), even if they got multiple tasks
     const othersAssigned = assignedToList.filter(id => id !== user.id)
     if (othersAssigned.length > 0) {
       const { data: creator } = await admin.from('users').select('name').eq('id', user.id).single()
@@ -105,7 +115,7 @@ export async function createTask(
       })))
       // WhatsApp blast with "Got it" ack button — fire and forget
       if (assignees?.length && insertedTasks?.length) {
-        const dueStr = parsed.data.due_date ?? 'No due date'
+        const dueStr = isCustomDates ? `${customDates.length} custom dates` : (parsed.data.due_date ?? 'No due date')
         ;(async () => {
           await Promise.all(
             assignees
@@ -166,9 +176,16 @@ export async function createMemberTask(
   const expectedDeliverable  = (formData.get('expected_deliverable') as string)?.trim() || null
   const approvalRequired     = formData.get('approval_required') === 'true'
   const recurringTaskRaw     = (formData.get('recurring_task') as string) || 'none'
-  const recurringTask        = isRecurringInterval(recurringTaskRaw) ? recurringTaskRaw : 'none'
+  const isCustomDates        = recurringTaskRaw === 'custom'
+  const recurringTask        = isCustomDates ? 'none' : (isRecurringInterval(recurringTaskRaw) ? recurringTaskRaw : 'none')
 
-  if (recurringTask !== 'none' && !parsed.data.due_date) {
+  // Custom Dates mode creates one independent task per picked date — no
+  // cron, no recurring_next_run chain, since every date is already known.
+  const customDates = isCustomDates ? (formData.getAll('custom_due_dates') as string[]).filter(Boolean) : []
+  if (isCustomDates && customDates.length === 0) {
+    return { error: 'Add at least one due date' }
+  }
+  if (!isCustomDates && recurringTask !== 'none' && !parsed.data.due_date) {
     return { error: 'Due date is required for a recurring task' }
   }
   let checklist: object[] = []
@@ -197,13 +214,12 @@ export async function createMemberTask(
     if (proj) finalProjectId = proj.id
   }
 
-  const { data: insertedTask, error } = await admin.from('tasks').insert({
+  const memberTaskBase = {
     company_id:           profile.company_id,
     title:                parsed.data.title,
     description:          parsed.data.description || null,
     priority:             parsed.data.priority,
-    due_date:             parsed.data.due_date || null,
-    status:               'todo',
+    status:               'todo' as const,
     created_by:           user.id,
     assigned_to:          parsed.data.assigned_to || user.id,
     project_id:           finalProjectId,
@@ -216,9 +232,15 @@ export async function createMemberTask(
     recurring_task:       recurringTask,
     recurring_active:     recurringTask !== 'none',
     recurring_next_run:   recurringTask !== 'none' ? computeNextRun(parsed.data.due_date!, recurringTask) : null,
-  }).select('id').single()
+  }
+
+  const dueDatesForRows = isCustomDates ? customDates : [parsed.data.due_date || null]
+  const { data: insertedTasks, error } = await admin.from('tasks')
+    .insert(dueDatesForRows.map(due_date => ({ ...memberTaskBase, due_date })))
+    .select('id')
 
   if (error) return { error: error.message }
+  const insertedTask = insertedTasks?.[0] ?? null
 
   // Notify assignee when task is assigned to someone else
   const finalAssignee = parsed.data.assigned_to || user.id
@@ -237,7 +259,7 @@ export async function createMemberTask(
     })
     // WhatsApp notification with ack button — fire and forget
     if (assignee?.phone) {
-      const dueStr = parsed.data.due_date ?? 'No due date'
+      const dueStr = isCustomDates ? `${customDates.length} custom dates` : (parsed.data.due_date ?? 'No due date')
       sendWhatsAppTemplate(
         formatPhone(assignee.phone),
         'grofast_task_assigned',

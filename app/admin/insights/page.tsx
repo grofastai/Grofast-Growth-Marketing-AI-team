@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import InsightsClient, { type AllMember } from './insights-client'
 import { calcNetWorkHours } from '@/lib/utils/work-hours'
+import { hourlyRateOnDate, type SalaryHistoryRow } from '@/lib/salary'
 
 function adminClient() {
   return createClient(
@@ -57,14 +58,7 @@ export type MemberUtilization = {
   efficiency: number          // (tracked / 212.5) × 100
   overworked: boolean         // efficiency > 105
   clients: string[]
-  workBreakdown: {
-    shoot: number
-    edit: number
-    technical: number
-    voiceover: number
-    poster: number
-    learning: number
-  }
+  workBreakdown: Record<string, number> // key = task_type (shoot/edit/voiceover/poster/other/break/...) — open-ended so new types need no page change
   totalCost: number
   // ── Attendance table fields ──────────────────────────────────────────────
   loginHours: number              // sum(clock_out - clock_in), raw span, no break deducted
@@ -88,6 +82,7 @@ export type SpendCategory = {
 export type InsightsKPIs  = {
   totalTrackedHours: number
   totalLearningHours: number
+  totalUntrackedHours: number
   totalCost: number
   totalWastedCost: number
   activeMemberCount: number
@@ -143,6 +138,7 @@ export default async function InsightsPage({
     { data: attRaw },
     { data: clientsRaw },
     { data: salaryHistoryRaw },
+    { data: clientStatusHistoryRaw },
     { data: collabRaw },
   ] = await Promise.all([
     admin.from('daily_updates')
@@ -156,6 +152,7 @@ export default async function InsightsPage({
       .eq('role', 'MEMBER')
       .eq('status', 'active')
       .eq('is_management', false)
+      .eq('employment_type', 'regular') // full-time only — excludes login freelancers (e.g. Freelance Media Production)
       .order('name'),
     admin.from('attendance_logs')
       .select('user_id, clock_in, clock_out, break_total_mins')
@@ -164,16 +161,17 @@ export default async function InsightsPage({
       .lte('date', dateTo)
       .not('clock_in', 'is', null),
     admin.from('clients')
-      .select('name, industry, status')
+      .select('id, name, industry, status')
       .eq('company_id', cid),
     admin.from('salary_history')
       .select('user_id, monthly_salary, effective_from')
-      .eq('company_id', cid)
-      .lte('effective_from', dateFrom)
-      .order('effective_from', { ascending: false }),
+      .eq('company_id', cid),
+    admin.from('client_status_history')
+      .select('client_id, status, effective_from')
+      .eq('company_id', cid),
     // Confirmed collab hours per member for this period
     admin.from('collaboration_confirmations')
-      .select('collaborator_id, confirmed_hours')
+      .select('collaborator_id, confirmed_hours, date')
       .eq('company_id', cid)
       .in('status', ['confirmed', 'edited_confirmed'])
       .gte('date', dateFrom)
@@ -183,24 +181,15 @@ export default async function InsightsPage({
   const updates = (updatesRaw ?? []) as UpdateRow[]
   const members = (membersRaw ?? []) as MemberRow[]
 
-  // Build salary map: for each user, pick the most recent history entry effective on/before dateFrom
-  type SalaryRow = { user_id: string; monthly_salary: number; effective_from: string }
-  const salaryHistory = (salaryHistoryRaw ?? []) as SalaryRow[]
-  const salaryForMonth: Record<string, number> = {}
-  for (const row of salaryHistory) {
-    if (!(row.user_id in salaryForMonth)) {
-      salaryForMonth[row.user_id] = row.monthly_salary
-    }
-  }
+  const salaryHistory = (salaryHistoryRaw ?? []) as SalaryHistoryRow[]
   const memberMap = new Map(members.map(m => [m.id, m]))
 
-  // Use history-adjusted salary for hourly rate; fall back to current salary if no history
-  function hourlyForMember(userId: string): number {
+  // Shared with Expenses/Clients (lib/salary.ts) so all 3 pages can never
+  // quietly disagree on what someone's hourly rate was for a given date.
+  function hourlyForMember(userId: string, date: string = dateFrom): number {
     const m = memberMap.get(userId)
     if (!m) return 0
-    if (m.hourly_rate && m.hourly_rate > 0) return m.hourly_rate
-    const salary = salaryForMonth[userId] ?? m.monthly_salary ?? 0
-    return salary > 0 ? salary / 212.5 : 0
+    return hourlyRateOnDate(m, date, salaryHistory)
   }
 
   // ── Attendance: days present, login-hour span, break minutes ──────────────
@@ -224,7 +213,7 @@ export default async function InsightsPage({
   // ── Per-member accumulator ────────────────────────────────────────────────
   type Acc = {
     trackedHours: number; learningHours: number; totalCost: number
-    shoot: number; edit: number; technical: number; voiceover: number; poster: number
+    byType: Record<string, number> // every task_type found, incl. break/learning — future-proof for new types (e.g. scripting)
     clients: Set<string>
     workHoursExclLearning: number
   }
@@ -233,32 +222,25 @@ export default async function InsightsPage({
   for (const du of updates) {
     const member = memberMap.get(du.user_id)
     if (!member) continue
-    const hourly  = hourlyForMember(du.user_id)
-    const isMedia = member.work_layout === 'media' || member.work_layout === 'freelance_media'
+    const hourly  = hourlyForMember(du.user_id, du.date)
 
     if (!accMap[du.user_id]) {
       accMap[du.user_id] = {
         trackedHours: 0, learningHours: 0, totalCost: 0,
-        shoot: 0, edit: 0, technical: 0, voiceover: 0, poster: 0,
-        clients: new Set(), workHoursExclLearning: 0,
+        byType: {}, clients: new Set(), workHoursExclLearning: 0,
       }
     }
     const acc = accMap[du.user_id]
 
-    // Per-type breakdown for display columns only (NOT used for total)
+    // Per-type breakdown for display columns only (NOT used for total) —
+    // driven entirely by whatever task_type strings actually appear, so a
+    // brand-new type (e.g. 'scripting') shows up automatically with no code change.
     for (const e of du.work_entries ?? []) {
       const hrs = e.duration_hours ?? 0
       if (hrs <= 0) continue
       const tt = (e.task_type ?? 'other').toLowerCase()
-      if (tt === 'break' || tt === 'learning') continue
-
-      if (e.client_name) acc.clients.add(e.client_name)
-
-      if      (tt === 'shoot')     acc.shoot     += hrs
-      else if (tt === 'edit')      acc.edit      += hrs
-      else if (tt === 'voiceover') acc.voiceover += hrs
-      else if (tt === 'poster')    acc.poster    += hrs
-      else                         acc.technical += hrs
+      if (tt !== 'break' && tt !== 'learning' && e.client_name) acc.clients.add(e.client_name)
+      acc.byType[tt] = (acc.byType[tt] ?? 0) + hrs
     }
 
     const workEntries = Array.isArray(du.work_entries) ? du.work_entries : []
@@ -289,12 +271,12 @@ export default async function InsightsPage({
   }
 
   // Add confirmed collab hours to each member's trackedHours + totalCost
-  for (const c of (collabRaw ?? []) as { collaborator_id: string; confirmed_hours: number | null }[]) {
+  for (const c of (collabRaw ?? []) as { collaborator_id: string; confirmed_hours: number | null; date: string }[]) {
     const ch = c.confirmed_hours ?? 0
     if (ch <= 0) continue
-    const hourly = hourlyForMember(c.collaborator_id)
+    const hourly = hourlyForMember(c.collaborator_id, c.date)
     if (!accMap[c.collaborator_id]) {
-      accMap[c.collaborator_id] = { trackedHours: 0, learningHours: 0, totalCost: 0, shoot: 0, edit: 0, technical: 0, voiceover: 0, poster: 0, clients: new Set(), workHoursExclLearning: 0 }
+      accMap[c.collaborator_id] = { trackedHours: 0, learningHours: 0, totalCost: 0, byType: {}, clients: new Set(), workHoursExclLearning: 0 }
     }
     accMap[c.collaborator_id].trackedHours += ch
     accMap[c.collaborator_id].totalCost    += ch * hourly
@@ -332,11 +314,8 @@ export default async function InsightsPage({
         trackedHours, learningHours, untrackedHours, overtimeHours,
         wastedCost, efficiency, overworked: efficiency > 105,
         clients: Array.from(acc?.clients ?? []),
-        workBreakdown: {
-          shoot: acc?.shoot ?? 0, edit: acc?.edit ?? 0,
-          technical: acc?.technical ?? 0, voiceover: acc?.voiceover ?? 0,
-          poster: acc?.poster ?? 0, learning: learningHours,
-        },
+        // 'learning' always comes from learningHours (has its own fallback for old records without work_entries)
+        workBreakdown: { ...(acc?.byType ?? {}), learning: learningHours },
         totalCost: acc?.totalCost ?? 0,
         loginHours, avgLoginHours,
         workingHoursExclLearning, avgWorkingHoursExclLearning,
@@ -346,16 +325,50 @@ export default async function InsightsPage({
     .filter(m => m.workingDays > 0)
     .sort((a, b) => b.trackedHours - a.trackedHours)
 
+  // ── Real client lookup (used to keep break-time / typos / placeholder
+  // strings like "Break", "Internal", "Our Brand" from being counted as if
+  // they were real clients) ──────────────────────────────────────────────
+  const normalizeKey = (s: string) => s.trim().replace(/\s+/g, ' ').toUpperCase()
+  const INTERNAL_NAMES = new Set(['GROFAST DIGITAL', 'GROFAST AI', 'KARTHICK BRANDS'])
+  type ClientMeta = { id: string; name: string; industry: string | null; status: string }
+  const clientMetaMap: Record<string, ClientMeta> = {}
+  for (const c of (clientsRaw ?? []) as ClientMeta[]) {
+    clientMetaMap[normalizeKey(c.name)] = c
+  }
+  function isRealClient(name: string): boolean {
+    const key = normalizeKey(name)
+    return INTERNAL_NAMES.has(key) || key in clientMetaMap
+  }
+
+  // What was this client's status on a given date? Falls back to their
+  // current status if there's no history entry before that date.
+  type ClientStatusRow = { client_id: string; status: string; effective_from: string }
+  const clientStatusHistory = (clientStatusHistoryRaw ?? []) as ClientStatusRow[]
+  function statusOnDate(clientId: string | undefined, date: string, fallback: string): string {
+    if (!clientId) return fallback
+    let best: ClientStatusRow | null = null
+    for (const h of clientStatusHistory) {
+      if (h.client_id !== clientId || h.effective_from > date) continue
+      if (!best || h.effective_from > best.effective_from) best = h
+    }
+    return best?.status ?? fallback
+  }
+
   // ── Client hours ──────────────────────────────────────────────────────────
   const clientMap: Record<string, { hours: number; cost: number }> = {}
   for (const du of updates) {
-    const hourly = hourlyForMember(du.user_id)
+    const hourly = hourlyForMember(du.user_id, du.date)
     for (const e of du.work_entries ?? []) {
+      if ((e.task_type ?? '').toLowerCase() === 'break') continue
       const hrs = e.duration_hours ?? 0
-      if (hrs <= 0 || !e.client_name) continue
-      if (!clientMap[e.client_name]) clientMap[e.client_name] = { hours: 0, cost: 0 }
-      clientMap[e.client_name].hours += hrs
-      clientMap[e.client_name].cost  += hrs * hourly
+      const clientName = e.client_name
+      if (hrs <= 0 || !clientName || !isRealClient(clientName)) continue
+      const key = clientMetaMap[normalizeKey(clientName)]?.name
+        ?? [...INTERNAL_NAMES].find(n => n === normalizeKey(clientName))
+        ?? clientName
+      if (!clientMap[key]) clientMap[key] = { hours: 0, cost: 0 }
+      clientMap[key].hours += hrs
+      clientMap[key].cost  += hrs * hourly
     }
   }
   const clientHours: ClientHour[] = Object.entries(clientMap)
@@ -364,44 +377,45 @@ export default async function InsightsPage({
     .slice(0, 20)
 
   // ── KPIs ──────────────────────────────────────────────────────────────────
-  const totalTrackedHours  = memberUtilization.reduce((s, m) => s + m.trackedHours, 0)
-  const totalLearningHours = memberUtilization.reduce((s, m) => s + m.learningHours, 0)
-  const totalCost          = memberUtilization.reduce((s, m) => s + m.totalCost, 0)
-  const totalWastedCost    = memberUtilization.reduce((s, m) => s + m.wastedCost, 0)
+  const totalTrackedHours   = memberUtilization.reduce((s, m) => s + m.trackedHours, 0)
+  const totalLearningHours  = memberUtilization.reduce((s, m) => s + m.learningHours, 0)
+  const totalUntrackedHours = memberUtilization.reduce((s, m) => s + m.untrackedHours, 0)
+  const totalCost           = memberUtilization.reduce((s, m) => s + m.totalCost, 0)
+  const totalWastedCost     = memberUtilization.reduce((s, m) => s + m.wastedCost, 0)
   const activeMemberCount  = memberUtilization.length
   const clientsServedCount = Object.keys(clientMap).length
   const avgEfficiency      = activeMemberCount > 0
     ? Math.round(memberUtilization.reduce((s, m) => s + m.efficiency, 0) / activeMemberCount)
     : 0
-  const shootHours = memberUtilization.reduce((s, m) => s + m.workBreakdown.shoot, 0)
-  const editHours  = memberUtilization.reduce((s, m) => s + m.workBreakdown.edit, 0)
+  const shootHours = memberUtilization.reduce((s, m) => s + (m.workBreakdown.shoot ?? 0), 0)
+  const editHours  = memberUtilization.reduce((s, m) => s + (m.workBreakdown.edit ?? 0), 0)
 
   const kpis: InsightsKPIs = {
-    totalTrackedHours, totalLearningHours, totalCost, totalWastedCost,
+    totalTrackedHours, totalLearningHours, totalUntrackedHours, totalCost, totalWastedCost,
     activeMemberCount, clientsServedCount, avgEfficiency, shootHours, editHours,
   }
 
   // ── Spend by client category ──────────────────────────────────────────────
-  const INTERNAL_NAMES = new Set(['GROFAST DIGITAL', 'GROFAST AI', 'KARTHICK BRANDS'])
-  type ClientMeta = { name: string; industry: string | null; status: string }
-  const clientMetaMap: Record<string, ClientMeta> = {}
-  for (const c of (clientsRaw ?? []) as ClientMeta[]) {
-    clientMetaMap[c.name.toUpperCase()] = c
-  }
-
   const spendCats = { internal: { hours: 0, cost: 0 }, active: { hours: 0, cost: 0 }, past: { hours: 0, cost: 0 }, unassigned: { hours: 0, cost: 0 } }
 
   for (const du of updates) {
-    const hourly = hourlyForMember(du.user_id)
+    const hourly = hourlyForMember(du.user_id, du.date)
     for (const e of du.work_entries ?? []) {
+      if ((e.task_type ?? '').toLowerCase() === 'break') continue
       const hrs = e.duration_hours ?? 0
       if (hrs <= 0) continue
       const cost = hrs * hourly
-      if (!e.client_name) { spendCats.unassigned.hours += hrs; spendCats.unassigned.cost += cost; continue }
-      const key = e.client_name.toUpperCase()
-      if (INTERNAL_NAMES.has(key) || clientMetaMap[key]?.industry === 'Internal Brand') {
+      // No client name, or a placeholder/typo that doesn't match any real
+      // client (e.g. "Internal", "Our Brand") — goes to Unassigned instead
+      // of silently defaulting to Active.
+      if (!e.client_name || !isRealClient(e.client_name)) {
+        spendCats.unassigned.hours += hrs; spendCats.unassigned.cost += cost; continue
+      }
+      const key  = normalizeKey(e.client_name)
+      const meta = clientMetaMap[key]
+      if (INTERNAL_NAMES.has(key) || meta?.industry === 'Internal Brand') {
         spendCats.internal.hours += hrs; spendCats.internal.cost += cost
-      } else if (clientMetaMap[key]?.status === 'past') {
+      } else if (statusOnDate(meta?.id, du.date, meta?.status ?? 'active') === 'past') {
         spendCats.past.hours += hrs; spendCats.past.cost += cost
       } else {
         spendCats.active.hours += hrs; spendCats.active.cost += cost

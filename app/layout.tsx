@@ -2,6 +2,7 @@
 import { Plus_Jakarta_Sans, Bebas_Neue } from "next/font/google"
 import "./globals.css"
 import PwaInstallPrompt from "@/components/pwa-install-prompt"
+import { ConfirmProvider } from "@/components/ui/ConfirmDialog"
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -47,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${jakarta.variable} ${bebas.variable}`}>
       <body className="min-h-screen antialiased" style={{ fontFamily: "var(--font-jakarta), sans-serif" }}>
-        {children}
+        <ConfirmProvider>{children}</ConfirmProvider>
         <PwaInstallPrompt />
         <script
           dangerouslySetInnerHTML={{

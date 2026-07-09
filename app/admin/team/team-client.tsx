@@ -8,13 +8,14 @@ import {
   Search, Plus, Shield, UserCheck,
   MoreVertical, Phone, CalendarDays, X, Pencil,
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
-  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy,
+  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy, Check,
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
 import { setSupportHandler } from "@/lib/actions/support"
 import { createFreelancer, updateFreelancer, toggleFreelancerStatus, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
 import { addManagerToAllFreelancers, removeManagerFromAllFreelancers } from "@/lib/actions/freelancer-manager"
+import { useConfirm } from "@/components/ui/ConfirmDialog"
 
 type FreelancerBasic = {
   id: string; name: string; type: string; team: string | null; phone: string | null; upi_id: string | null
@@ -99,6 +100,7 @@ interface Member {
   work_layout?: 'media' | 'non_media' | 'freelance_media' | null
   is_management?: boolean | null
   is_freelancer_login?: boolean | null
+  enabled_blocks?: string[] | null
 }
 
 function getInitials(name: string) {
@@ -212,6 +214,18 @@ const NO_LOGIN_TEAMS = new Set([
   "Freelance AI Development & Creative Production",
 ])
 
+// Non-media work-block checklist — controls which "+ Add" entry sections a person sees.
+// Values must exactly match the real task_type strings used in daily_updates.work_entries.
+const NON_MEDIA_BLOCK_OPTIONS: { value: string; label: string }[] = [
+  { value: "other",       label: "Technical" },
+  { value: "edit",        label: "Basic Editing" },
+  { value: "poster",      label: "Posters" },
+  { value: "voiceover",   label: "Voiceover" },
+  { value: "development", label: "Development" },
+  { value: "scripting",   label: "Scripting" },
+]
+const ALL_NON_MEDIA_BLOCKS = NON_MEDIA_BLOCK_OPTIONS.map(o => o.value)
+
 function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps) {
   const isEdit = !!member
   const [step, setStep] = useState<"type" | "details">(isEdit || initialRole ? "details" : "type")
@@ -233,6 +247,11 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
     gender: (member?.gender ?? "male") as "male" | "female",
     work_layout: (member?.work_layout ?? "non_media") as "media" | "non_media" | "freelance_media",
     is_management: member?.is_management ?? false,
+    enabled_blocks: (member?.enabled_blocks && member.enabled_blocks.length > 0) ? member.enabled_blocks : ALL_NON_MEDIA_BLOCKS,
+    salary_effective_month: (() => {
+      const d = new Date(); d.setMonth(d.getMonth() + 1)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+    })(),
   })
   const [error, setError] = useState("")
   const [whatsappWarning, setWhatsappWarning] = useState("")
@@ -285,6 +304,8 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
         date_of_birth: form.date_of_birth || null,
         joined_at: form.joined_at || null,
       }
+      const salaryChanged = isEdit && form.monthly_salary !== (member?.monthly_salary?.toString() ?? "")
+      const salaryEffectiveFrom = salaryChanged ? `${form.salary_effective_month}-01` : undefined
       if (photoFile && isEdit && member) {
         const fd = new FormData()
         fd.append("file", photoFile)
@@ -296,13 +317,13 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
       }
 
       if (isEdit) {
-        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, ...salaryFields, ...dateFields })
+        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, enabled_blocks: form.work_layout === "non_media" ? form.enabled_blocks : null, ...salaryFields, ...dateFields, salaryEffectiveFrom })
         if (result.success) { router.refresh(); onClose() }
         else setError(result.error ?? "Something went wrong")
       } else {
         const isAdminCreate = form.role === "ADMIN" || form.role === "FOUNDER" || form.role === "CEO" || form.role === "FREELANCER_MGR"
         const nameForCreate = form.name.trim() || (isAdminCreate ? form.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) : "")
-        const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, ...salaryFields, ...dateFields })
+        const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, enabled_blocks: form.work_layout === "non_media" ? form.enabled_blocks : null, ...salaryFields, ...dateFields })
         if (result.success) {
           if (form.phone && result.whatsappSent === false && !result.whatsappSkipped) {
             setWhatsappWarning(result.whatsappError ?? "Member created, but WhatsApp notification failed. Check the phone number or Meta template status.")
@@ -549,6 +570,47 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                     )
                   })()}
 
+                  {/* Enabled Work Blocks — non-media only, controls which "+ Add" sections this person sees */}
+                  {!isNoLoginTeam && form.team && form.work_layout === "non_media" && (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
+                        Daily Update Blocks
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {NON_MEDIA_BLOCK_OPTIONS.map(({ value, label }) => {
+                          const checked = form.enabled_blocks.includes(value)
+                          return (
+                            <button key={value} type="button"
+                              onClick={() => setForm(prev => ({
+                                ...prev,
+                                enabled_blocks: checked
+                                  ? prev.enabled_blocks.filter(v => v !== value)
+                                  : [...prev.enabled_blocks, value],
+                              }))}
+                              style={{
+                                padding: "9px 10px", borderRadius: 10, fontSize: 12, fontWeight: 700,
+                                border: "1.5px solid", cursor: "pointer", transition: "all 0.15s", textAlign: "left",
+                                display: "flex", alignItems: "center", gap: 8,
+                                background: checked ? "rgba(222,26,26,0.08)" : "rgba(0,0,0,0.03)",
+                                borderColor: checked ? "#DE1A1A" : "#E5E7EB",
+                                color: checked ? "#DE1A1A" : "#6B7280",
+                              }}>
+                              <span style={{
+                                width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                                border: "1.5px solid", borderColor: checked ? "#DE1A1A" : "#D1D5DB",
+                                background: checked ? "#DE1A1A" : "transparent",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                              }}>
+                                {checked && <Check size={11} style={{ color: "#FFFFFF" }} />}
+                              </span>
+                              {label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Full Name — always shown */}
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#5C3D1F" }}>Full Name *</label>
@@ -619,6 +681,18 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                           placeholder="5" value={form.paid_leave_days}
                           onChange={(e) => setForm((prev) => ({ ...prev, paid_leave_days: e.target.value }))} />
                       </div>
+                    </div>
+                  )}
+
+                  {/* Effective From — only appears once the salary value is actually changed */}
+                  {isEdit && form.employment_type === "regular" &&
+                    form.monthly_salary !== (member?.monthly_salary?.toString() ?? "") && (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Effective From (salary change)</label>
+                      <input type="month" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }}
+                        value={form.salary_effective_month}
+                        onChange={(e) => setForm((prev) => ({ ...prev, salary_effective_month: e.target.value }))} />
+                      <p className="text-[10px] mt-1.5" style={{ color: "#9CA3AF" }}>Past months stay locked at the old salary.</p>
                     </div>
                   )}
 
@@ -1322,6 +1396,7 @@ function AssignManagerSheet({
 
 export default function TeamClient({ members, pastMembers, freelancers: initFreelancers = [], pastFreelancers: initPastFreelancers = [], initialSearch = "", assignedManagerIds = [] }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; pastFreelancers?: FreelancerBasic[]; initialSearch?: string; assignedManagerIds?: string[] }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const nextId = useMemo(() => computeNextEmployeeId(members), [members])
   const [search, setSearch] = useState(initialSearch)
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
@@ -1375,7 +1450,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
   const filteredFreelancers = freelancers
 
   async function handleDeleteFreelancer(id: string, name: string) {
-    if (!confirm(`Delete freelancer "${name}"? This cannot be undone.`)) return
+    if (!(await confirm(`Delete freelancer "${name}"? This cannot be undone.`))) return
     const res = await deleteFreelancer(id)
     if (res.success) {
       setFreelancers(prev => prev.filter(f => f.id !== id))
@@ -1384,7 +1459,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
   }
 
   async function handleDeactivateFreelancer(f: FreelancerBasic) {
-    if (!confirm(`Move "${f.name}" to Past Freelancers? All their data stays safe. You can reactivate anytime.`)) return
+    if (!(await confirm(`Move "${f.name}" to Past Freelancers? All their data stays safe. You can reactivate anytime.`))) return
     const res = await toggleFreelancerStatus(f.id, 'inactive')
     if (res.success) {
       setFreelancers(prev => prev.filter(x => x.id !== f.id))

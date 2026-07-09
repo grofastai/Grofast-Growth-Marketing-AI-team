@@ -4,7 +4,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import type React from "react"
-import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap, Camera, Film, Coffee, BookOpen, Mic, Monitor, Layers } from "lucide-react"
+import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap, Camera, Film, Coffee, BookOpen, Mic, Monitor, Layers, FileText, Code2, CalendarClock } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
@@ -92,6 +92,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { data: approvedLeavesRaw },
     { data: monthlyAttLogsRaw },
     { data: collabConfirmsRaw },
+    { data: everLoggedRaw },
   ] = await Promise.all([
     db.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name, team").eq("id", effectiveUserId).single(),
     db.from("daily_updates").select("working_hours, shoot_count").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
@@ -104,6 +105,11 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     adminClient().from("leaves").select("from_date, to_date, leave_type").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
     db.from("attendance_logs").select("work_type, status, date, break_total_mins, clock_in, clock_out").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
     db.from("collaboration_confirmations").select("date, confirmed_hours").eq("collaborator_id", effectiveUserId).in("status", ["confirmed", "edited_confirmed"]).gte("date", monthStart).lte("date", monthEnd),
+    // Ever-logged type detection (all-time, not month-scoped) — decides which
+    // dashboard cards show at all; the VALUES on those cards still come from
+    // monthlyUpdates above. A card appears once a person has ever used a type,
+    // and stays put rather than reshuffling month to month.
+    db.from("daily_updates").select("work_entries").eq("user_id", effectiveUserId),
   ])
 
   const profile        = profileRaw as unknown as ProfileRow | null
@@ -114,6 +120,14 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const approvedLeaves = (approvedLeavesRaw ?? []) as unknown as LeaveRow[]
   const monthlyAttLogs = (monthlyAttLogsRaw ?? []) as unknown as MonthlyAttLog[]
   const collabConfirms = (collabConfirmsRaw ?? []) as { date: string; confirmed_hours: number | null }[]
+
+  // All-time distinct task_types this person has ever logged (drives which dashboard cards appear)
+  const everTypes = new Set<string>()
+  for (const row of (everLoggedRaw ?? []) as { work_entries: WorkEntryLike[] | null }[]) {
+    for (const e of Array.isArray(row.work_entries) ? row.work_entries : []) {
+      if (e.task_type) everTypes.add(e.task_type.toLowerCase())
+    }
+  }
 
   // Build collab hours by date map
   const collabByDate: Record<string, number> = {}
@@ -217,6 +231,11 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     const entries = Array.isArray(u.work_entries) ? u.work_entries : []
     return s + (entries as WorkEntryLike[]).filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
   }, 0) * 10) / 10
+  // "Other" (Meeting/Teaching/Misc) — applies to both Media and Non-Media alike
+  const totalOtherActivityHrs = Math.round(monthlyUpdates.reduce((s, u) => {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
+    return s + entries.filter(e => e.task_type === "other_activity").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+  }, 0) * 10) / 10
 
   // Avg working hrs = totalMonthHrs / presentDays — same formula for media and non-media
   const avgWorkingHrs = presentDays > 0
@@ -263,21 +282,37 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     mediaEditHrs  = Math.round(mediaEditHrs  * 10) / 10
   }
 
-  // Non-media right-panel: poster/edit/voiceover counts + technical (work_log) hrs
+  // Non-media right-panel: per-type counts + hours this month, keyed by task_type.
+  // Which of these actually render as cards is decided by `everTypes` (all-time), not this map —
+  // this only supplies the current month's VALUE for whichever cards do show.
   // UNIQUE COUNT RULE: always guard with !is_rework — revisions must not increment these counts
-  let nmPosterCount = 0, nmEditCount = 0, nmVoiceoverCount = 0, nmTechHrs = 0
+  const nmTypeStats: Record<string, { count: number; hours: number }> = {}
   if (!isMedia && !isFreelancerMedia) {
     for (const u of monthlyUpdates) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
       for (const e of entries) {
-        if      (e.task_type === "poster"    && !(e as unknown as Record<string,unknown>).is_rework) nmPosterCount++
-        else if (e.task_type === "edit"      && !(e as unknown as Record<string,unknown>).is_rework) nmEditCount++
-        else if (e.task_type === "voiceover" && !(e as unknown as Record<string,unknown>).is_rework) nmVoiceoverCount++
-        else if (e.task_type === "other")     nmTechHrs += e.duration_hours ?? 0
+        const tt = (e.task_type ?? "").toLowerCase()
+        if (!tt || tt === "break" || tt === "learning") continue
+        if (!nmTypeStats[tt]) nmTypeStats[tt] = { count: 0, hours: 0 }
+        if (!(e as unknown as Record<string,unknown>).is_rework) nmTypeStats[tt].count++
+        nmTypeStats[tt].hours += e.duration_hours ?? 0
       }
     }
-    nmTechHrs = Math.round(nmTechHrs * 10) / 10
+    for (const k of Object.keys(nmTypeStats)) nmTypeStats[k].hours = Math.round(nmTypeStats[k].hours * 10) / 10
   }
+
+  // Card display config per task_type — icon/color/label/which metric (count vs hours) to show.
+  // 'other' key below = the generic Technical/Working block (historical naming) — distinct
+  // from 'other_activity' (Meeting/Teaching/Misc, rendered separately as the "Other" card).
+  const NM_TYPE_CFG: Record<string, { icon: React.ElementType; iconBg: string; iconColor: string; label: string; metric: "count" | "hours" }> = {
+    poster:         { icon: Layers,        iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", label: "Poster",     metric: "count" },
+    edit:           { icon: Film,          iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", label: "Editing",    metric: "count" },
+    voiceover:      { icon: Mic,           iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", label: "Voiceover",  metric: "count" },
+    other:          { icon: Monitor,       iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", label: "Technical",  metric: "hours" },
+    scripting:      { icon: FileText,      iconBg: "rgba(234,179,8,0.1)",   iconColor: "#EAB308", label: "Scripting",  metric: "hours" },
+    development:    { icon: Code2,         iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", label: "Development",metric: "hours" },
+  }
+  const NM_TYPE_ORDER = ["other", "poster", "voiceover", "edit", "scripting", "development"]
 
   const hour      = now.getHours()
   const greeting  = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
@@ -346,22 +381,28 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   ]
 
   // Right-panel quick stats
-  const rightStats: { icon: React.ElementType; iconBg: string; iconColor: string; value: string | number; label: string; href: string }[] = isFreelancerMedia ? [
+  const rightStats: { icon: React.ElementType; iconBg: string; iconColor: string; value: string | number; label: string; href: string; count?: number }[] = isFreelancerMedia ? [
     { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: flEditCount,  label: "Videos Edited", href: "/member/history" },
     { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: flShootCount, label: "Videos Shot",   href: "/member/history" },
     { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
   ] : isMedia ? [
-    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: mediaShootHrs > 0 ? `${mediaShootHrs}h` : "—",      label: "Shooting Hrs",     href: "/member/history" },
-    { icon: Camera,   iconBg: "rgba(99,102,241,0.08)", iconColor: "#6366F1", value: mediaShootCount > 0 ? mediaShootCount : "—",         label: "Shooting Sessions", href: "/member/history" },
-    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: mediaEditHrs > 0 ? `${mediaEditHrs}h` : "—",        label: "Editing Hrs",      href: "/member/history" },
-    { icon: Film,     iconBg: "rgba(222,26,26,0.08)",  iconColor: "#de1a1a", value: mediaEditCount > 0 ? mediaEditCount : "—",           label: "Edited Videos",    href: "/member/history" },
-    { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs",     href: "/member/history" },
+    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: mediaShootHrs > 0 ? `${mediaShootHrs}h` : "—",      label: "SHOOTING", href: "/member/history", count: mediaShootCount },
+    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: mediaEditHrs > 0 ? `${mediaEditHrs}h` : "—",        label: "EDITING", href: "/member/history", count: mediaEditCount },
+    { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "LEARNING HRS",     href: "/member/history" },
+    ...(everTypes.has("other_activity") ? [
+      { icon: CalendarClock, iconBg: "rgba(107,114,128,0.1)", iconColor: "#6B7280", value: totalOtherActivityHrs > 0 ? `${totalOtherActivityHrs}h` : "—", label: "OTHER", href: "/member/history" },
+    ] : []),
   ] : [
-    { icon: Layers,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: nmPosterCount,                                       label: "Poster",       href: "/member/history" },
-    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: nmEditCount,                                         label: "Editing",      href: "/member/history" },
-    { icon: Mic,      iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: nmVoiceoverCount,                                    label: "Voiceover",    href: "/member/history" },
-    { icon: Monitor,  iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", value: nmTechHrs > 0 ? `${nmTechHrs}h` : "—",              label: "Technical",    href: "/member/history" },
-    { icon: BookOpen, iconBg: "rgba(167,139,250,0.1)", iconColor: "#A78BFA", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
+    ...NM_TYPE_ORDER.filter(k => everTypes.has(k)).map(k => {
+      const cfg = NM_TYPE_CFG[k]
+      const stat = nmTypeStats[k] ?? { count: 0, hours: 0 }
+      const value = stat.hours > 0 ? `${stat.hours}h` : "—"
+      return { icon: cfg.icon, iconBg: cfg.iconBg, iconColor: cfg.iconColor, value, label: cfg.label.toUpperCase(), href: "/member/history", count: stat.count }
+    }),
+    { icon: BookOpen, iconBg: "rgba(167,139,250,0.1)", iconColor: "#A78BFA", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "LEARNING HRS", href: "/member/history" },
+    ...(everTypes.has("other_activity") ? [
+      { icon: CalendarClock, iconBg: "rgba(107,114,128,0.1)", iconColor: "#6B7280", value: totalOtherActivityHrs > 0 ? `${totalOtherActivityHrs}h` : "—", label: "OTHER", href: "/member/history" },
+    ] : []),
   ]
 
   return (
@@ -616,8 +657,21 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
                 <stat.icon size={16} style={{ color: stat.iconColor }} />
               </div>
               <div className="flex-1">
-                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: stat.iconColor }}>{stat.value}</p>
-                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>{stat.label}</p>
+                <p className="text-[11px] font-bold" style={{ color: "#6B7280" }}>{stat.label}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: stat.iconColor }}>{stat.value}</p>
+                  {stat.count != null && stat.count > 0 && (
+                    <div style={{
+                      width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                      background: `linear-gradient(145deg, ${stat.iconColor}EE 0%, ${stat.iconColor} 100%)`,
+                      boxShadow: `0 3px 8px ${stat.iconColor}55, 0 1px 3px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.3)`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 10, fontWeight: 900, color: "#fff",
+                    }}>
+                      {stat.count}
+                    </div>
+                  )}
+                </div>
               </div>
               <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
             </Link>

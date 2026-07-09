@@ -20,6 +20,7 @@ import {
 import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject, updateTask, updateTaskChecklist, getTaskAttachments, stopRecurringTask } from "@/lib/actions/tasks"
 import { getTaskComments, addTaskComment, type TaskComment } from "@/lib/actions/comments"
 import { createBrowserClient } from "@/lib/supabase/client"
+import ClientSelector from "@/components/ui/ClientSelector"
 
 type TaskAttachment = { type: 'link' | 'file'; url: string; name?: string } | string
 
@@ -565,7 +566,7 @@ export default function MemberTasksClient({
   const commentEndRef = useRef<HTMLDivElement>(null)
 
   function resetAssignForm() {
-    setAssignClientType(""); setAssignBrand(""); setAssignCustom("")
+    setAssignClientType("")
     setChecklistItems([]); setNewCheckItem("")
     setAttachmentLinks([]); setNewAttachUrl("")
     setApprovalRequired(false); setRecurringTask("none")
@@ -650,9 +651,6 @@ export default function MemberTasksClient({
   const [filterClient, setFilterClient]     = useState("")
   const [filterManualClient, setFilterManualClient] = useState("")
   const [assignClientType, setAssignClientType] = useState("")
-  const [assignBrand, setAssignBrand]           = useState("")
-  const [assignCustom, setAssignCustom]         = useState("")
-  const [assignShowPast, setAssignShowPast]     = useState(false)
   const [deletedProjectIds, setDeletedProjectIds] = useState<Set<string>>(new Set())
   const [activeMobileCol, setActiveMobileCol] = useState<"todo" | "in_progress" | "review" | "completed">("todo")
   const [dragId, setDragId]         = useState<string | null>(null)
@@ -2110,9 +2108,9 @@ export default function MemberTasksClient({
               <input type="hidden" name="approval_required" value={String(approvalRequired)} />
               {/* Hidden client/project routing fields */}
               <input type="hidden" name="project_id"
-                value={assignClientType && !assignClientType.startsWith("__client__:") && assignClientType !== "__custom__" ? assignClientType : ""} />
+                value={assignClientType && !assignClientType.startsWith("__client__:") ? assignClientType : ""} />
               <input type="hidden" name="promotion_name"
-                value={assignClientType.startsWith("__client__:") ? assignClientType.slice(11) : assignClientType === "__custom__" ? assignCustom : ""} />
+                value={assignClientType.startsWith("__client__:") ? assignClientType.slice(11) : ""} />
               <input type="hidden" name="shop_name" value="" />
 
               <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
@@ -2178,53 +2176,30 @@ export default function MemberTasksClient({
 
                 {/* ── Client / Project ── */}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Client / Project</label>
-                  <div style={{ position: "relative" }}>
-                    {assignShowPast ? (
-                      <select value="" onChange={e => {
-                        const v = e.target.value
-                        if (v === "__back__") { setAssignShowPast(false); return }
-                        setAssignClientType(`__client__:${v}`)
-                        setAssignBrand(""); setAssignCustom(""); setAssignShowPast(false)
-                      }} className="w-full px-3 py-2.5 rounded-xl text-[13px]"
-                        style={{ border: "1.5px solid #EBEDF2", outline: "none", appearance: "none", paddingRight: 28 }}>
-                        <option value="__back__">← Back to Active Clients</option>
-                        {pastClients
-                          .filter(c => !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(c.name))
-                          .map(c => <option key={`past:${c.id}`} value={c.name}>{c.name}</option>)}
-                      </select>
-                    ) : (
-                      <select
-                        value={assignClientType}
-                        onChange={e => {
-                          const v = e.target.value
-                          if (v === "__past__") { setAssignShowPast(true); return }
-                          setAssignClientType(v); setAssignBrand(""); setAssignCustom("")
+                  {(() => {
+                    const INTERNAL = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
+                    const visibleProjects = projects.filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id) && !INTERNAL.includes(p.business_name))
+                    const assignActiveOptions = [...INTERNAL, ...visibleProjects.map(p => p.business_name),
+                      ...clients.filter(c => !visibleProjects.some(p => p.business_name === c.name) && !INTERNAL.includes(c.name)).map(c => c.name)]
+                    const assignPastOptions = pastClients.filter(c => !INTERNAL.includes(c.name)).map(c => c.name)
+                    const assignDisplayValue = assignClientType.startsWith("__client__:")
+                      ? assignClientType.slice(11)
+                      : (visibleProjects.find(p => p.id === assignClientType)?.business_name ?? "")
+                    return (
+                      <ClientSelector
+                        label="Client / Project"
+                        value={assignDisplayValue}
+                        clientOptions={assignActiveOptions}
+                        pastClientOptions={assignPastOptions}
+                        placeholder="Select client / project…"
+                        onValueChange={name => {
+                          if (!name) { setAssignClientType(""); return }
+                          const proj = visibleProjects.find(p => p.business_name === name)
+                          setAssignClientType(proj ? proj.id : `__client__:${name}`)
                         }}
-                        className="w-full px-3 py-2.5 rounded-xl text-[13px]"
-                        style={{ border: "1.5px solid #EBEDF2", outline: "none", appearance: "none", paddingRight: 28 }}>
-                        <option value="">Select client / project…</option>
-                        <option value="__client__:GROFAST DIGITAL">GROFAST DIGITAL</option>
-                        <option value="__client__:KARTHICK BRANDS">KARTHICK BRANDS</option>
-                        <option value="__client__:GROFAST AI">GROFAST AI</option>
-                        {projects
-                          .filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id) && !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(p.business_name))
-                          .map(p => <option key={p.id} value={p.id}>{p.business_name}</option>)}
-                        {clients
-                          .filter(c => !projects.some(p => p.client_name !== "__member_quick__" && p.business_name === c.name) && !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(c.name))
-                          .map(c => <option key={`cl:${c.id}`} value={`__client__:${c.name}`}>{c.name}</option>)}
-                        {pastClients.length > 0 && <option value="__past__">📁 Past Clients →</option>}
-                        <option value="__custom__">✏️ Other (type manually)</option>
-                      </select>
-                    )}
-                    <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
-                  </div>
-                  {assignClientType === "__custom__" && (
-                    <input value={assignCustom} onChange={e => setAssignCustom(e.target.value)}
-                      placeholder="Type client name…"
-                      className="w-full px-3 py-2.5 rounded-xl text-[13px] mt-1.5"
-                      style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
-                  )}
+                      />
+                    )
+                  })()}
                 </div>
 
                 {/* ── Expected Time + Due Date ── */}

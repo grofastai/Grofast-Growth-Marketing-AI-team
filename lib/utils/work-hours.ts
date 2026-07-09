@@ -21,7 +21,12 @@ export function calcNetWorkHours(entries: WorkEntryForCalc[], workLayout?: 'medi
 
   const workIntervals = workEntries
     .filter(e => e.start_time && e.end_time)
-    .map(e => ({ start: toMins(e.start_time!), end: toMins(e.end_time!) }))
+    .map(e => {
+      const start = toMins(e.start_time!)
+      let end = toMins(e.end_time!)
+      if (end <= start) end += 1440 // crosses midnight into the next day
+      return { start, end }
+    })
     .filter(i => i.end > i.start)
     .sort((a, b) => a.start - b.start)
 
@@ -37,7 +42,12 @@ export function calcNetWorkHours(entries: WorkEntryForCalc[], workLayout?: 'medi
 
   const breakIntervals = breakEntries
     .filter(e => e.start_time && e.end_time)
-    .map(e => ({ start: toMins(e.start_time!), end: toMins(e.end_time!) }))
+    .map(e => {
+      const start = toMins(e.start_time!)
+      let end = toMins(e.end_time!)
+      if (end <= start) end += 1440 // crosses midnight into the next day
+      return { start, end }
+    })
     .filter(i => i.end > i.start)
 
   for (const brk of breakIntervals) {

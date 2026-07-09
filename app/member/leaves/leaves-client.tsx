@@ -9,7 +9,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, MoreVertical, Palmtree, CalendarDays,
   Bell, Clock, SlidersHorizontal, Trash2, Pencil, AlertTriangle,
 } from "lucide-react"
-import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest } from "@/lib/actions/leaves"
+import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest, withdrawWfhForDate } from "@/lib/actions/leaves"
 
 interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
@@ -51,6 +51,10 @@ function canWithdraw(leave: Leave): boolean {
 
   // Past leave (ended before today) — never allow withdraw
   if (leave.to_date < istTodayStr) return false
+
+  // WFH is just a location marker, not a used-up benefit like real leave —
+  // allow ending it early (from today onward) even if it already started.
+  if (leave.leave_type === "wfh") return true
 
   // Future leave (starts after today) — always allow withdraw
   if (leave.from_date > istTodayStr) return true
@@ -207,6 +211,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [deleteId, setDeleteId]     = useState<string | null>(null)
   const [editingLeave, setEditingLeave] = useState<Leave | null>(null)
   const [deleting, startDelete]     = useTransition()
+  const [wfhWithdraw, setWfhWithdraw]   = useState<Leave | null>(null)
+  const [wfhWithdrawDate, setWfhWithdrawDate] = useState("")
+  const [wfhWithdrawError, setWfhWithdrawError] = useState<string | null>(null)
+  const [withdrawingWfh, startWithdrawWfh] = useTransition()
   const [editing, startEdit]        = useTransition()
   const [editError, setEditError]   = useState<string | null>(null)
   const [isExceptional, setIsExceptional] = useState(false)
@@ -313,6 +321,21 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
       if (res.success) {
         setLeaves(prev => prev.filter(l => l.id !== id))
         setDeleteId(null)
+      }
+    })
+  }
+
+  function handleWfhWithdraw() {
+    if (!wfhWithdraw || !wfhWithdrawDate) return
+    setWfhWithdrawError(null)
+    startWithdrawWfh(async () => {
+      const res = await withdrawWfhForDate(wfhWithdraw.id, wfhWithdrawDate)
+      if (res.success) {
+        setWfhWithdraw(null)
+        setWfhWithdrawDate("")
+        router.refresh()
+      } else {
+        setWfhWithdrawError(res.error ?? "Something went wrong. Please try again.")
       }
     })
   }
@@ -630,7 +653,16 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                                 </button>
                               </div>
                             ) : leave.status === "approved" && canWithdraw(leave) ? (
-                              <button onClick={() => setDeleteId(leave.id)}
+                              <button onClick={() => {
+                                const multiDayWfh = leave.leave_type === "wfh" && leave.from_date !== leave.to_date
+                                if (multiDayWfh) {
+                                  setWfhWithdrawError(null)
+                                  setWfhWithdrawDate(leave.from_date > today ? leave.from_date : today)
+                                  setWfhWithdraw(leave)
+                                } else {
+                                  setDeleteId(leave.id)
+                                }
+                              }}
                                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 8, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", fontSize: 11, fontWeight: 700, color: "#EF4444", cursor: "pointer" }}>
                                 <X size={11} /> Withdraw
                               </button>
@@ -828,6 +860,44 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 </div>
               </>)
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* ── End WFH Early Modal (partial withdraw for in-progress multi-day WFH) ── */}
+      {wfhWithdraw && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(10,10,11,0.65)", backdropFilter: "blur(8px)" }}>
+          <div style={{ width: "100%", maxWidth: 380, background: "#fff", borderRadius: 22, padding: 28, boxShadow: "0 24px 80px rgba(0,0,0,0.25)" }}>
+            <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+              <CalendarDays size={24} style={{ color: "#6366F1" }} />
+            </div>
+            <p style={{ fontSize: 16, fontWeight: 900, color: "#0A0A0B", margin: "0 0 4px" }}>Withdraw a WFH Day</p>
+            <p style={{ fontSize: 12, color: "#9CA3AF", margin: "0 0 18px", fontWeight: 600 }}>
+              Approved: {fmtShort(wfhWithdraw.from_date)} – {fmtShort(wfhWithdraw.to_date)}
+            </p>
+            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#6B7280", marginBottom: 6 }}>Select day to withdraw</label>
+            <input
+              type="date"
+              value={wfhWithdrawDate}
+              min={wfhWithdraw.from_date > today ? wfhWithdraw.from_date : today}
+              max={wfhWithdraw.to_date}
+              onChange={e => setWfhWithdrawDate(e.target.value)}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", fontSize: 13, fontWeight: 600, color: "#0A0A0B", marginBottom: 10 }}
+            />
+            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 16px" }}>
+              This day opens up for Leave or WFH. Other days stay unaffected.
+            </p>
+            {wfhWithdrawError && (
+              <p style={{ fontSize: 12, color: "#EF4444", margin: "0 0 16px" }}>{wfhWithdrawError}</p>
+            )}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => { setWfhWithdraw(null); setWfhWithdrawError(null) }} style={{ flex: 1, padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
+              <button onClick={handleWfhWithdraw} disabled={withdrawingWfh || !wfhWithdrawDate}
+                style={{ flex: 1, padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 700, background: "#EF4444", color: "#fff", border: "none", cursor: "pointer", opacity: (withdrawingWfh || !wfhWithdrawDate) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                {withdrawingWfh ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}

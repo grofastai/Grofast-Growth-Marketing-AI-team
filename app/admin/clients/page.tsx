@@ -163,7 +163,10 @@ export default async function ClientsUnifiedPage({
     },
     '__internal__': {
       row: { id: '__internal__', name: 'All Internal Brands', industry: '__virtual_internal__', location: `${internalBrands.length} brands`, service: null, package_name: null, status: 'active', contact_name: null },
-      filter: internalBrands.map(c => c.name),
+      // "Internal" is the generic client_name fallback saved by Technical/Other entries
+      // with no specific client picked — must match here too, or that work silently
+      // never shows up in this view at all.
+      filter: [...internalBrands.map(c => c.name), 'Internal'],
       isInternal: true,
     },
   }
@@ -200,6 +203,7 @@ export default async function ClientsUnifiedPage({
       { data: usersRaw },
       { data: pricingRaw },
       { data: freelancerRaw },
+      { data: salaryHistoryRaw },
     ] = await Promise.all([
       admin
         .from('daily_updates')
@@ -223,6 +227,10 @@ export default async function ClientsUnifiedPage({
         .in('team', NO_LOGIN_TEAMS)
         .gte('date_finished', dateFrom)
         .lte('date_finished', dateTo),
+      admin
+        .from('salary_history')
+        .select('user_id, monthly_salary, effective_from')
+        .eq('company_id', cid),
     ])
 
     const freelancerEntries: FreelancerWorkEntry[] = (freelancerRaw ?? []).map((r: Record<string, unknown>) => ({
@@ -245,6 +253,7 @@ export default async function ClientsUnifiedPage({
       dateFrom,
       dateTo,
       freelancerEntries,
+      salaryHistoryRaw ?? [],
     )
   }
 

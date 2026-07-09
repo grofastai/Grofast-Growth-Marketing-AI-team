@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { deleteDocument } from "@/lib/actions/documents"
 import Image from "next/image"
 import { PageHero } from "@/components/admin/PageHero"
+import { useConfirm } from "@/components/ui/ConfirmDialog"
 import {
   FileText, Upload, Trash2, FolderOpen, Loader2, X, Download,
   Phone, Mail, Briefcase, Calendar, Shield, HeartPulse, MapPin,
@@ -322,6 +323,7 @@ export default function DocumentsClient({
   kycRecords: KYCRecord[]
   companyId: string
 }) {
+  const confirm = useConfirm()
   const [selectedId, setSelectedId]   = useState<string>(members[0]?.id ?? "")
   const [empSearch, setEmpSearch]     = useState("")
   const [activeTab, setActiveTab]     = useState<"documents" | "personal" | "kyc" | "activity">("documents")
@@ -459,9 +461,9 @@ export default function DocumentsClient({
     } catch (e) { setUploadError(String(e)); setIsUploading(false) }
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     if (id.startsWith("kyc__")) return
-    if (!confirm("Delete this document?")) return
+    if (!(await confirm("Delete this document?"))) return
     start(async () => { await deleteDocument(id); router.refresh() })
   }
 

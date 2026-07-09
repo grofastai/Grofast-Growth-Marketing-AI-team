@@ -13,6 +13,21 @@ function adminClient() {
   )
 }
 
+// Admin can always manage freelancer work entries. Anyone else must be an
+// assigned freelancer manager for at least one freelancer (any freelancer —
+// being assigned to one grants management of all no-login freelancers, not
+// just that specific one; that's a deliberate simplification, not a bug).
+async function canManageFreelancers(admin: ReturnType<typeof adminClient>, userId: string, companyId: string): Promise<boolean> {
+  const { data: profile } = await admin.from("users").select("role").eq("id", userId).single()
+  if (profile?.role === "ADMIN" || profile?.role === "FOUNDER" || profile?.role === "CEO") return true
+  const { count } = await admin
+    .from("freelancer_assignments")
+    .select("freelancer_id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("company_id", companyId)
+  return (count ?? 0) > 0
+}
+
 type WorkEntryPayload = {
   date_given: string | null
   date_finished?: string        // per-entry override; falls back to input.date_finished
@@ -44,6 +59,9 @@ export async function saveFreelancerWorkEntry(input: {
     .eq("id", user.id)
     .single()
   if (!profile?.company_id) return { success: false, error: "Profile not found" }
+  if (!(await canManageFreelancers(admin, user.id, profile.company_id))) {
+    return { success: false, error: "Not authorized to manage freelancer work entries" }
+  }
 
   const rows = input.entries.map(e => ({
     company_id:       profile.company_id,
@@ -79,6 +97,11 @@ export async function deleteFreelancerWorkEntry(entryId: string): Promise<{ succ
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: "Not authenticated" }
   const admin = adminClient()
+  const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
+  if (!profile?.company_id) return { success: false, error: "Profile not found" }
+  if (!(await canManageFreelancers(admin, user.id, profile.company_id))) {
+    return { success: false, error: "Not authorized to manage freelancer work entries" }
+  }
   const { error } = await admin.from("freelancer_work_entries_v2").delete().eq("id", entryId)
   if (error) return { success: false, error: error.message }
   revalidatePath("/member/freelancers")
@@ -95,6 +118,11 @@ export async function toggleFreelancerPaymentStatus(
   if (!user) return { success: false, error: "Not authenticated" }
 
   const admin = adminClient()
+  const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
+  if (!profile?.company_id) return { success: false, error: "Profile not found" }
+  if (!(await canManageFreelancers(admin, user.id, profile.company_id))) {
+    return { success: false, error: "Not authorized to manage freelancer work entries" }
+  }
   const { error } = await admin
     .from("freelancer_work_entries_v2")
     .update({ payment_status: newStatus })
@@ -115,6 +143,11 @@ export async function updateFreelancerWorkEntry(
   if (!user) return { success: false, error: "Not authenticated" }
 
   const admin = adminClient()
+  const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
+  if (!profile?.company_id) return { success: false, error: "Profile not found" }
+  if (!(await canManageFreelancers(admin, user.id, profile.company_id))) {
+    return { success: false, error: "Not authorized to manage freelancer work entries" }
+  }
   const { error } = await admin
     .from("freelancer_work_entries_v2")
     .update({

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { User, Globe, BookOpen, Star, Plus, Trash2 } from 'lucide-react'
 import type { Folder, NoteScope } from './types'
 import type { HubView } from '@/lib/notes/filter'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const TABS: { key: HubView; label: string; icon: React.ReactNode }[] = [
   { key: 'mine',   label: 'My Notes',       icon: <User size={15}/> },
@@ -19,6 +20,7 @@ export function FolderSidebar({ folders, view, activeFolderId, onView, onFolder,
   isAdmin: boolean
 }) {
   void isAdmin
+  const confirm = useConfirm()
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [hoverId, setHoverId] = useState<string | null>(null)
@@ -47,7 +49,7 @@ export function FolderSidebar({ folders, view, activeFolderId, onView, onFolder,
           <span style={{ fontSize: 11, color: '#9CA3AF' }}>{f.count}</span>
           {hoverId === f.id && (
             <button
-              onClick={e => { e.stopPropagation(); if (confirm(`Delete folder "${f.name}"? Notes inside will not be deleted.`)) onDeleteFolder(f.id) }}
+              onClick={async e => { e.stopPropagation(); if (await confirm(`Delete folder "${f.name}"? Notes inside will not be deleted.`)) onDeleteFolder(f.id) }}
               title="Delete folder"
               style={{ marginLeft: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 2, display: 'flex', alignItems: 'center' }}>
               <Trash2 size={13} />

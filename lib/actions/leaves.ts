@@ -367,6 +367,87 @@ export async function updateLeaveRequest(
   return { success: true }
 }
 
+// Frees up a single day inside an approved WFH request (e.g. to apply a real
+// Leave instead for that one day) while keeping the rest of the range as WFH.
+// Handles all three positions: the first day (shrink front), the last day
+// (shrink tail), or a day in the middle (split into two WFH requests around it).
+// WFH has no attendance_logs/daily_updates side effects for pre-planned
+// multi-day requests (only same-day auto-clock-in does, handled elsewhere),
+// so adjusting dates here is safe with no extra cleanup needed.
+export async function withdrawWfhForDate(
+  leaveId: string,
+  targetDate: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const { data: leaveRaw } = await supabase
+    .from('leaves')
+    .select('user_id, status, leave_type, from_date, to_date, company_id, reason')
+    .eq('id', leaveId)
+    .single()
+  const leave = leaveRaw as {
+    user_id: string; status: string; leave_type: string | null
+    from_date: string; to_date: string; company_id: string; reason: string | null
+  } | null
+
+  if (!leave) return { success: false, error: 'Leave not found' }
+  if (leave.user_id !== user.id) return { success: false, error: 'Not authorized' }
+  if (leave.leave_type !== 'wfh') return { success: false, error: 'This action is only for Work From Home requests' }
+  if (leave.status !== 'approved') return { success: false, error: 'Only approved requests can be withdrawn' }
+  if (targetDate < leave.from_date || targetDate > leave.to_date) return { success: false, error: 'Chosen date is outside the WFH range' }
+
+  // Single-day WFH — nothing left to keep, remove the whole request
+  if (leave.from_date === leave.to_date) {
+    return deleteLeaveRequest(leaveId)
+  }
+
+  const shiftDay = (d: string, delta: number) => {
+    const x = new Date(d + 'T12:00:00')
+    x.setDate(x.getDate() + delta)
+    return x.toISOString().split('T')[0]
+  }
+
+  if (targetDate === leave.from_date) {
+    // First day — shrink the front, keep (targetDate+1 .. to_date)
+    const { error } = await (supabase.from('leaves') as any)
+      .update({ from_date: shiftDay(targetDate, 1) })
+      .eq('id', leaveId)
+    if (error) return { success: false, error: error.message }
+
+  } else if (targetDate === leave.to_date) {
+    // Last day — shrink the tail, keep (from_date .. targetDate-1)
+    const { error } = await (supabase.from('leaves') as any)
+      .update({ to_date: shiftDay(targetDate, -1) })
+      .eq('id', leaveId)
+    if (error) return { success: false, error: error.message }
+
+  } else {
+    // Middle day — split into two WFH requests around it
+    const { error: updErr } = await (supabase.from('leaves') as any)
+      .update({ to_date: shiftDay(targetDate, -1) })
+      .eq('id', leaveId)
+    if (updErr) return { success: false, error: updErr.message }
+
+    const { error: insErr } = await (supabase.from('leaves') as any).insert({
+      company_id: leave.company_id,
+      user_id:    leave.user_id,
+      leave_type: 'wfh',
+      status:     'approved',
+      from_date:  shiftDay(targetDate, 1),
+      to_date:    leave.to_date,
+      reason:     leave.reason,
+    })
+    if (insErr) return { success: false, error: insErr.message }
+  }
+
+  revalidatePath('/member/leaves')
+  revalidatePath('/member/dashboard')
+  revalidatePath('/admin/leaves')
+  return { success: true }
+}
+
 async function autoInsertLeaveHistory(
   admin: ReturnType<typeof createAdminClient>,
   leave: {

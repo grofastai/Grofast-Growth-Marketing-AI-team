@@ -10,8 +10,10 @@ import {
 } from "lucide-react"
 import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
 import { buildClientOptions } from "@/lib/utils/client-options"
+import ClientSelector from "@/components/ui/ClientSelector"
 import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
 import { useToast } from "@/components/ui/useToast"
+import { useConfirm } from "@/components/ui/ConfirmDialog"
 
 interface Project { id: string; business_name: string }
 interface TeamMember { id: string; name: string; employee_id: string; role: string; team?: string | null }
@@ -36,10 +38,20 @@ interface EditEntry {
   participantIds: string[]
   isRework: boolean; linkedToTitle: string; linkedToClient: string; linkedToDate: string
 }
+interface DevEntry {
+  id: string; clientName: string; customClient: string; project: string; isCreatingNew: boolean; subtitle: string; notes: string
+  startTime: string; endTime: string; timeTaken: number
+  participantIds: string[]
+}
+interface OtherEntry {
+  id: string; clientName: string; customClient: string; otherType: string; title: string
+  startTime: string; endTime: string; timeTaken: number
+  notes: string; participantIds: string[]
+}
 interface TimeBlock {
   id: string; isBreak: boolean; breakLabel: string; breakCustom?: string
   startTime: string; endTime: string
-  durationHours: number; description: string
+  durationHours: number; description: string; notes: string
   projectName: string; brand: string; customClient: string
   status: "completed" | "in_progress" | "not_started"
   isMultiClient: boolean; clientNames: string[]
@@ -86,14 +98,17 @@ function calcDuration(start: string, end: string) {
   if (!start || !end) return 0
   const [sh, sm] = start.split(":").map(Number)
   const [eh, em] = end.split(":").map(Number)
-  const diff = (eh * 60 + em) - (sh * 60 + sm)
+  let diff = (eh * 60 + em) - (sh * 60 + sm)
+  if (diff <= 0) diff += 1440 // crosses midnight into the next day
   return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 0
 }
 function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m }
 function timesOverlap(s1: string, e1: string, s2: string, e2: string, thresholdMins = 0): boolean {
   if (!s1 || !e1 || !s2 || !e2) return false
-  const a = toMins(s1), b = toMins(e1), c = toMins(s2), d = toMins(e2)
-  if (b <= a || d <= c) return false
+  const a = toMins(s1), c = toMins(s2)
+  let b = toMins(e1), d = toMins(e2)
+  if (b <= a) b += 1440 // crosses midnight into the next day
+  if (d <= c) d += 1440
   return Math.min(b, d) - Math.max(a, c) > thresholdMins
 }
 export type ActiveLeave = {
@@ -227,6 +242,7 @@ type SavedEntry = {
   _custom_client?: string; _location?: string; _travel_hours?: number
   _camera_hours?: number; _drone_hours?: number
   price?: number | null
+  project_name?: string; _other_type?: string
 }
 
 function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock[] {
@@ -242,10 +258,11 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
       endTime: e.end_time ?? '10:00',
       durationHours: e.duration_hours ?? 1,
       description: e.task_type === 'break' ? '' : (e.title ?? ''),
+      notes: e.task_type === 'break' ? '' : (e.notes?.replace(/^\[\w+\]\s*/, '') ?? ''),
       projectName: '',
       brand: '', customClient: '',
       status: (() => {
-        const rawStatus = e.notes?.replace(/^\[/, '').replace(/\]$/, '') ?? ''
+        const rawStatus = e.notes?.match(/^\[(\w+)\]/)?.[1] ?? ''
         const VALID = ['completed', 'in_progress', 'not_started'] as const
         return (VALID.includes(rawStatus as TimeBlock['status']) ? rawStatus : 'not_started') as TimeBlock['status']
       })(),
@@ -453,6 +470,66 @@ function parseExistingNmEdits(existingUpdate: Record<string, unknown>): EditEntr
     }))
 }
 
+function parseExistingScriptings(existingUpdate: Record<string, unknown>): EditEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'scripting')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      clientName: e._client_type ?? e.client_name ?? "",
+      brand: "", customClient: e._custom_client ?? "",
+      title: e.title ?? "", videoType: "", customVideoType: "", videoDuration: "",
+      startTime: e.start_time ?? "", endTime: e.end_time ?? "",
+      dateGiven: "", dateFinished: "",
+      timeTaken: e.duration_hours ?? 0,
+      driveUpdated: false, revisions: 0, hooksCompleted: 0,
+      videoLink: e.video_link ?? "", notes: e.notes ?? "",
+      participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+      isRework: (e as Record<string, unknown>).is_rework as boolean ?? false,
+      linkedToTitle: (e as Record<string, unknown>).linked_to_title as string ?? "",
+      linkedToClient: (e as Record<string, unknown>).linked_to_client as string ?? "",
+      linkedToDate: (e as Record<string, unknown>).linked_to_date as string ?? "",
+    }))
+}
+
+function parseExistingDevelopments(existingUpdate: Record<string, unknown>): DevEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'development')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      clientName: e._client_type ?? e.client_name ?? "",
+      customClient: e._custom_client ?? "",
+      project: e.project_name ?? "",
+      isCreatingNew: false,
+      subtitle: e.title ?? "",
+      notes: e.notes ?? "",
+      startTime: e.start_time ?? "", endTime: e.end_time ?? "",
+      timeTaken: e.duration_hours ?? 0,
+      participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+    }))
+}
+
+function parseExistingOthers(existingUpdate: Record<string, unknown>): OtherEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'other_activity')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      clientName: e._client_type ?? e.client_name ?? "",
+      customClient: e._custom_client ?? "",
+      otherType: e._other_type ?? "Meeting",
+      title: e.title ?? "",
+      startTime: e.start_time ?? "", endTime: e.end_time ?? "",
+      timeTaken: e.duration_hours ?? 0,
+      notes: e.notes ?? "",
+      participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+    }))
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 type PastUpdate = {
   id: string; date: string; working_hours: number | null; learning_hours: number | null
@@ -464,11 +541,12 @@ type PastUpdate = {
 function clampDate(v: string) { if (!v) return v; const [yr = '', mo = '', dy = ''] = v.split('-'); const y = yr.length > 4 ? yr.slice(0, 4) : yr; const m = mo && +mo > 12 ? '12' : mo; const d = dy && +dy > 31 ? '31' : dy; return [y, m, d].filter(Boolean).join('-') }
 
 export default function DailyUpdateForm({
-  projects, sheetClientNames = [], pastClientNames = [], userName, team, workLayout, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
+  projects, sheetClientNames = [], pastClientNames = [], userName, team, workLayout, enabledBlocks, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
   todayClockedIn = true, requiresClockIn = false, defaultDate, activeLeavesList = [], collabWindows = [],
 }: {
   projects: Project[]; sheetClientNames?: string[]; pastClientNames?: string[]; userName: string; team?: string | null
   workLayout?: 'media' | 'non_media' | 'freelance_media'
+  enabledBlocks?: string[] | null
   existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
   teamMembers?: TeamMember[]; approvedLeaveDates?: string[]
   todayClockedIn?: boolean; requiresClockIn?: boolean; defaultDate?: string
@@ -476,6 +554,7 @@ export default function DailyUpdateForm({
   collabWindows?: CollabWindow[]
 }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const existingUpdateRef = useRef(existingUpdate)
   useEffect(() => { existingUpdateRef.current = existingUpdate }, [existingUpdate])
   const [isPending, startTransition] = useTransition()
@@ -490,6 +569,8 @@ export default function DailyUpdateForm({
     ? workLayout !== 'non_media'
     : (team === "Media Team" || team === "Media Production Team" || team === "Freelance Media Production")
   const isFreelancerLayout = workLayout ? workLayout === 'freelance_media' : team === "Freelance Media Production"
+  // Per-person non-media block checklist — null/unset means everything enabled (back-compat default).
+  const blockEnabled = (key: string) => !enabledBlocks || enabledBlocks.includes(key)
 
   const todayStr = new Date().toISOString().split("T")[0]
 
@@ -521,6 +602,9 @@ export default function DailyUpdateForm({
     setEdits(isPast ? [] : (found ? parseExistingEdits(found) : []))
     setVoiceovers(isPast ? [] : (found ? parseExistingVoiceovers(found) : []))
     setPosters(isPast ? [] : (found ? parseExistingPosters(found) : []))
+    setScriptings(isPast ? [] : (found ? parseExistingScriptings(found) : []))
+    setDevelopments(isPast ? [] : (found ? parseExistingDevelopments(found) : []))
+    setOthers(isPast ? [] : (found ? parseExistingOthers(found) : []))
     setNmEdits(isPast ? [] : (!isMediaTeam && found ? parseExistingNmEdits(found) : []))
     setTimeBlocks(isPast ? [] : (found ? parseExistingBlocks(found) : []))
     setMediaBreaks(isPast ? [] : (found ? parseExistingMediaBreaks(found) : []))
@@ -547,11 +631,6 @@ export default function DailyUpdateForm({
     sheetClientNames, pastClientNames
   )
   const allClientOptions = activeClientOptions
-
-  // Tracks which entry IDs are in "past clients" mode
-  const [showPastFor, setShowPastFor] = useState<Set<string>>(new Set())
-  const enterPastMode  = (id: string) => setShowPastFor(p => new Set([...p, id]))
-  const exitPastMode   = (id: string) => setShowPastFor(p => { const n = new Set(p); n.delete(id); return n })
 
   // ── Shoots (media) ───────────────────────────────────────────────────────
   const [shoots, setShoots] = useState<ShootEntry[]>(() => existingUpdate ? parseExistingShoots(existingUpdate) : [])
@@ -592,6 +671,18 @@ export default function DailyUpdateForm({
   const patchPoster  = (id: string, patch: Partial<EditEntry>) => setPosters(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
   const removePoster = (id: string) => setPosters(p => p.filter(e => e.id !== id))
 
+  // ── Scripting (non-media) ────────────────────────────────────────────────
+  const [scriptings, setScriptings] = useState<EditEntry[]>(() => existingUpdate ? parseExistingScriptings(existingUpdate) : [])
+  const addScripting    = () => setScriptings(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"09:00", endTime:"09:00", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[], isRework:false, linkedToTitle:"", linkedToClient:"", linkedToDate:"" }])
+  const patchScripting  = (id: string, patch: Partial<EditEntry>) => setScriptings(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
+  const removeScripting = (id: string) => setScriptings(p => p.filter(e => e.id !== id))
+
+  // ── Development (non-media) ──────────────────────────────────────────────
+  const [developments, setDevelopments] = useState<DevEntry[]>(() => existingUpdate ? parseExistingDevelopments(existingUpdate) : [])
+  const addDevelopment    = () => setDevelopments(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", project:"", isCreatingNew:false, subtitle:"", notes:"", startTime:"09:00", endTime:"09:00", timeTaken:1, participantIds:[] }])
+  const patchDevelopment  = (id: string, patch: Partial<DevEntry>) => setDevelopments(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
+  const removeDevelopment = (id: string) => setDevelopments(p => p.filter(e => e.id !== id))
+
   // ── Non-media editing ─────────────────────────────────────────────────────
   const [nmEdits, setNmEdits] = useState<EditEntry[]>(() => (!isMediaTeam && existingUpdate) ? parseExistingNmEdits(existingUpdate) : [])
   const addNmEdit    = () => setNmEdits(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"09:00", endTime:"09:00", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[], isRework:false, linkedToTitle:"", linkedToClient:"", linkedToDate:"" }])
@@ -605,13 +696,13 @@ export default function DailyUpdateForm({
   const addTimeBlock = () => setTimeBlocks(p => [...p, {
     id: crypto.randomUUID(), isBreak: false, breakLabel: "",
     startTime: "09:00", endTime: "10:00",
-    durationHours: 1, description: "", projectName: "", brand: "", customClient: "",
+    durationHours: 1, description: "", notes: "", projectName: "", brand: "", customClient: "",
     status: "not_started" as const, isMultiClient: false, clientNames: [], participantIds: [],
   }])
   const addBreakBlock = () => setTimeBlocks(p => [...p, {
     id: crypto.randomUUID(), isBreak: true, breakLabel: "Lunch Break",
     startTime: "13:00", endTime: "13:30",
-    durationHours: 0.5, description: "", projectName: "", brand: "", customClient: "",
+    durationHours: 0.5, description: "", notes: "", projectName: "", brand: "", customClient: "",
     status: "not_started" as const, isMultiClient: false, clientNames: [], participantIds: [],
   }])
   const patchBlock = (id: string, patch: Partial<TimeBlock>) =>
@@ -652,7 +743,13 @@ export default function DailyUpdateForm({
   )
   const addLearningBlock = () => setLearningBlocks(p => [...p, newLearningBlock()])
   const removeLearningBlock = (id: string) =>
-    setLearningBlocks(p => p.length > 1 ? p.filter(b => b.id !== id) : p)
+    setLearningBlocks(p => {
+      const next = p.filter(b => b.id !== id)
+      // Removing the last remaining block resets to the empty "Add Learning" prompt
+      // instead of leaving a single blank block with no way to clear it.
+      if (next.length === 0) { setLearningStarted(false); return [newLearningBlock()] }
+      return next
+    })
   const patchLearningBlock = (id: string, patch: Partial<LearningBlock>) =>
     setLearningBlocks(p => p.map(b => b.id === id ? { ...b, ...patch } : b))
   const learningHours = Math.round(
@@ -662,6 +759,12 @@ export default function DailyUpdateForm({
   const filledLearningBlocks = learningBlocks.filter(
     b => b.client.trim() && b.topic.trim() && b.from && b.to && calcLearningHours(b.from, b.to) > 0
   )
+
+  // ── Other (Meeting / Teaching / Misc) — Learning tab, both Media & Non-Media ──
+  const [others, setOthers] = useState<OtherEntry[]>(() => existingUpdate ? parseExistingOthers(existingUpdate) : [])
+  const addOther    = () => setOthers(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", otherType:"Meeting", title:"", startTime:"09:00", endTime:"09:00", timeTaken:0.5, notes:"", participantIds:[] }])
+  const patchOther  = (id: string, patch: Partial<OtherEntry>) => setOthers(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
+  const removeOther = (id: string) => setOthers(p => p.filter(e => e.id !== id))
   const [learningParticipantIds, setLearningParticipantIds] = useState<string[]>(
     existingUpdate?.active_tab === "learning" ? ((existingUpdate?.participant_ids as string[]) ?? []) : []
   )
@@ -783,7 +886,7 @@ export default function DailyUpdateForm({
     const MAX = 50
     type Opt = { key: string; label: string; title: string; client: string; date: string }
     type Source = { date: string; work_entries: Record<string, unknown>[] | null }
-    const editsOpts: Opt[] = [], voiceoversOpts: Opt[] = [], postersOpts: Opt[] = []
+    const editsOpts: Opt[] = [], voiceoversOpts: Opt[] = [], postersOpts: Opt[] = [], scriptingsOpts: Opt[] = []
     // existingUpdate (today's row) is fetched separately from pastUpdates (which excludes today),
     // so it must be merged in here — otherwise entries added today can never appear as a revision target.
     const sources: Source[] = [
@@ -804,10 +907,30 @@ export default function DailyUpdateForm({
         if (e.task_type === "edit" && editsOpts.length < MAX) editsOpts.push({ key, label:`🎬  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
         else if (e.task_type === "voiceover" && voiceoversOpts.length < MAX) voiceoversOpts.push({ key, label:`🎙️  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
         else if (e.task_type === "poster" && postersOpts.length < MAX) postersOpts.push({ key, label:`🖼️  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
+        else if (e.task_type === "scripting" && scriptingsOpts.length < MAX) scriptingsOpts.push({ key, label:`📝  ${client}  ·  ${title}  ·  ${dateLabel}`, title, client, date: u.date })
       }
     }
-    return { edits: editsOpts, voiceovers: voiceoversOpts, posters: postersOpts }
+    return { edits: editsOpts, voiceovers: voiceoversOpts, posters: postersOpts, scriptings: scriptingsOpts }
   }, [pastUpdates, existingUpdate, selectedDate])
+
+  // Development project picker — grows from this person's own past Development entries.
+  // No "finished" status: a project just stops being picked once nobody logs against it anymore.
+  const pastProjectNames = useMemo(() => {
+    const names = new Set<string>()
+    const sources = [
+      ...(existingUpdate ? [existingUpdate as unknown as { work_entries: Record<string, unknown>[] | null }] : []),
+      ...(pastUpdates as unknown as { work_entries: Record<string, unknown>[] | null }[]),
+    ]
+    for (const u of sources) {
+      const entries = Array.isArray(u.work_entries) ? u.work_entries as Record<string, unknown>[] : []
+      for (const e of entries) {
+        if (e.task_type !== "development") continue
+        const name = (e.project_name as string) || (e.client_name as string) || ""
+        if (name) names.add(name)
+      }
+    }
+    return Array.from(names).sort()
+  }, [pastUpdates, existingUpdate])
 
   const totalShootHours     = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
   const totalTravelHours    = useMemo(() => shoots.reduce((s, e) => s + e.travelHours, 0), [shoots])
@@ -827,7 +950,7 @@ export default function DailyUpdateForm({
   function handleWorkingSubmit() {
     setWorkingError(null)
     if (requiresClockIn && !todayClockedIn && selectedDate === todayStr) { setWorkingError("Please clock in on the Attendance page before submitting today's work log."); return }
-    if (filledBlocks.length === 0 && posters.length === 0 && voiceovers.length === 0 && nmEdits.length === 0) { setWorkingError("Add at least one time block, poster, voiceover, or editing entry."); return }
+    if (filledBlocks.length === 0 && posters.length === 0 && voiceovers.length === 0 && nmEdits.length === 0 && scriptings.length === 0 && developments.length === 0) { setWorkingError("Add at least one time block, poster, voiceover, editing, scripting, or development entry."); return }
 
     // Per-block validation: timings + description + client are all mandatory
     for (let i = 0; i < filledBlocks.length; i++) {
@@ -839,7 +962,7 @@ export default function DailyUpdateForm({
       if (!b.description.trim()) {
         setWorkingError(`${label}Enter what you worked on.`); return
       }
-      const hasClient = b.clientNames.length > 0 || (b.projectName === "__custom__" && b.customClient.trim())
+      const hasClient = b.clientNames.length > 0
       if (!hasClient) {
         setWorkingError(`${label}Select a client / project.`); return
       }
@@ -854,6 +977,8 @@ export default function DailyUpdateForm({
         ...voiceovers.map(v => ({ id: v.id, start: v.startTime, end: v.endTime, title: v.title || 'Voiceover' })),
         ...posters.map(p => ({ id: p.id, start: p.startTime, end: p.endTime, title: p.title || 'Poster' })),
         ...nmEdits.map(n => ({ id: n.id, start: n.startTime, end: n.endTime, title: n.title || 'Edit' })),
+        ...scriptings.map(s => ({ id: s.id, start: s.startTime, end: s.endTime, title: s.title || 'Scripting' })),
+        ...developments.map(d => ({ id: d.id, start: d.startTime, end: d.endTime, title: d.subtitle || 'Development' })),
       ]
       const overlapErr = findOverlapError(newEntries, existingEntries, activeLeavesList, selectedDate, collabWindows)
       if (overlapErr) { setWorkingError(overlapErr); return }
@@ -863,7 +988,7 @@ export default function DailyUpdateForm({
     for (let i = 0; i < voiceovers.length; i++) {
       const v = voiceovers[i]
       const label = voiceovers.length > 1 ? `Voiceover ${i + 1}: ` : "Voiceover: "
-      const client = v.clientName === "__custom__" ? v.customClient.trim() : v.clientName
+      const client = v.clientName
       if (!client) { setWorkingError(`${label}Select a client.`); return }
       if (!v.title.trim()) { setWorkingError(`${label}Enter a script name.`); return }
       if (!v.startTime) { setWorkingError(`${label}Enter start time.`); return }
@@ -875,7 +1000,7 @@ export default function DailyUpdateForm({
     for (let i = 0; i < posters.length; i++) {
       const p = posters[i]
       const label = posters.length > 1 ? `Poster ${i + 1}: ` : "Poster: "
-      const client = p.clientName === "__custom__" ? p.customClient.trim() : p.clientName
+      const client = p.clientName
       if (!client) { setWorkingError(`${label}Select a client.`); return }
       if (!p.title.trim()) { setWorkingError(`${label}Enter a poster name.`); return }
       if (!p.startTime) { setWorkingError(`${label}Enter start time.`); return }
@@ -883,11 +1008,34 @@ export default function DailyUpdateForm({
       if (toMins(p.endTime) <= toMins(p.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
+    // Scripting mandatory: client, title, start time, end time
+    for (let i = 0; i < scriptings.length; i++) {
+      const s = scriptings[i]
+      const label = scriptings.length > 1 ? `Scripting ${i + 1}: ` : "Scripting: "
+      if (!s.clientName) { setWorkingError(`${label}Select a client.`); return }
+      if (!s.title.trim()) { setWorkingError(`${label}Enter a script title.`); return }
+      if (!s.startTime) { setWorkingError(`${label}Enter start time.`); return }
+      if (!s.endTime)   { setWorkingError(`${label}Enter end time.`); return }
+      if (toMins(s.endTime) <= toMins(s.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+    }
+
+    // Development mandatory: client, project, sub-title, start/end time
+    for (let i = 0; i < developments.length; i++) {
+      const d = developments[i]
+      const label = developments.length > 1 ? `Development ${i + 1}: ` : "Development: "
+      if (!d.clientName) { setWorkingError(`${label}Select a client.`); return }
+      if (!d.project.trim()) { setWorkingError(`${label}Select or create a project.`); return }
+      if (!d.subtitle.trim()) { setWorkingError(`${label}Enter what you worked on today.`); return }
+      if (!d.startTime) { setWorkingError(`${label}Enter start time.`); return }
+      if (!d.endTime)   { setWorkingError(`${label}Enter end time.`); return }
+      if (toMins(d.endTime) <= toMins(d.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+    }
+
     // Editing (non-media) mandatory: client, video name, video type, start/end time
     for (let i = 0; i < nmEdits.length; i++) {
       const n = nmEdits[i]
       const label = nmEdits.length > 1 ? `Edit ${i + 1}: ` : "Edit: "
-      const client = n.clientName === "__custom__" ? n.customClient.trim() : n.clientName
+      const client = n.clientName
       if (!client) { setWorkingError(`${label}Select a client.`); return }
       if (!n.title.trim()) { setWorkingError(`${label}Enter a video name.`); return }
       if (!n.videoType || n.videoType === "") { setWorkingError(`${label}Select a video type.`); return }
@@ -899,7 +1047,6 @@ export default function DailyUpdateForm({
     const work_entries = [
       ...filledBlocks.map(t => {
         const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")
-          : t.projectName === "__custom__" ? (t.customClient || "Internal")
           : (t.projectName || "Internal")
         const isMulti = t.clientNames.length > 1
         return {
@@ -930,7 +1077,7 @@ export default function DailyUpdateForm({
       ...voiceovers.map(e => ({
         id: e.id,
         client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        client_name: e.clientName || "Internal",
         client_names: [] as string[],
         is_multi_client: false,
         task_type: "voiceover" as const,
@@ -944,7 +1091,7 @@ export default function DailyUpdateForm({
       ...posters.map(e => ({
         id: e.id,
         client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        client_name: e.clientName || "Internal",
         client_names: [] as string[],
         is_multi_client: false,
         task_type: "poster" as const,
@@ -958,7 +1105,7 @@ export default function DailyUpdateForm({
       ...nmEdits.map(e => ({
         id: e.id,
         client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        client_name: e.clientName || "Internal",
         client_names: [] as string[],
         is_multi_client: false,
         task_type: "edit" as const,
@@ -969,6 +1116,34 @@ export default function DailyUpdateForm({
         _client_type: e.clientName, _custom_client: e.customClient,
         participant_ids: e.participantIds,
         is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
+      })),
+      ...scriptings.map(e => ({
+        id: e.id,
+        client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+        client_name: e.clientName || "Internal",
+        client_names: [] as string[],
+        is_multi_client: false,
+        task_type: "scripting" as const,
+        title: e.title || "Scripting", start_time: e.startTime, end_time: e.endTime,
+        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
+        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
+        _client_type: e.clientName, _custom_client: e.customClient,
+        participant_ids: e.participantIds,
+        is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
+      })),
+      ...developments.map(e => ({
+        id: e.id,
+        client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+        client_name: e.clientName || "Internal",
+        client_names: [] as string[],
+        is_multi_client: false,
+        task_type: "development" as const,
+        title: e.subtitle || "Development", start_time: e.startTime, end_time: e.endTime,
+        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
+        notes: e.notes || undefined, video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
+        project_name: e.project,
+        _client_type: e.clientName, _custom_client: e.customClient,
+        participant_ids: e.participantIds,
       })),
     ]
     const allParticipantIds = [...new Set(filledBlocks.flatMap(b => b.participantIds))]
@@ -989,6 +1164,8 @@ export default function DailyUpdateForm({
           setTimeBlocks([])
           setVoiceovers([])
           setPosters([])
+          setScriptings([])
+          setDevelopments([])
           setNmEdits([])
           router.refresh()
         } else {
@@ -1044,10 +1221,10 @@ export default function DailyUpdateForm({
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
-        client_name: s.clientName === "__custom__" ? (s.customClient || "Custom") : s.clientName === "Promotion" ? (s.brand || "Promotion") : s.clientName || "Internal",
+        client_name: s.clientName === "Promotion" ? (s.brand || "Promotion") : s.clientName || "Internal",
         task_type: "shoot" as const,
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
-        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
+        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", s.clientName === "Promotion" && s.shopName ? `Shop: ${s.shopName}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
         _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours > 0 ? Math.max(0, s.durationHours - s.droneHours) : 0, _drone_hours: s.droneHours,
         participant_ids: [...new Set([...participantIds, ...s.participantIds])],
@@ -1058,7 +1235,7 @@ export default function DailyUpdateForm({
         const finalVideoType = e.videoType === "__other__" ? (e.customVideoType || "Other") : e.videoType
         return {
           id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-          client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
+          client_name: e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
           task_type: "edit" as const,
           title: e.title || "Editing", start_time: e.startTime, end_time: e.endTime,
           duration_hours: validH || e.timeTaken, notes: overlapH > 0 ? `[overlap:${overlapH}h] ${e.notes}`.trim() : e.notes, video_uploaded: null,
@@ -1173,10 +1350,10 @@ export default function DailyUpdateForm({
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
-        client_name: s.clientName === "__custom__" ? (s.customClient || "Custom") : s.clientName === "Promotion" ? (s.brand || "Promotion") : s.clientName || "Internal",
+        client_name: s.clientName === "Promotion" ? (s.brand || "Promotion") : s.clientName || "Internal",
         task_type: "shoot" as const,
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
-        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
+        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", s.clientName === "Promotion" && s.shopName ? `Shop: ${s.shopName}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
         _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours > 0 ? Math.max(0, s.durationHours - s.droneHours) : 0, _drone_hours: s.droneHours,
         participant_ids: [...new Set([...participantIds, ...s.participantIds])],
@@ -1187,7 +1364,7 @@ export default function DailyUpdateForm({
         const finalVideoType = e.videoType === "__other__" ? (e.customVideoType || "Other") : e.videoType
         return {
           id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-          client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
+          client_name: e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
           task_type: "edit" as const,
           title: e.title || "Editing", start_time: e.startTime, end_time: e.endTime,
           duration_hours: validH || e.timeTaken, notes: overlapH > 0 ? `[overlap:${overlapH}h] ${e.notes}`.trim() : e.notes, video_uploaded: null,
@@ -1233,8 +1410,18 @@ export default function DailyUpdateForm({
       if (!b.topic.trim()) { setLearningError(`${label}Enter what you learned (Topic / Course).`); return }
       if (!b.from || !b.to || calcLearningHours(b.from, b.to) <= 0) { setLearningError(`${label}Set a valid From and To time.`); return }
     }
-    if (filledLearningBlocks.length === 0) {
-      setLearningError("Add at least one learning block with client, topic, and time."); return
+    // Other (Meeting/Teaching/Misc) mandatory: client, title, start/end time
+    for (let i = 0; i < others.length; i++) {
+      const o = others[i]
+      const label = others.length > 1 ? `Other ${i + 1}: ` : "Other: "
+      if (!o.clientName) { setLearningError(`${label}Select a client.`); return }
+      if (!o.title.trim()) { setLearningError(`${label}Enter a title.`); return }
+      if (!o.startTime) { setLearningError(`${label}Enter start time.`); return }
+      if (!o.endTime)   { setLearningError(`${label}Enter end time.`); return }
+      if (toMins(o.endTime) <= toMins(o.startTime)) { setLearningError(`${label}End time must be after start time.`); return }
+    }
+    if (filledLearningBlocks.length === 0 && others.length === 0) {
+      setLearningError("Add at least one learning block or other activity."); return
     }
     startTransition(async () => {
       const res = await submitDailyUpdate({
@@ -1242,21 +1429,38 @@ export default function DailyUpdateForm({
         shoot_count: 0, editing_count: 0,
         shoot_time_hours: 0, editing_time_hours: 0,
         learning_hours: 0,
-        participant_ids: learningParticipantIds,
-        work_entries: filledLearningBlocks.map(b => ({
-          id: b.id,
-          client_id: null,
-          client_name: b.client,
-          client_names: [],
-          is_multi_client: false,
-          task_type: "learning" as const,
-          title: `[${b.client}] ${b.topic.trim()}`,
-          start_time: b.from || "",
-          end_time:   b.to   || "",
-          duration_hours: calcLearningHours(b.from, b.to),
-          notes: b.notes || "",
-          editing_videos: [],
-        })),
+        participant_ids: [...new Set([...learningParticipantIds, ...others.flatMap(o => o.participantIds)])],
+        work_entries: [
+          ...filledLearningBlocks.map(b => ({
+            id: b.id,
+            client_id: null,
+            client_name: b.client,
+            client_names: [],
+            is_multi_client: false,
+            task_type: "learning" as const,
+            title: `[${b.client}] ${b.topic.trim()}`,
+            start_time: b.from || "",
+            end_time:   b.to   || "",
+            duration_hours: calcLearningHours(b.from, b.to),
+            notes: b.notes || "",
+            editing_videos: [],
+          })),
+          ...others.map(o => ({
+            id: o.id,
+            client_id: projects.find(p => p.business_name === o.clientName)?.id ?? null,
+            client_name: o.clientName || "Internal",
+            client_names: [] as string[],
+            is_multi_client: false,
+            task_type: "other_activity" as const,
+            title: o.title || o.otherType, start_time: o.startTime, end_time: o.endTime,
+            duration_hours: calcDuration(o.startTime, o.endTime) || o.timeTaken,
+            notes: o.notes || undefined,
+            _other_type: o.otherType,
+            _client_type: o.clientName, _custom_client: o.customClient,
+            participant_ids: o.participantIds,
+            editing_videos: [],
+          })),
+        ],
       })
       if (!res.success) setLearningError(res.error ?? "Submission failed.")
       else { setSuccessPopup("learning"); setLearningDone(true); setEditMode(false); router.refresh() }
@@ -1286,7 +1490,6 @@ export default function DailyUpdateForm({
     const workingEntries = !isMediaTeam
       ? filledBlocks.map(t => {
           const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")
-            : t.projectName === "__custom__" ? (t.customClient || "Internal")
             : (t.projectName || "Internal")
           return {
             id: t.id,
@@ -1296,7 +1499,7 @@ export default function DailyUpdateForm({
             is_multi_client: t.clientNames.length > 1,
             task_type: "other" as const,
             title: t.description, start_time: t.startTime, end_time: t.endTime,
-            duration_hours: t.durationHours, notes: `[${t.status}]`,
+            duration_hours: t.durationHours, notes: [`[${t.status}]`, t.notes.trim()].filter(Boolean).join(" "),
             participant_ids: t.participantIds ?? [],
             video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
           }
@@ -1568,6 +1771,9 @@ export default function DailyUpdateForm({
               setMediaBreaks([])
               setVoiceovers([])
               setPosters([])
+              setScriptings([])
+              setDevelopments([])
+              setNmEdits([])
               setEditMode(true)
               setSubmitted(false)
               if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
@@ -1774,6 +1980,7 @@ export default function DailyUpdateForm({
           {/* ══ WORKING: Time Blocks ══════════════════════════════════════════ */}
           {tab === "working" && (
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              {blockEnabled('other') && (<>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                   <div style={{ width:34, height:34, borderRadius:10, background:"rgba(222,26,26,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -1819,24 +2026,15 @@ export default function DailyUpdateForm({
                         <div className="grid md:grid-cols-2" style={{ gap:8 }}>
                             <div>
                               <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5, margin:"0 0 5px" }}>Client Name</p>
-                              <div style={{ position:"relative" }}>
-                              {showPastFor.has(`blk-${block.id}`) ? (
-                                <select value="" onChange={e => { const v = e.target.value; if (!v) return; if (v === "__back__") { exitPastMode(`blk-${block.id}`); return } if (!block.clientNames.includes(v)) patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" }); exitPastMode(`blk-${block.id}`) }}
-                                  style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                                  <option value="__back__">← Back to Active Clients</option>
-                                  {pastClientOptions.filter(n => !block.clientNames.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
-                                </select>
-                              ) : (
-                              <select value="" onChange={e => { const v = e.target.value; if (!v) return; if (v === "__past_clients__") { enterPastMode(`blk-${block.id}`) } else if (v === "__custom__") { patchBlock(block.id, { projectName: v, clientNames: [], brand: "", customClient: "" }) } else { if (!block.clientNames.includes(v)) patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" }) } }}
-                                style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                                <option value="">Add client / project…</option>
-                                {activeClientOptions.filter(n => !block.clientNames.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
-                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                {!block.projectName && <option value="__custom__">✏️ Other (type manually)</option>}
-                              </select>
-                              )}
-                              <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                              </div>
+                              <ClientSelector
+                                label=""
+                                value=""
+                                clientOptions={activeClientOptions}
+                                pastClientOptions={pastClientOptions}
+                                excludeOptions={block.clientNames}
+                                placeholder="Add client / project…"
+                                onValueChange={v => { if (!v) return; patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "" }) }}
+                              />
                             </div>
                             <div>
                               <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5, margin:"0 0 5px" }}>Title</p>
@@ -1845,7 +2043,7 @@ export default function DailyUpdateForm({
                                 style={{ width:"100%", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"8px 10px", fontSize:12, color:"#111827", outline:"none", boxSizing:"border-box" as const }} />
                             </div>
                           </div>
-                          {(block.clientNames.length > 0 || block.projectName) && (
+                          {block.clientNames.length > 0 && (
                             <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:4 }}>
                               {block.clientNames.map(name => (
                                 <button key={name} type="button"
@@ -1855,34 +2053,30 @@ export default function DailyUpdateForm({
                                   <span style={{ fontSize:8, color:"#de1a1a" }}>✕</span>
                                 </button>
                               ))}
-                              {block.projectName === "__custom__" && (
-                                <button type="button" onClick={() => patchBlock(block.id, { projectName: "", brand: "", customClient: "" })}
-                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.08)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
-                                  <span style={{ fontSize:10, fontWeight:700, color:"#6366F1" }}>✏️ Other</span>
-                                  <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
-                                </button>
-                              )}
                             </div>
                           )}
-                          {block.projectName === "__custom__" && (
-                            <input value={block.customClient} onChange={e => patchBlock(block.id, { customClient: e.target.value })}
-                              placeholder="Type client name…"
-                              style={{ width:"100%", fontSize:11, fontWeight:600, color:"#111827", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", outline:"none", boxSizing:"border-box", marginTop:6 }} />
-                          )}
 
-                          {/* ── WORKING TIME ── */}
-                          <div>
-                            <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", margin:"0 0 5px" }}>⏱ Working Time</p>
-                            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                              <TimePicker value={block.startTime} onChange={v => patchBlock(block.id, { startTime: v })} />
-                              <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
-                              <TimePicker value={block.endTime} onChange={v => patchBlock(block.id, { endTime: v })} />
-                              {block.durationHours > 0 && (
-                                <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 10px", borderRadius:8, background:"rgba(99,102,241,0.08)", border:"1.5px solid rgba(99,102,241,0.2)" }}>
-                                  <span style={{ fontSize:12, fontWeight:700, color:"#6366F1" }}>{fmtTravel(block.durationHours)}</span>
-                                  <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
-                                </div>
-                              )}
+                          {/* ── WORKING TIME | NOTES (50/50 desktop, stacked mobile) ── */}
+                          <div className="grid md:grid-cols-2" style={{ gap:8 }}>
+                            <div>
+                              <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", margin:"0 0 5px" }}>⏱ Working Time</p>
+                              <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                <TimePicker value={block.startTime} onChange={v => patchBlock(block.id, { startTime: v })} />
+                                <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                <TimePicker value={block.endTime} onChange={v => patchBlock(block.id, { endTime: v })} />
+                                {block.durationHours > 0 && (
+                                  <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"6px 10px", borderRadius:8, background:"rgba(99,102,241,0.08)", border:"1.5px solid rgba(99,102,241,0.2)" }}>
+                                    <span style={{ fontSize:12, fontWeight:700, color:"#6366F1" }}>{fmtTravel(block.durationHours)}</span>
+                                    <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", margin:"0 0 5px" }}>Notes</p>
+                              <input value={block.notes} onChange={e => patchBlock(block.id, { notes: e.target.value })}
+                                placeholder="Any notes…"
+                                style={{ width:"100%", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"8px 10px", fontSize:12, color:"#111827", outline:"none", boxSizing:"border-box" as const }} />
                             </div>
                           </div>
 
@@ -1938,9 +2132,10 @@ export default function DailyUpdateForm({
                   </button>
                 </div>
               )}
+              </>)}
 
               {/* ── Voiceover Today section ─────────────────────────────── */}
-              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              {!isMediaTeam && blockEnabled('voiceover') && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                 <SectionHead icon={<span style={{ fontSize:16 }}>🎙️</span>} label="Voiceover" count={voiceovers.length} color="#8B5CF6" />
                 {voiceovers.length === 0 ? (
                   <div onClick={addVoiceover} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #DDD6FE", background:"rgba(139,92,246,0.02)", cursor:"pointer" }}>
@@ -1988,34 +2183,14 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client Name</label>
-                          <div style={{ position:"relative" }}>
-                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
-                              <div>
-                                <button type="button" onClick={() => { exitPastMode(e.id); patchVoiceover(e.id, { clientName:"", customClient:"" }) }}
-                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
-                                  ← Back to Active Clients
-                                </button>
-                                <div style={{ position:"relative" }}>
-                                  <select value={e.clientName}
-                                    onChange={ev => { patchVoiceover(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
-                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                    <option value="">Select past client…</option>
-                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                  </select>
-                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                </div>
-                              </div>
-                            ) : (
-                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchVoiceover(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">Select client…</option>
-                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                <option value="__custom__">✏️ Other (type manually)</option>
-                              </select>
-                            )}
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                          {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchVoiceover(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
+                          <ClientSelector
+                            label=""
+                            value={e.clientName}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onValueChange={v => patchVoiceover(e.id, { clientName: v })}
+                          />
                         </div>
                         <div>
                           <label style={L}>Script Name</label>
@@ -2052,7 +2227,7 @@ export default function DailyUpdateForm({
               </div>}
 
               {/* ── Poster Today section ────────────────────────────────── */}
-              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              {!isMediaTeam && blockEnabled('poster') && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                 <SectionHead icon={<span style={{ fontSize:16 }}>🖼️</span>} label="Poster" count={posters.length} color="#EC4899" />
                 {posters.length === 0 ? (
                   <div onClick={addPoster} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #FBCFE8", background:"rgba(236,72,153,0.02)", cursor:"pointer" }}>
@@ -2100,34 +2275,14 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client Name</label>
-                          <div style={{ position:"relative" }}>
-                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
-                              <div>
-                                <button type="button" onClick={() => { exitPastMode(e.id); patchPoster(e.id, { clientName:"", customClient:"" }) }}
-                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
-                                  ← Back to Active Clients
-                                </button>
-                                <div style={{ position:"relative" }}>
-                                  <select value={e.clientName}
-                                    onChange={ev => { patchPoster(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
-                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                    <option value="">Select past client…</option>
-                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                  </select>
-                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                </div>
-                              </div>
-                            ) : (
-                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchPoster(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">Select client…</option>
-                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                <option value="__custom__">✏️ Other (type manually)</option>
-                              </select>
-                            )}
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                          {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchPoster(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
+                          <ClientSelector
+                            label=""
+                            value={e.clientName}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onValueChange={v => patchPoster(e.id, { clientName: v })}
+                          />
                         </div>
                         <div>
                           <label style={L}>Poster Name</label>
@@ -2192,8 +2347,252 @@ export default function DailyUpdateForm({
                 )}
               </div>}
 
+              {/* ── Scripting Today section (non-media only) ────────────── */}
+              {!isMediaTeam && blockEnabled('scripting') && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                <SectionHead icon={<span style={{ fontSize:16 }}>📝</span>} label="Scripting" count={scriptings.length} color="#EAB308" />
+                {scriptings.length === 0 ? (
+                  <div onClick={addScripting} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(234,179,8,0.35)", background:"rgba(234,179,8,0.03)", cursor:"pointer" }}>
+                    <span style={{ fontSize:36 }}>📝</span>
+                    <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No scripts logged yet</p>
+                    <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#EAB308", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(234,179,8,0.35)" }}>+ Add Scripting</span>
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {scriptings.map((e, si) => {
+                  const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
+                  const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                  const dur = calcDuration(e.startTime, e.endTime)
+                  return (
+                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                        <span style={{ fontSize:11, fontWeight:800, color:"#EAB308", textTransform:"uppercase", letterSpacing:"0.1em" }}>Scripting #{si+1}</span>
+                        <button onClick={() => removeScripting(e.id)} style={{ width:26, height:26, borderRadius:8, border:"none", background:"rgba(234,179,8,0.1)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Trash2 size={12} style={{ color:"#92620B" }} />
+                        </button>
+                      </div>
+                      {/* Revision toggle */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, padding:"7px 12px", borderRadius:10, background: e.isRework ? "rgba(245,158,11,0.08)" : "rgba(234,179,8,0.05)", border: e.isRework ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(234,179,8,0.15)" }}>
+                        <button onClick={() => patchScripting(e.id, { isRework: !e.isRework, linkedToTitle:"", linkedToClient:"", linkedToDate:"" })}
+                          style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background: e.isRework ? "rgba(245,158,11,0.2)" : "rgba(234,179,8,0.15)", color: e.isRework ? "#92400E" : "#92620B", whiteSpace:"nowrap", flexShrink:0 }}>
+                          {e.isRework ? "✓ Revision" : "Revision of existing?"}
+                        </button>
+                        {e.isRework && (
+                          past15Options.scriptings.length > 0 ? (
+                            <select value={e.linkedToDate ? `${e.linkedToDate}||${e.linkedToClient}||${e.linkedToTitle}` : ""}
+                              onChange={ev => {
+                                const opt = past15Options.scriptings.find(o => o.key === ev.target.value)
+                                if (opt) patchScripting(e.id, { linkedToTitle: opt.title, linkedToClient: opt.client, linkedToDate: opt.date })
+                              }}
+                              style={{ flex:1, fontSize:11, padding:"4px 8px", borderRadius:8, border:"1px solid rgba(245,158,11,0.4)", background:"#fff", color:"#374151", outline:"none" }}>
+                              <option value="">Select original script (last 50 entries)…</option>
+                              {past15Options.scriptings.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                            </select>
+                          ) : <span style={{ fontSize:11, color:"#9CA3AF" }}>No scripts found</span>
+                        )}
+                        {e.isRework && e.linkedToTitle && <span style={{ fontSize:10, fontWeight:700, color:"#B45309", whiteSpace:"nowrap" }}>→ {e.linkedToTitle}</span>}
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Client Name</label>
+                          <ClientSelector
+                            label=""
+                            value={e.clientName}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onValueChange={v => patchScripting(e.id, { clientName: v })}
+                          />
+                        </div>
+                        <div>
+                          <label style={L}>Script Title</label>
+                          <input value={e.title} onChange={ev => patchScripting(e.id, { title: ev.target.value })} placeholder="e.g. Independence Day Reel Script" style={F} />
+                        </div>
+                      </div>
+                      <div style={{ marginBottom:8 }}>
+                        <label style={L}>📝 Scripting Time</label>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                          <TimePicker value={e.startTime} onChange={v => patchScripting(e.id, { startTime: v })} />
+                          <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                          <TimePicker value={e.endTime} onChange={v => patchScripting(e.id, { endTime: v })} />
+                          {dur > 0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(234,179,8,0.12)", color:"#92620B" }}>{fmtTravel(dur)}</span>}
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
+                        <label style={L}>Notes</label>
+                        <input value={e.notes} onChange={ev => patchScripting(e.id, { notes: ev.target.value })} placeholder="Script details, revisions…" style={F} />
+                      </div>
+                      {teamMembers.length > 0 && (
+                        <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
+                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                          <div style={{ position:"relative" }}>
+                            <select value="" onChange={ev => { const id = ev.target.value; if (id && !e.participantIds.includes(id)) patchScripting(e.id, { participantIds: [...e.participantIds, id] }) }}
+                              style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                              <option value="">Add teammate…</option>
+                              {teamMembers.filter(m => !e.participantIds.includes(m.id)).map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                          {e.participantIds.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                              {e.participantIds.map(pid => {
+                                const m = teamMembers.find(t => t.id === pid)
+                                if (!m) return null
+                                const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                return (
+                                  <button key={pid} type="button"
+                                    onClick={() => patchScripting(e.id, { participantIds: e.participantIds.filter(p => p !== pid) })}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(234,179,8,0.12)", border:"1.5px solid rgba(234,179,8,0.3)", cursor:"pointer" }}>
+                                    <div style={{ width:16, height:16, borderRadius:"50%", background:"#EAB308", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#92620B" }}>{m.name.split(" ")[0]}</span>
+                                    <span style={{ fontSize:8, color:"#B45309" }}>✕</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                  </div>
+                )}
+                {scriptings.length > 0 && (
+                  <button onClick={addScripting} style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, padding:"9px 18px", borderRadius:10, border:"1.5px dashed rgba(234,179,8,0.4)", background:"rgba(234,179,8,0.04)", color:"#92620B", fontSize:12, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                    <Plus size={13} /> Add Another Scripting
+                  </button>
+                )}
+              </div>}
+
+              {/* ── Development Today section (non-media only) ──────────── */}
+              {!isMediaTeam && blockEnabled('development') && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                <SectionHead icon={<span style={{ fontSize:16 }}>💻</span>} label="Development" count={developments.length} color="#6366F1" />
+                {developments.length === 0 ? (
+                  <div onClick={addDevelopment} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(99,102,241,0.35)", background:"rgba(99,102,241,0.03)", cursor:"pointer" }}>
+                    <span style={{ fontSize:36 }}>💻</span>
+                    <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No development logged yet</p>
+                    <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#6366F1", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(99,102,241,0.35)" }}>+ Add Development</span>
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {developments.map((e, di) => {
+                  const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
+                  const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                  const dur = calcDuration(e.startTime, e.endTime)
+                  return (
+                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                        <span style={{ fontSize:11, fontWeight:800, color:"#6366F1", textTransform:"uppercase", letterSpacing:"0.1em" }}>Development #{di+1}</span>
+                        <button onClick={() => removeDevelopment(e.id)} style={{ width:26, height:26, borderRadius:8, border:"none", background:"rgba(99,102,241,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Trash2 size={12} style={{ color:"#6366F1" }} />
+                        </button>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Project</label>
+                          {e.isCreatingNew ? (
+                            <div style={{ display:"flex", gap:6 }}>
+                              <input autoFocus value={e.project} onChange={ev => patchDevelopment(e.id, { project: ev.target.value })} placeholder="Type new project name, e.g. TEAM APP" style={F} />
+                              <button type="button" onClick={() => patchDevelopment(e.id, { isCreatingNew: false, project: "" })}
+                                style={{ flexShrink:0, fontSize:11, fontWeight:700, color:"#6B7280", background:"#F3F4F6", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"0 10px", cursor:"pointer" }}>
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ position:"relative" }}>
+                              <select value={e.project} onChange={ev => {
+                                  if (ev.target.value === "__new__") patchDevelopment(e.id, { isCreatingNew: true, project: "" })
+                                  else patchDevelopment(e.id, { project: ev.target.value, isCreatingNew: false })
+                                }}
+                                style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                <option value="">Select project…</option>
+                                <option value="__new__">+ Create New Project</option>
+                                {pastProjectNames.map(p => <option key={p} value={p}>{p}</option>)}
+                              </select>
+                              <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label style={L}>Client Name</label>
+                          <ClientSelector
+                            label=""
+                            value={e.clientName}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onValueChange={v => patchDevelopment(e.id, { clientName: v })}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid md:grid-cols-2" style={{ gap:8, marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Sub-title — what did you work on today?</label>
+                          <input value={e.subtitle} onChange={ev => patchDevelopment(e.id, { subtitle: ev.target.value })} placeholder="e.g. Fixed dashboard filter bug" style={F} />
+                        </div>
+                        <div>
+                          <label style={L}>Notes</label>
+                          <input value={e.notes} onChange={ev => patchDevelopment(e.id, { notes: ev.target.value })} placeholder="Any notes…" style={F} />
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
+                        <label style={L}>💻 Dev Time</label>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                          <TimePicker value={e.startTime} onChange={v => patchDevelopment(e.id, { startTime: v })} />
+                          <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                          <TimePicker value={e.endTime} onChange={v => patchDevelopment(e.id, { endTime: v })} />
+                          {dur > 0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>{fmtTravel(dur)}</span>}
+                        </div>
+                      </div>
+                      {teamMembers.length > 0 && (
+                        <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
+                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                          <div style={{ position:"relative" }}>
+                            <select value="" onChange={ev => { const id = ev.target.value; if (id && !e.participantIds.includes(id)) patchDevelopment(e.id, { participantIds: [...e.participantIds, id] }) }}
+                              style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                              <option value="">Add teammate…</option>
+                              {teamMembers.filter(m => !e.participantIds.includes(m.id)).map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                          {e.participantIds.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                              {e.participantIds.map(pid => {
+                                const m = teamMembers.find(t => t.id === pid)
+                                if (!m) return null
+                                const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                return (
+                                  <button key={pid} type="button"
+                                    onClick={() => patchDevelopment(e.id, { participantIds: e.participantIds.filter(p => p !== pid) })}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
+                                    <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#3730A3" }}>{m.name.split(" ")[0]}</span>
+                                    <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                  </div>
+                )}
+                {developments.length > 0 && (
+                  <button onClick={addDevelopment} style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, padding:"9px 18px", borderRadius:10, border:"1.5px dashed rgba(99,102,241,0.4)", background:"rgba(99,102,241,0.04)", color:"#6366F1", fontSize:12, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                    <Plus size={13} /> Add Another Development
+                  </button>
+                )}
+              </div>}
+
               {/* ── Editing Today section (non-media only) ──────────────── */}
-              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              {!isMediaTeam && blockEnabled('edit') && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                 <SectionHead icon={<span style={{ fontSize:16 }}>🎬</span>} label="Editing" count={nmEdits.length} color="#0D9488" />
                 {nmEdits.length === 0 ? (
                   <div onClick={addNmEdit} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(13,148,136,0.35)", background:"rgba(13,148,136,0.02)", cursor:"pointer" }}>
@@ -2241,34 +2640,14 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client Name</label>
-                          <div style={{ position:"relative" }}>
-                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
-                              <div>
-                                <button type="button" onClick={() => { exitPastMode(e.id); patchNmEdit(e.id, { clientName:"", customClient:"" }) }}
-                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
-                                  ← Back to Active Clients
-                                </button>
-                                <div style={{ position:"relative" }}>
-                                  <select value={e.clientName}
-                                    onChange={ev => { patchNmEdit(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
-                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                    <option value="">Select past client…</option>
-                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                  </select>
-                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                </div>
-                              </div>
-                            ) : (
-                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchNmEdit(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">Select client…</option>
-                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                <option value="__custom__">✏️ Other (type manually)</option>
-                              </select>
-                            )}
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                          {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchNmEdit(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
+                          <ClientSelector
+                            label=""
+                            value={e.clientName}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onValueChange={v => patchNmEdit(e.id, { clientName: v })}
+                          />
                         </div>
                         <div>
                           <label style={L}>Video Type</label>
@@ -2441,47 +2820,20 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client Name *</label>
-                          <div style={{ position:"relative" }}>
-                            {(showPastFor.has(s.id) || pastClientOptions.includes(s.clientName)) ? (
-                              <div>
-                                <button type="button" onClick={() => { exitPastMode(s.id); patchShoot(s.id, { clientName: "", brand:"", shopName:"", customClient:"" }) }}
-                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
-                                  ← Back to Active Clients
-                                </button>
-                                <div style={{ position:"relative" }}>
-                                  <select value={s.clientName}
-                                    onChange={e => { patchShoot(s.id, { clientName: e.target.value, brand:"", shopName:"", customClient:"" }); exitPastMode(s.id) }}
-                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                    <option value="">Select past client…</option>
-                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                  </select>
-                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                </div>
-                              </div>
-                            ) : (
-                            <select value={s.clientName} onChange={e => { const v = e.target.value; if (v === "__past_clients__") { enterPastMode(s.id) } else { patchShoot(s.id, { clientName: v, brand:"", shopName:"", customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                              <option value="">Select client…</option>
-                              {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                              {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                              <option value="__custom__">✏️ Other (type manually)</option>
-                            </select>
-                            )}
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
+                          <ClientSelector
+                            label=""
+                            value={s.clientName}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onValueChange={v => patchShoot(s.id, { clientName: v, brand:"", shopName:"" })}
+                          />
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Shoot Name *</label>
                           <input value={s.title} onChange={e => patchShoot(s.id, { title: e.target.value })} placeholder="e.g. Basketball Tournament Shoot" style={F} />
                         </div>
                       </div>
-
-                      {/* Custom client sub-fields */}
-                      {s.clientName === "__custom__" && (
-                        <div style={{ marginBottom:10, padding:"12px 14px", borderRadius:12, background:"rgba(99,102,241,0.05)", border:"1.5px solid rgba(99,102,241,0.2)" }}>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6366F1", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>✏️ Client Name *</label>
-                          <input value={s.customClient} onChange={e => patchShoot(s.id, { customClient: e.target.value })} placeholder="Type client name…" style={F} />
-                        </div>
-                      )}
 
 
 
@@ -2722,36 +3074,14 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client Name *</label>
-                          <div style={{ position:"relative" }}>
-                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
-                              <div>
-                                <button type="button" onClick={() => { exitPastMode(e.id); patchEdit(e.id, { clientName: "", brand:"", customClient:"" }) }}
-                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
-                                  ← Back to Active Clients
-                                </button>
-                                <div style={{ position:"relative" }}>
-                                  <select value={e.clientName}
-                                    onChange={ev => { patchEdit(e.id, { clientName: ev.target.value, brand:"", customClient:"" }); exitPastMode(e.id) }}
-                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                    <option value="">Select past client…</option>
-                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                  </select>
-                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                </div>
-                              </div>
-                            ) : (
-                            <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchEdit(e.id, { clientName: v, brand:"", customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                              <option value="">Select client…</option>
-                              {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                              {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                              <option value="__custom__">✏️ Other (type manually)</option>
-                            </select>
-                            )}
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                          {e.clientName === "__custom__" && (
-                            <input value={e.customClient} onChange={ev => patchEdit(e.id, { customClient: ev.target.value })} placeholder="Type client name…" style={{ ...F, marginTop:8, background:"rgba(99,102,241,0.05)", borderColor:"rgba(99,102,241,0.25)" }} />
-                          )}
+                          <ClientSelector
+                            label=""
+                            value={e.clientName}
+                            clientOptions={activeClientOptions}
+                            pastClientOptions={pastClientOptions}
+                            placeholder="Select client…"
+                            onValueChange={v => patchEdit(e.id, { clientName: v, brand:"" })}
+                          />
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Type</label>
@@ -3003,12 +3333,10 @@ export default function DailyUpdateForm({
                   <div key={blk.id} style={{ border:"1.5px solid #EBEDF2", borderRadius:14, padding:"14px 16px", background:"#FCFEFD", display:"flex", flexDirection:"column", gap:12 }}>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                       <span style={{ fontSize:11, fontWeight:800, color:"#10B981", textTransform:"uppercase", letterSpacing:"0.08em" }}>📘 Learning #{idx + 1}</span>
-                      {learningBlocks.length > 1 && (
-                        <button type="button" onClick={() => removeLearningBlock(blk.id)} title="Remove this learning"
-                          style={{ width:26, height:26, borderRadius:8, border:"1.5px solid #FECACA", background:"#FEF2F2", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
-                          <Trash2 size={13} style={{ color:"#EF4444" }} />
-                        </button>
-                      )}
+                      <button type="button" onClick={() => removeLearningBlock(blk.id)} title="Remove this learning"
+                        style={{ width:26, height:26, borderRadius:8, border:"1.5px solid #FECACA", background:"#FEF2F2", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+                        <Trash2 size={13} style={{ color:"#EF4444" }} />
+                      </button>
                     </div>
                     {/* For Client (dropdown) + Topic on same row */}
                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
@@ -3090,34 +3418,147 @@ export default function DailyUpdateForm({
                 </button>
               </div>
               )}
+            </div>
+          )}
 
-              {/* Submit button for non-media team — only when form is open */}
-              {!isMediaTeam && (learningStarted || learningDone) && (
-                <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
-                  <div>
-                    {learningError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{learningError}</p>}
-                    {!learningError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningSummaryTopic || "not set"}{filledLearningBlocks.length > 1 ? ` +${filledLearningBlocks.length - 1} more` : ""} · {learningHours}h</p>}
+          {/* ── Other Today section (Meeting/Teaching/Misc — both Media & Non-Media) ── */}
+          {tab === "learning" && (
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <SectionHead icon={<span style={{ fontSize:16 }}>🗓️</span>} label="Other" count={others.length} color="#6B7280" />
+              {others.length === 0 ? (
+                <div onClick={addOther} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(107,114,128,0.3)", background:"rgba(107,114,128,0.03)", cursor:"pointer" }}>
+                  <span style={{ fontSize:36 }}>🗓️</span>
+                  <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No other activity logged yet</p>
+                  <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#6B7280", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(107,114,128,0.3)" }}>+ Add Other</span>
+                </div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              {others.map((e, oi) => {
+                const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
+                const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                const dur = calcDuration(e.startTime, e.endTime)
+                return (
+                  <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                      <span style={{ fontSize:11, fontWeight:800, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.1em" }}>Other #{oi+1}</span>
+                      <button onClick={() => removeOther(e.id)} style={{ width:26, height:26, borderRadius:8, border:"none", background:"rgba(107,114,128,0.1)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <Trash2 size={12} style={{ color:"#374151" }} />
+                      </button>
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                      <div>
+                        <label style={L}>Type</label>
+                        <div style={{ position:"relative" }}>
+                          <select value={e.otherType} onChange={ev => patchOther(e.id, { otherType: ev.target.value })}
+                            style={{ ...F, paddingRight:28, appearance:"none" }}>
+                            <option value="Meeting">Meeting</option>
+                            <option value="Teaching">Teaching</option>
+                            <option value="Other">Other</option>
+                          </select>
+                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={L}>Title / What was it?</label>
+                        <input value={e.title} onChange={ev => patchOther(e.id, { title: ev.target.value })} placeholder="e.g. Weekly Sync with Marketing Team" style={F} />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom:8 }}>
+                      <label style={L}>Client Name</label>
+                      <ClientSelector
+                        label=""
+                        value={e.clientName}
+                        clientOptions={activeClientOptions}
+                        pastClientOptions={pastClientOptions}
+                        placeholder="Select client…"
+                        onValueChange={v => patchOther(e.id, { clientName: v })}
+                      />
+                    </div>
+                    <div style={{ marginBottom:8 }}>
+                      <label style={L}>🗓️ Time</label>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                        <TimePicker value={e.startTime} onChange={v => patchOther(e.id, { startTime: v })} />
+                        <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                        <TimePicker value={e.endTime} onChange={v => patchOther(e.id, { endTime: v })} />
+                        {dur > 0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(107,114,128,0.12)", color:"#374151" }}>{fmtTravel(dur)}</span>}
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
+                      <label style={L}>Notes</label>
+                      <input value={e.notes} onChange={ev => patchOther(e.id, { notes: ev.target.value })} placeholder="What was discussed / covered…" style={F} />
+                    </div>
+                    {teamMembers.length > 0 && (
+                      <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
+                        <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                        <div style={{ position:"relative" }}>
+                          <select value="" onChange={ev => { const id = ev.target.value; if (id && !e.participantIds.includes(id)) patchOther(e.id, { participantIds: [...e.participantIds, id] }) }}
+                            style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                            <option value="">Add teammate…</option>
+                            {teamMembers.filter(m => !e.participantIds.includes(m.id)).map(m => (
+                              <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                          </select>
+                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                        </div>
+                        {e.participantIds.length > 0 && (
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                            {e.participantIds.map(pid => {
+                              const m = teamMembers.find(t => t.id === pid)
+                              if (!m) return null
+                              const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                              return (
+                                <button key={pid} type="button"
+                                  onClick={() => patchOther(e.id, { participantIds: e.participantIds.filter(p => p !== pid) })}
+                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(107,114,128,0.12)", border:"1.5px solid rgba(107,114,128,0.3)", cursor:"pointer" }}>
+                                  <div style={{ width:16, height:16, borderRadius:"50%", background:"#6B7280", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                  <span style={{ fontSize:10, fontWeight:700, color:"#374151" }}>{m.name.split(" ")[0]}</span>
+                                  <span style={{ fontSize:8, color:"#6B7280" }}>✕</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {learningDone ? (
-                    <span style={{ fontSize:12, fontWeight:700, color:"#22C55E", display:"flex", alignItems:"center", gap:6 }}>
-                      <CheckCircle2 size={14} /> Submitted ✓
-                    </span>
-                  ) : (
-                    <button onClick={handleLearningSubmit} disabled={isPending}
-                      style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor:isPending?"not-allowed":"pointer", opacity:isPending?0.7:1, background:"#10B981", color:"#fff", boxShadow:"0 4px 14px rgba(16,185,129,0.4)" }}>
-                      {isPending ? <Loader2 size={14} className="animate-spin" /> : <SendHorizonal size={14} />}
-                      {isPending ? "Submitting…" : "Submit Learning"}
-                    </button>
-                  )}
+                )
+              })}
                 </div>
               )}
-              {!isMediaTeam && (learningStarted || learningDone) && (
-                <p style={{ fontSize:11, marginTop:16, color:"#9CA3AF", textAlign:"center" }}>
-                  Saved entries appear in your{" "}
-                  <a href="/member/history" style={{ color:"#6366F1", fontWeight:600 }}>History tab ↗</a>
-                </p>
+              {others.length > 0 && (
+                <button onClick={addOther} style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, padding:"9px 18px", borderRadius:10, border:"1.5px dashed rgba(107,114,128,0.4)", background:"rgba(107,114,128,0.04)", color:"#374151", fontSize:12, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                  <Plus size={13} /> Add Another
+                </button>
               )}
             </div>
+          )}
+
+          {/* Submit button for non-media team — placed after Learning + Other so it's
+              always the last thing on the page, not sandwiched between the two sections */}
+          {!isMediaTeam && tab === "learning" && (learningStarted || learningDone || others.length > 0) && (
+            <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", flexWrap:"wrap" }}>
+              <div>
+                {learningError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{learningError}</p>}
+                {!learningError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningSummaryTopic || "not set"}{filledLearningBlocks.length > 1 ? ` +${filledLearningBlocks.length - 1} more` : ""} · {learningHours}h{others.length > 0 ? ` · ${others.length} other` : ""}</p>}
+              </div>
+              {learningDone ? (
+                <span style={{ fontSize:12, fontWeight:700, color:"#22C55E", display:"flex", alignItems:"center", gap:6 }}>
+                  <CheckCircle2 size={14} /> Submitted ✓
+                </span>
+              ) : (
+                <button onClick={handleLearningSubmit} disabled={isPending}
+                  style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor:isPending?"not-allowed":"pointer", opacity:isPending?0.7:1, background:"#10B981", color:"#fff", boxShadow:"0 4px 14px rgba(16,185,129,0.4)" }}>
+                  {isPending ? <Loader2 size={14} className="animate-spin" /> : <SendHorizonal size={14} />}
+                  {isPending ? "Submitting…" : "Submit Learning"}
+                </button>
+              )}
+            </div>
+          )}
+          {!isMediaTeam && tab === "learning" && (learningStarted || learningDone || others.length > 0) && (
+            <p style={{ fontSize:11, color:"#9CA3AF", textAlign:"center" }}>
+              Saved entries appear in your{" "}
+              <a href="/member/history" style={{ color:"#6366F1", fontWeight:600 }}>History tab ↗</a>
+            </p>
           )}
 
           {/* ── Submit bar ─────────────────────────────────────────────────── */}
@@ -3129,7 +3570,12 @@ export default function DailyUpdateForm({
                 {tab === "break"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>
                   {isMediaTeam ? `${mediaBreaks.length} break${mediaBreaks.length !== 1 ? "s" : ""} · ${mediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h` : `${nonMediaBreaks.length} break${nonMediaBreaks.length !== 1 ? "s" : ""} · ${nonMediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h`}
                 </p>}
-                {error && <p style={{ fontSize:12, fontWeight:700, color:"#DE1A1A", margin:"4px 0 0" }}>⚠ {error}</p>}
+                {/* handleSubmit routes the Learning tab to handleLearningSubmit, which sets
+                    learningError (not error) on failure — show it here too, otherwise media
+                    team members submitting from this shared bar see no error at all. */}
+                {(tab === "learning" ? learningError : error) && (
+                  <p style={{ fontSize:12, fontWeight:700, color:"#DE1A1A", margin:"4px 0 0" }}>⚠ {tab === "learning" ? learningError : error}</p>
+                )}
               </div>
               <button onClick={handleSubmit} disabled={isPending || submitted || breakSubmitting}
                 style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor: isPending || submitted || breakSubmitting ? "not-allowed" : "pointer", transition:"all 0.2s", opacity: isPending || breakSubmitting ? 0.7 : 1,
@@ -3355,7 +3801,7 @@ export default function DailyUpdateForm({
                             </button>
                           )}
                           <button disabled={deletingId === u.id} onClick={async () => {
-                            if (!confirm("Delete this day's update? This cannot be undone.")) return
+                            if (!(await confirm("Delete this day's update? This cannot be undone."))) return
                             setDeletingId(u.id)
                             await deleteDailyUpdate(u.id)
                             setDeletingId(null)

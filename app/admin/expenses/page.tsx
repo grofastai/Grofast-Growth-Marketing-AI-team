@@ -65,6 +65,7 @@ export default async function AdminExpensesPage({
     { data: activeClientsRaw },
     { data: pricingRaw },
     { data: freelancerRaw },
+    { data: salaryHistoryRaw },
   ] = await Promise.all([
     admin
       .from("daily_updates")
@@ -107,6 +108,10 @@ export default async function AdminExpensesPage({
       .in("team", NO_LOGIN_TEAMS)
       .gte("date_finished", monthStart)
       .lte("date_finished", monthEnd),
+    admin
+      .from("salary_history")
+      .select("user_id, monthly_salary, effective_from")
+      .eq("company_id", cid),
   ])
 
   const freelancerEntries: FreelancerWorkEntry[] = (freelancerRaw ?? []).map((r: Record<string, unknown>) => ({
@@ -137,6 +142,7 @@ export default async function AdminExpensesPage({
       monthStart,
       monthEnd,
       freelancerEntries,
+      salaryHistoryRaw ?? [],
     )
     employeeCostByClient[clientName] = result.totalCost
   }

@@ -147,8 +147,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [manualTime, setManualTime] = useState("")
   const [manualError, setManualError] = useState<string | null>(null)
   const [manualSaved, setManualSaved] = useState(false)
-  // Range filter
-  const [rangeMode, setRangeMode]       = useState<RangeMode>("date")
+  // Range filter — defaults to "This Month" so a filtered view loads immediately
+  const [rangeMode, setRangeMode]       = useState<RangeMode>("thisMonth")
   const [rangeLogs, setRangeLogs]       = useState<RangeLog[] | null>(null)
   const [rangeLeaveDates, setRangeLeaveDates] = useState<string[]>([])
   const [rangeHolidayDates, setRangeHolidayDates] = useState<{ date: string; name: string }[]>([])
@@ -157,6 +157,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [customTo, setCustomTo]         = useState("")
   const [rangeFrom, setRangeFrom]       = useState("")
   const [rangeTo, setRangeTo]           = useState("")
+  // Auto-load "This Month" once on mount, since it's now the default filter
+  useEffect(() => { handleRangeFilter("thisMonth") }, []) // eslint-disable-line react-hooks/exhaustive-deps
   // Login/logout edit
   const [editingDate, setEditingDate]   = useState<string | null>(null)
   const [editCIn, setEditCIn]           = useState("")

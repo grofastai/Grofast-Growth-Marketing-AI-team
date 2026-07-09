@@ -185,14 +185,15 @@ function TH({ children }: { children: string }) {
 
 // Shared colgroup — 5 cols normally, 6 cols when showClient=true (aggregate view)
 function TableCols({ showClient }: { showClient?: boolean }) {
+  // Date / Client (aggregate only) / Member / Title / Hours / Cost
   return (
     <colgroup>
-      <col style={{ width: '12%' }} />                          {/* Date */}
-      {showClient && <col style={{ width: '14%' }} />}          {/* Client (aggregate only) */}
-      <col style={{ width: showClient ? '12%' : '14%' }} />     {/* Member */}
-      <col />                                                   {/* Title */}
-      <col style={{ width: '8%' }} />                           {/* Hours */}
-      <col style={{ width: '10%' }} />                          {/* Cost */}
+      <col style={{ width: '12%' }} />
+      {showClient && <col style={{ width: '14%' }} />}
+      <col style={{ width: showClient ? '12%' : '14%' }} />
+      <col />
+      <col style={{ width: '8%' }} />
+      <col style={{ width: '10%' }} />
     </colgroup>
   )
 }
@@ -528,11 +529,11 @@ export default function ClientsUnifiedClient({
               background: '#FFFFFF', borderRadius: 14, padding: '14px 18px',
               border: '1px solid #EBEDF2', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
             }}>
-              {/* Quick buttons — All Time first, then This Month, then Custom */}
+              {/* Quick buttons — All Time first, then Month, then Custom */}
               {([
-                { key: 'all',    label: 'All Time'   },
-                { key: 'this',   label: 'Month'       },
-                { key: 'custom', label: 'Custom'     },
+                { key: 'all',    label: 'All Time' },
+                { key: 'this',   label: 'Month'    },
+                { key: 'custom', label: 'Custom'   },
               ] as const).map(({ key, label }) => (
                 <button key={key} onClick={() => setQuick(key)} style={{
                   padding: '7px 16px', borderRadius: 9, fontSize: 12, fontWeight: 700,
@@ -596,23 +597,30 @@ export default function ClientsUnifiedClient({
               const d = deliverables
               if (isInternal) {
                 return (
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <StatChip label="Shooting" emoji="📸" hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
-                    <StatChip label="Editing"  emoji="🎬" hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
-                    <StatChip label="Working"  emoji="💼" hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
-                    <StatChip label="Learning" emoji="📚" hours={`${d.totalLearningHours.toFixed(1)}h`}                           color="#0EA5E9" />
-                    <StatChip label="Total"    emoji="💰" hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
+                  <div className="grid grid-cols-2 md:grid-cols-5" style={{ gap: 10 }}>
+                    <StatChip label="Shooting"    emoji="📸" hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
+                    <StatChip label="Editing"     emoji="🎬" hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
+                    <StatChip label="Working"     emoji="💼" hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
+                    <StatChip label="Voiceover"   emoji="🎙️" hours={`${d.voiceoverHours.toFixed(1)}h`}    count={d.voiceoverCount}   color="#8B5CF6" />
+                    <StatChip label="Posters"     emoji="🖼️" hours={`${d.posterHours.toFixed(1)}h`}       count={d.totalPosters}     color="#10B981" />
+                    <StatChip label="Learning"    emoji="📚" hours={`${d.totalLearningHours.toFixed(1)}h`}                           color="#0EA5E9" />
+                    <StatChip label="Other"       emoji="🗓️" hours={`${d.otherActivityHours.toFixed(1)}h`}                          color="#6B7280" />
+                    <StatChip label="Scripting"   emoji="📝" hours={`${d.scriptingHours.toFixed(1)}h`}    count={d.scriptingCount}   color="#EAB308" />
+                    <StatChip label="Development" emoji="💻" hours={`${d.developmentHours.toFixed(1)}h`}                            color="#4338CA" />
+                    <StatChip label="Total"       emoji="💰" hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
                   </div>
                 )
               }
               return (
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <StatChip label="Shooting"  emoji="📸" hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
-                  <StatChip label="Editing"   emoji="🎬" hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
-                  <StatChip label="Working"   emoji="💼" hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
-                  <StatChip label="Voiceover" emoji="🎙️" hours={`${d.voiceoverHours.toFixed(1)}h`}    count={d.voiceoverCount}   color="#8B5CF6" />
-                  <StatChip label="Posters"   emoji="🖼️" hours={`${d.posterHours.toFixed(1)}h`}       count={d.totalPosters}     color="#10B981" />
-                  <StatChip label="Total"     emoji="💰" hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
+                <div className="grid grid-cols-2 md:grid-cols-4" style={{ gap: 10 }}>
+                  <StatChip label="Shooting"    emoji="📸" hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
+                  <StatChip label="Editing"     emoji="🎬" hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
+                  <StatChip label="Working"     emoji="💼" hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
+                  <StatChip label="Voiceover"   emoji="🎙️" hours={`${d.voiceoverHours.toFixed(1)}h`}    count={d.voiceoverCount}   color="#8B5CF6" />
+                  <StatChip label="Posters"     emoji="🖼️" hours={`${d.posterHours.toFixed(1)}h`}       count={d.totalPosters}     color="#10B981" />
+                  <StatChip label="Scripting"   emoji="📝" hours={`${d.scriptingHours.toFixed(1)}h`}    count={d.scriptingCount}   color="#EAB308" />
+                  <StatChip label="Development" emoji="💻" hours={`${d.developmentHours.toFixed(1)}h`}                            color="#4338CA" />
+                  <StatChip label="Total"       emoji="💰" hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
                 </div>
               )
             })()}
@@ -741,6 +749,21 @@ export default function ClientsUnifiedClient({
                   {d.voiceoverWork.length > 0 && (
                     <Section title="Voiceover" emoji="🎙️" count={d.voiceoverWork.length} totalCost={d.voiceoverWork.reduce((s, e) => s + e.cost, 0)}>
                       <EntryTable entries={d.voiceoverWork} />
+                    </Section>
+                  )}
+                  {d.scriptingWork.length > 0 && (
+                    <Section title="Scripting" emoji="📝" count={d.scriptingWork.length} totalCost={d.scriptingWork.reduce((s, e) => s + e.cost, 0)}>
+                      <EntryTable entries={d.scriptingWork} />
+                    </Section>
+                  )}
+                  {d.developmentWork.length > 0 && (
+                    <Section title="Development" emoji="💻" count={d.developmentWork.length} totalCost={d.developmentWork.reduce((s, e) => s + e.cost, 0)}>
+                      <EntryTable entries={d.developmentWork} />
+                    </Section>
+                  )}
+                  {d.otherActivityWork.length > 0 && (
+                    <Section title="Other" emoji="🗓️" count={d.otherActivityWork.length} totalCost={d.otherActivityWork.reduce((s, e) => s + e.cost, 0)}>
+                      <EntryTable entries={d.otherActivityWork} />
                     </Section>
                   )}
                 </>

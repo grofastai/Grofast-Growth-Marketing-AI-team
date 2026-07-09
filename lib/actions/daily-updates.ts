@@ -152,6 +152,37 @@ export async function submitDailyUpdate(
     }
   }
 
+  // Fix 1b: Block work entries that overlap with an approved permission-leave time window
+  {
+    const { data: permissionLeave } = await admin
+      .from('leaves')
+      .select('permission_time, permission_end_time, permission_hours')
+      .eq('user_id', userId)
+      .eq('status', 'approved')
+      .eq('leave_type', 'permission')
+      .lte('from_date', today)
+      .gte('to_date', today)
+      .maybeSingle()
+    const leaveFrom = permissionLeave?.permission_time || null
+    let leaveTo = permissionLeave?.permission_end_time || null
+    if (!leaveTo && leaveFrom && permissionLeave?.permission_hours) {
+      const [fh, fm] = leaveFrom.split(':').map(Number)
+      const totalMins = fh * 60 + fm + Math.round(permissionLeave.permission_hours * 60)
+      leaveTo = `${String(Math.floor(totalMins / 60)).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`
+    }
+    if (leaveFrom && leaveTo) {
+      for (const entry of d.work_entries) {
+        if (!entry.start_time || !entry.end_time || entry.task_type === 'break') continue
+        if (entry.start_time < leaveTo && entry.end_time > leaveFrom) {
+          return {
+            success: false,
+            error: `"${(entry as { title?: string }).title || 'Work entry'}" (${entry.start_time}–${entry.end_time}) overlaps with your approved permission leave (${leaveFrom}–${leaveTo}). Please adjust the entry times.`,
+          }
+        }
+      }
+    }
+  }
+
   // Fix 2: Block past-date submission if no clock-in record exists for that date
   if (isPastDate && !isManagement && !isFreelancerMedia && !isAdmin) {
     const { data: pastAttLog } = await admin
@@ -215,16 +246,12 @@ export async function submitDailyUpdate(
   if (existingRecord) {
     const prevEntries = Array.isArray(existingRecord.work_entries) ? existingRecord.work_entries as Array<Record<string, unknown>> : []
 
-    let combinedEntries: Array<Record<string, unknown>>
-    if (isPastDate) {
-      // Past-date new entry = append to existing (History page handles editing/deleting old entries)
-      combinedEntries = [...prevEntries, ...d.work_entries]
-    } else {
-      // Today = merge/append: dedup by ID so new entries replace same-ID ones without losing unrelated entries
-      const newIds = new Set(d.work_entries.map(e => e.id).filter(Boolean))
-      const filteredPrev = prevEntries.filter(e => !newIds.has(e.id as string))
-      combinedEntries = [...filteredPrev, ...d.work_entries]
-    }
+    // Merge/append: dedup by ID so new entries replace same-ID ones without losing unrelated
+    // entries. Applies to past dates too — a resubmit (e.g. after "Edit Date's Update" following
+    // a slow/failed request) must replace, never duplicate, entries that share an ID.
+    const newIds = new Set(d.work_entries.map(e => e.id).filter(Boolean))
+    const filteredPrev = prevEntries.filter(e => !newIds.has(e.id as string))
+    let combinedEntries: Array<Record<string, unknown>> = [...filteredPrev, ...d.work_entries]
 
     // Always sync duration_hours to time span before saving
     combinedEntries = fixEntryDurations(combinedEntries)
@@ -652,6 +679,13 @@ export async function updateWorkEntryPrice(
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
+  // Media/login-team work pricing is Admin-only — unlike no-login freelancer
+  // entries, assigned managers don't get access to this data at all.
+  const { data: profile } = await admin.from('users').select('role').eq('id', user.id).single()
+  if (!profile || !['ADMIN', 'FOUNDER', 'CEO'].includes(profile.role)) {
+    return { success: false, error: 'Not authorized to price work entries' }
+  }
+
   const { data: record } = await admin
     .from('daily_updates')
     .select('work_entries')

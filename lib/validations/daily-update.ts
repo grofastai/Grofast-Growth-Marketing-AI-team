@@ -21,7 +21,9 @@ export const workEntrySchema = z.object({
   id:              z.string(),
   client_id:       z.string().nullable().optional(),
   client_name:     z.string().min(1, 'Client name required'),
-  task_type:       z.enum(['shoot', 'edit', 'other', 'break', 'learning', 'voiceover', 'poster']),
+  // 'other' = the generic Technical/Working block (historical naming, shown as "Technical" everywhere in the UI) —
+  // NOT the same as 'other_activity' (Meeting/Teaching/Misc, shown as "Other"). Kept as-is to avoid migrating history.
+  task_type:       z.enum(['shoot', 'edit', 'other', 'break', 'learning', 'voiceover', 'poster', 'scripting', 'development', 'other_activity']),
   title:           z.string().min(1, 'Entry title required'),
   start_time:      z.string().optional().default(''),
   end_time:        z.string().optional().default(''),
@@ -70,7 +72,9 @@ export const dailyUpdateSchema = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Add at least one work entry', path: ['work_entries'] })
     }
     if (val.active_tab === 'learning') {
-      const hasLearningEntries = val.work_entries.some(e => e.task_type === 'learning')
+      // A valid "Other" (other_activity) entry is sufficient content on its own —
+      // don't demand the legacy learning_topic/learning_hours fields for it.
+      const hasLearningEntries = val.work_entries.some(e => e.task_type === 'learning' || e.task_type === 'other_activity')
       if (!hasLearningEntries) {
         if (!val.learning_topic?.trim()) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Learning topic is required', path: ['learning_topic'] })

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useEffect, useRef } from "react"
+import { useState, useTransition } from "react"
 import Link from "next/link"
 import {
   ArrowLeft, User, Briefcase, IndianRupee, FileText, Activity,
@@ -10,6 +10,8 @@ import {
   createWorkEntry, approveWorkEntry, rejectWorkEntry,
 } from "@/lib/actions/freelancers"
 import { addFreelancerPayment, deleteFreelancerPayment } from "@/lib/actions/freelancer-payments"
+import { buildClientOptions } from "@/lib/utils/client-options"
+import ClientSelector from "@/components/ui/ClientSelector"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -257,105 +259,10 @@ const APPROVAL_LABEL: Record<string, string> = {
   pending: "Pending Approval", approved: "Approved", rejected: "Rejected",
 }
 
-const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
-
-function ProfileClientSelect({ value, onChange, activeClientNames, pastClientNames }: {
-  value: string; onChange: (v: string) => void
-  activeClientNames: string[]; pastClientNames: string[]
-}) {
-  const [open, setOpen] = useState(false)
-  const [view, setView] = useState<"main" | "past" | "manual">("main")
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false); setView("main")
-      }
-    }
-    document.addEventListener("mousedown", handleClick)
-    return () => document.removeEventListener("mousedown", handleClick)
-  }, [])
-
-  function pick(v: string) { onChange(v); setOpen(false); setView("main") }
-
-  const isManual = view === "manual"
-  const btnStyle: React.CSSProperties = { ...inputStyle, marginTop: 4, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", textAlign: "left" }
-  const rowStyle: React.CSSProperties = { display: "block", width: "100%", textAlign: "left", padding: "9px 12px", fontSize: 13, cursor: "pointer", background: "none", border: "none" }
-
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
-      {!isManual && (
-        <button type="button" onClick={() => setOpen(o => !o)} style={btnStyle}>
-          <span style={{ color: value ? "#111827" : "#0F4C4C" }}>{value || "Select client…"}</span>
-          <ChevronDown size={13} style={{ color: "#0F4C4C", flexShrink: 0 }} />
-        </button>
-      )}
-      {isManual && (
-        <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-          <input style={{ ...inputStyle, marginTop: 0, flex: 1 }} placeholder="Type client name…" value={value}
-            onChange={e => onChange(e.target.value)} autoFocus />
-          <button type="button" onClick={() => { onChange(""); setView("main"); setOpen(true) }}
-            style={{ padding: "0 10px", borderRadius: 8, border: "1px solid #E5E7EB", background: "#FFF", color: "#0F4C4C", cursor: "pointer", fontSize: 12 }}>✕</button>
-        </div>
-      )}
-      {open && !isManual && (
-        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 999, maxHeight: 240, overflowY: "auto" }}>
-          {view === "main" && <>
-            {INTERNAL_BRANDS.map(b => (
-              <button key={b} type="button" onClick={() => pick(b)} style={{ ...rowStyle, fontWeight: 700, color: "#111827" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#FEF2F2")}
-                onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                {b}
-              </button>
-            ))}
-            {activeClientNames.length > 0 && <div style={{ height: 1, background: "#F3F4F6", margin: "2px 0" }} />}
-            {activeClientNames.map(n => (
-              <button key={n} type="button" onClick={() => pick(n)} style={{ ...rowStyle, color: "#0F4C4C" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
-                onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                {n}
-              </button>
-            ))}
-            {pastClientNames.length > 0 && (
-              <button type="button" onClick={() => setView("past")}
-                style={{ ...rowStyle, fontWeight: 600, color: "#B45309", borderTop: "1px solid #FEF3C7", marginTop: 2 }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#FFFBEB")}
-                onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                📁 Past Clients →
-              </button>
-            )}
-            <button type="button" onClick={() => { setOpen(false); setView("manual"); onChange("") }}
-              style={{ ...rowStyle, color: "#2563EB", borderTop: "1px solid #EFF6FF", marginTop: 2 }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#EFF6FF")}
-              onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-              ✏️ Other (type manually)
-            </button>
-          </>}
-          {view === "past" && <>
-            <button type="button" onClick={() => setView("main")}
-              style={{ ...rowStyle, color: "#0F4C4C", fontSize: 12, borderBottom: "1px solid #F3F4F6" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
-              onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-              ← Back
-            </button>
-            {pastClientNames.map(n => (
-              <button key={n} type="button" onClick={() => pick(n)} style={{ ...rowStyle, color: "#0F4C4C" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#FFFBEB")}
-                onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                {n}
-              </button>
-            ))}
-          </>}
-        </div>
-      )}
-    </div>
-  )
-}
-
 function WorkEntriesTab({ freelancer, workEntries, currentUserRole, activeClientNames, pastClientNames }: {
   freelancer: FreelancerRecord; workEntries: WorkEntryRecord[]; currentUserRole: string; activeClientNames: string[]; pastClientNames: string[]
 }) {
+  const { activeOptions: fullActiveClientNames, pastOptions: fullPastClientNames } = buildClientOptions(activeClientNames, pastClientNames)
   const [showAdd, setShowAdd]           = useState(false)
   const [rejectId, setRejectId]         = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState("")
@@ -427,11 +334,13 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, activeClient
               <div><Label text="Date" /><input type="date" max="2099-12-31" value={form.date} onChange={e => setForm(p => ({ ...p, date: clampDate(e.target.value) }))} style={inputStyle} /></div>
               <div>
                 <Label text="Client Name" />
-                <ProfileClientSelect
+                <ClientSelector
+                  label=""
                   value={form.client_name}
-                  onChange={v => setForm(p => ({ ...p, client_name: v }))}
-                  activeClientNames={activeClientNames}
-                  pastClientNames={pastClientNames} />
+                  onValueChange={v => setForm(p => ({ ...p, client_name: v }))}
+                  clientOptions={fullActiveClientNames}
+                  pastClientOptions={fullPastClientNames}
+                  fieldStyle={inputStyle} />
               </div>
               <div><Label text="Work Title" /><input type="text" placeholder="e.g. Product Reel Edit" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} style={inputStyle} /></div>
               <div><Label text={qtyLabel} /><input type="number" min="1" placeholder="e.g. 10" value={form.quantity} onChange={e => setForm(p => ({ ...p, quantity: e.target.value }))} style={inputStyle} /></div>

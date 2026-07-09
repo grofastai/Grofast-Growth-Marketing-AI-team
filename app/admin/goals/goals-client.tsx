@@ -765,30 +765,27 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   </div>
                 )}
               </div>
-              {/* Media team client field */}
-              {selectedMembers.some(id => { const t = members.find(m => m.id === id)?.team; return t === "Media Team" || t === "Media Production Team" }) && (
-                <div style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(222,26,26,0.04)", border: "1.5px solid rgba(222,26,26,0.15)" }}>
-                  <input type="hidden" name="client_name" value={resolveClientName(mediaClientType, mediaBrand, mediaCustomClient)} />
-                  <ClientSelector
-                    label="🎬 Client / Brand (Media)"
-                    clientOptions={[
-                      "GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI",
-                      ...[
-                        ...projects.map(p => p.business_name),
-                        ...clients.map(c => c.name).filter(n => !projects.some(p => p.business_name === n)),
-                      ].filter(n => !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(n)).sort()
-                    ]}
-                    pastClientOptions={pastClients.map(c => c.name).filter(n => !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(n))}
-                    value={mediaClientType}
-                    brand={mediaBrand}
-                    customClient={mediaCustomClient}
-                    onValueChange={v => { setMediaClientType(v); setMediaBrand(""); setMediaCustomClient("") }}
-                    onBrandChange={setMediaBrand}
-                    onCustomChange={setMediaCustomClient}
-                    required
-                  />
-                </div>
-              )}
+              {/* Client / Brand field — always available, not gated to any team */}
+              <div style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(222,26,26,0.04)", border: "1.5px solid rgba(222,26,26,0.15)" }}>
+                <input type="hidden" name="client_name" value={resolveClientName(mediaClientType, mediaBrand, mediaCustomClient)} />
+                <ClientSelector
+                  label="🎬 Client / Brand"
+                  clientOptions={[
+                    "GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI",
+                    ...[
+                      ...projects.map(p => p.business_name),
+                      ...clients.map(c => c.name).filter(n => !projects.some(p => p.business_name === n)),
+                    ].filter(n => !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(n)).sort()
+                  ]}
+                  pastClientOptions={pastClients.map(c => c.name).filter(n => !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(n))}
+                  value={mediaClientType}
+                  brand={mediaBrand}
+                  customClient={mediaCustomClient}
+                  onValueChange={v => { setMediaClientType(v); setMediaBrand(""); setMediaCustomClient("") }}
+                  onBrandChange={setMediaBrand}
+                  onCustomChange={setMediaCustomClient}
+                />
+              </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>

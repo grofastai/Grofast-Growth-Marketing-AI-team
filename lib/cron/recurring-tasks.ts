@@ -5,10 +5,8 @@ import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 
 // Clones every task whose recurring_next_run has arrived into a new "todo" task,
 // carrying the schedule forward, and retires the row that just spawned it.
-// Shared between the recurring-tasks route (manual trigger) and cleanup-tasks
-// cron (scheduled trigger) — vercel.json's crons array is capped at 100 entries
-// and was already full, so this rides along on cleanup-tasks' existing schedule
-// instead of claiming its own slot.
+// Invoked by the recurring-tasks cron (scheduled ~00:00 IST) and available
+// for manual/testing invocation via the same route.
 export async function runRecurringTasksJob(admin: SupabaseClient): Promise<{ created: number; due: number }> {
   const today = new Date().toISOString().slice(0, 10)
 

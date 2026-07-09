@@ -2211,7 +2211,7 @@ export default function MemberTasksClient({
                           .filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id) && !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(p.business_name))
                           .map(p => <option key={p.id} value={p.id}>{p.business_name}</option>)}
                         {clients
-                          .filter(c => !projects.some(p => p.business_name === c.name) && !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(c.name))
+                          .filter(c => !projects.some(p => p.client_name !== "__member_quick__" && p.business_name === c.name) && !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(c.name))
                           .map(c => <option key={`cl:${c.id}`} value={`__client__:${c.name}`}>{c.name}</option>)}
                         {pastClients.length > 0 && <option value="__past__">📁 Past Clients →</option>}
                         <option value="__custom__">✏️ Other (type manually)</option>

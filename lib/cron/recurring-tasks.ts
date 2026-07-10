@@ -12,7 +12,7 @@ export async function runRecurringTasksJob(admin: SupabaseClient): Promise<{ cre
 
   const { data: dueTasks, error: fetchError } = await admin
     .from('tasks')
-    .select('id, company_id, title, description, priority, assigned_to, created_by, project_id, category, expected_time, expected_deliverable, checklist, attachments, approval_required, manager_note, recurring_task, recurring_next_run')
+    .select('id, company_id, title, description, priority, assigned_to, created_by, project_id, category, expected_time, expected_deliverable, checklist, attachments, approval_required, manager_note, recurring_task, recurring_next_run, recurring_until')
     .eq('recurring_active', true)
     .lte('recurring_next_run', today)
 
@@ -28,6 +28,12 @@ export async function runRecurringTasksJob(admin: SupabaseClient): Promise<{ cre
     const resetChecklist = Array.isArray(task.checklist)
       ? (task.checklist as Array<{ text: string; done: boolean }>).map(item => ({ text: item.text, done: false }))
       : []
+
+    // This clone continues the chain only if another occurrence still fits
+    // before recurring_until. Null until = no boundary (pre-existing chains
+    // created before that column existed keep their old unlimited behavior).
+    const followingRun = computeNextRun(task.recurring_next_run, task.recurring_task)
+    const chainContinues = !task.recurring_until || followingRun <= task.recurring_until
 
     const { data: nextTask, error: insertError } = await admin.from('tasks').insert({
       company_id:           task.company_id,
@@ -47,8 +53,9 @@ export async function runRecurringTasksJob(admin: SupabaseClient): Promise<{ cre
       approval_required:    task.approval_required,
       manager_note:         task.manager_note,
       recurring_task:       task.recurring_task,
-      recurring_active:     true,
-      recurring_next_run:   computeNextRun(task.recurring_next_run, task.recurring_task),
+      recurring_active:     chainContinues,
+      recurring_next_run:   chainContinues ? followingRun : null,
+      recurring_until:      task.recurring_until,
     }).select('id').single()
 
     if (insertError) {

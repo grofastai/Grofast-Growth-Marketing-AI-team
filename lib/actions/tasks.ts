@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { insertNotification, insertManyNotifications } from './notifications'
 import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
-import { computeNextRun, isRecurringInterval } from '@/lib/recurring'
+import { computeNextRun, isRecurringInterval, resolveRecurringSchedule } from '@/lib/recurring'
 
 function adminSupabase() {
   return createClient(
@@ -53,8 +53,20 @@ export async function createTask(
   if (isCustomDates && customDates.length === 0) {
     return { error: 'Add at least one due date' }
   }
-  if (!isCustomDates && recurringTask !== 'none' && !parsed.data.due_date) {
-    return { error: 'Due date is required for a recurring task' }
+
+  let recurringDueDate: string | null = parsed.data.due_date || null
+  let recurringUntil: string | null = null
+  if (!isCustomDates && recurringTask !== 'none') {
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const schedule = resolveRecurringSchedule(
+      recurringTask, parsed.data.due_date || null,
+      (formData.get('recurring_until') as string) || null,
+      (formData.get('recurring_weekday') as string) || null,
+      todayStr
+    )
+    if (!schedule.ok) return { error: schedule.error }
+    recurringDueDate = schedule.dueDate
+    recurringUntil   = schedule.until
   }
 
   // Support multiple assigned_to values (one task per member)
@@ -74,6 +86,12 @@ export async function createTask(
   let adminAttachments: object[] = []
   try { adminAttachments = JSON.parse((formData.get('attachments_json') as string) || '[]') } catch { adminAttachments = [] }
 
+  // A chain only stays active if there's room for at least one more
+  // occurrence before recurring_until; otherwise this is a single one-off
+  // (recurring_active stays false, matching the "Stopped" state in the UI).
+  const nextRun = recurringTask !== 'none' ? computeNextRun(recurringDueDate!, recurringTask) : null
+  const chainContinues = recurringTask !== 'none' && nextRun !== null && nextRun <= recurringUntil!
+
   const base = {
     company_id: profile.company_id,
     title: parsed.data.title,
@@ -86,12 +104,13 @@ export async function createTask(
     checklist: adminChecklist,
     attachments: adminAttachments,
     recurring_task:     recurringTask,
-    recurring_active:   recurringTask !== 'none',
-    recurring_next_run: recurringTask !== 'none' ? computeNextRun(parsed.data.due_date!, recurringTask) : null,
+    recurring_active:   chainContinues,
+    recurring_next_run: chainContinues ? nextRun : null,
+    recurring_until:    recurringTask !== 'none' ? recurringUntil : null,
   }
 
   const assigneeTargets: (string | null)[] = assignedToList.length === 0 ? [null] : assignedToList
-  const dueDatesForRows: (string | null)[] = isCustomDates ? customDates : [parsed.data.due_date || null]
+  const dueDatesForRows: (string | null)[] = isCustomDates ? customDates : [recurringDueDate]
   const rows = assigneeTargets.flatMap(assigned_to =>
     dueDatesForRows.map(due_date => ({ ...base, due_date, assigned_to }))
   )
@@ -115,7 +134,7 @@ export async function createTask(
       })))
       // WhatsApp blast with "Got it" ack button — fire and forget
       if (assignees?.length && insertedTasks?.length) {
-        const dueStr = isCustomDates ? `${customDates.length} custom dates` : (parsed.data.due_date ?? 'No due date')
+        const dueStr = isCustomDates ? `${customDates.length} custom dates` : (recurringDueDate ?? 'No due date')
         ;(async () => {
           await Promise.all(
             assignees
@@ -185,8 +204,20 @@ export async function createMemberTask(
   if (isCustomDates && customDates.length === 0) {
     return { error: 'Add at least one due date' }
   }
-  if (!isCustomDates && recurringTask !== 'none' && !parsed.data.due_date) {
-    return { error: 'Due date is required for a recurring task' }
+
+  let recurringDueDate: string | null = parsed.data.due_date || null
+  let recurringUntil: string | null = null
+  if (!isCustomDates && recurringTask !== 'none') {
+    const todayStr = new Date().toISOString().slice(0, 10)
+    const schedule = resolveRecurringSchedule(
+      recurringTask, parsed.data.due_date || null,
+      (formData.get('recurring_until') as string) || null,
+      (formData.get('recurring_weekday') as string) || null,
+      todayStr
+    )
+    if (!schedule.ok) return { error: schedule.error }
+    recurringDueDate = schedule.dueDate
+    recurringUntil   = schedule.until
   }
   let checklist: object[] = []
   let attachments: string[] = []
@@ -214,6 +245,9 @@ export async function createMemberTask(
     if (proj) finalProjectId = proj.id
   }
 
+  const nextRun = recurringTask !== 'none' ? computeNextRun(recurringDueDate!, recurringTask) : null
+  const chainContinues = recurringTask !== 'none' && nextRun !== null && nextRun <= recurringUntil!
+
   const memberTaskBase = {
     company_id:           profile.company_id,
     title:                parsed.data.title,
@@ -230,11 +264,12 @@ export async function createMemberTask(
     attachments,
     approval_required:    approvalRequired,
     recurring_task:       recurringTask,
-    recurring_active:     recurringTask !== 'none',
-    recurring_next_run:   recurringTask !== 'none' ? computeNextRun(parsed.data.due_date!, recurringTask) : null,
+    recurring_active:     chainContinues,
+    recurring_next_run:   chainContinues ? nextRun : null,
+    recurring_until:      recurringTask !== 'none' ? recurringUntil : null,
   }
 
-  const dueDatesForRows = isCustomDates ? customDates : [parsed.data.due_date || null]
+  const dueDatesForRows = isCustomDates ? customDates : [recurringDueDate]
   const { data: insertedTasks, error } = await admin.from('tasks')
     .insert(dueDatesForRows.map(due_date => ({ ...memberTaskBase, due_date })))
     .select('id')
@@ -259,7 +294,7 @@ export async function createMemberTask(
     })
     // WhatsApp notification with ack button — fire and forget
     if (assignee?.phone) {
-      const dueStr = isCustomDates ? `${customDates.length} custom dates` : (parsed.data.due_date ?? 'No due date')
+      const dueStr = isCustomDates ? `${customDates.length} custom dates` : (recurringDueDate ?? 'No due date')
       sendWhatsAppTemplate(
         formatPhone(assignee.phone),
         'grofast_task_assigned',

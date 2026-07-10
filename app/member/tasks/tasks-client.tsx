@@ -537,6 +537,8 @@ export default function MemberTasksClient({
   const assignFileRef                           = useRef<HTMLInputElement>(null)
   const [approvalRequired, setApprovalRequired] = useState(false)
   const [recurringTask, setRecurringTask]       = useState("none")
+  const [recurringUntil, setRecurringUntil]     = useState("")
+  const [recurringWeekday, setRecurringWeekday] = useState("1")
   const [customDates, setCustomDates]           = useState<string[]>([])
   const [newCustomDate, setNewCustomDate]       = useState("")
 
@@ -572,6 +574,7 @@ export default function MemberTasksClient({
     setChecklistItems([]); setNewCheckItem("")
     setAttachmentLinks([]); setNewAttachUrl("")
     setApprovalRequired(false); setRecurringTask("none")
+    setRecurringUntil(""); setRecurringWeekday("1")
     setCustomDates([]); setNewCustomDate("")
     setAssignError(null)
   }
@@ -609,9 +612,15 @@ export default function MemberTasksClient({
       setAssignError("Add at least one due date")
       return
     }
-    if (recurringTask !== "none" && recurringTask !== "custom" && !fd.get("due_date")) {
-      setAssignError("Due date is required for a recurring task")
-      return
+    if (["daily", "weekly", "monthly"].includes(recurringTask)) {
+      if (recurringTask !== "weekly" && !fd.get("due_date")) {
+        setAssignError("Start date is required for a recurring task")
+        return
+      }
+      if (!fd.get("recurring_until")) {
+        setAssignError("Until date is required for a recurring task")
+        return
+      }
     }
     setAssignPending(true)
     setAssignError(null)
@@ -2183,7 +2192,7 @@ export default function MemberTasksClient({
                   })()}
                 </div>
 
-                {/* ── Expected Time + Due Date ── */}
+                {/* ── Expected Time + Recurring Task ── */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Expected Time</label>
@@ -2192,26 +2201,100 @@ export default function MemberTasksClient({
                       style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>
-                      Due Date{recurringTask !== "none" && recurringTask !== "custom" && <span style={{ color: "#DE1A1A" }}> *</span>}
-                    </label>
-                    {recurringTask === "custom" ? (
-                      <div className="w-full px-3 py-2.5 rounded-xl text-[13px]" style={{ border: "1.5px solid #EBEDF2", color: "#9CA3AF" }}>
-                        Pick dates below ↓
-                      </div>
-                    ) : (
-                      <input type="date" max="2099-12-31" name="due_date" min={today}
-                        required={recurringTask !== "none"}
+                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Recurring Task</label>
+                    <div style={{ position: "relative" }}>
+                      <select name="recurring_task" value={recurringTask} onChange={e => setRecurringTask(e.target.value)}
                         className="w-full px-3 py-2.5 rounded-xl text-[13px]"
-                        style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
-                    )}
-                    {recurringTask !== "none" && recurringTask !== "custom" && (
-                      <p className="text-[10px] mt-1" style={{ color: "#9CA3AF" }}>
-                        Sets the {recurringTask} repeat anchor
-                      </p>
-                    )}
+                        style={{ border: "1.5px solid #EBEDF2", outline: "none", appearance: "none", paddingRight: 28 }}>
+                        <option value="none">None</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="custom">Custom Dates</option>
+                      </select>
+                      <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                    </div>
                   </div>
                 </div>
+
+                {/* None — a single due date */}
+                {recurringTask === "none" && (
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Due Date</label>
+                    <input type="date" max="2099-12-31" name="due_date" min={today}
+                      className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                      style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
+                  </div>
+                )}
+
+                {/* Daily — From Date → Due Date (last day it should keep repeating) */}
+                {recurringTask === "daily" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>From Date <span style={{ color: "#DE1A1A" }}>*</span></label>
+                      <input type="date" max="2099-12-31" name="due_date" min={today} required
+                        className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                        style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Due Date <span style={{ color: "#DE1A1A" }}>*</span></label>
+                      <input type="date" max="2099-12-31" name="recurring_until" min={today} required
+                        value={recurringUntil} onChange={e => setRecurringUntil(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                        style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
+                    </div>
+                    <p className="text-[10px]" style={{ color: "#9CA3AF", gridColumn: "1 / -1" }}>Creates a fresh task every day from From Date through Due Date</p>
+                  </div>
+                )}
+
+                {/* Weekly — day of week + until */}
+                {recurringTask === "weekly" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Repeats On <span style={{ color: "#DE1A1A" }}>*</span></label>
+                      <div style={{ position: "relative" }}>
+                        <select name="recurring_weekday" value={recurringWeekday} onChange={e => setRecurringWeekday(e.target.value)}
+                          className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                          style={{ border: "1.5px solid #EBEDF2", outline: "none", appearance: "none", paddingRight: 28 }}>
+                          <option value="0">Sunday</option>
+                          <option value="1">Monday</option>
+                          <option value="2">Tuesday</option>
+                          <option value="3">Wednesday</option>
+                          <option value="4">Thursday</option>
+                          <option value="5">Friday</option>
+                          <option value="6">Saturday</option>
+                        </select>
+                        <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Until <span style={{ color: "#DE1A1A" }}>*</span></label>
+                      <input type="date" max="2099-12-31" name="recurring_until" min={today} required
+                        value={recurringUntil} onChange={e => setRecurringUntil(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                        style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Monthly — anchor date + until */}
+                {recurringTask === "monthly" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Date <span style={{ color: "#DE1A1A" }}>*</span></label>
+                      <input type="date" max="2099-12-31" name="due_date" min={today} required
+                        className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                        style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Until <span style={{ color: "#DE1A1A" }}>*</span></label>
+                      <input type="date" max="2099-12-31" name="recurring_until" min={today} required
+                        value={recurringUntil} onChange={e => setRecurringUntil(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                        style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
+                    </div>
+                  </div>
+                )}
 
                 {/* ── Task Brief ── */}
                 <div>
@@ -2327,37 +2410,19 @@ export default function MemberTasksClient({
                   </div>
                 </div>
 
-                {/* ── Approval Required + Recurring Task ── */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center justify-between px-4 py-3 rounded-xl"
-                    style={{ border: "1.5px solid #EBEDF2", background: approvalRequired ? "rgba(222,26,26,0.04)" : "#FAFAFA" }}>
-                    <div>
-                      <p className="text-[12px] font-bold" style={{ color: "#111" }}>Approval Required</p>
-                      <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Needs sign-off</p>
-                    </div>
-                    <button type="button" onClick={() => setApprovalRequired(p => !p)}
-                      className="w-10 h-6 rounded-full transition-all flex-shrink-0"
-                      style={{ background: approvalRequired ? "#DE1A1A" : "#E5E7EB", position: "relative" }}>
-                      <span className="absolute top-1 transition-all w-4 h-4 rounded-full bg-white shadow"
-                        style={{ left: approvalRequired ? "calc(100% - 20px)" : 4 }} />
-                    </button>
+                {/* ── Approval Required ── */}
+                <div className="flex items-center justify-between px-4 py-3 rounded-xl"
+                  style={{ border: "1.5px solid #EBEDF2", background: approvalRequired ? "rgba(222,26,26,0.04)" : "#FAFAFA" }}>
+                  <div>
+                    <p className="text-[12px] font-bold" style={{ color: "#111" }}>Approval Required</p>
+                    <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Needs sign-off</p>
                   </div>
-                  <div className="flex flex-col gap-1.5 px-4 py-3 rounded-xl"
-                    style={{ border: "1.5px solid #EBEDF2", background: recurringTask !== "none" ? "rgba(99,102,241,0.04)" : "#FAFAFA" }}>
-                    <p className="text-[12px] font-bold" style={{ color: "#111" }}>Recurring Task</p>
-                    <div style={{ position: "relative" }}>
-                      <select name="recurring_task" value={recurringTask} onChange={e => setRecurringTask(e.target.value)}
-                        className="w-full px-2 py-1 rounded-lg text-[12px]"
-                        style={{ border: "1px solid #E5E7EB", outline: "none", appearance: "none", paddingRight: 20, background: "#fff" }}>
-                        <option value="none">None</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="custom">Custom Dates</option>
-                      </select>
-                      <ChevronDown size={10} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
-                    </div>
-                  </div>
+                  <button type="button" onClick={() => setApprovalRequired(p => !p)}
+                    className="w-10 h-6 rounded-full transition-all flex-shrink-0"
+                    style={{ background: approvalRequired ? "#DE1A1A" : "#E5E7EB", position: "relative" }}>
+                    <span className="absolute top-1 transition-all w-4 h-4 rounded-full bg-white shadow"
+                      style={{ left: approvalRequired ? "calc(100% - 20px)" : 4 }} />
+                  </button>
                 </div>
 
                 {/* Custom Dates picker — one independent task per date, no cron involved */}

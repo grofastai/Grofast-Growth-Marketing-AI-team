@@ -175,18 +175,20 @@ export type AllMember = {
 }
 
 export default function InsightsClient({
-  month, today, kpis, memberUtilization, clientHours, spendByCategory, allMembers,
+  month, today, kpis, memberUtilization, clientHours, prevMonthClientHours, spendByCategory, allMembers,
 }: {
   month: string
   today: string
   kpis: InsightsKPIs
   memberUtilization: MemberUtilization[]
   clientHours: ClientHour[]
+  prevMonthClientHours: number
   spendByCategory: SpendCategory[]
   allMembers: AllMember[]
 }) {
   const router  = useRouter()
   const [expandedMember, setExpandedMember] = useState<string | null>(null)
+  const [clientSort, setClientSort] = useState<'hours' | 'name' | 'cost'>('hours')
 
   function setMonth(m: string) {
     router.push(`/admin/insights?month=${m}`)
@@ -224,7 +226,7 @@ export default function InsightsClient({
   const avgBreakFooter     = totalPresentDays > 0 ? totalBreakHours / totalPresentDays : 0
 
   const tableHeadStyle = (h: string): React.CSSProperties => ({
-    padding: '10px 14px', fontSize: 10, fontWeight: 700, color: MUTED,
+    padding: '10px 16px', fontSize: 11, fontWeight: 700, color: '#6B7280',
     textAlign: h === 'Member' || h === 'Team' || h === 'Employee' || h === 'ID' ? 'left' : 'right',
     textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', background: HEAD_BG,
   })
@@ -364,10 +366,10 @@ export default function InsightsClient({
         </Card>
       </div>
 
-      {/* ── Attendance Table ──────────────────────────────────────────────── */}
-      <Card title="Attendance" meta="Hover, login & break hours by member">
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+      {/* ── Attendance — clean data table, matches the shared .data-table look ─ */}
+      <Card title="Attendance" meta="Login, working & break hours by member">
+        <div style={{ overflowX: 'auto', margin: '0 -22px', padding: '0 22px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
             <thead>
               <tr>
                 {['Member', 'Team', 'Present', 'Login Hrs', 'Avg Login', 'Working Hrs', 'Avg Working', 'Learning Hrs', 'Break Hrs', 'Avg Break'].map(h => (
@@ -381,82 +383,73 @@ export default function InsightsClient({
               ) : memberUtilization.map((m) => {
                 const tb = teamBadge(m.team)
                 return (
-                <tr key={m.id} style={{ borderBottom: `1px solid ${RULE}` }}>
-                  {/* Member */}
-                  <td style={{ padding: '12px 14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Avatar name={m.name} />
-                      <div>
-                        <p style={{ fontSize: 12, fontWeight: 700, color: INK, margin: 0 }}>{m.name}</p>
-                        <p style={{ fontSize: 10, color: DIM, margin: 0 }}>{m.employeeId}</p>
+                  <tr key={m.id} className="hover:bg-[#F9FAFB]" style={{ borderBottom: `1px solid #F3F4F6` }}>
+                    <td style={{ padding: '11px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Avatar name={m.name} />
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: INK, margin: 0 }}>{m.name}</p>
+                          <p style={{ fontSize: 10, color: DIM, margin: 0 }}>{m.employeeId}</p>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  {/* Team */}
-                  <td style={{ padding: '12px 14px' }}>
-                    <Badge color={tb.color} bg={tb.bg}>{m.team ?? '—'}</Badge>
-                  </td>
-                  {/* Present */}
-                  <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: INK, textAlign: 'right' }}>
-                    {m.workingDays}
-                  </td>
-                  {/* Login Hrs */}
-                  <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 800, color: COL.login, textAlign: 'right' }}>
-                    {fmtH(m.loginHours)}
-                  </td>
-                  {/* Avg Login */}
-                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: `${COL.login}99`, textAlign: 'right' }}>
-                    {m.avgLoginHours > 0 ? fmtH(m.avgLoginHours) : '—'}
-                  </td>
-                  {/* Working Hrs (excl. learning) */}
-                  <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 800, color: COL.working, textAlign: 'right' }}>
-                    {fmtH(m.workingHoursExclLearning)}
-                  </td>
-                  {/* Avg Working */}
-                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: `${COL.working}99`, textAlign: 'right' }}>
-                    {m.avgWorkingHoursExclLearning > 0 ? fmtH(m.avgWorkingHoursExclLearning) : '—'}
-                  </td>
-                  {/* Learning Hrs */}
-                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 700, color: COL.learning, textAlign: 'right' }}>
-                    {m.learningHours > 0 ? fmtH(m.learningHours) : '—'}
-                  </td>
-                  {/* Break Hrs */}
-                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 700, color: COL.brk, textAlign: 'right' }}>
-                    {m.breakHours > 0 ? fmtH(m.breakHours) : '—'}
-                  </td>
-                  {/* Avg Break */}
-                  <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: `${COL.brk}99`, textAlign: 'right' }}>
-                    {m.avgBreakHours > 0 ? fmtH(m.avgBreakHours) : '—'}
-                  </td>
-                </tr>
-              )})}
+                    </td>
+                    <td style={{ padding: '11px 16px' }}>
+                      <Badge color={tb.color} bg={tb.bg}>{m.team ?? '—'}</Badge>
+                    </td>
+                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: INK, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {m.workingDays}
+                    </td>
+                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: COL.login, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtH(m.loginHours)}
+                    </td>
+                    <td style={{ padding: '11px 16px', fontSize: 12, fontWeight: 600, color: COL.login, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {m.avgLoginHours > 0 ? fmtH(m.avgLoginHours) : '—'}
+                    </td>
+                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: COL.working, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtH(m.workingHoursExclLearning)}
+                    </td>
+                    <td style={{ padding: '11px 16px', fontSize: 12, fontWeight: 600, color: COL.working, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {m.avgWorkingHoursExclLearning > 0 ? fmtH(m.avgWorkingHoursExclLearning) : '—'}
+                    </td>
+                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: m.learningHours > 0 ? COL.learning : '#D1D5DB', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {m.learningHours > 0 ? fmtH(m.learningHours) : '—'}
+                    </td>
+                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: COL.brk, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtH(m.breakHours)}
+                    </td>
+                    <td style={{ padding: '11px 16px', fontSize: 12, fontWeight: 600, color: COL.brk, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {m.avgBreakHours > 0 ? fmtH(m.avgBreakHours) : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
             {memberUtilization.length > 0 && (
               <tfoot>
                 <tr style={{ borderTop: `2px solid ${RED}` }}>
-                  <td colSpan={2} style={{ padding: '10px 14px', fontSize: 11, fontWeight: 800, color: INK }}>TOTAL / AVG</td>
-                  <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: INK }}>
+                  <td colSpan={2} style={{ padding: '10px 16px', fontSize: 11, fontWeight: 800, color: INK }}>TOTAL / AVG</td>
+                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: INK, fontVariantNumeric: 'tabular-nums' }}>
                     {memberUtilization.reduce((s, m) => s + m.workingDays, 0)}
                   </td>
-                  <td style={{ padding: '12px 14px', textAlign: 'right', fontSize: 13, fontWeight: 900, color: COL.login }}>
+                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: COL.login, fontVariantNumeric: 'tabular-nums' }}>
                     {fmtH(totalLoginHours)}
                   </td>
-                  <td style={{ padding: '12px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: `${COL.login}99` }}>
+                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: COL.login, fontVariantNumeric: 'tabular-nums' }}>
                     {fmtH(avgLoginFooter)}
                   </td>
-                  <td style={{ padding: '12px 14px', textAlign: 'right', fontSize: 13, fontWeight: 900, color: COL.working }}>
+                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: COL.working, fontVariantNumeric: 'tabular-nums' }}>
                     {fmtH(totalWorkingHoursX)}
                   </td>
-                  <td style={{ padding: '12px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: `${COL.working}99` }}>
+                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: COL.working, fontVariantNumeric: 'tabular-nums' }}>
                     {fmtH(avgWorkingFooter)}
                   </td>
-                  <td style={{ padding: '12px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: COL.learning }}>
+                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: COL.learning, fontVariantNumeric: 'tabular-nums' }}>
                     {fmtH(kpis.totalLearningHours)}
                   </td>
-                  <td style={{ padding: '12px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: COL.brk }}>
+                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: COL.brk, fontVariantNumeric: 'tabular-nums' }}>
                     {fmtH(totalBreakHours)}
                   </td>
-                  <td style={{ padding: '12px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: `${COL.brk}99` }}>
+                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: COL.brk, fontVariantNumeric: 'tabular-nums' }}>
                     {fmtH(avgBreakFooter)}
                   </td>
                 </tr>
@@ -490,46 +483,124 @@ export default function InsightsClient({
         </div>
       </Card>
 
-      {/* ── 2-col row: Client Hours + Member Cards ───────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 20 }}>
+      {/* ── Client Hours, then Member Breakdown stacked below it ──────────── */}
+      <div className="grid grid-cols-1" style={{ gap: 20 }}>
 
-        {/* Client Hours */}
-        <Card title="Clients Worked" meta="Hours logged, this month">
-          <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-            {clientHours.length === 0 ? (
-              <p style={{ textAlign: 'center', color: MUTED, fontSize: 12, padding: '32px 0' }}>No client data</p>
-            ) : clientHours.map((c, i) => {
-              const pct = (c.hours / (clientHours[0]?.hours ?? 1)) * 100
-              const isInternal = ['GROFAST DIGITAL', 'GROFAST AI', 'KARTHICK BRANDS'].includes(c.name.toUpperCase())
-              return (
-                <div key={c.name} style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
-                  borderBottom: `1px solid ${RULE}`,
-                }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: DIM, width: 18, flexShrink: 0 }}>{i + 1}</span>
-                  <div style={{
-                    width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                    background: isInternal ? 'rgba(222,26,26,0.1)' : 'rgba(99,102,241,0.1)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 10, fontWeight: 900, color: isInternal ? RED : '#6366F1',
-                  }}>{ini(c.name)}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: INK, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {c.name}
-                    </p>
-                    <div style={{ height: 3, background: '#F3F4F6', marginTop: 5, borderRadius: 2 }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: isInternal ? RED : '#6366F1', borderRadius: 2 }} />
+        {/* Client Hours — bespoke premium card: 25/75 donut + ranked list */}
+        <div style={{ background: CARD, borderRadius: 18, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)', border: `1px solid ${BORDER}` }}>
+          <style>{`.cw-scroll::-webkit-scrollbar{width:4px}.cw-scroll::-webkit-scrollbar-thumb{background:#E2E8F0;border-radius:999px}.cw-row{transition:background 0.2s,transform 0.2s}.cw-row:hover{background:#F8FAFC;transform:scale(1.01)}.cw-bar-fill{animation:cwGrow 0.7s ease forwards}@keyframes cwGrow{from{width:0}to{width:var(--w)}}`}</style>
+
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between" style={{ gap: 8, paddingBottom: 16, marginBottom: 20, borderBottom: '1px solid #F1F5F9' }}>
+            <div>
+              <h3 style={{ fontSize: 26, fontWeight: 700, color: '#0F172A', margin: 0, letterSpacing: '-0.01em' }}>Clients Worked</h3>
+              <p style={{ fontSize: 15, fontWeight: 500, color: '#64748B', margin: '4px 0 0' }}>Hours logged this month</p>
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#64748B', flexShrink: 0 }}>{monthLabel(month)}</span>
+          </div>
+
+          {clientHours.length === 0 ? (
+            <p style={{ textAlign: 'center', color: MUTED, fontSize: 12, padding: '32px 0' }}>No client data</p>
+          ) : (() => {
+            const sorted = [...clientHours].sort((a, b) => {
+              if (clientSort === 'name') return a.name.localeCompare(b.name)
+              if (clientSort === 'cost') return b.cost - a.cost
+              return b.hours - a.hours
+            })
+            const chartData = sorted.map((c, i) => ({ name: c.name, hours: c.hours, cost: c.cost, color: i < 3 ? '#EF4444' : '#4F46E5' }))
+            const totalHours = chartData.reduce((s, c) => s + c.hours, 0)
+            const deltaPct = prevMonthClientHours > 0 ? ((totalHours - prevMonthClientHours) / prevMonthClientHours) * 100 : null
+            const avgHours = chartData.length > 0 ? totalHours / chartData.length : 0
+            const topByHours = clientHours[0]?.name ?? '—'
+            return (
+              <>
+                {/* Sort control */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginBottom: 16 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#94A3B8', marginRight: 2 }}>Sort by</span>
+                  {(['hours', 'cost', 'name'] as const).map(key => (
+                    <button
+                      key={key}
+                      onClick={() => setClientSort(key)}
+                      style={{
+                        fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 999,
+                        border: `1px solid ${clientSort === key ? '#4F46E5' : '#E2E8F0'}`,
+                        background: clientSort === key ? 'rgba(79,70,229,0.08)' : 'transparent',
+                        color: clientSort === key ? '#4F46E5' : '#64748B',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {key === 'hours' ? 'Hours' : key === 'cost' ? 'Cost' : 'Name'}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-col lg:flex-row" style={{ gap: 28 }}>
+                  {/* Donut — 25% */}
+                  <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', width: 220 }}>
+                    <div style={{ position: 'relative', width: 220, height: 220 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={chartData} dataKey="hours" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={106} strokeWidth={2} stroke={CARD}>
+                            {chartData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                          </Pie>
+                          <Tooltip formatter={(v) => fmtH(Number(v))} labelFormatter={(_l, p) => p?.[0]?.payload?.name ?? ''} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                        <span style={{ fontFamily: JAKARTA, fontSize: 42, fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{totalHours.toFixed(1)}</span>
+                        <span style={{ fontSize: 16, fontWeight: 600, color: '#334155', marginTop: 2 }}>Hours</span>
+                        <span style={{ fontSize: 14, color: '#94A3B8', marginTop: 2 }}>Total Logged</span>
+                      </div>
                     </div>
+                    {deltaPct !== null && (
+                      <div style={{ textAlign: 'center', marginTop: 14 }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: deltaPct >= 0 ? '#16A34A' : '#DC2626' }}>
+                          {deltaPct >= 0 ? '+' : ''}{deltaPct.toFixed(0)}%
+                        </span>
+                        <p style={{ fontSize: 12, color: '#94A3B8', margin: '2px 0 0' }}>Compared to last month</p>
+                      </div>
+                    )}
                   </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: INK, margin: 0 }}>{fmtH(c.hours)}</p>
-                    <p style={{ fontSize: 10, color: DIM, margin: 0 }}>{fmtRupee(c.cost)}</p>
+
+                  {/* Ranked list — 75% */}
+                  <div className="cw-scroll" style={{ flex: 1, minWidth: 0, maxHeight: 340, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {chartData.map((c, i) => {
+                      const pct = totalHours > 0 ? Math.round((c.hours / totalHours) * 100) : 0
+                      return (
+                        <div key={c.name} className="cw-row" style={{ borderRadius: 10, padding: '8px 10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{
+                              width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                              background: `${c.color}1A`, border: `1.5px solid ${c.color}40`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 11, fontWeight: 800, color: c.color,
+                            }}>{ini(c.name)}</div>
+                            <span style={{ fontSize: 18, fontWeight: 700, color: '#0F172A', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {c.name}
+                            </span>
+                            <span style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', flexShrink: 0 }}>{fmtH(c.hours)}</span>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: '#94A3B8', width: 34, textAlign: 'right', flexShrink: 0 }}>{pct}%</span>
+                          </div>
+                          <div style={{ height: 6, borderRadius: 999, background: '#EEF2F7', marginTop: 8, marginLeft: 42 }}>
+                            <div className="cw-bar-fill" style={{ height: '100%', borderRadius: 999, background: c.color, width: `${pct}%`, ['--w' as string]: `${pct}%` } as React.CSSProperties} />
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        </Card>
+
+                {/* Bottom summary */}
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 20, paddingTop: 16, borderTop: '1px solid #F1F5F9' }}>
+                  <span style={{ fontSize: 13, color: '#64748B' }}>Total Clients <strong style={{ color: '#0F172A', fontWeight: 700 }}>{chartData.length}</strong></span>
+                  <span style={{ color: '#CBD5E1' }}>•</span>
+                  <span style={{ fontSize: 13, color: '#64748B' }}>Average Hours <strong style={{ color: '#0F172A', fontWeight: 700 }}>{fmtH(avgHours)}</strong></span>
+                  <span style={{ color: '#CBD5E1' }}>•</span>
+                  <span style={{ fontSize: 13, color: '#64748B' }}>Top Client <strong style={{ color: '#0F172A', fontWeight: 700 }}>{topByHours}</strong></span>
+                </div>
+              </>
+            )
+          })()}
+        </div>
 
         {/* Member Performance Cards */}
         <Card title="Member Breakdown" meta="Tap to expand">

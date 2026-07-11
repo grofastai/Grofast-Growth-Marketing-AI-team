@@ -121,6 +121,12 @@ export default async function InsightsPage({
   const dateFrom = `${month}-01`
   const dateTo   = new Date(year, mon, 0).toISOString().split('T')[0]
 
+  // Previous month's range — only used to compute the "vs last month" delta
+  // on the Clients Worked donut, so it's a separate lightweight query below.
+  const prevMonthDate = new Date(year, mon - 2, 1)
+  const prevDateFrom = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}-01`
+  const prevDateTo   = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth() + 1, 0).toISOString().split('T')[0]
+
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -140,6 +146,7 @@ export default async function InsightsPage({
     { data: salaryHistoryRaw },
     { data: clientStatusHistoryRaw },
     { data: collabRaw },
+    { data: prevUpdatesRaw },
   ] = await Promise.all([
     admin.from('daily_updates')
       .select('user_id, date, work_entries, working_hours, learning_hours')
@@ -176,6 +183,12 @@ export default async function InsightsPage({
       .in('status', ['confirmed', 'edited_confirmed'])
       .gte('date', dateFrom)
       .lte('date', dateTo),
+    // Previous month's work entries — only client hours are summed from this, for the "vs last month" delta
+    admin.from('daily_updates')
+      .select('work_entries')
+      .eq('company_id', cid)
+      .gte('date', prevDateFrom)
+      .lte('date', prevDateTo),
   ])
 
   const updates = (updatesRaw ?? []) as UpdateRow[]
@@ -376,6 +389,18 @@ export default async function InsightsPage({
     .sort((a, b) => b.hours - a.hours)
     .slice(0, 20)
 
+  // Previous month's total real-client hours — same filtering as clientMap above,
+  // just summed rather than broken out per client, for the donut's "vs last month" delta.
+  let prevMonthClientHours = 0
+  for (const du of (prevUpdatesRaw ?? []) as { work_entries: UpdateRow['work_entries'] }[]) {
+    for (const e of du.work_entries ?? []) {
+      if ((e.task_type ?? '').toLowerCase() === 'break') continue
+      const hrs = e.duration_hours ?? 0
+      if (hrs <= 0 || !e.client_name || !isRealClient(e.client_name)) continue
+      prevMonthClientHours += hrs
+    }
+  }
+
   // ── KPIs ──────────────────────────────────────────────────────────────────
   const totalTrackedHours   = memberUtilization.reduce((s, m) => s + m.trackedHours, 0)
   const totalLearningHours  = memberUtilization.reduce((s, m) => s + m.learningHours, 0)
@@ -447,6 +472,7 @@ export default async function InsightsPage({
       kpis={kpis}
       memberUtilization={memberUtilization}
       clientHours={clientHours}
+      prevMonthClientHours={prevMonthClientHours}
       spendByCategory={spendByCategory}
       allMembers={allMembers}
     />

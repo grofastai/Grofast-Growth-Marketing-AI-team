@@ -188,7 +188,7 @@ export default function InsightsClient({
 }) {
   const router  = useRouter()
   const [expandedMember, setExpandedMember] = useState<string | null>(null)
-  const [clientSort, setClientSort] = useState<'hours' | 'name' | 'cost'>('hours')
+  const [clientSort, setClientSort] = useState<'hours' | 'cost'>('hours')
 
   function setMonth(m: string) {
     router.push(`/admin/insights?month=${m}`)
@@ -502,21 +502,26 @@ export default function InsightsClient({
             <p style={{ textAlign: 'center', color: MUTED, fontSize: 12, padding: '32px 0' }}>No client data</p>
           ) : (() => {
             const sorted = [...clientHours].sort((a, b) => {
-              if (clientSort === 'name') return a.name.localeCompare(b.name)
               if (clientSort === 'cost') return b.cost - a.cost
               return b.hours - a.hours
             })
             const chartData = sorted.map((c, i) => ({ name: c.name, hours: c.hours, cost: c.cost, color: i < 3 ? '#EF4444' : '#4F46E5' }))
             const totalHours = chartData.reduce((s, c) => s + c.hours, 0)
+            const totalCost  = chartData.reduce((s, c) => s + c.cost, 0)
             const deltaPct = prevMonthClientHours > 0 ? ((totalHours - prevMonthClientHours) / prevMonthClientHours) * 100 : null
             const avgHours = chartData.length > 0 ? totalHours / chartData.length : 0
             const topByHours = clientHours[0]?.name ?? '—'
+            // The metric shown per row (value, %, bar length, donut sizing) follows
+            // the active sort — Cost sort shows cost data, not hours re-labeled.
+            const isCostSort = clientSort === 'cost'
+            const metricKey  = isCostSort ? 'cost' : 'hours'
+            const metricTotal = isCostSort ? totalCost : totalHours
             return (
               <>
                 {/* Sort control */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginBottom: 16 }}>
                   <span style={{ fontSize: 12, fontWeight: 600, color: '#94A3B8', marginRight: 2 }}>Sort by</span>
-                  {(['hours', 'cost', 'name'] as const).map(key => (
+                  {(['hours', 'cost'] as const).map(key => (
                     <button
                       key={key}
                       onClick={() => setClientSort(key)}
@@ -528,7 +533,7 @@ export default function InsightsClient({
                         cursor: 'pointer',
                       }}
                     >
-                      {key === 'hours' ? 'Hours' : key === 'cost' ? 'Cost' : 'Name'}
+                      {key === 'hours' ? 'Hours' : 'Cost'}
                     </button>
                   ))}
                 </div>
@@ -539,16 +544,18 @@ export default function InsightsClient({
                     <div style={{ position: 'relative', width: 220, height: 220 }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                          <Pie data={chartData} dataKey="hours" nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={106} strokeWidth={2} stroke={CARD}>
+                          <Pie data={chartData} dataKey={metricKey} nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={106} strokeWidth={2} stroke={CARD}>
                             {chartData.map((d, i) => <Cell key={i} fill={d.color} />)}
                           </Pie>
-                          <Tooltip formatter={(v) => fmtH(Number(v))} labelFormatter={(_l, p) => p?.[0]?.payload?.name ?? ''} />
+                          <Tooltip formatter={(v) => isCostSort ? fmtRupee(Number(v)) : fmtH(Number(v))} labelFormatter={(_l, p) => p?.[0]?.payload?.name ?? ''} />
                         </PieChart>
                       </ResponsiveContainer>
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                        <span style={{ fontFamily: JAKARTA, fontSize: 42, fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{totalHours.toFixed(1)}</span>
-                        <span style={{ fontSize: 16, fontWeight: 600, color: '#334155', marginTop: 2 }}>Hours</span>
-                        <span style={{ fontSize: 14, color: '#94A3B8', marginTop: 2 }}>Total Logged</span>
+                        <span style={{ fontFamily: JAKARTA, fontSize: isCostSort ? 32 : 42, fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>
+                          {isCostSort ? fmtRupee(totalCost) : totalHours.toFixed(1)}
+                        </span>
+                        {!isCostSort && <span style={{ fontSize: 16, fontWeight: 600, color: '#334155', marginTop: 2 }}>Hours</span>}
+                        <span style={{ fontSize: 14, color: '#94A3B8', marginTop: 2 }}>{isCostSort ? 'Total Spend' : 'Total Logged'}</span>
                       </div>
                     </div>
                     {deltaPct !== null && (
@@ -564,7 +571,8 @@ export default function InsightsClient({
                   {/* Ranked list — 75% */}
                   <div className="cw-scroll" style={{ flex: 1, minWidth: 0, maxHeight: 340, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {chartData.map((c, i) => {
-                      const pct = totalHours > 0 ? Math.round((c.hours / totalHours) * 100) : 0
+                      const metricValue = isCostSort ? c.cost : c.hours
+                      const pct = metricTotal > 0 ? Math.round((metricValue / metricTotal) * 100) : 0
                       return (
                         <div key={c.name} className="cw-row" style={{ borderRadius: 10, padding: '8px 10px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -577,7 +585,7 @@ export default function InsightsClient({
                             <span style={{ fontSize: 18, fontWeight: 700, color: '#0F172A', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {c.name}
                             </span>
-                            <span style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', flexShrink: 0 }}>{fmtH(c.hours)}</span>
+                            <span style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', flexShrink: 0 }}>{isCostSort ? fmtRupee(c.cost) : fmtH(c.hours)}</span>
                             <span style={{ fontSize: 14, fontWeight: 600, color: '#94A3B8', width: 34, textAlign: 'right', flexShrink: 0 }}>{pct}%</span>
                           </div>
                           <div style={{ height: 6, borderRadius: 999, background: '#EEF2F7', marginTop: 8, marginLeft: 42 }}>

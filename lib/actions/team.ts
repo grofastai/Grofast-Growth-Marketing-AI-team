@@ -243,6 +243,11 @@ export async function createMember(input: {
     work_layout: input.work_layout ?? 'non_media',
     is_management: input.is_management ?? false,
     enabled_blocks: input.enabled_blocks ?? null,
+    // Derived from team, not a form field — "Freelance Media Production" is the
+    // only freelance team with app login (the other 8 are no-login and never
+    // reach this action; they go through createFreelancer instead). Deriving
+    // this here means it can never be left unset like it was for a prior member.
+    is_freelancer_login: input.team === 'Freelance Media Production',
   })
 
   if (insertError) {
@@ -419,6 +424,9 @@ export async function updateMember(input: {
       ...(input.work_layout ? { work_layout: input.work_layout } : {}),
       is_management: input.is_management ?? false,
       ...(input.work_layout === 'non_media' ? { enabled_blocks: input.enabled_blocks ?? null } : {}),
+      // Same derivation as createMember — keeps this in sync if a member's team
+      // is ever changed to or away from the one login-enabled freelance team.
+      is_freelancer_login: input.team === 'Freelance Media Production',
     })
     .eq('id', input.id)
 

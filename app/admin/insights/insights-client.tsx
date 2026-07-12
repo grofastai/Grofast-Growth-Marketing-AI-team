@@ -527,6 +527,8 @@ export default function InsightsClient({
                     <td style={{ padding: '11px 16px', textAlign: 'right' }}>
                       {m.wastedCost > 0 ? (
                         <span style={{ fontSize: 12, fontWeight: 800, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>{fmtRupee(m.wastedCost)}</span>
+                      ) : m.overtimeValue > 0 ? (
+                        <span style={{ fontSize: 12, fontWeight: 800, color: SEMANTIC.success, fontVariantNumeric: 'tabular-nums' }}>+{fmtRupee(m.overtimeValue)}</span>
                       ) : (
                         <span style={{ fontSize: 12, color: SEMANTIC.success, fontWeight: 700 }}>₹0</span>
                       )}
@@ -826,6 +828,12 @@ export default function InsightsClient({
                           <div>
                             <p style={{ fontSize: 9, color: DIM, margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Gap</p>
                             <p style={{ fontFamily: BEBAS, fontSize: 15, fontWeight: 900, color: SEMANTIC.danger, margin: 0 }}>{fmtRupee(m.wastedCost)}</p>
+                          </div>
+                        )}
+                        {m.overtimeValue > 0 && (
+                          <div>
+                            <p style={{ fontSize: 9, color: DIM, margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Overtime Value</p>
+                            <p style={{ fontFamily: BEBAS, fontSize: 15, fontWeight: 900, color: SEMANTIC.success, margin: 0 }}>+{fmtRupee(m.overtimeValue)}</p>
                           </div>
                         )}
                         <div>

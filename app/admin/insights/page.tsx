@@ -55,6 +55,7 @@ export type MemberUtilization = {
   untrackedHours: number      // Gap Hrs = max(0, 212.5 - tracked)
   overtimeHours: number       // max(0, tracked - 212.5)
   wastedCost: number          // untracked × hourly_rate
+  overtimeValue: number       // overtime × hourly_rate — the mirror of wastedCost for hours worked over target
   efficiency: number          // (tracked / 212.5) × 100
   overworked: boolean         // efficiency > 105
   clients: string[]
@@ -311,6 +312,7 @@ export default async function InsightsPage({
       const untrackedHours = Math.max(0, expectedHours - trackedHours)
       const overtimeHours  = Math.max(0, trackedHours - expectedHours)
       const wastedCost    = untrackedHours * hourly
+      const overtimeValue = overtimeHours * hourly
       const efficiency    = Math.round((trackedHours / expectedHours) * 100)
 
       const loginHours    = r1(att?.loginHrs ?? 0)
@@ -325,7 +327,7 @@ export default async function InsightsPage({
         team: m.team, isMedia: m.work_layout === 'media' || m.work_layout === 'freelance_media', monthlySalary: m.monthly_salary ?? 0,
         workingDays, expectedHours,
         trackedHours, learningHours, untrackedHours, overtimeHours,
-        wastedCost, efficiency, overworked: efficiency > 105,
+        wastedCost, overtimeValue, efficiency, overworked: efficiency > 105,
         clients: Array.from(acc?.clients ?? []),
         // 'learning' always comes from learningHours (has its own fallback for old records without work_entries)
         workBreakdown: { ...(acc?.byType ?? {}), learning: learningHours },

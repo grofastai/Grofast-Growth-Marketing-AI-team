@@ -12,8 +12,21 @@ export const createContentItemSchema = z.object({
   content_type: z.enum(CONTENT_TYPES).default('video'),
   shot_date:    z.string().optional(),
   notes:        z.string().optional(),
+  // Backfill path: skip Shot -> Editing -> Edited and record it as already
+  // posted in one step, instead of forcing a drag through every stage.
+  posted_platforms: z.array(z.enum(PLATFORMS)).optional(),
+  posted_date:      z.string().optional(),
 })
 export type CreateContentItemInput = z.infer<typeof createContentItemSchema>
+
+export const updateContentItemSchema = z.object({
+  client_name:  z.string().min(1, 'Client is required'),
+  title:        z.string().min(1, 'Title is required'),
+  content_type: z.enum(CONTENT_TYPES),
+  shot_date:    z.string().optional(),
+  notes:        z.string().optional(),
+})
+export type UpdateContentItemInput = z.infer<typeof updateContentItemSchema>
 
 export const addContentPostSchema = z.object({
   content_item_id: z.string().uuid(),

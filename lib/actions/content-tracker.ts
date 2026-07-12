@@ -4,8 +4,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import {
-  createContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema,
-  type CreateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput,
+  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema,
+  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput,
 } from '@/lib/validations/content-tracker'
 
 function adminSupabase() {
@@ -40,21 +40,57 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
 
+  const isBackfillPosted = !!(parsed.data.posted_platforms && parsed.data.posted_platforms.length > 0)
+  const today = new Date().toISOString().split('T')[0]
+  const shotDate = parsed.data.shot_date || today
+
   const { data, error } = await ctx.admin.from('content_items').insert({
     company_id:   ctx.companyId,
     client_name:  parsed.data.client_name,
     title:        parsed.data.title,
     content_type: parsed.data.content_type,
-    status:       'shot',
+    status:       isBackfillPosted ? 'posted' : 'shot',
     shot_by:      ctx.id,
-    shot_date:    parsed.data.shot_date || new Date().toISOString().split('T')[0],
+    shot_date:    shotDate,
+    edited_by:    isBackfillPosted ? ctx.id : null,
+    edited_date:  isBackfillPosted ? (parsed.data.posted_date || today) : null,
     notes:        parsed.data.notes || null,
     created_by:   ctx.id,
   }).select('id').single()
   if (error) return { success: false, error: error.message }
 
+  if (isBackfillPosted) {
+    const postedDate = parsed.data.posted_date || today
+    const rows = parsed.data.posted_platforms!.map(platform => ({
+      content_item_id: data.id, company_id: ctx.companyId, platform, posted_date: postedDate, posted_by: ctx.id,
+    }))
+    const { error: postsError } = await ctx.admin.from('content_item_posts').insert(rows)
+    if (postsError) return { success: false, error: postsError.message }
+  }
+
   revalidateTracker()
   return { success: true, id: data.id }
+}
+
+export async function updateContentItem(id: string, input: UpdateContentItemInput): Promise<{ success: boolean; error?: string }> {
+  const parsed = updateContentItemSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { error } = await ctx.admin.from('content_items').update({
+    client_name:  parsed.data.client_name,
+    title:        parsed.data.title,
+    content_type: parsed.data.content_type,
+    shot_date:    parsed.data.shot_date || null,
+    notes:        parsed.data.notes || null,
+    updated_at:   new Date().toISOString(),
+  }).eq('id', id).eq('company_id', ctx.companyId)
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true }
 }
 
 export async function updateContentItemStatus(

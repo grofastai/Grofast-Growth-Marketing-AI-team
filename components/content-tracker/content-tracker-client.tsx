@@ -8,13 +8,13 @@ import {
 } from "@dnd-kit/core"
 import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
-  Building2, Store, Search, ExternalLink, Trash2, Sparkles,
+  Building2, Store, Search, Trash2, Sparkles, Pencil,
   Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
 import {
-  createContentItem, updateContentItemStatus, deleteContentItem,
+  createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
   createAd, updateAdStatus, deleteAd, addAdRevision,
 } from "@/lib/actions/content-tracker"
@@ -136,6 +136,15 @@ function daysAgo(d?: string | null) {
   const diff = Math.floor((Date.now() - new Date(d + "T00:00:00").getTime()) / 86400000)
   return diff
 }
+function fmtMonth(ym: string) {
+  const [y, m] = ym.split("-").map(Number)
+  return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" })
+}
+function fmtDateRange(dates: string[]) {
+  const sorted = Array.from(new Set(dates)).sort()
+  if (sorted.length === 1) return fmtDate(sorted[0])
+  return `${fmtDate(sorted[0])} – ${fmtDate(sorted[sorted.length - 1])}`
+}
 
 // ── Modal shell ──────────────────────────────────────────────────────────────
 function Modal({ title, onClose, children, width = 440 }: { title: string; onClose: () => void; children: React.ReactNode; width?: number }) {
@@ -206,14 +215,15 @@ function StatChip({ label, value, color }: { label: string; value: number | stri
 
 // ── Kanban card ──────────────────────────────────────────────────────────────
 function ContentCardInner({
-  item, dragProps, isDragging, onAdvance, onDelete, onAddPlatform,
+  item, isDraggable, isDragging, onAdvance, onDelete, onAddPlatform, onEdit,
 }: {
   item: ContentItem
-  dragProps?: { attributes: unknown; listeners: unknown }
+  isDraggable?: boolean
   isDragging?: boolean
   onAdvance: (item: ContentItem, next: ContentStatus) => void
   onDelete: (id: string) => void
   onAddPlatform: (item: ContentItem) => void
+  onEdit?: (item: ContentItem) => void
 }) {
   const TypeIcon = item.content_type === "video" ? Video : ImageIcon
   const age = item.status === "shot" ? daysAgo(item.shot_date) : item.status === "edited" ? daysAgo(item.edited_date) : null
@@ -228,12 +238,10 @@ function ContentCardInner({
         opacity: isDragging ? 0.5 : 1,
       }}>
       <div className="flex items-start gap-2 mb-2">
-        {dragProps && (
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          <button {...(dragProps.listeners as any)} {...(dragProps.attributes as any)}
-            className="flex-shrink-0 mt-0.5 opacity-30 group-hover:opacity-70 transition-opacity cursor-grab active:cursor-grabbing touch-none">
+        {isDraggable && (
+          <span className="flex-shrink-0 mt-0.5 opacity-30 group-hover:opacity-70 transition-opacity" title="Drag anywhere on the card to move it">
             <GripVertical size={13} style={{ color: "#6B7280" }} />
-          </button>
+          </span>
         )}
         <div style={{ width: 22, height: 22, borderRadius: 7, background: "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <TypeIcon size={12} style={{ color: "#6366F1" }} />
@@ -286,6 +294,7 @@ function ContentCardInner({
 
       {item.status !== "posted" && (
         <button
+          onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1])}
           className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
           style={{ background: `${STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].accent}14`, color: STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].accent }}>
@@ -293,15 +302,22 @@ function ContentCardInner({
         </button>
       )}
       {item.status === "posted" && (
-        <button onClick={() => onAddPlatform(item)}
+        <button onPointerDown={e => e.stopPropagation()} onClick={() => onAddPlatform(item)}
           className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
           style={{ background: "rgba(34,197,94,0.08)", color: "#16A34A" }}>
           <Plus size={10} /> Add Platform
         </button>
       )}
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
-        <button onClick={() => onDelete(item.id)} title="Delete"
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 4, marginTop: 6 }}>
+        {onEdit && (
+          <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(item)} title="Edit details"
+            style={{ padding: "3px 6px", borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", opacity: 0.4 }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.4")}>
+            <Pencil size={11} style={{ color: "#6366F1" }} />
+          </button>
+        )}
+        <button onPointerDown={e => e.stopPropagation()} onClick={() => onDelete(item.id)} title="Delete"
           style={{ padding: "3px 6px", borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", opacity: 0.4 }}
           onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.4")}>
           <Trash2 size={11} style={{ color: "#de1a1a" }} />
@@ -311,13 +327,17 @@ function ContentCardInner({
   )
 }
 
-function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvance: (item: ContentItem, next: ContentStatus) => void; onDelete: (id: string) => void; onAddPlatform: (item: ContentItem) => void }) {
+function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvance: (item: ContentItem, next: ContentStatus) => void; onDelete: (id: string) => void; onAddPlatform: (item: ContentItem) => void; onEdit: (item: ContentItem) => void }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: props.item.id, data: { status: props.item.status } })
   const style = transform ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` } : undefined
   return (
-    <div ref={setNodeRef} style={style}>
-      <ContentCardInner item={props.item} dragProps={{ attributes, listeners }} isDragging={props.isDragging}
-        onAdvance={props.onAdvance} onDelete={props.onDelete} onAddPlatform={props.onAddPlatform} />
+    // Drag handle is the whole card, not just the grip icon — a plain click still
+    // reaches the buttons underneath because dnd-kit's activation distance (6px)
+    // means "click with no movement" never starts a drag in the first place.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    <div ref={setNodeRef} style={{ ...style, touchAction: "none" }} {...(listeners as any)} {...(attributes as any)} className="cursor-grab active:cursor-grabbing">
+      <ContentCardInner item={props.item} isDraggable isDragging={props.isDragging}
+        onAdvance={props.onAdvance} onDelete={props.onDelete} onAddPlatform={props.onAddPlatform} onEdit={props.onEdit} />
     </div>
   )
 }
@@ -343,18 +363,32 @@ function NewContentModal({ clients, pastClients, onClose, onCreated }: {
   const [contentType, setContentType] = useState<"video" | "poster">("video")
   const [shotDate, setShotDate] = useState(new Date().toISOString().split("T")[0])
   const [notes, setNotes] = useState("")
+  const [alreadyPosted, setAlreadyPosted] = useState(false)
+  const [postedPlatforms, setPostedPlatforms] = useState<Platform[]>([])
+  const [postedDate, setPostedDate] = useState(new Date().toISOString().split("T")[0])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  function togglePlatform(p: Platform) {
+    setPostedPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+  }
+
   async function submit() {
     if (!client || !title.trim()) { setError("Client and title are required"); return }
+    if (alreadyPosted && postedPlatforms.length === 0) { setError("Pick at least one platform it was posted to"); return }
     setSaving(true); setError(null)
-    const res = await createContentItem({ client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() || undefined })
+    const res = await createContentItem({
+      client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() || undefined,
+      posted_platforms: alreadyPosted ? postedPlatforms : undefined,
+      posted_date: alreadyPosted ? postedDate : undefined,
+    })
     setSaving(false)
     if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
     onCreated({
-      id: res.id, client_name: client, title: title.trim(), content_type: contentType, status: "shot",
-      shot_date: shotDate, edited_date: null, notes: notes.trim() || null, created_at: new Date().toISOString(), posts: [],
+      id: res.id, client_name: client, title: title.trim(), content_type: contentType,
+      status: alreadyPosted ? "posted" : "shot",
+      shot_date: shotDate, edited_date: alreadyPosted ? postedDate : null, notes: notes.trim() || null, created_at: new Date().toISOString(),
+      posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({ id: `${res.id}-${i}`, content_item_id: res.id!, platform, posted_date: postedDate, post_link: null })) : [],
     })
   }
 
@@ -385,8 +419,96 @@ function NewContentModal({ clients, pastClients, onClose, onCreated }: {
           <label style={LABEL}>Notes</label>
           <textarea style={{ ...FIELD, minHeight: 60, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
         </div>
+
+        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "10px 12px", borderRadius: 10, background: alreadyPosted ? "rgba(34,197,94,0.06)" : "#F9FAFB", border: `1.5px solid ${alreadyPosted ? "rgba(34,197,94,0.3)" : "#E5E7EB"}` }}>
+          <input type="checkbox" checked={alreadyPosted} onChange={e => setAlreadyPosted(e.target.checked)} style={{ width: 15, height: 15, accentColor: "#22C55E" }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: alreadyPosted ? "#16A34A" : "#374151" }}>Already posted</span>
+          <span style={{ fontSize: 10, color: "#9CA3AF" }}>— skip Editing/Edited, log it straight as Posted</span>
+        </label>
+
+        {alreadyPosted && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 12, borderRadius: 12, background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
+            <div>
+              <label style={LABEL}>Posted To (pick all platforms) *</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
+                  const cfg = PLATFORM_CFG[p]
+                  const on = postedPlatforms.includes(p)
+                  return (
+                    <button key={p} type="button" onClick={() => togglePlatform(p)}
+                      style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                      <cfg.icon size={12} /> {cfg.label} {on && <Check size={10} />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div>
+              <label style={LABEL}>Posted Date *</label>
+              <input type="date" style={FIELD} value={postedDate} onChange={e => setPostedDate(e.target.value)} />
+            </div>
+          </div>
+        )}
+
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Add Content Item"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Edit Content modal ───────────────────────────────────────────────────────
+function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
+  item: ContentItem
+  clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  onClose: () => void; onSaved: (updates: { client_name: string; title: string; content_type: "video" | "poster"; shot_date: string; notes: string }) => void
+}) {
+  const [client, setClient] = useState(item.client_name)
+  const [title, setTitle] = useState(item.title)
+  const [contentType, setContentType] = useState<"video" | "poster">(item.content_type)
+  const [shotDate, setShotDate] = useState(item.shot_date || new Date().toISOString().split("T")[0])
+  const [notes, setNotes] = useState(item.notes || "")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (!client || !title.trim()) { setError("Client and title are required"); return }
+    setSaving(true); setError(null)
+    const res = await updateContentItem(item.id, { client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() || undefined })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onSaved({ client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() })
+  }
+
+  return (
+    <Modal title="Edit Content Item" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <ClientSelector clientOptions={clients.map(c => c.name)} pastClientOptions={pastClients.map(c => c.name)} value={client} onValueChange={setClient} required />
+        <div>
+          <label style={LABEL}>Title *</label>
+          <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
+        </div>
+        <div>
+          <label style={LABEL}>Content Type</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            {(["video", "poster"] as const).map(t => (
+              <button key={t} onClick={() => setContentType(t)}
+                style={{ flex: 1, padding: "8px 10px", borderRadius: 10, border: `1.5px solid ${contentType === t ? "#6366F1" : "#E5E7EB"}`, background: contentType === t ? "rgba(99,102,241,0.08)" : "#fff", color: contentType === t ? "#6366F1" : "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer", textTransform: "capitalize" }}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Shot Date</label>
+          <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+        </div>
+        <div>
+          <label style={LABEL}>Notes</label>
+          <textarea style={{ ...FIELD, minHeight: 60, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</PrimaryButton>
       </div>
     </Modal>
   )
@@ -569,16 +691,54 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
   const [overCol, setOverCol] = useState<string | null>(null)
   const [showNewContent, setShowNewContent] = useState(false)
   const [platformModalItem, setPlatformModalItem] = useState<ContentItem | null>(null)
+  const [editingItem, setEditingItem] = useState<ContentItem | null>(null)
   const [showNewAd, setShowNewAd] = useState(false)
   const [revisionModalAd, setRevisionModalAd] = useState<Ad | null>(null)
   const [expandedAd, setExpandedAd] = useState<string | null>(null)
   const [logSearch, setLogSearch] = useState("")
   const [logPlatformFilter, setLogPlatformFilter] = useState<Platform | "all">("all")
+  const [logClientFilter, setLogClientFilter] = useState<string>("all")
+  const [logMonthFilter, setLogMonthFilter] = useState<string>("all")
+  const [pipelineClientFilter, setPipelineClientFilter] = useState<string>("all")
+  const [pipelineMonthFilter, setPipelineMonthFilter] = useState<string>("all")
   const [activeMobileCol, setActiveMobileCol] = useState<ContentStatus>("shot")
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
-  function colItems(status: ContentStatus) { return items.filter(i => i.status === status) }
+  // Shared client/month option lists — every date that could bucket an item into a
+  // month (shot/edited for in-progress items, posted dates for finished ones), used
+  // by both the Pipeline and Posting Log tabs' filters.
+  const allClientOptions = useMemo(() => Array.from(new Set(items.map(i => i.client_name))).sort(), [items])
+  const allMonthOptions = useMemo(() => {
+    const months = new Set<string>()
+    for (const i of items) {
+      if (i.shot_date) months.add(i.shot_date.slice(0, 7))
+      if (i.edited_date) months.add(i.edited_date.slice(0, 7))
+      for (const p of i.posts) months.add(p.posted_date.slice(0, 7))
+    }
+    return Array.from(months).sort().reverse()
+  }, [items])
+
+  // The item's own "current stage" date — shot/editing bucket by shot date,
+  // edited bucket by edited date, posted bucket by its (latest) post date.
+  function itemMonthBucket(item: ContentItem): string | null {
+    if (item.status === "posted") {
+      const dates = item.posts.map(p => p.posted_date).sort()
+      return dates.length ? dates[dates.length - 1].slice(0, 7) : null
+    }
+    if (item.status === "edited") return item.edited_date ? item.edited_date.slice(0, 7) : null
+    return item.shot_date ? item.shot_date.slice(0, 7) : null
+  }
+
+  const pipelineItems = useMemo(() => {
+    return items.filter(i => {
+      if (pipelineClientFilter !== "all" && i.client_name !== pipelineClientFilter) return false
+      if (pipelineMonthFilter !== "all" && itemMonthBucket(i) !== pipelineMonthFilter) return false
+      return true
+    })
+  }, [items, pipelineClientFilter, pipelineMonthFilter])
+
+  function colItems(status: ContentStatus) { return pipelineItems.filter(i => i.status === status) }
 
   function advance(item: ContentItem, next: ContentStatus) {
     if (next === "posted") { setPlatformModalItem(item); return }
@@ -604,7 +764,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
 
   const draggedItem = items.find(i => i.id === dragId)
 
-  // Stats
+  // Stats — global totals, always unfiltered (shown in the hero chips)
   const stats = useMemo(() => {
     const shot = items.filter(i => i.status === "shot").length
     const editing = items.filter(i => i.status === "editing").length
@@ -614,16 +774,54 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
     return { shot, editing, edited, posted, totalPosts }
   }, [items])
 
-  // Posting log rows
+  // Same shape but respecting the Pipeline tab's own client/month filter — used by its stat cards
+  const pipelineStats = useMemo(() => ({
+    shot: pipelineItems.filter(i => i.status === "shot").length,
+    editing: pipelineItems.filter(i => i.status === "editing").length,
+    edited: pipelineItems.filter(i => i.status === "edited").length,
+    posted: pipelineItems.filter(i => i.status === "posted").length,
+  }), [pipelineItems])
+
+  // Posting log — one row per content item (not per platform); platforms shown as badges within the row
+  const postedItems = useMemo(() => items.filter(i => i.posts.length > 0), [items])
+  const logClientOptions = allClientOptions
+  const logMonthOptions = allMonthOptions
+
+  // Per-client KPI strip: Posted / Unposted (edited, awaiting a platform) / Unedited (shot or editing)
+  // — bucketed by whichever date is relevant to that item's current stage, so "All Time" vs a
+  // specific month both mean something for items that haven't reached posting yet.
+  const clientKPIs = useMemo(() => {
+    const inMonth = (d: string | null) => logMonthFilter === "all" || (!!d && d.slice(0, 7) === logMonthFilter)
+    const map = new Map<string, { posted: number; unposted: number; unedited: number }>()
+    for (const item of items) {
+      if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0 })
+      const rec = map.get(item.client_name)!
+      if (item.status === "posted") {
+        if (logMonthFilter === "all" || item.posts.some(p => p.posted_date.slice(0, 7) === logMonthFilter)) rec.posted++
+      } else if (item.status === "edited") {
+        if (inMonth(item.edited_date)) rec.unposted++
+      } else {
+        if (inMonth(item.shot_date)) rec.unedited++
+      }
+    }
+    return Array.from(map.entries())
+      .map(([client, v]) => ({ client, ...v, total: v.posted + v.unposted + v.unedited }))
+      .filter(r => r.total > 0)
+      .sort((a, b) => b.total - a.total)
+  }, [items, logMonthFilter])
+
   const logRows = useMemo(() => {
-    const rows = items.flatMap(item => item.posts.map(post => ({ item, post })))
-      .sort((a, b) => b.post.posted_date.localeCompare(a.post.posted_date))
-    return rows.filter(r => {
-      if (logPlatformFilter !== "all" && r.post.platform !== logPlatformFilter) return false
-      if (logSearch && !`${r.item.title} ${r.item.client_name}`.toLowerCase().includes(logSearch.toLowerCase())) return false
-      return true
+    let rows = postedItems
+    if (logPlatformFilter !== "all") rows = rows.filter(i => i.posts.some(p => p.platform === logPlatformFilter))
+    if (logClientFilter !== "all") rows = rows.filter(i => i.client_name === logClientFilter)
+    if (logMonthFilter !== "all") rows = rows.filter(i => i.posts.some(p => p.posted_date.slice(0, 7) === logMonthFilter))
+    if (logSearch) rows = rows.filter(i => `${i.title} ${i.client_name}`.toLowerCase().includes(logSearch.toLowerCase()))
+    return [...rows].sort((a, b) => {
+      const aLatest = a.posts.map(p => p.posted_date).sort().reverse()[0]
+      const bLatest = b.posts.map(p => p.posted_date).sort().reverse()[0]
+      return bLatest.localeCompare(aLatest)
     })
-  }, [items, logSearch, logPlatformFilter])
+  }, [postedItems, logSearch, logPlatformFilter, logClientFilter, logMonthFilter])
 
   function handlePostAdded(post: ContentPost) {
     setItems(prev => prev.map(i => i.id === post.content_item_id ? { ...i, status: "posted", posts: [...i.posts, post] } : i))
@@ -663,15 +861,28 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex gap-2 flex-wrap">
-              <StatChip label="Shot" value={stats.shot} color={STATUS_CFG.shot.accent} />
-              <StatChip label="Editing" value={stats.editing} color={STATUS_CFG.editing.accent} />
-              <StatChip label="Edited" value={stats.edited} color={STATUS_CFG.edited.accent} />
-              <StatChip label="Posted" value={stats.posted} color={STATUS_CFG.posted.accent} />
+              <select value={pipelineClientFilter} onChange={e => setPipelineClientFilter(e.target.value)}
+                style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+                <option value="all">All Clients</option>
+                {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <select value={pipelineMonthFilter} onChange={e => setPipelineMonthFilter(e.target.value)}
+                style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+                <option value="all">All Time</option>
+                {allMonthOptions.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
+              </select>
             </div>
             <button onClick={() => setShowNewContent(true)}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               <Plus size={14} /> New Content
             </button>
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
+            <StatChip label="Shot" value={pipelineStats.shot} color={STATUS_CFG.shot.accent} />
+            <StatChip label="Editing" value={pipelineStats.editing} color={STATUS_CFG.editing.accent} />
+            <StatChip label="Edited" value={pipelineStats.edited} color={STATUS_CFG.edited.accent} />
+            <StatChip label="Posted" value={pipelineStats.posted} color={STATUS_CFG.posted.accent} />
           </div>
 
           {/* Mobile column switcher */}
@@ -687,7 +898,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
             {colItems(activeMobileCol).length === 0 ? (
               <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "24px 0" }}>No items</p>
             ) : colItems(activeMobileCol).map(item => (
-              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} />
+              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} />
             ))}
           </div>
 
@@ -711,7 +922,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
                             <p className="text-[11px]" style={{ color: overCol === status ? cfg.accent : "#D1D5DB" }}>{overCol === status ? "Drop here" : "No items"}</p>
                           </div>
                         ) : list.map(item => (
-                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} />
+                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} />
                         ))}
                       </div>
                     </DroppableColumn>
@@ -732,15 +943,60 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
 
       {tab === "log" && (
         <div className="flex flex-col gap-4">
+          <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
+              <select value={logMonthFilter} onChange={e => setLogMonthFilter(e.target.value)}
+                style={{ ...FIELD, width: "auto", cursor: "pointer", padding: "5px 10px", fontSize: 11 }}>
+                <option value="all">All Time</option>
+                {logMonthOptions.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
+              </select>
+            </div>
+            {clientKPIs.length === 0 ? (
+              <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "20px 0", margin: 0 }}>No activity {logMonthFilter === "all" ? "yet" : `in ${fmtMonth(logMonthFilter)}`}</p>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: "#F9FAFB" }}>
+                      {["Client", "Posted", "Unposted", "Unedited"].map(h => (
+                        <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clientKPIs.map(row => (
+                      <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6", cursor: "pointer" }}
+                        onClick={() => setLogClientFilter(prev => prev === row.client ? "all" : row.client)}>
+                        <td style={{ padding: "9px 14px", fontWeight: 700, color: logClientFilter === row.client ? "#DE1A1A" : "#111827" }}>{row.client}</td>
+                        <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
+                        <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.edited.accent }}>{row.unposted}</td>
+                        <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.shot.accent }}>{row.unedited}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-2 flex-wrap">
-            <div style={{ position: "relative", flex: "1 1 220px" }}>
+            <div style={{ position: "relative", flex: "1 1 200px" }}>
               <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
               <input value={logSearch} onChange={e => setLogSearch(e.target.value)} placeholder="Search title or client…"
                 style={{ ...FIELD, paddingLeft: 30 }} />
             </div>
+            <select value={logClientFilter} onChange={e => setLogClientFilter(e.target.value)}
+              style={{ ...FIELD, width: "auto", cursor: "pointer", flex: "0 0 auto" }}>
+              <option value="all">All Clients</option>
+              {logClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
             <button onClick={() => setLogPlatformFilter("all")}
               style={{ padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${logPlatformFilter === "all" ? "#DE1A1A" : "#E5E7EB"}`, background: logPlatformFilter === "all" ? "rgba(222,26,26,0.08)" : "#fff", color: logPlatformFilter === "all" ? "#DE1A1A" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-              All
+              All Platforms
             </button>
             {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
               const cfg = PLATFORM_CFG[p]
@@ -758,44 +1014,40 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
-                    {["Video/Poster", "Client", "Type", "Platform", "Posted Date", "Link", ""].map(h => (
+                    {["Video/Poster", "Client", "Type", "Platforms", "Posted Date"].map(h => (
                       <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {logRows.length === 0 ? (
-                    <tr><td colSpan={7} style={{ padding: "32px 14px", textAlign: "center", color: "#9CA3AF", fontSize: 12 }}>No posts logged yet</td></tr>
-                  ) : logRows.map(({ item, post }) => {
-                    const cfg = PLATFORM_CFG[post.platform]
-                    return (
-                      <tr key={post.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
-                        <td style={{ padding: "10px 14px", fontWeight: 700, color: "#111827" }}>{item.title}</td>
-                        <td style={{ padding: "10px 14px", color: "#6366F1", fontWeight: 600 }}>{item.client_name}</td>
-                        <td style={{ padding: "10px 14px", color: "#6B7280", textTransform: "capitalize" }}>{item.content_type}</td>
-                        <td style={{ padding: "10px 14px" }}>
-                          <span className="inline-flex items-center gap-1" style={{ background: `${cfg.color}14`, color: cfg.color, padding: "3px 8px", borderRadius: 99, fontSize: 10, fontWeight: 700 }}>
-                            <cfg.icon size={10} /> {cfg.label}
-                          </span>
-                        </td>
-                        <td style={{ padding: "10px 14px", color: "#374151" }}>{fmtDate(post.posted_date)}</td>
-                        <td style={{ padding: "10px 14px" }}>
-                          {post.post_link ? (
-                            <a href={post.post_link} target="_blank" rel="noreferrer" style={{ color: "#6366F1", display: "inline-flex", alignItems: "center", gap: 3 }}>
-                              <ExternalLink size={11} /> Open
-                            </a>
-                          ) : "—"}
-                        </td>
-                        <td style={{ padding: "10px 14px" }}>
-                          <button onClick={() => handleDeletePost(post.id, item.id)} title="Remove this platform post"
-                            style={{ padding: 4, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", opacity: 0.4 }}
-                            onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.4")}>
-                            <Trash2 size={12} style={{ color: "#de1a1a" }} />
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                    <tr><td colSpan={5} style={{ padding: "32px 14px", textAlign: "center", color: "#9CA3AF", fontSize: 12 }}>No posts logged yet</td></tr>
+                  ) : logRows.map(item => (
+                    <tr key={item.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
+                      <td style={{ padding: "10px 14px", fontWeight: 700, color: "#111827" }}>{item.title}</td>
+                      <td style={{ padding: "10px 14px", color: "#6366F1", fontWeight: 600 }}>{item.client_name}</td>
+                      <td style={{ padding: "10px 14px", color: "#6B7280", textTransform: "capitalize" }}>{item.content_type}</td>
+                      <td style={{ padding: "10px 14px" }}>
+                        <div className="flex flex-wrap items-center gap-1">
+                          {item.posts.map(post => {
+                            const cfg = PLATFORM_CFG[post.platform]
+                            return (
+                              <span key={post.id} className="inline-flex items-center gap-1 group/badge"
+                                style={{ background: `${cfg.color}14`, color: cfg.color, padding: "3px 6px 3px 8px", borderRadius: 99, fontSize: 10, fontWeight: 700 }}>
+                                <cfg.icon size={10} /> {cfg.label}
+                                <button onClick={() => handleDeletePost(post.id, item.id)} title="Remove this platform"
+                                  style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, display: "flex", opacity: 0.5 }}
+                                  onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.5")}>
+                                  <X size={9} />
+                                </button>
+                              </span>
+                            )
+                          })}
+                        </div>
+                      </td>
+                      <td style={{ padding: "10px 14px", color: "#374151" }}>{fmtDateRange(item.posts.map(p => p.posted_date))}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -901,6 +1153,13 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
       )}
       {platformModalItem && (
         <AddPlatformModal item={platformModalItem} onClose={() => setPlatformModalItem(null)} onAdded={handlePostAdded} />
+      )}
+      {editingItem && (
+        <EditContentModal item={editingItem} clients={clients} pastClients={pastClients} onClose={() => setEditingItem(null)}
+          onSaved={updates => {
+            setItems(prev => prev.map(i => i.id === editingItem.id ? { ...i, ...updates, notes: updates.notes || null } : i))
+            setEditingItem(null)
+          }} />
       )}
       {showNewAd && (
         <NewAdModal clients={clients} pastClients={pastClients} onClose={() => setShowNewAd(false)}

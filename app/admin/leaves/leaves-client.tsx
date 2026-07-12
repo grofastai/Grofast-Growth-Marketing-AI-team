@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { useState, useTransition } from "react"
-import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, UserCheck, UserX, XOctagon, Paperclip, Plus, Trash2, Pencil, X, AlertTriangle, ChevronLeft, ChevronRight, ChevronDown, ListFilter } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, UserCheck, Home, XOctagon, Paperclip, Plus, Trash2, Pencil, X, AlertTriangle, ChevronLeft, ChevronRight, ChevronDown, ListFilter } from "lucide-react"
 import { updateLeaveStatus } from "@/lib/actions/leaves"
 import { addCompanyLeave, updateCompanyLeave, deleteCompanyLeave } from "@/lib/actions/company-leaves"
 
@@ -698,7 +698,7 @@ export default function LeavesClient({
               {[
                 { Icon: UserCheck, value: availableCount, label: "Available", color: "#10B981", bg: "rgba(16,185,129,0.1)" },
                 { Icon: CalendarDays, value: onLeaveCountToday, label: "On Leave", color: "#D97706", bg: "rgba(217,119,6,0.1)" },
-                { Icon: UserX, value: awayCountToday, label: "Away", color: "#EF4444", bg: "rgba(239,68,68,0.1)" },
+                { Icon: Home, value: awayCountToday, label: "Remote", color: "#6366F1", bg: "rgba(99,102,241,0.1)" },
               ].map(s => (
                 <div key={s.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "0 8px" }}>
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>

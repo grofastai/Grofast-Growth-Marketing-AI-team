@@ -357,8 +357,8 @@ function TravelTab({ shoots, savedTravel }: {
                   <tr key={row.key} style={{ borderBottom: i < shoots.length - 1 ? "1px solid #F5F5F5" : "none" }}>
                     <td className="px-6 py-3 whitespace-nowrap text-[12px] font-bold uppercase" style={{ color: "#6B1D3A" }}>{fmtDate(row.date)}</td>
                     <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{row.clientName}</td>
-                    <td className="px-4 py-3 text-[12px] font-semibold whitespace-nowrap" style={{ color: "#800080", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{row.title || "—"}</td>
-                    <td className="px-4 py-3 text-[12px] font-semibold whitespace-nowrap" style={{ color: "#003b49" }}>{row.memberName}</td>
+                    <td className="px-4 py-3 text-[12px] font-semibold uppercase whitespace-nowrap" style={{ color: "#800080", maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis" }}>{row.title || "—"}</td>
+                    <td className="px-4 py-3 text-[12px] font-semibold uppercase whitespace-nowrap" style={{ color: "#003b49" }}>{row.memberName}</td>
                     <td className="px-4 py-3 text-[12px] font-semibold text-center" style={{ color: "#1d4289" }}>{row.durationHrs > 0 ? `${row.durationHrs}h` : "—"}</td>
                     <td className="px-4 py-3">
                       <input
@@ -710,13 +710,13 @@ export default function ExpensesClient({
                         <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>{e.client_name}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           {e.type !== "other" ? (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded capitalize"
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase"
                               style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>{e.type}</span>
                           ) : (
                             <span style={{ color: "#003b49" }}>—</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-[12px] font-semibold" style={{ color: "#800080" }}>
+                        <td className="px-4 py-3 text-[12px] font-semibold uppercase" style={{ color: "#800080" }}>
                           {e.shoot_title ? e.shoot_title : ""}{e.notes ? (e.shoot_title ? ` · ${e.notes}` : e.notes) : (!e.shoot_title ? "—" : "")}
                         </td>
                         <td className="px-4 py-3 text-right text-[13px] font-black whitespace-nowrap" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
@@ -970,8 +970,8 @@ export default function ExpensesClient({
                   {viewDetailsEntries.map(e => (
                     <FlatCard key={e.id} className="p-3 flex items-center justify-between">
                       <div>
-                        <p className="text-[12px] font-bold capitalize" style={{ color: "#111111" }}>{e.type}</p>
-                        <p className="text-[10px] font-semibold" style={{ color: "#6B1D3A" }}>{fmtDate(e.date)}{e.notes ? ` · ${e.notes}` : ""}</p>
+                        <p className="text-[12px] font-bold uppercase" style={{ color: "#111111" }}>{e.type}</p>
+                        <p className="text-[10px] font-semibold uppercase" style={{ color: "#6B1D3A" }}>{fmtDate(e.date)}{e.notes ? ` · ${e.notes}` : ""}</p>
                       </div>
                       <span className="text-[13px] font-black" style={{ color: "#111111", fontVariantNumeric: "tabular-nums" }}>{fmtRupee(e.amount)}</span>
                     </FlatCard>

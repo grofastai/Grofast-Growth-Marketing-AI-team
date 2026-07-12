@@ -8,7 +8,7 @@ import {
   Search, Plus, Shield, UserCheck,
   MoreVertical, Phone, CalendarDays, X, Pencil,
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
-  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy, Check,
+  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy, Check, Users,
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
@@ -49,6 +49,7 @@ const FL_TYPE_CFG: Record<string, { label: string; color: string; bg: string; em
   "Freelance Software Development & Automation": { label: "SW Dev & Automation",color: "#6366F1", bg: "rgba(99,102,241,0.08)",  emoji: "💻" },
   "Freelance Marketing & Operations":   { label: "Marketing & Ops", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  emoji: "📊" },
   "Freelance AI Development & Creative Production": { label: "AI & Creative Production", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🖥️" },
+  "Freelance Media Production":         { label: "Media Production", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  emoji: "🎥" },
 }
 
 function getFreelancerTeamKey(f: FreelancerBasic): string {
@@ -74,6 +75,13 @@ const FREELANCER_TEAMS = [
   "Freelance Marketing & Operations",
   "Freelance AI Development & Creative Production",
 ] as const
+
+// Shared column widths for the Login Members and No-Login Freelancers tables —
+// they're two separate <table> elements, so without matching fixed widths each
+// one auto-sizes its columns independently and they drift out of alignment
+// even though the column headers (Member/Freelancer, Department, Phone, Status,
+// Joined, Actions) are otherwise identical.
+const FREELANCER_TABLE_COL_WIDTHS = ["20%", "28%", "14%", "12%", "15%", "11%"]
 
 interface Member {
   id: string
@@ -120,6 +128,17 @@ function computeNextEmployeeId(members: Member[]): string {
 
 function formatDate(s: string) {
   return new Date(s).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
+}
+
+// Strips a leading +91/91 country code so numbers display as the plain 10-digit
+// mobile number — only when the number is longer than 10 digits, so a genuine
+// 10-digit number that happens to start with 91 (a valid Indian mobile prefix) is left alone.
+function formatPhoneDisplay(phone?: string | null): string {
+  if (!phone) return "—"
+  let p = phone.trim()
+  if (p.startsWith("+91") && p.length > 13) p = p.slice(3)
+  else if (p.startsWith("91") && p.length > 10) p = p.slice(2)
+  return p
 }
 
 function formatDateShort(s: string) {
@@ -1241,7 +1260,7 @@ function AssignManagerSheet({
   const idNum = (id: string) => { const m = id.match(/\d+/); return m ? parseInt(m[0]) : 99999 }
 
   const allMembers = [...members]
-    .filter(m => m.role === "MEMBER")
+    .filter(m => m.role === "MEMBER" && !m.is_freelancer_login)
     .sort((a, b) => idNum(a.employee_id) - idNum(b.employee_id))
 
   const assignedMembers   = allMembers.filter(m => assigned.includes(m.id))
@@ -1656,14 +1675,19 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
               {/* Login Freelancer Members (e.g. ARUN) */}
               {loginFreelancerMembers.length > 0 && (
                 <div style={{ borderBottom: "1px solid #F3F4F6" }}>
-                  <div className="px-5 py-2.5" style={{ background: "#FFFBF5" }}>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: "#F97316" }}>Login Members</p>
+                  <div className="px-5 py-2.5 flex items-center gap-2" style={{ background: "#FAFAFA" }}>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.1em]" style={{ background: "rgba(249,115,22,0.1)", color: "#F97316" }}>
+                      <LogIn size={11} /> Login Members
+                    </span>
                   </div>
                   <div style={{ overflowX: "auto" }}>
-                  <table className="w-full" style={{ minWidth: 560 }}>
+                  <table className="w-full" style={{ minWidth: 560, tableLayout: "fixed" }}>
+                    <colgroup>
+                      {FREELANCER_TABLE_COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w }} />)}
+                    </colgroup>
                     <thead>
                       <tr style={{ borderBottom: "1px solid #F9FAFB", background: "#FAFAFA" }}>
-                        {["Member", "Team", "Phone", "Status", "Actions"].map(h => (
+                        {["Member", "Department", "Phone", "Status", "Joined", "Actions"].map(h => (
                           <th key={h} className="text-left px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#5C3D1F" }}>{h}</th>
                         ))}
                       </tr>
@@ -1671,6 +1695,8 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                     <tbody>
                       {loginFreelancerMembers.map((m, i) => {
                         const initials = m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
+                        const teamKey = m.team ?? "other"
+                        const teamCfg = FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
                         return (
                           <tr key={m.id} style={{ borderBottom: i < loginFreelancerMembers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
                             <td className="px-5 py-3">
@@ -1684,8 +1710,12 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                                 </div>
                               </div>
                             </td>
-                            <td className="px-5 py-3 text-[12px]" style={{ color: "#5C3D1F", whiteSpace: "nowrap" }}>{m.team ?? "—"}</td>
-                            <td className="px-5 py-3 text-[13px]" style={{ color: "#5C3D1F" }}>{m.phone ?? "—"}</td>
+                            <td className="px-5 py-3" style={{ whiteSpace: "nowrap" }}>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold" style={{ background: teamCfg.bg, color: teamCfg.color }}>
+                                {teamCfg.emoji} {teamCfg.label}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3 text-[13px]" style={{ color: "#5C3D1F" }}>{formatPhoneDisplay(m.phone)}</td>
                             <td className="px-5 py-3">
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
                                 style={m.status === "active" ? { background: "rgba(34,197,94,0.1)", color: "#16A34A" } : { background: "rgba(107,114,128,0.1)", color: "#5C3D1F" }}>
@@ -1693,6 +1723,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                                 {m.status === "active" ? "Active" : "Deactivated"}
                               </span>
                             </td>
+                            <td className="px-5 py-3 text-[12px]" style={{ color: "#5C3D1F", whiteSpace: "nowrap" }}>{formatDate(m.joined_at ?? m.created_at)}</td>
                             <td className="px-5 py-3">
                               <div className="flex items-center gap-1.5 relative">
                                 <button onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); if (openDropdown === m.id) { setOpenDropdown(null); setDropdownAnchor(null) } else { setOpenDropdown(m.id); setDropdownAnchor({ top: r.bottom + 4, right: window.innerWidth - r.right }) } }}
@@ -1763,16 +1794,21 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
 
               {/* Sub-header for no-login freelancers */}
               {loginFreelancerMembers.length > 0 && freelancers.length > 0 && (
-                <div className="px-5 py-2.5" style={{ background: "#FAFAFA", borderBottom: "1px solid #F3F4F6" }}>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: "#5C3D1F" }}>No-Login Freelancers</p>
+                <div className="px-5 py-2.5 flex items-center gap-2" style={{ background: "#FAFAFA", borderBottom: "1px solid #F3F4F6" }}>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.1em]" style={{ background: "rgba(107,114,128,0.1)", color: "#5C3D1F" }}>
+                    <Users size={11} /> No-Login Freelancers
+                  </span>
                 </div>
               )}
 
               <div style={{ overflowX: "auto" }}>
-                <table className="w-full" style={{ minWidth: 560 }}>
+                <table className="w-full" style={{ minWidth: 560, tableLayout: "fixed" }}>
+                  <colgroup>
+                    {FREELANCER_TABLE_COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w }} />)}
+                  </colgroup>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
-                      {["Freelancer", "Team", "Phone", "Status", "Added", "Actions"].map(h => (
+                      {["Freelancer", "Department", "Phone", "Status", "Joined", "Actions"].map(h => (
                         <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#5C3D1F" }}>{h}</th>
                       ))}
                     </tr>
@@ -1807,7 +1843,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                               {teamCfg.emoji} {teamCfg.label}
                             </span>
                           </td>
-                          <td className="px-5 py-3.5 text-[13px]" style={{ color: "#5C3D1F" }}>{f.phone ?? "—"}</td>
+                          <td className="px-5 py-3.5 text-[13px]" style={{ color: "#5C3D1F" }}>{formatPhoneDisplay(f.phone)}</td>
                           <td className="px-5 py-3.5">
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
                               style={f.status === "active" ? { background: "rgba(34,197,94,0.1)", color: "#16A34A" } : { background: "rgba(107,114,128,0.1)", color: "#5C3D1F" }}>
@@ -2306,7 +2342,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                             {teamCfg.emoji} {teamCfg.label}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-[12px]" style={{ color: "#5C3D1F" }}>{f.phone ?? "—"}</td>
+                        <td className="px-5 py-3 text-[12px]" style={{ color: "#5C3D1F" }}>{formatPhoneDisplay(f.phone)}</td>
                         <td className="px-5 py-3 text-[12px]" style={{ color: "#5C3D1F" }}>
                           {f.created_at ? new Date(f.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
                         </td>

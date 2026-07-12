@@ -185,6 +185,17 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, members }: 
       byDate.set(d, [...(byDate.get(d) ?? []), ...work])
     }
   }
+  // Within each day, order entries by actual clock time (not DB/edit insertion order)
+  for (const entries of byDate.values()) {
+    entries.sort((a, b) => {
+      const ta = (a.start_time as string | undefined) ?? ""
+      const tb = (b.start_time as string | undefined) ?? ""
+      if (!ta && !tb) return 0
+      if (!ta) return 1
+      if (!tb) return -1
+      return ta.localeCompare(tb)
+    })
+  }
   const dateGroups = [...byDate.entries()] // already sorted latest first
   const totalEntryCount = dateGroups.reduce((s, [, e]) => s + e.length, 0)
   const notes = updates.map(u => u.notes).filter(Boolean).join(" | ")

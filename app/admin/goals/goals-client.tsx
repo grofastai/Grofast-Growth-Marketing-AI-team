@@ -251,6 +251,11 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
   const [checklistItems, setChecklistItems] = useState<string[]>([])
   const [newCheckItem, setNewCheckItem] = useState("")
   const [attachmentLinks, setAttachmentLinks] = useState<{ id: string; url: string; name: string; type: "link" | "file" }[]>([])
+  const [recurringTask, setRecurringTask] = useState("none")
+  const [recurringUntil, setRecurringUntil] = useState("")
+  const [recurringWeekday, setRecurringWeekday] = useState("1")
+  const [customDates, setCustomDates]     = useState<string[]>([])
+  const [newCustomDate, setNewCustomDate] = useState("")
   const [newAttachUrl, setNewAttachUrl] = useState("")
   const [attachUploading, setAttachUploading] = useState(false)
   const attachFileRef = useRef<HTMLInputElement>(null)
@@ -285,7 +290,9 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
       setSelectedMembers([])
       setMediaClientType(""); setMediaBrand(""); setMediaCustomClient("")
       setManagerNote(""); setChecklistItems([]); setNewCheckItem("")
-      setAttachmentLinks([]); setNewAttachUrl("")
+      setAttachmentLinks([]); setNewAttachUrl(""); setRecurringTask("none")
+      setRecurringUntil(""); setRecurringWeekday("1")
+      setCustomDates([]); setNewCustomDate("")
       startTransition(() => { router.refresh() })
     }
   }, [state]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -764,30 +771,27 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   </div>
                 )}
               </div>
-              {/* Media team client field */}
-              {selectedMembers.some(id => { const t = members.find(m => m.id === id)?.team; return t === "Media Team" || t === "Media Production Team" }) && (
-                <div style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(222,26,26,0.04)", border: "1.5px solid rgba(222,26,26,0.15)" }}>
-                  <input type="hidden" name="client_name" value={resolveClientName(mediaClientType, mediaBrand, mediaCustomClient)} />
-                  <ClientSelector
-                    label="🎬 Client / Brand (Media)"
-                    clientOptions={[
-                      "GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI",
-                      ...[
-                        ...projects.map(p => p.business_name),
-                        ...clients.map(c => c.name).filter(n => !projects.some(p => p.business_name === n)),
-                      ].filter(n => !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(n)).sort()
-                    ]}
-                    pastClientOptions={pastClients.map(c => c.name).filter(n => !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(n))}
-                    value={mediaClientType}
-                    brand={mediaBrand}
-                    customClient={mediaCustomClient}
-                    onValueChange={v => { setMediaClientType(v); setMediaBrand(""); setMediaCustomClient("") }}
-                    onBrandChange={setMediaBrand}
-                    onCustomChange={setMediaCustomClient}
-                    required
-                  />
-                </div>
-              )}
+              {/* Client / Brand field — always available, not gated to any team */}
+              <div style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(222,26,26,0.04)", border: "1.5px solid rgba(222,26,26,0.15)" }}>
+                <input type="hidden" name="client_name" value={resolveClientName(mediaClientType, mediaBrand, mediaCustomClient)} />
+                <ClientSelector
+                  label="🎬 Client / Brand"
+                  clientOptions={[
+                    "GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI",
+                    ...[
+                      ...projects.map(p => p.business_name),
+                      ...clients.map(c => c.name).filter(n => !projects.some(p => p.business_name === n)),
+                    ].filter(n => !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(n)).sort()
+                  ]}
+                  pastClientOptions={pastClients.map(c => c.name).filter(n => !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(n))}
+                  value={mediaClientType}
+                  brand={mediaBrand}
+                  customClient={mediaCustomClient}
+                  onValueChange={v => { setMediaClientType(v); setMediaBrand(""); setMediaCustomClient("") }}
+                  onBrandChange={setMediaBrand}
+                  onCustomChange={setMediaCustomClient}
+                />
+              </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
@@ -807,9 +811,122 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                 </div>
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Due Date</label>
-                <input name="due_date" type="date" max="2099-12-31" className="ti" style={{ colorScheme: "light" }} />
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Recurring Task</label>
+                <div style={{ position: "relative" }}>
+                  <select name="recurring_task" value={recurringTask} onChange={e => setRecurringTask(e.target.value)}
+                    className="ti" style={{ appearance: "none", paddingRight: 30 }}>
+                    <option value="none">None</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="custom">Custom Dates</option>
+                  </select>
+                  <ChevronDown size={12} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                </div>
               </div>
+
+              {/* None — a single due date */}
+              {recurringTask === "none" && (
+                <div>
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Due Date</label>
+                  <input name="due_date" type="date" max="2099-12-31" className="ti" style={{ colorScheme: "light" }} />
+                </div>
+              )}
+
+              {/* Daily — From Date → Due Date (last day it should keep repeating) */}
+              {recurringTask === "daily" && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>From Date <span style={{ color: "#DE1A1A" }}>*</span></label>
+                    <input name="due_date" type="date" max="2099-12-31" required className="ti" style={{ colorScheme: "light" }} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Due Date <span style={{ color: "#DE1A1A" }}>*</span></label>
+                    <input name="recurring_until" type="date" max="2099-12-31" required value={recurringUntil} onChange={e => setRecurringUntil(e.target.value)}
+                      className="ti" style={{ colorScheme: "light" }} />
+                  </div>
+                  <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0, gridColumn: "1 / -1" }}>Creates a fresh task every day from From Date through Due Date</p>
+                </div>
+              )}
+
+              {/* Weekly — day of week + until */}
+              {recurringTask === "weekly" && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Repeats On <span style={{ color: "#DE1A1A" }}>*</span></label>
+                    <div style={{ position: "relative" }}>
+                      <select name="recurring_weekday" value={recurringWeekday} onChange={e => setRecurringWeekday(e.target.value)}
+                        className="ti" style={{ appearance: "none", paddingRight: 30 }}>
+                        <option value="0">Sunday</option>
+                        <option value="1">Monday</option>
+                        <option value="2">Tuesday</option>
+                        <option value="3">Wednesday</option>
+                        <option value="4">Thursday</option>
+                        <option value="5">Friday</option>
+                        <option value="6">Saturday</option>
+                      </select>
+                      <ChevronDown size={12} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Until <span style={{ color: "#DE1A1A" }}>*</span></label>
+                    <input name="recurring_until" type="date" max="2099-12-31" required value={recurringUntil} onChange={e => setRecurringUntil(e.target.value)}
+                      className="ti" style={{ colorScheme: "light" }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Monthly — anchor date + until */}
+              {recurringTask === "monthly" && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Date <span style={{ color: "#DE1A1A" }}>*</span></label>
+                    <input name="due_date" type="date" max="2099-12-31" required className="ti" style={{ colorScheme: "light" }} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Until <span style={{ color: "#DE1A1A" }}>*</span></label>
+                    <input name="recurring_until" type="date" max="2099-12-31" required value={recurringUntil} onChange={e => setRecurringUntil(e.target.value)}
+                      className="ti" style={{ colorScheme: "light" }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Dates picker — one independent task per date, no cron involved */}
+              {recurringTask === "custom" && (
+                <div>
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>
+                    Due Dates{customDates.length === 0 && <span style={{ color: "#DE1A1A" }}> *</span>}
+                  </label>
+                  {customDates.map(d => <input key={d} type="hidden" name="custom_due_dates" value={d} />)}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input type="date" max="2099-12-31" value={newCustomDate} onChange={e => setNewCustomDate(e.target.value)}
+                      className="ti" style={{ colorScheme: "light" }} />
+                    <button type="button"
+                      onClick={() => {
+                        if (newCustomDate && !customDates.includes(newCustomDate)) {
+                          setCustomDates(prev => [...prev, newCustomDate].sort())
+                          setNewCustomDate("")
+                        }
+                      }}
+                      style={{ padding: "0 16px", borderRadius: 12, background: "rgba(222,26,26,0.08)", border: "1.5px solid rgba(222,26,26,0.2)", color: "#de1a1a", fontWeight: 700, fontSize: 13, cursor: "pointer", flexShrink: 0 }}>
+                      + Add
+                    </button>
+                  </div>
+                  {customDates.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+                      {customDates.map(d => (
+                        <span key={d} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 6px 4px 10px", borderRadius: 20, background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.15)", fontSize: 12, fontWeight: 700, color: "#5B2C6F" }}>
+                          {new Date(d + "T12:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                          <button type="button" onClick={() => setCustomDates(prev => prev.filter(x => x !== d))}
+                            style={{ background: "none", border: "none", cursor: "pointer", padding: 2, display: "flex" }}>
+                            <X size={11} style={{ color: "#de1a1a" }} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Manager Note */}
               <div>
@@ -937,8 +1054,8 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   style={{ flex: 1, padding: "12px 0", borderRadius: 12, fontSize: 13, fontWeight: 600, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#5B2C6F", cursor: "pointer" }}>
                   Cancel
                 </button>
-                <button type="submit" disabled={formPending}
-                  style={{ flex: 1, padding: "12px 0", borderRadius: 12, fontSize: 13, fontWeight: 800, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "linear-gradient(135deg,#de1a1a,#991B1B)", color: "#FFFFFF", opacity: formPending ? 0.7 : 1, boxShadow: "0 4px 16px rgba(222,26,26,0.35)" }}>
+                <button type="submit" disabled={formPending || (recurringTask === "custom" && customDates.length === 0)}
+                  style={{ flex: 1, padding: "12px 0", borderRadius: 12, fontSize: 13, fontWeight: 800, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "linear-gradient(135deg,#de1a1a,#991B1B)", color: "#FFFFFF", opacity: formPending || (recurringTask === "custom" && customDates.length === 0) ? 0.7 : 1, boxShadow: "0 4px 16px rgba(222,26,26,0.35)" }}>
                   {formPending && <Loader2 size={13} className="animate-spin" />}
                   {selectedMembers.length > 1 ? `Create ${selectedMembers.length} Tasks` : "Create Task"}
                 </button>

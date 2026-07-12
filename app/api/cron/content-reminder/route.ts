@@ -15,12 +15,18 @@ function isAuthorized(req: NextRequest): boolean {
   return !!secret && req.headers.get('authorization') === `Bearer ${secret}`
 }
 
-// Runs every 15 minutes (via daily cron entries covering 8:30 AM–9:15 PM IST —
-// trimmed from the full day to keep total vercel.json cron entries under the
-// Hobby plan's 100-item cap; each entry must fire at most once/day on Hobby).
-// Finds posts whose scheduled_time is 10–20 min from now (10-min window
-// centred on the 15-min-before mark) and sends a WhatsApp reminder once.
-// reminder_sent prevents duplicate sends.
+// One cron entry per hour, 8:30 AM–9:15 PM IST (Vercel Hobby only allows
+// once-per-day-per-entry crons with ±59 min timing precision — see
+// https://vercel.com/docs/cron-jobs/usage-and-pricing — so an entry
+// scheduled "0 8 * * *" may actually fire anywhere between 8:00–8:59 UTC,
+// and the gap between two consecutive hourly entries firing can be as
+// wide as ~119 minutes in the worst case).
+// Because we can't rely on firing at a precise offset before a post's
+// scheduled_time, the match window below is wide (now → now+130min) so
+// that whichever run happens to land first still catches the post before
+// it's due. reminder_sent prevents a duplicate send on the next run that
+// also sees it in its (overlapping) window. This trades exact "X minutes
+// before" timing for a guarantee that the reminder always goes out.
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -34,11 +40,11 @@ export async function GET(req: NextRequest) {
 
   const today = `${istNow.getFullYear()}-${String(istNow.getMonth() + 1).padStart(2, '0')}-${String(istNow.getDate()).padStart(2, '0')}`
 
-  // Window: now+10min → now+20min (catches posts 15 min out, 10-min safety buffer)
-  const plus10 = new Date(istNow.getTime() + 10 * 60 * 1000)
-  const plus20 = new Date(istNow.getTime() + 20 * 60 * 1000)
-  const windowStart = `${String(plus10.getHours()).padStart(2, '0')}:${String(plus10.getMinutes()).padStart(2, '0')}:00`
-  const windowEnd   = `${String(plus20.getHours()).padStart(2, '0')}:${String(plus20.getMinutes()).padStart(2, '0')}:00`
+  // Window: now → now+130min (covers the worst-case ~119min gap between
+  // consecutive hourly Hobby cron firings, plus safety margin)
+  const plus130 = new Date(istNow.getTime() + 130 * 60 * 1000)
+  const windowStart = `${String(istNow.getHours()).padStart(2, '0')}:${String(istNow.getMinutes()).padStart(2, '0')}:00`
+  const windowEnd   = `${String(plus130.getHours()).padStart(2, '0')}:${String(plus130.getMinutes()).padStart(2, '0')}:00`
 
   const { data: posts, error } = await admin
     .from('content_posts')

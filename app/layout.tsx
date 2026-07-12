@@ -1,5 +1,5 @@
 ﻿import type { Metadata, Viewport } from "next"
-import { Plus_Jakarta_Sans, Bebas_Neue } from "next/font/google"
+import { Plus_Jakarta_Sans, Bebas_Neue, Fraunces } from "next/font/google"
 import "./globals.css"
 import PwaInstallPrompt from "@/components/pwa-install-prompt"
 import { ConfirmProvider } from "@/components/ui/ConfirmDialog"
@@ -15,6 +15,14 @@ const bebas = Bebas_Neue({
   variable: "--font-bebas",
   subsets: ["latin"],
   weight: "400",
+  display: "swap",
+})
+
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "900"],
+  style: ["normal", "italic"],
   display: "swap",
 })
 
@@ -46,7 +54,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${jakarta.variable} ${bebas.variable}`}>
+    <html lang="en" className={`${jakarta.variable} ${bebas.variable} ${fraunces.variable}`}>
       <body className="min-h-screen antialiased" style={{ fontFamily: "var(--font-jakarta), sans-serif" }}>
         <ConfirmProvider>{children}</ConfirmProvider>
         <PwaInstallPrompt />

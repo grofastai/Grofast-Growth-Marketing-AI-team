@@ -12,9 +12,9 @@ function adminSupabase() {
   )
 }
 
-// Not scheduled directly (vercel.json's crons array is at its 100-item cap) —
-// this job actually runs piggybacked on the cleanup-tasks cron. Kept here for
-// manual/testing invocation with the same CRON_SECRET auth.
+// Scheduled at 18:30 UTC (00:00 IST) in vercel.json — Hobby plan crons fire
+// anywhere within their scheduled hour, so expect this to run sometime
+// between 00:00–00:59 IST, not necessarily exactly midnight.
 export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {

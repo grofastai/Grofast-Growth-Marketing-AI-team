@@ -552,6 +552,7 @@ export default function ClientsUnifiedClient({
                   <input
                     type="date"
                     value={dateFrom}
+                    min="2025-01-01"
                     max={dateTo}
                     onChange={e => setCustomRange(e.target.value, dateTo)}
                     style={{
@@ -579,6 +580,7 @@ export default function ClientsUnifiedClient({
                 <input
                   type="month"
                   value={mode === 'all' ? today.slice(0, 7) : period.slice(0, 7)}
+                  min="2025-01"
                   max={today.slice(0, 7)}
                   onChange={e => setPeriod(e.target.value)}
                   style={{

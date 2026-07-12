@@ -486,10 +486,10 @@ export default function LeavesClient({
                 )}
                 {dateMode === "custom" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                    <input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} aria-label="From date"
+                    <input type="date" min="2025-01-01" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} aria-label="From date"
                       style={{ padding: "7px 10px", borderRadius: 12, background: "#FFFFFF", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#37474F", outline: "none", minHeight: 38 }} />
                     <span style={{ fontSize: 12, color: "#37474F" }}>–</span>
-                    <input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)} aria-label="To date"
+                    <input type="date" min={rangeFrom || "2025-01-01"} value={rangeTo} onChange={e => setRangeTo(e.target.value)} aria-label="To date"
                       style={{ padding: "7px 10px", borderRadius: 12, background: "#FFFFFF", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#37474F", outline: "none", minHeight: 38 }} />
                   </div>
                 )}
@@ -506,7 +506,7 @@ export default function LeavesClient({
                 <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"flex-end" }}>
                   <div style={{ display:"flex", flexDirection:"column", gap:5, flex:"0 0 160px" }}>
                     <label style={{ fontSize:10, fontWeight:700, color:"#37474F", textTransform:"uppercase", letterSpacing:"0.08em" }}>Date</label>
-                    <input type="date" max="2099-12-31" value={holidayDate} onChange={e => setHolidayDate(e.target.value)}
+                    <input type="date" min="2025-01-01" max="2099-12-31" value={holidayDate} onChange={e => setHolidayDate(e.target.value)}
                       style={{ fontSize:13, fontWeight:600, color:"#111827", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"9px 12px", outline:"none", cursor:"pointer" }} />
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:5, flex:1, minWidth:160 }}>
@@ -552,7 +552,7 @@ export default function LeavesClient({
                         return (
                           <div key={h.id} style={{ padding:"12px 20px", borderBottom: borderStyle, background:"rgba(30,64,175,0.03)" }}>
                             <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
-                              <input type="date" max="2099-12-31" value={editHolidayDate} onChange={e => setEditHolidayDate(e.target.value)}
+                              <input type="date" min="2025-01-01" max="2099-12-31" value={editHolidayDate} onChange={e => setEditHolidayDate(e.target.value)}
                                 style={{ fontSize:12, fontWeight:600, color:"#111827", background:"#F9FAFB", border:"1.5px solid #BFDBFE", borderRadius:8, padding:"7px 10px", outline:"none", flex:"0 0 148px" }} />
                               <input type="text" value={editHolidayName} onChange={e => setEditHolidayName(e.target.value)}
                                 onKeyDown={e => e.key === "Enter" && handleSaveHoliday(h.id)}

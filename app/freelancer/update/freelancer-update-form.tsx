@@ -216,7 +216,7 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
             placeholder="— Select client —"
             options={clients.map(c => ({ value: c.id, label: c.client_name || c.business_name }))} />
           <Field label="Work Date">
-            <input type="date" value={date} onChange={e => setDate(e.target.value)} max={today} style={INPUT} />
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} min="2025-01-01" max={today} style={INPUT} />
           </Field>
         </div>
 
@@ -240,7 +240,7 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
               <label style={LABEL}>Return Deadline</label>
               <div style={{ position: "relative" }}>
                 <Calendar size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#718096", pointerEvents: "none" }} />
-                <input type="date" max="2099-12-31" value={deadline} onChange={e => setDeadline(e.target.value)}
+                <input type="date" min={today} max="2099-12-31" value={deadline} onChange={e => setDeadline(e.target.value)}
                   style={{ ...INPUT, paddingLeft: 32 }} />
               </div>
             </div>

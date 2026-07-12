@@ -899,7 +899,7 @@ function AssignTaskModal({ member, onClose }: AssignTaskModalProps) {
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: "#5C3D1F" }}>Due Date <span style={{ color: "#5C3D1F", fontWeight: 600 }}>(optional)</span></label>
-                <input type="date" max="2099-12-31" value={dueDate} onChange={e => setDueDate(e.target.value)}
+                <input type="date" min={new Date().toISOString().split("T")[0]} max="2099-12-31" value={dueDate} onChange={e => setDueDate(e.target.value)}
                   className="w-full rounded-xl px-4 py-2.5 text-[13px] outline-none"
                   style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111", colorScheme: "light", fontFamily: "inherit" }} />
               </div>
@@ -1695,14 +1695,6 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                             </td>
                             <td className="px-5 py-3">
                               <div className="flex items-center gap-1.5 relative">
-                                <button
-                                  onClick={() => { setEditMember(m); setSheetOpen(true) }}
-                                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-                                  style={{ color: "#5C3D1F" }}
-                                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F3F4F6"}
-                                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
-                                  <Pencil size={12} />
-                                </button>
                                 <button onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); if (openDropdown === m.id) { setOpenDropdown(null); setDropdownAnchor(null) } else { setOpenDropdown(m.id); setDropdownAnchor({ top: r.bottom + 4, right: window.innerWidth - r.right }) } }}
                                   className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
                                   style={{ color: "#5C3D1F" }}
@@ -1713,6 +1705,15 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                                 {openDropdown === m.id && dropdownAnchor && (
                                   <div className="w-44 rounded-xl shadow-2xl overflow-hidden py-1"
                                     style={{ position: "fixed", top: dropdownAnchor.top, right: dropdownAnchor.right, background: "#FFFFFF", border: "1px solid #E5E7EB", zIndex: 9999 }}>
+                                    <button
+                                      onClick={() => { setEditMember(m); setSheetOpen(true); setOpenDropdown(null) }}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                      style={{ color: "#5C3D1F" }}
+                                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F9FAFB"}
+                                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                      <Pencil size={12} /> Edit
+                                    </button>
+                                    <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
                                     {m.status === "active" && (
                                       <>
                                         <button onClick={() => { setOpenDropdown(null); startImpersonation(m.id) }}
@@ -1816,27 +1817,45 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                           </td>
                           <td className="px-5 py-3.5 text-[12px]" style={{ color: "#5C3D1F" }}>{added}</td>
                           <td className="px-5 py-3.5">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => setEditingFreelancer(f)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                                style={{ background: "rgba(99,102,241,0.07)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.2)" }}>
-                                <Pencil size={11} />
+                            <div className="relative flex items-center gap-1.5">
+                              <button onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); if (openDropdown === f.id) { setOpenDropdown(null); setDropdownAnchor(null) } else { setOpenDropdown(f.id); setDropdownAnchor({ top: r.bottom + 4, right: window.innerWidth - r.right }) } }}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+                                style={{ color: "#5C3D1F" }}
+                                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F3F4F6"}
+                                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                <MoreVertical size={12} />
                               </button>
-                              <button
-                                onClick={() => handleDeactivateFreelancer(f)}
-                                title="Deactivate"
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                                style={{ background: "rgba(245,158,11,0.07)", color: "#D97706", border: "1px solid rgba(245,158,11,0.2)" }}>
-                                <Ban size={11} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteFreelancer(f.id, f.name)}
-                                title="Delete permanently"
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                                style={{ background: "rgba(222,26,26,0.07)", color: "#DE1A1A", border: "1px solid rgba(222,26,26,0.18)" }}>
-                                <Trash2 size={11} />
-                              </button>
+                              {openDropdown === f.id && dropdownAnchor && (
+                                <div className="w-44 rounded-xl shadow-2xl overflow-hidden py-1"
+                                  style={{ position: "fixed", top: dropdownAnchor.top, right: dropdownAnchor.right, background: "#FFFFFF", border: "1px solid #E5E7EB", zIndex: 9999 }}>
+                                  <button
+                                    onClick={() => { setEditingFreelancer(f); setOpenDropdown(null) }}
+                                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                    style={{ color: "#6366F1" }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                    <Pencil size={12} /> Edit
+                                  </button>
+                                  <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
+                                  <button
+                                    onClick={() => { handleDeactivateFreelancer(f); setOpenDropdown(null) }}
+                                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                    style={{ color: "#D97706" }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(245,158,11,0.06)"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                    <Ban size={12} /> Deactivate
+                                  </button>
+                                  <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
+                                  <button
+                                    onClick={() => { handleDeleteFreelancer(f.id, f.name); setOpenDropdown(null) }}
+                                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                    style={{ color: "#DE1A1A" }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.06)"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                    <Trash2 size={12} /> Delete
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1980,23 +1999,6 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                           </div>
                         )}
                         <div className="relative flex items-center gap-1">
-                          <button onClick={() => { setEditMember(member); setSheetOpen(true) }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
-                            style={{ background: "rgba(222,26,26,0.07)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.12)" }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.14)"}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.07)"}>
-                            <Pencil size={11} /> Edit
-                          </button>
-
-                          <button onClick={() => { setConfirmDelete(member); setOpenDropdown(null) }}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                            title="Delete member"
-                            style={{ color: "#EF4444" }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.08)"}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
-                            <Trash2 size={14} />
-                          </button>
-
                           <button onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); if (openDropdown === member.id) { setOpenDropdown(null); setDropdownAnchor(null) } else { setOpenDropdown(member.id); setDropdownAnchor({ top: r.bottom + 4, right: window.innerWidth - r.right }) } }}
                             className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
                             style={{ color: "#5C3D1F" }}
@@ -2008,6 +2010,14 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                           {openDropdown === member.id && dropdownAnchor && (
                             <div className="w-44 rounded-xl shadow-2xl overflow-hidden py-1"
                               style={{ position: "fixed", top: dropdownAnchor.top, right: dropdownAnchor.right, background: "#FFFFFF", border: "1px solid #E5E7EB", zIndex: 9999 }}>
+                              <button onClick={() => { setEditMember(member); setSheetOpen(true); setOpenDropdown(null) }}
+                                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                style={{ color: "#de1a1a" }}
+                                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.06)"}
+                                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                <Pencil size={12} /> Edit
+                              </button>
+                              <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
                               {member.status === "active" && member.role === "MEMBER" && (
                                 <>
                                   <button
@@ -2024,11 +2034,11 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                               {member.status === "active" && member.role !== "ADMIN" && (
                                 <>
                                   <button onClick={() => handleToggleSupportHandler(member)} disabled={isPending}
-                                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all whitespace-nowrap"
                                     style={{ color: member.is_support_handler ? "#DE1A1A" : "#0EA5E9" }}
                                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F9FAFB"}
                                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
-                                    <LifeBuoy size={12} /> {member.is_support_handler ? "Remove support role" : "Make support handler"}
+                                    <LifeBuoy size={12} className="flex-shrink-0" /> {member.is_support_handler ? "Remove Support" : "Support Handler"}
                                   </button>
                                   <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
                                 </>

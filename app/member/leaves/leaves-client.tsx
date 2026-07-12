@@ -532,10 +532,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 {/* Custom range */}
                 {dateMode === "custom" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                    <input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} aria-label="From date"
+                    <input type="date" min="2025-01-01" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)} aria-label="From date"
                       style={{ padding: "7px 10px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#374151", outline: "none", minHeight: 38 }} />
                     <span style={{ fontSize: 12, color: "#9CA3AF" }}>–</span>
-                    <input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)} aria-label="To date"
+                    <input type="date" min={rangeFrom || "2025-01-01"} value={rangeTo} onChange={e => setRangeTo(e.target.value)} aria-label="To date"
                       style={{ padding: "7px 10px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#374151", outline: "none", minHeight: 38 }} />
                   </div>
                 )}
@@ -1025,8 +1025,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 {leaveType === "full_day" && (
                   <div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                      <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>From *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={() => setDateError(null)} /></div>
-                      <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>To *</label><input name="to_date" type="date" required style={FIELD} defaultValue={editingLeave?.to_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={() => setDateError(null)} /></div>
+                      <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>From *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? "2025-01-01" : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={() => setDateError(null)} /></div>
+                      <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>To *</label><input name="to_date" type="date" required style={FIELD} defaultValue={editingLeave?.to_date ?? ""} min={editingLeave ? "2025-01-01" : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={() => setDateError(null)} /></div>
                     </div>
                     {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}
                   </div>
@@ -1035,7 +1035,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                   <>
                     <input type="hidden" name="half_day_from_time" value={halfFrom} />
                     <input type="hidden" name="half_day_to_time" value={halfTo} />
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={e => {
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? "2025-01-01" : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={e => {
                       setDateError(null)
                       const d = e.target.value
                       setHalfDaySelectedDate(d)
@@ -1073,11 +1073,11 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                       <div>
                         <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>From *</label>
-                        <input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
+                        <input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? "2025-01-01" : today} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
                       </div>
                       <div>
                         <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>To *</label>
-                        <input name="to_date" type="date" required style={FIELD} defaultValue={editingLeave?.to_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
+                        <input name="to_date" type="date" required style={FIELD} defaultValue={editingLeave?.to_date ?? ""} min={editingLeave ? "2025-01-01" : today} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
                       </div>
                     </div>
                     {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}
@@ -1087,7 +1087,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 {leaveType === "shoot_day" && (
                   <div>
                     <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label>
-                    <input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
+                    <input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? "2025-01-01" : today} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
                     {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}
                     <p style={{ fontSize: 11, color: "#6366F1", margin: "6px 0 0", fontWeight: 600 }}>📷 Admin approval required for shoot day login</p>
                   </div>
@@ -1104,7 +1104,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                         return diff > 0 ? String(Math.round((diff / 60) * 10) / 10) : "1"
                       })() : "1"
                     } />
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? "2025-01-01" : today} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
                     {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}</div>
                     <div>
                       <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Permission Time *</label>

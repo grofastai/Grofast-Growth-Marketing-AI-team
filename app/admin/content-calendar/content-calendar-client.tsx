@@ -992,7 +992,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               <div>
                 <label style={LABEL}>Date{!isEdit ? "s" : ""} * {!isEdit && <span style={{ fontWeight: 600, color: "#7A4B00", textTransform: "none" }}>— select one or more</span>}</label>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <input type="date" max="2099-12-31" value={schedDateInput}
+                  <input type="date" min="2025-01-01" max="2099-12-31" value={schedDateInput}
                     onChange={e => {
                       const d = e.target.value
                       if (d && !schedDates.includes(d)) setSchedDates(p => isEdit ? [d] : [...p, d].sort())

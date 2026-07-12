@@ -1174,7 +1174,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             <div className="flex flex-wrap items-end gap-3 mb-4">
               <div>
                 <label className="block text-[10px] font-bold mb-1.5" style={{ color: "#6B7280" }}>FROM DATE</label>
-                <input type="date" max={today} value={customFrom}
+                <input type="date" min="2025-01-01" max={today} value={customFrom}
                   onChange={e => { setCustomFrom(e.target.value); setRangeLogs(null) }}
                   className="rounded-xl px-3 py-2 text-[13px] font-semibold"
                   style={{ border: "1.5px solid #EBEDF2", outline: "none", color: "#111111", background: "#F9FAFB" }}
@@ -1182,7 +1182,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               </div>
               <div>
                 <label className="block text-[10px] font-bold mb-1.5" style={{ color: "#6B7280" }}>TO DATE</label>
-                <input type="date" min={customFrom || undefined} max={today} value={customTo}
+                <input type="date" min={customFrom || "2025-01-01"} max={today} value={customTo}
                   onChange={e => { setCustomTo(e.target.value); setRangeLogs(null) }}
                   className="rounded-xl px-3 py-2 text-[13px] font-semibold"
                   style={{ border: "1.5px solid #EBEDF2", outline: "none", color: "#111111", background: "#F9FAFB" }}

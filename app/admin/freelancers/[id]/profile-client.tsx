@@ -331,7 +331,7 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, activeClient
               <button onClick={() => setShowAdd(false)}><X size={18} style={{ color: "#0F4C4C" }} /></button>
             </div>
             <div className="space-y-3">
-              <div><Label text="Date" /><input type="date" max="2099-12-31" value={form.date} onChange={e => setForm(p => ({ ...p, date: clampDate(e.target.value) }))} style={inputStyle} /></div>
+              <div><Label text="Date" /><input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={form.date} onChange={e => setForm(p => ({ ...p, date: clampDate(e.target.value) }))} style={inputStyle} /></div>
               <div>
                 <Label text="Client Name" />
                 <ClientSelector
@@ -506,7 +506,7 @@ function PaymentsTab({ freelancer, payments, stats, currentUserRole }: {
               <button onClick={() => setShowAdd(false)}><X size={18} style={{ color: "#0F4C4C" }} /></button>
             </div>
             <div className="space-y-3">
-              <div><Label text="Date" /><input type="date" max="2099-12-31" value={form.paid_date} onChange={e => setForm(p => ({ ...p, paid_date: clampDate(e.target.value) }))} style={inputStyle} /></div>
+              <div><Label text="Date" /><input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={form.paid_date} onChange={e => setForm(p => ({ ...p, paid_date: clampDate(e.target.value) }))} style={inputStyle} /></div>
               <div><Label text="Amount (₹)" /><input type="number" min="1" step="0.01" placeholder="e.g. 5000" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} style={inputStyle} /></div>
               <div>
                 <Label text="Payment Method" />

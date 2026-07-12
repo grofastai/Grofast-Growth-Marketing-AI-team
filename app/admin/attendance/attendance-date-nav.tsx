@@ -35,6 +35,7 @@ export default function AttendanceDateNav({ selectedDate, today }: Props) {
       <input
         type="date"
         value={selectedDate}
+        min="2025-01-01"
         max={today}
         onChange={(e) => e.target.value && go(e.target.value)}
         className="text-[13px] font-semibold px-3 py-1.5 rounded-lg"

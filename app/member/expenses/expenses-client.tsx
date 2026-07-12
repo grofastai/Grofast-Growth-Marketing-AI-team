@@ -182,7 +182,7 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#6B7280" }}>Date *</label>
-                    <input type="date" max="2099-12-31" style={{ ...FIELD, colorScheme: "light" }}
+                    <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} style={{ ...FIELD, colorScheme: "light" }}
                       value={form.date} onChange={set("date")} />
                   </div>
                 </div>

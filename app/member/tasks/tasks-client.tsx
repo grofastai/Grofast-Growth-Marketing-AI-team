@@ -2020,7 +2020,7 @@ export default function MemberTasksClient({
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Due Date</label>
-                  <input type="date" max="2099-12-31" name="due_date" defaultValue={editTask.due_date ?? ""}
+                  <input type="date" min="2025-01-01" max="2099-12-31" name="due_date" defaultValue={editTask.due_date ?? ""}
                     className="w-full px-3 py-2 rounded-xl text-[13px]"
                     style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
                 </div>

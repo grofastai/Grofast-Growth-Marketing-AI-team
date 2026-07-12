@@ -1639,7 +1639,7 @@ export default function DailyUpdateForm({
             {isPastDate && <button onClick={() => handleDateChange(todayStr)} style={{ fontSize:11, fontWeight:700, padding:"5px 12px", borderRadius:8, border:"1.5px solid #DE1A1A", background:"rgba(222,26,26,0.06)", color:"#DE1A1A", cursor:"pointer" }}>Back to Today</button>}
             <label style={{ fontSize:11, fontWeight:700, color:"#6B7280", display:"flex", alignItems:"center", gap:6, cursor:"pointer" }}>
               <span style={{ whiteSpace:"nowrap" }}>{isPastDate ? "Change date" : "Pick past date"}</span>
-              <input type="date" value={selectedDate} max={todayStr} min={(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split("T")[0] })()} onChange={e => e.target.value && handleDateChange(e.target.value)} style={{ fontSize:12, fontWeight:600, color:"#374151", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }} />
+              <input type="date" value={selectedDate} max={todayStr} min="2025-01-01" onChange={e => e.target.value && handleDateChange(e.target.value)} style={{ fontSize:12, fontWeight:600, color:"#374151", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }} />
             </label>
           </div>
         </div>
@@ -1916,7 +1916,7 @@ export default function DailyUpdateForm({
               type="date"
               value={selectedDate}
               max={todayStr}
-              min={(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split("T")[0] })()}
+              min="2025-01-01"
               onChange={e => e.target.value && handleDateChange(e.target.value)}
               style={{ fontSize:12, fontWeight:600, color:"#374151", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }}
             />
@@ -3064,11 +3064,11 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Date Given</label>
-                          <input type="date" max="2099-12-31" value={e.dateGiven} onChange={ev => patchEdit(e.id, { dateGiven: clampDate(ev.target.value) })} style={{ ...F, colorScheme:"light" }} />
+                          <input type="date" min="2025-01-01" max={todayStr} value={e.dateGiven} onChange={ev => patchEdit(e.id, { dateGiven: clampDate(ev.target.value) })} style={{ ...F, colorScheme:"light" }} />
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Date Finished</label>
-                          <input type="date" max="2099-12-31" value={e.dateFinished} onChange={ev => patchEdit(e.id, { dateFinished: clampDate(ev.target.value) })} style={{ ...F, colorScheme:"light" }} />
+                          <input type="date" min="2025-01-01" max={todayStr} value={e.dateFinished} onChange={ev => patchEdit(e.id, { dateFinished: clampDate(ev.target.value) })} style={{ ...F, colorScheme:"light" }} />
                         </div>
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>

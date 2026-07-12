@@ -568,10 +568,10 @@ export default function ActivitiesClient({
         </button>
         {showCustom && (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input type="date" max="2099-12-31" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+            <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={customFrom} onChange={e => setCustomFrom(e.target.value)}
               style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#1E3A5F" }} />
             <span style={{ fontSize: 12, color: "#1E3A5F" }}>to</span>
-            <input type="date" max="2099-12-31" value={customTo} onChange={e => setCustomTo(e.target.value)}
+            <input type="date" min={customFrom || "2025-01-01"} max={new Date().toISOString().split("T")[0]} value={customTo} onChange={e => setCustomTo(e.target.value)}
               style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#1E3A5F" }} />
             <button onClick={() => { navigate(customFrom, customTo); setShowCustom(false) }}
               style={{ padding: "6px 14px", borderRadius: 8, background: "#E31E24", color: "#fff", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>

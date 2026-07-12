@@ -96,6 +96,32 @@ function parseLearningTitle(title: string | undefined): { client: string; topic:
   return m ? { client: m[1], topic: m[2] } : { client: "", topic: title }
 }
 
+function fmt12(t: string | undefined): string {
+  if (!t) return ""
+  const [h, m] = t.split(":").map(Number)
+  if (Number.isNaN(h) || Number.isNaN(m)) return t
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`
+}
+
+function calcDurationFromTimes(start?: string, end?: string): number | null {
+  if (!start || !end) return null
+  const [sh, sm] = start.split(":").map(Number)
+  const [eh, em] = end.split(":").map(Number)
+  const diff = (eh * 60 + em) - (sh * 60 + sm)
+  return diff > 0 ? diff / 60 : null
+}
+
+function fmtTravel(h: number): string {
+  let hrs = Math.floor(h); let mins = Math.round((h % 1) * 60)
+  if (mins === 60) { hrs += 1; mins = 0 }
+  return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
+}
+
+function stripShootNotes(notes: string): string {
+  if (!notes) return ""
+  return notes.split(" | ").filter(p => !p.match(/^(Brand:|Shop:|Location:|Travel:|Client:)/)).join(" | ").trim()
+}
+
 function getEntryTypeLabel(type: unknown): { label: string; color: string; bg: string; emoji: string } {
   const t = String(type ?? "").toLowerCase()
   if (t === "shoot")     return { label: "Shoot",      color: "#0EA5E9", bg: "rgba(14,165,233,0.1)",  emoji: "📹" }
@@ -124,7 +150,7 @@ function avatarColor(name: string) {
 }
 
 // ── Person Detail Drawer ──────────────────────────────────────────────────────
-function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates: Update[]; onClose: () => void; collabHoursMap?: Record<string, number> }) {
+function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, members }: { updates: Update[]; onClose: () => void; collabHoursMap?: Record<string, number>; members: Member[] }) {
   const firstUpdate = updates[0]
   const user = Array.isArray(firstUpdate?.users) ? firstUpdate.users[0] : firstUpdate?.users
   if (!user) return null
@@ -138,7 +164,7 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates
   const byDate = new Map<string, WorkEntry[]>()
   for (const u of [...updates].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))) {
     const entries = (Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
-    const work = entries.filter(e => e.task_type !== "break" && e.task_type !== "not_started")
+    const work = entries.filter(e => e.task_type !== "not_started")
     if (work.length > 0) {
       const d = u.date ?? u.created_at?.split("T")[0] ?? "Unknown"
       byDate.set(d, [...(byDate.get(d) ?? []), ...work])
@@ -196,6 +222,7 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates
                 const typeInfo = getEntryTypeLabel(e.task_type)
                 const rawTitle = (e.title || e.task_name || e.description || "") as string
                 const isLearning = e.task_type === "learning"
+                const isShoot = e.task_type === "shoot"
                 const { client: parsedClient, topic: parsedTopic } = isLearning ? parseLearningTitle(rawTitle) : { client: "", topic: "" }
                 const title = isLearning ? (parsedTopic || rawTitle) : rawTitle
                 const client = (e.client_name || e._brand || e._custom_client || e.client || "") as string
@@ -204,45 +231,63 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates
                   : (e.is_multi_client && Array.isArray(e.client_names) && e.client_names.length > 0
                       ? (e.client_names as string[]).join(", ")
                       : client)
-                const durationH = (e.duration_hours || e.working_hours || 0) as number
                 const startTime = e.start_time as string | undefined
                 const endTime = e.end_time as string | undefined
-                const videoType = e.video_type as string | undefined
-                const entryNotes = e.notes as string | undefined
+                const durationH = calcDurationFromTimes(startTime, endTime) ?? ((e.duration_hours || e.working_hours || 0) as number)
+                const videoLink = e.video_link as string | undefined
+                const participantIds = (e.participant_ids ?? []) as string[]
+                const isRework = !!e.is_rework
+                const travelH = (e._travel_hours as number | undefined) ?? 0
+                const location = (e._location as string | undefined) ?? ""
+                const notes = (e.notes ?? e.description ?? "") as string
+                const cleanNotes = isShoot ? stripShootNotes(notes) : notes.replace(/^\[(completed|in_progress|not_started)\]\s*/, "").trim()
 
                 return (
                   <div key={i} style={{
                     background: "#FFFFFF", borderRadius: 10, padding: "12px 14px",
                     border: "1px solid #F0F0F5", borderLeft: `3px solid ${typeInfo.color}`,
-                    display: "flex", alignItems: "center", gap: 12,
+                    display: "flex", alignItems: "flex-start", gap: 12,
                   }}>
                     {/* Type icon square */}
                     <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, background: typeInfo.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <span style={{ fontSize: 16 }}>{typeInfo.emoji}</span>
                     </div>
-                    {/* Center info */}
+                    {/* Content */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 12, fontWeight: 800, color: "#111827", margin: 0, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {title || typeInfo.label}
-                      </p>
-                      {clientNames && (
-                        <div style={{ marginTop: 5 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: typeInfo.color, background: typeInfo.bg, padding: "2px 8px", borderRadius: 5 }}>
-                            {clientNames}
-                          </span>
-                        </div>
-                      )}
-                      {startTime && endTime && (
-                        <p style={{ fontSize: 10, color: "#1E3A5F", margin: "5px 0 0" }}>{startTime} – {endTime}</p>
-                      )}
-                    </div>
-                    {/* Duration */}
-                    {durationH > 0 && (
-                      <div style={{ flexShrink: 0, textAlign: "right" }}>
-                        <div style={{ fontSize: 12, fontWeight: 800, color: typeInfo.color }}>{fmtHours(durationH)}</div>
-                        <div style={{ fontSize: 9, color: "#1E3A5F", textTransform: "uppercase", marginTop: 1 }}>⏱</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{title || typeInfo.label}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: typeInfo.color, background: typeInfo.bg, padding: "2px 8px", borderRadius: 99 }}>{typeInfo.label}</span>
+                        {isRework && <span style={{ fontSize: 10, fontWeight: 700, color: "#92400E", background: "rgba(245,158,11,0.12)", padding: "2px 8px", borderRadius: 99, border: "1px solid rgba(245,158,11,0.3)" }}>Revision</span>}
                       </div>
-                    )}
+                      {isRework && e.linked_to_title != null && (
+                        <p style={{ fontSize: 10, color: "#B45309", margin: "0 0 3px", fontWeight: 600 }}>↩ of: {String(e.linked_to_client ?? "")} – {String(e.linked_to_title)}</p>
+                      )}
+                      {clientNames && <p style={{ fontSize: 11, color: "#6B7280", margin: "0 0 3px", fontWeight: 600 }}>{clientNames}</p>}
+                      {isShoot && (location || travelH > 0) && (
+                        <p style={{ fontSize: 10, fontWeight: 700, color: "#F59E0B", margin: "0 0 3px" }}>
+                          {location ? `📍 ${location}` : ""}{location && travelH > 0 ? " · " : ""}{travelH > 0 ? `🚗 ${fmtTravel(travelH)} travel` : ""}
+                        </p>
+                      )}
+                      {cleanNotes && <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 4px", lineHeight: 1.5 }}>{cleanNotes}</p>}
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4, flexWrap: "wrap" }}>
+                        {durationH > 0 && (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#374151" }}>⏱ {fmtHours(durationH)}</span>
+                        )}
+                        {startTime && endTime && (
+                          <span style={{ fontSize: 10, color: "#9CA3AF" }}>{fmt12(startTime)} – {fmt12(endTime)}</span>
+                        )}
+                        {videoLink && (
+                          <a href={videoLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textDecoration: "none" }}>
+                            🔗 Drive Link
+                          </a>
+                        )}
+                        {participantIds.length > 0 && (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#6366F1" }}>
+                            👥 {participantIds.map(pid => members.find(m => m.id === pid)?.name ?? "Teammate").join(", ")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )
               })}
@@ -789,6 +834,7 @@ export default function ActivitiesClient({
           updates={selectedUserUpdates}
           onClose={() => setSelectedUserId(null)}
           collabHoursMap={collabHoursMap}
+          members={members}
         />
       )}
     </div>

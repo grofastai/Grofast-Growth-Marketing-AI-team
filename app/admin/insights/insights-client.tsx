@@ -527,6 +527,8 @@ export default function InsightsClient({
                     <td style={{ padding: '11px 16px', textAlign: 'right' }}>
                       {m.wastedCost > 0 ? (
                         <span style={{ fontSize: 12, fontWeight: 800, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>{fmtRupee(m.wastedCost)}</span>
+                      ) : m.overtimeValue > 0 ? (
+                        <span style={{ fontSize: 12, fontWeight: 800, color: SEMANTIC.success, fontVariantNumeric: 'tabular-nums' }}>+{fmtRupee(m.overtimeValue)}</span>
                       ) : (
                         <span style={{ fontSize: 12, color: SEMANTIC.success, fontWeight: 700 }}>₹0</span>
                       )}

@@ -708,6 +708,12 @@ export default function InsightsClient({
                             <p style={{ fontFamily: BEBAS, fontSize: 15, fontWeight: 900, color: SEMANTIC.danger, margin: 0 }}>{fmtRupee(m.wastedCost)}</p>
                           </div>
                         )}
+                        {m.overtimeValue > 0 && (
+                          <div>
+                            <p style={{ fontSize: 9, color: DIM, margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Overtime Value</p>
+                            <p style={{ fontFamily: BEBAS, fontSize: 15, fontWeight: 900, color: SEMANTIC.success, margin: 0 }}>+{fmtRupee(m.overtimeValue)}</p>
+                          </div>
+                        )}
                         <div>
                           <p style={{ fontSize: 9, color: DIM, margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Salary</p>
                           <p style={{ fontFamily: BEBAS, fontSize: 15, fontWeight: 900, color: INK, margin: 0 }}>{fmtRupee(m.monthlySalary)}</p>

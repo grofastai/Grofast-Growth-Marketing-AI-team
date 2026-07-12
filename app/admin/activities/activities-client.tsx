@@ -244,6 +244,42 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, members }: 
                       </div>
                     </div>
 
+                    {/* Day stats — same figures as History's header, wrapped to its own row */}
+                    {(() => {
+                      const workH   = calcNetWorkHours(entries as Parameters<typeof calcNetWorkHours>[0])
+                      const travelH = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + ((e._travel_hours as number | undefined) ?? 0), 0)
+                      const learnH  = entries.filter(e => e.task_type === "learning").reduce((s, e) => s + ((e.duration_hours as number | undefined) ?? 0), 0)
+                      const breakH  = entries.filter(e => e.task_type === "break").reduce((s, e) => s + ((e.duration_hours as number | undefined) ?? 0), 0)
+                      const collabH = collabHoursMap[`${user.id}:${date}`] ?? 0
+                      const displayH = workH + collabH
+                      if (displayH <= 0 && travelH <= 0 && learnH <= 0 && breakH <= 0) return null
+                      return (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", padding: "10px 18px", borderBottom: "1px solid #F5F6FA" }}>
+                          {displayH > 0 && (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 4 }}>
+                              <Clock size={11} style={{ color: "#9CA3AF" }} /> {fmtHours(displayH)}
+                              {collabH > 0 && <span style={{ fontSize: 9, fontWeight: 600, color: "#6366F1" }}>(+{fmtHours(collabH)})</span>}
+                            </span>
+                          )}
+                          {travelH > 0 && (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "#D97706", display: "flex", alignItems: "center", gap: 3, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 99, padding: "2px 7px" }}>
+                              🚗 {fmtHours(travelH)}
+                            </span>
+                          )}
+                          {learnH > 0 && (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", display: "flex", alignItems: "center", gap: 3, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 99, padding: "2px 7px" }}>
+                              📚 {fmtHours(learnH)}
+                            </span>
+                          )}
+                          {breakH > 0 && (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "#78716C", display: "flex", alignItems: "center", gap: 3, background: "rgba(120,113,108,0.08)", border: "1px solid rgba(120,113,108,0.18)", borderRadius: 99, padding: "2px 7px" }}>
+                              ☕ {fmtHours(breakH)}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })()}
+
                     {/* Entries — plain divided rows, no per-entry card/border */}
                     <div>
                       {entries.map((e, i) => {

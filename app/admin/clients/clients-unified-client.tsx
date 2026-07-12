@@ -289,15 +289,14 @@ export default function ClientsUnifiedClient({
         {/* Decorative circles */}
         <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
         <div style={{ position: 'absolute', bottom: -20, right: 180, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
-        {/* Pixar-style client illustration — box sized to the image's own aspect ratio (1774/1024) and
-            vertically centered, instead of stretched to fill the hero's full height. Stretching to fill
-            height forced object-fit:cover to zoom in hard whenever the hero was taller/narrower than the
-            image's native ~1.73:1 ratio (always true on mobile), cropping the woman's head and hands
-            instead of showing the scene framed. */}
-        <div style={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)', width: 'clamp(140px,36vw,360px)', aspectRatio: '1774 / 1024', pointerEvents: 'none', zIndex: 0, borderRadius: 14, overflow: 'hidden' }}>
+        {/* Pixar-style client illustration — box matches the file's true aspect ratio (1774x887) and is
+            vertically centered. The ratio and object-fit:contain must stay in sync with the file: any
+            mismatch makes the image scale past the box and lose an edge (a 1774/1024 box cropped the
+            right-hand chart card clean off). */}
+        <div style={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)', width: 'clamp(140px,36vw,360px)', aspectRatio: '1774 / 887', pointerEvents: 'none', zIndex: 0, borderRadius: 14, overflow: 'hidden' }}>
           <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '30%', background: 'linear-gradient(to right, #8B1A1A 0%, transparent 100%)', zIndex: 2 }} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/client-hero.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'left center', display: 'block', opacity: 0.92 }} />
+          <img src="/brand/client-hero.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block', opacity: 0.92 }} />
         </div>
         <div style={{ padding: 'clamp(24px,6vw,40px) clamp(18px,5vw,32px)', display: 'flex', alignItems: 'center', gap: 16, position: 'relative', zIndex: 1 }}>
           {/* Capped to 60% so it can never run under the illustration, which occupies the right 50% of the hero */}

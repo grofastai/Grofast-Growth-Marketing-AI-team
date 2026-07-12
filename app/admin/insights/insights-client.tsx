@@ -459,6 +459,126 @@ export default function InsightsClient({
         </div>
       </Card>
 
+      {/* ── Team Utilization — Days In / Expected / Overtime / Gap / Prod. Gap / Efficiency ── */}
+      <Card title="Team Utilization" meta="Productivity gap tracker">
+        <div style={{ overflowX: 'auto', margin: '0 -22px', padding: '0 22px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
+            <thead>
+              <tr>
+                {['Member', 'Team', 'Days In', 'Expected', 'Tracked', 'Avg/Day', 'Overtime', 'Gap Hrs', 'Prod. Gap', 'Efficiency'].map(h => (
+                  <th key={h} style={tableHeadStyle(h)}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {memberUtilization.length === 0 ? (
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: MUTED, fontSize: 13 }}>No attendance data for this month</td></tr>
+              ) : memberUtilization.map((m) => {
+                const eColor = effColor(m.efficiency, m.overworked)
+                const tb     = teamBadge(m.team)
+                return (
+                  <tr key={m.id} className="hover:bg-[#F9FAFB]" style={{ borderBottom: `1px solid #F3F4F6` }}>
+                    <td style={{ padding: '11px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Avatar name={m.name} />
+                        <div>
+                          <p style={{ fontSize: 12, fontWeight: 700, color: INK, margin: 0 }}>{m.name}</p>
+                          <p style={{ fontSize: 10, color: DIM, margin: 0 }}>{m.employeeId}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '11px 16px' }}>
+                      <Badge color={tb.color} bg={tb.bg}>{m.team ?? '—'}</Badge>
+                    </td>
+                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: INK, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {m.workingDays}
+                    </td>
+                    <td style={{ padding: '11px 16px', fontSize: 12, color: MUTED, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtH(m.expectedHours)}
+                    </td>
+                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: COL.working, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtH(m.trackedHours)}
+                    </td>
+                    {(() => {
+                      const avg = m.workingDays > 0 ? m.trackedHours / m.workingDays : 0
+                      const avgColor = avg >= 8 ? SEMANTIC.success : avg >= 6 ? SEMANTIC.warning : SEMANTIC.danger
+                      return (
+                        <td style={{ padding: '11px 16px', textAlign: 'right' }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: avgColor, fontVariantNumeric: 'tabular-nums' }}>
+                            {avg > 0 ? fmtH(avg) : '—'}
+                          </span>
+                        </td>
+                      )
+                    })()}
+                    <td style={{ padding: '11px 16px', textAlign: 'right' }}>
+                      {m.overtimeHours > 0 ? (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: SEMANTIC.info, fontVariantNumeric: 'tabular-nums' }}>+{fmtH(m.overtimeHours)}</span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: '#D1D5DB', fontWeight: 600 }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '11px 16px', textAlign: 'right' }}>
+                      {m.untrackedHours > 0 ? (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>{fmtH(m.untrackedHours)}</span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: SEMANTIC.success, fontWeight: 700 }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '11px 16px', textAlign: 'right' }}>
+                      {m.wastedCost > 0 ? (
+                        <span style={{ fontSize: 12, fontWeight: 800, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>{fmtRupee(m.wastedCost)}</span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: SEMANTIC.success, fontWeight: 700 }}>₹0</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '11px 16px', textAlign: 'right' }}>
+                      <Badge color={eColor}>{m.efficiency}% · {effLabel(m.efficiency, m.overworked)}</Badge>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+            {memberUtilization.length > 0 && (() => {
+              const totalDaysIn = memberUtilization.reduce((s, m) => s + m.workingDays, 0)
+              const avgDaysIn   = memberUtilization.length > 0 ? Math.round(totalDaysIn / memberUtilization.length) : 0
+              const avgPerDay   = totalDaysIn > 0 ? kpis.totalTrackedHours / totalDaysIn : 0
+              const avgPerDayColor = avgPerDay >= 8 ? SEMANTIC.success : avgPerDay >= 6 ? SEMANTIC.warning : SEMANTIC.danger
+              return (
+                <tfoot>
+                  <tr style={{ borderTop: `2px solid ${RED}` }}>
+                    <td colSpan={2} style={{ padding: '10px 16px', fontSize: 11, fontWeight: 800, color: INK }}>TOTAL / AVG</td>
+                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: INK, fontVariantNumeric: 'tabular-nums' }}>
+                      {avgDaysIn}
+                    </td>
+                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtH(memberUtilization.reduce((s, m) => s + m.expectedHours, 0))}
+                    </td>
+                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: COL.working, fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtH(kpis.totalTrackedHours)}
+                    </td>
+                    <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: avgPerDayColor, fontVariantNumeric: 'tabular-nums' }}>{avgPerDay > 0 ? fmtH(avgPerDay) : '—'}</span>
+                    </td>
+                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: SEMANTIC.info, fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtH(memberUtilization.reduce((s, m) => s + m.overtimeHours, 0))}
+                    </td>
+                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtH(memberUtilization.reduce((s, m) => s + m.untrackedHours, 0))}
+                    </td>
+                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>
+                      {fmtRupee(kpis.totalWastedCost)}
+                    </td>
+                    <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                      <Badge color={effColor(kpis.avgEfficiency, false)}>{kpis.avgEfficiency}% avg</Badge>
+                    </td>
+                  </tr>
+                </tfoot>
+              )
+            })()}
+          </table>
+        </div>
+      </Card>
+
       {/* ── Work Type Breakdown ──────────────────────────────────────────── */}
       <Card title="Work Type Breakdown" meta="Hours logged by task type, team-wide">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

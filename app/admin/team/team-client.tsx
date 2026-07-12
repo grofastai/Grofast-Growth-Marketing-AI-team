@@ -23,6 +23,7 @@ type FreelancerBasic = {
   cost_per_minute: number | null; cost_per_video: number | null; cost_per_hour: number | null
   voice_type: string | null; editing_software: string[]; gender: string | null; title: string | null
   created_at: string
+  first_work_date?: string | null
 }
 
 const FL_TYPE_CFG: Record<string, { label: string; color: string; bg: string; emoji: string }> = {
@@ -1821,8 +1822,9 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                     ) : freelancers.map((f, i) => {
                       const teamKey = getFreelancerTeamKey(f)
                       const teamCfg = FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
-                      const added = f.created_at
-                        ? new Date(f.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                      const joinedSource = f.first_work_date ?? f.created_at
+                      const added = joinedSource
+                        ? new Date(joinedSource).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
                         : "—"
                       const initials = f.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
                       return (
@@ -2344,7 +2346,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                         </td>
                         <td className="px-5 py-3 text-[12px]" style={{ color: "#5C3D1F" }}>{formatPhoneDisplay(f.phone)}</td>
                         <td className="px-5 py-3 text-[12px]" style={{ color: "#5C3D1F" }}>
-                          {f.created_at ? new Date(f.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                          {(() => { const d = f.first_work_date ?? f.created_at; return d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—" })()}
                         </td>
                         <td className="px-5 py-3">
                           <button onClick={() => handleReactivateFreelancer(f)}

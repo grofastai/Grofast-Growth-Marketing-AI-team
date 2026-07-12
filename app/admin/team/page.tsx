@@ -35,6 +35,7 @@ export default async function TeamPage({
     { data: freelancersData },
     { data: pastFreelancersData },
     { data: assignmentRows },
+    { data: workEntryDates },
   ] = await Promise.all([
     admin
       .from('users')
@@ -65,6 +66,16 @@ export default async function TeamPage({
       .from('freelancer_assignments')
       .select('user_id')
       .eq('company_id', profile.company_id),
+    // No-login freelancers' "Joined" date should reflect when they actually started
+    // work, not when their record was created in the system — those two drifted
+    // apart badly (all bulk-added on the same day, weeks after they'd really begun).
+    // Deriving it from their earliest logged work entry means it's always correct,
+    // for existing freelancers and any future one, with nothing to remember to fill in.
+    admin
+      .from('freelancer_work_entries_v2')
+      .select('freelancer_id, date_finished')
+      .eq('company_id', profile.company_id)
+      .order('date_finished', { ascending: true }),
   ])
 
   if (membersError) {
@@ -75,12 +86,21 @@ export default async function TeamPage({
     ...new Set((assignmentRows ?? []).map((r: { user_id: string }) => r.user_id))
   ]
 
+  const firstWorkDateByFreelancer = new Map<string, string>()
+  for (const row of (workEntryDates ?? []) as { freelancer_id: string; date_finished: string }[]) {
+    if (!firstWorkDateByFreelancer.has(row.freelancer_id)) {
+      firstWorkDateByFreelancer.set(row.freelancer_id, row.date_finished)
+    }
+  }
+  const withFirstWorkDate = <T extends { id: string }>(rows: T[] | null) =>
+    (rows ?? []).map(f => ({ ...f, first_work_date: firstWorkDateByFreelancer.get(f.id) ?? null }))
+
   return (
     <TeamClient
       members={members ?? []}
       pastMembers={pastMembers ?? []}
-      freelancers={freelancersData ?? []}
-      pastFreelancers={pastFreelancersData ?? []}
+      freelancers={withFirstWorkDate(freelancersData)}
+      pastFreelancers={withFirstWorkDate(pastFreelancersData)}
       initialSearch={initialSearch ?? ""}
       assignedManagerIds={assignedManagerIds}
     />

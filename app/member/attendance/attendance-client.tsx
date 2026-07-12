@@ -819,7 +819,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 </div>
               )}
 
-              {/* ABSENT */}
+              {/* ON LEAVE */}
               {isAbsent && (
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
@@ -827,8 +827,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     <span className="text-[20px]">✗</span>
                   </div>
                   <div>
-                    <p className="text-[15px] font-bold" style={{ color: "#111111" }}>Absent Today</p>
-                    <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>Absence recorded for today.</p>
+                    <p className="text-[15px] font-bold" style={{ color: "#111111" }}>On Leave Today</p>
+                    <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>An approved leave is recorded for today.</p>
                   </div>
                 </div>
               )}
@@ -851,7 +851,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             </div>
             <div className="space-y-3">
               {[
-                { label: "Status",     value: isAbsent ? "Absent" : (isIn || isDone) ? "Present" : "Not Logged", color: isAbsent ? "#EF4444" : (isIn || isDone) ? "#22C55E" : "#9CA3AF" },
+                { label: "Status",     value: isAbsent ? "On Leave" : (isIn || isDone) ? "Present" : "Not Logged", color: isAbsent ? "#EF4444" : (isIn || isDone) ? "#22C55E" : "#9CA3AF" },
                 { label: "Work Mode",  value: todayLog?.work_type === "wfh" ? "Work From Home" : todayLog?.work_type === "shoot" ? "Shoot (Outside)" : todayLog?.work_type === "office" ? "Office" : "—", color: "#111111" },
                 { label: "Log In",     value: fmtTime(todayLog?.clock_in ?? null), color: "#111111" },
                 { label: "Log Out",    value: fmtTime(todayLog?.clock_out ?? null), color: "#111111" },

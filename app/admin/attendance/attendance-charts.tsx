@@ -12,7 +12,7 @@ export function AttendanceDonut({ present, notLogged, absent, total }: DonutProp
   const slices = [
     { name: "Present",      value: present,   color: "#DE1A1A" },
     { name: "Not Logged In",value: notLogged,  color: "#F59E0B" },
-    { name: "Absent",       value: absent,     color: "#0F4C4C" },
+    { name: "On Leave",     value: absent,     color: "#0F4C4C" },
   ]
   const data = slices.filter(s => s.value > 0)
   const display = data.length === 0 ? [{ name: "No Data", value: 1, color: "#E5E7EB" }] : data

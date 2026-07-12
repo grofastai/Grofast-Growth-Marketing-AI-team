@@ -942,9 +942,10 @@ export default function HistoryClient({
     }
 
     // Company holidays — only days that have already arrived (date <= todayIST)
+    // Freelancers (login) have no leave/holiday features, so skip entirely for them
     const leaveDates = new Set(leaveItems.map(l => l.date))
     const holidayItems: MergedItem[] = []
-    for (const holiday of companyLeaves) {
+    for (const holiday of (isFreelancerMedia ? [] : companyLeaves)) {
       if (holiday.date > todayIST) continue
       if (ownDates.has(holiday.date)) continue
       if (collabDates.has(holiday.date)) continue

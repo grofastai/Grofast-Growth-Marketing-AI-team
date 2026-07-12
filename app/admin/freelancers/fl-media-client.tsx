@@ -62,6 +62,12 @@ function getInitials(name: string) {
   return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
 }
 
+// Same shoot/edit colors used in Admin > Activities, so the two views read consistently
+const TASK_TYPE_CFG: Record<string, { label: string; color: string; bg: string; emoji: string }> = {
+  shoot: { label: "Shoot", color: "#0EA5E9", bg: "rgba(14,165,233,0.1)", emoji: "📹" },
+  edit:  { label: "Edit",  color: "#6366F1", bg: "rgba(99,102,241,0.1)", emoji: "🎬" },
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function FlMediaClient({
@@ -238,9 +244,11 @@ export default function FlMediaClient({
               const day = dateObj.getDate()
               const mon = dateObj.toLocaleDateString("en-IN", { month: "short" })
 
+              const typeCfg = TASK_TYPE_CFG[e.task_type]
+
               return (
                 <div key={key}
-                  style={{ background: "#fff", borderRadius: 16, border: "1px solid #F5E6E8", borderLeft: "4px solid #DC143C", boxShadow: "0 2px 16px rgba(220,20,60,0.06), 0 1px 4px rgba(0,0,0,0.04)", padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, transition: "box-shadow 0.15s" }}
+                  style={{ background: "#fff", borderRadius: 16, border: "1px solid #F5E6E8", borderLeft: `4px solid ${typeCfg?.color ?? "#DC143C"}`, boxShadow: "0 2px 16px rgba(220,20,60,0.06), 0 1px 4px rgba(0,0,0,0.04)", padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, transition: "box-shadow 0.15s" }}
                   onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.boxShadow = "0 6px 28px rgba(220,20,60,0.12), 0 2px 8px rgba(0,0,0,0.06)"}
                   onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.boxShadow = "0 2px 16px rgba(220,20,60,0.06), 0 1px 4px rgba(0,0,0,0.04)"}>
 
@@ -254,6 +262,11 @@ export default function FlMediaClient({
 
                   {/* Content — all on one line */}
                   <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, overflow: "hidden" }}>
+                    {typeCfg && (
+                      <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 20, background: typeCfg.bg, color: typeCfg.color, fontSize: 10, fontWeight: 800, whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {typeCfg.emoji} {typeCfg.label}
+                      </span>
+                    )}
                     <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: "1 1 0", minWidth: 0 }}>{e.title || "—"}</p>
                     {e.client_name && <span style={{ fontSize: 11, color: "#DC143C", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>{e.client_name}</span>}
                     {e.video_duration && <span style={{ fontSize: 11, color: "#0F4C4C", whiteSpace: "nowrap", flexShrink: 0 }}>· {e.video_duration}</span>}

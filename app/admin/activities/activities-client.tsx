@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Search, Filter, Clock, Users, AlertCircle, TrendingUp, Bell, Star, X, ChevronRight } from "lucide-react"
+import { Search, Filter, Clock, Users, AlertCircle, TrendingUp, Bell, Star, X, ChevronRight, Camera, Film, BookOpen, Coffee, GraduationCap, Mic, Image as ImageIcon, FileText, Code2, CalendarClock } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 import { calcNetWorkHours } from "@/lib/utils/work-hours"
 import { PageHero } from "@/components/admin/PageHero"
@@ -138,6 +138,21 @@ function getEntryTypeLabel(type: unknown): { label: string; color: string; bg: s
   return { label: "Work", color: "#374151", bg: "rgba(55,65,81,0.08)", emoji: "💼" }
 }
 
+// Exact same icon/color/label config as app/member/history/history-client.tsx's
+// TASK_CFG, so the drawer reads as visually identical to History for a given person.
+const TASK_CFG: Record<string, { Icon: typeof Camera; color: string; bg: string; label: string }> = {
+  shoot:          { Icon: Camera,        color: "#EF4444", bg: "rgba(239,68,68,0.1)",   label: "Shoot" },
+  edit:           { Icon: Film,          color: "#6366F1", bg: "rgba(99,102,241,0.1)",  label: "Editing" },
+  other:          { Icon: BookOpen,      color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  label: "Work" },
+  break:          { Icon: Coffee,        color: "#78716C", bg: "rgba(120,113,108,0.1)", label: "Break" },
+  learning:       { Icon: GraduationCap, color: "#059669", bg: "rgba(5,150,105,0.12)",  label: "Learning" },
+  voiceover:      { Icon: Mic,           color: "#8B5CF6", bg: "rgba(139,92,246,0.1)",  label: "Voiceover" },
+  poster:         { Icon: ImageIcon,     color: "#EC4899", bg: "rgba(236,72,153,0.1)",  label: "Poster" },
+  scripting:      { Icon: FileText,      color: "#EAB308", bg: "rgba(234,179,8,0.1)",   label: "Scripting" },
+  development:    { Icon: Code2,         color: "#6366F1", bg: "rgba(99,102,241,0.1)",  label: "Development" },
+  other_activity: { Icon: CalendarClock, color: "#6B7280", bg: "rgba(107,114,128,0.1)", label: "Other" },
+}
+
 const AVATAR_COLORS = [
   ["#E31E24","#fff"], ["#7C3AED","#fff"], ["#0EA5E9","#fff"],
   ["#16A34A","#fff"], ["#D97706","#fff"], ["#EC4899","#fff"],
@@ -206,94 +221,110 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, members }: 
         {/* Scrollable body */}
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 32px" }}>
 
-          {/* Work entries grouped by date */}
+          {/* Work entries grouped by date — visually identical to Member > History's day cards */}
           {dateGroups.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px 0", color: "#1E3A5F", fontSize: 13 }}>No work entries recorded</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {dateGroups.map(([date, entries]) => (
-                <div key={date}>
-                  {/* Date header */}
-                  <div style={{ fontSize: 11, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid #F0F0F5" }}>
-                    {(() => { try { return new Date(date + "T12:00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) } catch { return date } })()}
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {entries.map((e, i) => {
-                const typeInfo = getEntryTypeLabel(e.task_type)
-                const rawTitle = (e.title || e.task_name || e.description || "") as string
-                const isLearning = e.task_type === "learning"
-                const isShoot = e.task_type === "shoot"
-                const { client: parsedClient, topic: parsedTopic } = isLearning ? parseLearningTitle(rawTitle) : { client: "", topic: "" }
-                const title = isLearning ? (parsedTopic || rawTitle) : rawTitle
-                const client = (e.client_name || e._brand || e._custom_client || e.client || "") as string
-                const clientNames = isLearning
-                  ? parsedClient
-                  : (e.is_multi_client && Array.isArray(e.client_names) && e.client_names.length > 0
-                      ? (e.client_names as string[]).join(", ")
-                      : client)
-                const startTime = e.start_time as string | undefined
-                const endTime = e.end_time as string | undefined
-                const durationH = calcDurationFromTimes(startTime, endTime) ?? ((e.duration_hours || e.working_hours || 0) as number)
-                const videoLink = e.video_link as string | undefined
-                const participantIds = (e.participant_ids ?? []) as string[]
-                const isRework = !!e.is_rework
-                const travelH = (e._travel_hours as number | undefined) ?? 0
-                const location = (e._location as string | undefined) ?? ""
-                const notes = (e.notes ?? e.description ?? "") as string
-                const cleanNotes = isShoot ? stripShootNotes(notes) : notes.replace(/^\[(completed|in_progress|not_started)\]\s*/, "").trim()
+              {dateGroups.map(([date, entries]) => {
+                const dObj = (() => { try { return new Date(date + "T12:00:00") } catch { return null } })()
+                const dateLabel = dObj ? dObj.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : date
 
                 return (
-                  <div key={i} style={{
-                    background: "#FFFFFF", borderRadius: 10, padding: "12px 14px",
-                    border: "1px solid #F0F0F5", borderLeft: `3px solid ${typeInfo.color}`,
-                    display: "flex", alignItems: "flex-start", gap: 12,
-                  }}>
-                    {/* Type icon square */}
-                    <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, background: typeInfo.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: 16 }}>{typeInfo.emoji}</span>
+                  <div key={date} style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+                    {/* Day header */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", borderBottom: "1px solid #F5F6FA" }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(222,26,26,0.08)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <span style={{ fontSize: 14, fontWeight: 900, color: "#DE1A1A", lineHeight: 1 }}>{dObj ? dObj.getDate() : ""}</span>
+                        <span style={{ fontSize: 8, fontWeight: 700, color: "#DE1A1A", textTransform: "uppercase" }}>{dObj ? dObj.toLocaleDateString("en-US", { month: "short" }) : ""}</span>
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 800, color: "#111111", margin: 0, whiteSpace: "nowrap" }}>{dateLabel}</p>
+                        <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>{entries.length} {entries.length === 1 ? "entry" : "entries"}</p>
+                      </div>
                     </div>
-                    {/* Content */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{title || typeInfo.label}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: typeInfo.color, background: typeInfo.bg, padding: "2px 8px", borderRadius: 99 }}>{typeInfo.label}</span>
-                        {isRework && <span style={{ fontSize: 10, fontWeight: 700, color: "#92400E", background: "rgba(245,158,11,0.12)", padding: "2px 8px", borderRadius: 99, border: "1px solid rgba(245,158,11,0.3)" }}>Revision</span>}
-                      </div>
-                      {isRework && e.linked_to_title != null && (
-                        <p style={{ fontSize: 10, color: "#B45309", margin: "0 0 3px", fontWeight: 600 }}>↩ of: {String(e.linked_to_client ?? "")} – {String(e.linked_to_title)}</p>
-                      )}
-                      {clientNames && <p style={{ fontSize: 11, color: "#6B7280", margin: "0 0 3px", fontWeight: 600 }}>{clientNames}</p>}
-                      {isShoot && (location || travelH > 0) && (
-                        <p style={{ fontSize: 10, fontWeight: 700, color: "#F59E0B", margin: "0 0 3px" }}>
-                          {location ? `📍 ${location}` : ""}{location && travelH > 0 ? " · " : ""}{travelH > 0 ? `🚗 ${fmtTravel(travelH)} travel` : ""}
-                        </p>
-                      )}
-                      {cleanNotes && <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 4px", lineHeight: 1.5 }}>{cleanNotes}</p>}
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4, flexWrap: "wrap" }}>
-                        {durationH > 0 && (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#374151" }}>⏱ {fmtHours(durationH)}</span>
-                        )}
-                        {startTime && endTime && (
-                          <span style={{ fontSize: 10, color: "#9CA3AF" }}>{fmt12(startTime)} – {fmt12(endTime)}</span>
-                        )}
-                        {videoLink && (
-                          <a href={videoLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textDecoration: "none" }}>
-                            🔗 Drive Link
-                          </a>
-                        )}
-                        {participantIds.length > 0 && (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#6366F1" }}>
-                            👥 {participantIds.map(pid => members.find(m => m.id === pid)?.name ?? "Teammate").join(", ")}
-                          </span>
-                        )}
-                      </div>
+
+                    {/* Entries — plain divided rows, no per-entry card/border */}
+                    <div>
+                      {entries.map((e, i) => {
+                        const cfg = TASK_CFG[String(e.task_type ?? "other")] ?? TASK_CFG.other
+                        const { Icon } = cfg
+                        const rawTitle = (e.title || e.task_name || e.description || "") as string
+                        const isLearning = e.task_type === "learning"
+                        const isShoot = e.task_type === "shoot"
+                        const { client: parsedClient, topic: parsedTopic } = isLearning ? parseLearningTitle(rawTitle) : { client: "", topic: "" }
+                        const title = isLearning ? (parsedTopic || rawTitle) : rawTitle
+                        const client = (e.client_name || e._brand || e._custom_client || e.client || "") as string
+                        const clientNames = isLearning
+                          ? parsedClient
+                          : (e.is_multi_client && Array.isArray(e.client_names) && e.client_names.length > 0
+                              ? (e.client_names as string[]).join(", ")
+                              : client)
+                        const startTime = e.start_time as string | undefined
+                        const endTime = e.end_time as string | undefined
+                        const durationH = calcDurationFromTimes(startTime, endTime) ?? ((e.duration_hours || e.working_hours || 0) as number)
+                        const videoLink = e.video_link as string | undefined
+                        const participantIds = (e.participant_ids ?? []) as string[]
+                        const isRework = !!e.is_rework
+                        const travelH = (e._travel_hours as number | undefined) ?? 0
+                        const location = (e._location as string | undefined) ?? ""
+                        const notes = (e.notes ?? e.description ?? "") as string
+                        const cleanNotes = isShoot ? stripShootNotes(notes) : notes.replace(/^\[(completed|in_progress|not_started)\]\s*/, "").trim()
+                        const isLast = i === entries.length - 1
+
+                        return (
+                          <div key={i} style={{ borderBottom: isLast ? "none" : "1px solid #F5F6FA" }}>
+                            <div style={{ display: "flex", gap: 14, padding: "14px 18px", alignItems: "flex-start" }}>
+                              {/* Type icon square */}
+                              <div style={{ width: 34, height: 34, borderRadius: 10, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <Icon size={15} style={{ color: cfg.color }} />
+                              </div>
+                              {/* Content */}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+                                  <span style={{ fontSize: 13, fontWeight: 800, color: "#111111" }}>{title || cfg.label}</span>
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: "2px 8px", borderRadius: 99 }}>{cfg.label}</span>
+                                  {isRework && <span style={{ fontSize: 10, fontWeight: 700, color: "#92400E", background: "rgba(245,158,11,0.12)", padding: "2px 8px", borderRadius: 99, border: "1px solid rgba(245,158,11,0.3)" }}>Revision</span>}
+                                </div>
+                                {isRework && e.linked_to_title != null && (
+                                  <p style={{ fontSize: 10, color: "#B45309", margin: "0 0 3px", fontWeight: 600 }}>↩ of: {String(e.linked_to_client ?? "")} – {String(e.linked_to_title)}</p>
+                                )}
+                                {clientNames && <p style={{ fontSize: 11, color: "#6B7280", margin: "0 0 3px", fontWeight: 600 }}>{clientNames}</p>}
+                                {isShoot && (location || travelH > 0) && (
+                                  <p style={{ fontSize: 10, fontWeight: 700, color: "#F59E0B", margin: "0 0 3px" }}>
+                                    {location ? `📍 ${location}` : ""}{location && travelH > 0 ? " · " : ""}{travelH > 0 ? `🚗 ${fmtTravel(travelH)} travel` : ""}
+                                  </p>
+                                )}
+                                {cleanNotes && <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 4px", lineHeight: 1.5 }}>{cleanNotes}</p>}
+                                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4, flexWrap: "wrap" }}>
+                                  {durationH > 0 && (
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 3 }}>
+                                      <Clock size={9} style={{ color: "#9CA3AF" }} /> {fmtHours(durationH)}
+                                    </span>
+                                  )}
+                                  {startTime && endTime && (
+                                    <span style={{ fontSize: 10, color: "#9CA3AF" }}>{fmt12(startTime)} – {fmt12(endTime)}</span>
+                                  )}
+                                  {videoLink && (
+                                    <a href={videoLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textDecoration: "none" }}>
+                                      🔗 Drive Link
+                                    </a>
+                                  )}
+                                  {participantIds.length > 0 && (
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: "#6366F1" }}>
+                                      👥 {participantIds.map(pid => members.find(m => m.id === pid)?.name ?? "Teammate").join(", ")}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
               })}
-                  </div>
-                </div>
-              ))}
             </div>
           )}
 

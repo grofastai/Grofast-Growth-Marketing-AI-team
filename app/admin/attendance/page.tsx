@@ -144,7 +144,13 @@ export default async function AttendancePage({
   const absentPct  = totalMembers > 0 ? Math.round((absentCount  / totalMembers) * 100) : 0
   const notLogPct  = totalMembers > 0 ? Math.round((notLogged    / totalMembers) * 100) : 0
 
-  const statCards = [
+  const statCards: Array<{
+    label: string; value: number; img: string
+    numColor: string; accent: string; accentBg: string
+    pct: number; sub: string; icon: React.ReactNode
+    /** Optional override when a card's artwork reads larger than the others at the shared size. */
+    imgClass?: string
+  }> = [
     {
       label: "Present Today", value: presentCount,
       img: "/brand/attendance-admin.png",
@@ -165,6 +171,9 @@ export default async function AttendancePage({
       numColor: "#F59E0B", accent: "#F59E0B", accentBg: "rgba(245,158,11,0.08)",
       pct: notLogPct, sub: `${notLogPct}% pending`,
       icon: <AlertCircle size={16} style={{ color: "#F59E0B" }} />,
+      // This character is drawn larger within its canvas than the other three, so at the
+      // shared width it reads oversized and crowds the count. Give it a smaller box.
+      imgClass: "w-[42px] sm:w-[52px] md:w-[74px] lg:w-[90px]",
     },
     {
       label: "Total Members", value: totalMembers,
@@ -240,7 +249,7 @@ export default async function AttendancePage({
             {/* Soft bg circle */}
             <div style={{ position: "absolute", top: -20, right: -20, width: 90, height: 90, borderRadius: "50%", background: s.accentBg }} />
             {/* Character image — width keyed to breakpoints (not vw) since each card is only ~45% of viewport width on the mobile 2-col grid; vw-based sizing made the image proportionally oversized for its card */}
-            <div className="w-[52px] sm:w-[64px] md:w-[90px] lg:w-[110px]" style={{ position: "absolute", top: 0, bottom: 0, right: 0, pointerEvents: "none" }}>
+            <div className={s.imgClass ?? "w-[52px] sm:w-[64px] md:w-[90px] lg:w-[110px]"} style={{ position: "absolute", top: 0, bottom: 0, right: 0, pointerEvents: "none" }}>
               <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right center" }} />
             </div>
             {/* Text column — right padding matches the image width above (plus a small gap) so the label/number can never run under it, and minWidth:0 lets the label wrap instead of overflowing the card */}

@@ -15,12 +15,13 @@ function adminSupabase() {
 export async function getContentTrackerData(companyId: string): Promise<{ items: ContentItem[]; ads: Ad[] }> {
   const admin = adminSupabase()
 
-  const [itemsRes, postsRes, usersRes, adsRes, revisionsRes] = await Promise.all([
+  const [itemsRes, postsRes, usersRes, adsRes, revisionsRes, performanceRes] = await Promise.all([
     admin.from('content_items').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
     admin.from('content_item_posts').select('*').eq('company_id', companyId).order('posted_date', { ascending: false }),
     admin.from('users').select('id, name').eq('company_id', companyId),
     admin.from('ads_tracker').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
     admin.from('ad_revisions').select('*').eq('company_id', companyId).order('revision_date', { ascending: false }),
+    admin.from('ad_performance_entries').select('*').eq('company_id', companyId).order('entry_date', { ascending: false }),
   ])
 
   type ItemRow = { id: string; client_name: string; title: string; content_type: 'video' | 'poster'; status: 'shot' | 'editing' | 'edited' | 'posted'; shot_by: string | null; shot_date: string | null; edited_by: string | null; edited_date: string | null; notes: string | null; created_at: string }
@@ -28,12 +29,14 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
   type UserRow = { id: string; name: string }
   type AdRow = { id: string; client_name: string; ad_name: string; platform: string; launch_date: string | null; hook_count: number; targeting_type: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null; targeting_notes: string | null; status: 'active' | 'paused' | 'testing' | 'stopped'; created_at: string }
   type RevisionRow = { id: string; ad_id: string; revision_date: string; notes: string; hook_count_after: number | null; targeting_type_after: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null }
+  type PerformanceRow = { id: string; ad_id: string; entry_date: string; spend: number; impressions: number; reach: number; clicks: number; ctr: number; results: number; note: string | null }
 
   const itemRows = (itemsRes.data ?? []) as ItemRow[]
   const postRows = (postsRes.data ?? []) as PostRow[]
   const userRows = (usersRes.data ?? []) as UserRow[]
   const adRows = (adsRes.data ?? []) as AdRow[]
   const revisionRows = (revisionsRes.data ?? []) as RevisionRow[]
+  const performanceRows = (performanceRes.data ?? []) as PerformanceRow[]
 
   const userMap = new Map(userRows.map(u => [u.id, u]))
   const postsByItem = new Map<string, PostRow[]>()
@@ -45,6 +48,11 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
   for (const r of revisionRows) {
     if (!revisionsByAd.has(r.ad_id)) revisionsByAd.set(r.ad_id, [])
     revisionsByAd.get(r.ad_id)!.push(r)
+  }
+  const performanceByAd = new Map<string, PerformanceRow[]>()
+  for (const p of performanceRows) {
+    if (!performanceByAd.has(p.ad_id)) performanceByAd.set(p.ad_id, [])
+    performanceByAd.get(p.ad_id)!.push(p)
   }
 
   const items: ContentItem[] = itemRows.map(row => ({
@@ -77,6 +85,7 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
     status: row.status,
     created_at: row.created_at,
     revisions: revisionsByAd.get(row.id) ?? [],
+    performanceEntries: performanceByAd.get(row.id) ?? [],
   }))
 
   return { items, ads }

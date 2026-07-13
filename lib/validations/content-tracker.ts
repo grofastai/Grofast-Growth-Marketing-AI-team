@@ -33,6 +33,8 @@ export const addContentPostSchema = z.object({
   platform:        z.enum(PLATFORMS),
   posted_date:     z.string().min(1, 'Posted date is required'),
   post_link:       z.string().optional(),
+  // Who actually posted it — defaults to the current user if not supplied.
+  posted_by:       z.string().uuid().optional(),
 })
 export type AddContentPostInput = z.infer<typeof addContentPostSchema>
 

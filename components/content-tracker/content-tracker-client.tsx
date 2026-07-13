@@ -821,10 +821,17 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
 }
 
 // ── Add Platform Post modal ──────────────────────────────────────────────────
-function AddPlatformModal({ item, onClose, onAdded }: { item: ContentItem; onClose: () => void; onAdded: (posts: ContentPost[]) => void }) {
+function AddPlatformModal({ item, members, currentUserId, onClose, onAdded }: {
+  item: ContentItem; members: Member[]; currentUserId: string
+  onClose: () => void; onAdded: (posts: ContentPost[]) => void
+}) {
   const [platforms, setPlatforms] = useState<Platform[]>([])
   const [postedDate, setPostedDate] = useState(new Date().toISOString().split("T")[0])
   const [postLink, setPostLink] = useState("")
+  // Who's posting — defaults to whoever clicked, but can be assigned to someone else.
+  const [postedBy, setPostedBy] = useState(
+    members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const already = new Set(item.posts.map(p => p.platform))
@@ -837,19 +844,24 @@ function AddPlatformModal({ item, onClose, onAdded }: { item: ContentItem; onClo
     if (platforms.length === 0) { setError("Pick at least one platform"); return }
     setSaving(true); setError(null)
 
-    // One post row per platform — the date and link are shared across the batch.
+    // One post row per platform — the date, link and poster are shared across the batch.
     const results = await Promise.all(platforms.map(platform =>
-      addContentPost({ content_item_id: item.id, platform, posted_date: postedDate, post_link: postLink.trim() || undefined })
-        .then(res => ({ res, platform }))
+      addContentPost({
+        content_item_id: item.id, platform, posted_date: postedDate,
+        post_link: postLink.trim() || undefined,
+        posted_by: postedBy || undefined,
+      }).then(res => ({ res, platform }))
     ))
     setSaving(false)
 
     const failed = results.find(r => !r.res.success || !r.res.id)
     if (failed) { setError(failed.res.error ?? "Failed to save"); return }
 
+    const poster = members.find(m => m.id === postedBy) ?? null
     onAdded(results.map(({ res, platform }) => ({
       id: res.id!, content_item_id: item.id, platform,
       posted_date: postedDate, post_link: postLink.trim() || null,
+      postedByUser: poster,
     })))
   }
 
@@ -878,6 +890,16 @@ function AddPlatformModal({ item, onClose, onAdded }: { item: ContentItem; onClo
             </p>
           )}
         </div>
+        {members.length > 0 && (
+          <div>
+            <label style={LABEL}>Posted By *</label>
+            <select style={{ ...FIELD, cursor: "pointer" }} value={postedBy} onChange={e => setPostedBy(e.target.value)}>
+              {members.map(m => (
+                <option key={m.id} value={m.id}>{m.name}{m.id === currentUserId ? " (me)" : ""}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label style={LABEL}>Posted Date *</label>
           <input type="date" style={FIELD} value={postedDate} onChange={e => setPostedDate(e.target.value)} />
@@ -1841,14 +1863,14 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
-                    {["Video/Poster", "Client", "Type", "Platforms", "Posted Date"].map(h => (
+                    {["Video/Poster", "Client", "Type", "Platforms", "Posted By", "Posted Date"].map(h => (
                       <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {logRows.length === 0 ? (
-                    <tr><td colSpan={5} style={{ padding: "32px 14px", textAlign: "center", color: "#374151", fontWeight: 600, fontSize: 12 }}>No posts logged yet</td></tr>
+                    <tr><td colSpan={6} style={{ padding: "32px 14px", textAlign: "center", color: "#374151", fontWeight: 600, fontSize: 12 }}>No posts logged yet</td></tr>
                   ) : logRows.map(item => (
                     <tr key={item.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
                       <td style={{ padding: "10px 14px", fontWeight: 700, color: "#111827" }}>{item.title}</td>
@@ -1870,6 +1892,28 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                               </span>
                             )
                           })}
+                        </div>
+                      </td>
+                      <td style={{ padding: "10px 14px" }}>
+                        {/* One item can be posted to different platforms by different people. */}
+                        <div className="flex flex-wrap items-center gap-1">
+                          {Array.from(new Map(
+                            item.posts
+                              .filter(p => p.postedByUser)
+                              .map(p => [p.postedByUser!.id, p.postedByUser!])
+                          ).values()).map(u => (
+                            <span key={u.id} className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                              style={{ background: "rgba(34,197,94,0.1)", color: "#16A34A" }}>
+                              <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
+                                style={{ background: "#16A34A", color: "#fff" }}>
+                                {initials(u.name)}
+                              </span>
+                              {u.name}
+                            </span>
+                          ))}
+                          {item.posts.every(p => !p.postedByUser) && (
+                            <span className="text-[10px]" style={{ color: "#9CA3AF" }}>—</span>
+                          )}
                         </div>
                       </td>
                       <td style={{ padding: "10px 14px", color: "#374151" }}>{fmtDateRange(item.posts.map(p => p.posted_date))}</td>
@@ -2062,7 +2106,8 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           onCreated={item => { setItems(prev => [item, ...prev]); setShowNewContent(false) }} />
       )}
       {platformModalItem && (
-        <AddPlatformModal item={platformModalItem} onClose={() => setPlatformModalItem(null)} onAdded={handlePostAdded} />
+        <AddPlatformModal item={platformModalItem} members={members} currentUserId={currentUserId}
+          onClose={() => setPlatformModalItem(null)} onAdded={handlePostAdded} />
       )}
       {editingItem && (
         <EditContentModal item={editingItem} clients={clients} pastClients={pastClients} onClose={() => setEditingItem(null)}

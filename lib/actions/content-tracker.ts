@@ -151,7 +151,7 @@ export async function addContentPost(input: AddContentPostInput): Promise<{ succ
     platform:        parsed.data.platform,
     posted_date:     parsed.data.posted_date,
     post_link:       parsed.data.post_link || null,
-    posted_by:       ctx.id,
+    posted_by:       parsed.data.posted_by || ctx.id,
   }).select('id').single()
   if (error) return { success: false, error: error.message }
 

@@ -791,7 +791,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null)
   const [showNewAd, setShowNewAd] = useState(false)
   const [revisionModalAd, setRevisionModalAd] = useState<Ad | null>(null)
+  const [performanceModalAd, setPerformanceModalAd] = useState<Ad | null>(null)
   const [adsClientFilter, setAdsClientFilter] = useState<string>("all")
+  const [adsSearch, setAdsSearch] = useState("")
+  const [adsStatusFilter, setAdsStatusFilter] = useState<AdStatus | "all">("all")
   const [expandedAd, setExpandedAd] = useState<string | null>(null)
   const [logSearch, setLogSearch] = useState("")
   const [logPlatformFilter, setLogPlatformFilter] = useState<Platform | "all">("all")
@@ -932,10 +935,13 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
     })
   }, [postedItems, logSearch, logPlatformFilter, logClientFilter, logMonthFilter])
 
-  const filteredAds = useMemo(
-    () => adsClientFilter === "all" ? ads : ads.filter(a => a.client_name === adsClientFilter),
-    [ads, adsClientFilter]
-  )
+  const filteredAds = useMemo(() => {
+    let rows = ads
+    if (adsClientFilter !== "all") rows = rows.filter(a => a.client_name === adsClientFilter)
+    if (adsStatusFilter !== "all") rows = rows.filter(a => a.status === adsStatusFilter)
+    if (adsSearch) rows = rows.filter(a => `${a.ad_name} ${a.client_name}`.toLowerCase().includes(adsSearch.toLowerCase()))
+    return rows
+  }, [ads, adsClientFilter, adsStatusFilter, adsSearch])
 
   function handlePostAdded(post: ContentPost) {
     setItems(prev => prev.map(i => i.id === post.content_item_id ? { ...i, status: "posted", posts: [...i.posts, post] } : i))
@@ -1182,20 +1188,43 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
       {tab === "ads" && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <select value={adsClientFilter} onChange={e => setAdsClientFilter(e.target.value)}
-              style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
-              <option value="all">All Clients</option>
-              {activeClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-              {pastClientOptions.length > 0 && (
-                <optgroup label="📁 Past Clients">
-                  {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                </optgroup>
-              )}
-            </select>
+            <div className="flex items-center gap-2 flex-wrap" style={{ flex: "1 1 auto" }}>
+              <div style={{ position: "relative", flex: "1 1 200px" }}>
+                <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+                <input value={adsSearch} onChange={e => setAdsSearch(e.target.value)} placeholder="Search ad or client…"
+                  style={{ ...FIELD, paddingLeft: 30 }} />
+              </div>
+              <select value={adsClientFilter} onChange={e => setAdsClientFilter(e.target.value)}
+                style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+                <option value="all">All Clients</option>
+                {activeClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                {pastClientOptions.length > 0 && (
+                  <optgroup label="📁 Past Clients">
+                    {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                  </optgroup>
+                )}
+              </select>
+            </div>
             <button onClick={() => setShowNewAd(true)}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               <Plus size={14} /> New Ad
             </button>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => setAdsStatusFilter("all")}
+              style={{ padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${adsStatusFilter === "all" ? "#DE1A1A" : "#E5E7EB"}`, background: adsStatusFilter === "all" ? "rgba(222,26,26,0.08)" : "#fff", color: adsStatusFilter === "all" ? "#DE1A1A" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              All Statuses
+            </button>
+            {(Object.keys(AD_STATUS_CFG) as AdStatus[]).map(s => {
+              const cfg = AD_STATUS_CFG[s]
+              return (
+                <button key={s} onClick={() => setAdsStatusFilter(s)}
+                  style={{ padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${adsStatusFilter === s ? cfg.color : "#E5E7EB"}`, background: adsStatusFilter === s ? `${cfg.color}14` : "#fff", color: adsStatusFilter === s ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {cfg.label}
+                </button>
+              )
+            })}
           </div>
 
           {ads.length === 0 ? (
@@ -1206,10 +1235,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
           ) : filteredAds.length === 0 ? (
             <div style={{ background: "#fff", border: "1px dashed #E5E7EB", borderRadius: 18, padding: "40px 20px", textAlign: "center" }}>
               <Megaphone size={24} style={{ color: "#D1D5DB", margin: "0 auto 8px" }} />
-              <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>No ads for {adsClientFilter}</p>
-              <button onClick={() => setAdsClientFilter("all")}
+              <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>No ads match your filters</p>
+              <button onClick={() => { setAdsClientFilter("all"); setAdsStatusFilter("all"); setAdsSearch("") }}
                 style={{ marginTop: 8, fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>
-                Clear filter
+                Clear filters
               </button>
             </div>
           ) : (

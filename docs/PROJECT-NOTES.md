@@ -52,6 +52,8 @@ This file exists so that anyone on the team, on any laptop, can open the project
 
 **Full-time Media's History stats panel also got Shooting Hrs added (below Total Shoots), and the existing "Other" stat was moved from the very end of the list (after Overtime) to just above Break Hours** (2026-07-13) — same day as the freelancer fix above, same underlying idea: hours were already computed (`stats.shootH`), just never surfaced next to the count.
 
+**Media's "Other Hrs" row on History is now always shown, and Non-Media's editing stat is now named the same as Media's** (2026-07-13) — "Other Hrs" (meetings/misc) used to stay hidden until a person's first logged entry of that kind; now it's always there like every other Media row. Separately, Non-Media's per-person editing line used to say "Editing" — renamed to "Videos Edited" to match the wording Media uses for the same stat.
+
 **History now surfaces days with attendance but no submitted update** (2026-07-13) — previously invisible; now shows a distinct "Not Submitted" card so it's not silently lost.
 
 **Admin Activities drawer redesigned to match Member History** (2026-07-13) — entry cards are now visually identical to how a member sees their own History (same icons, colors, layout), read-only (no edit/delete, since it's an admin viewing someone else's data), sorted by actual clock time instead of raw database order.

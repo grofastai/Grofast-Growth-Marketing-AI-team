@@ -117,8 +117,8 @@ const AD_STATUS_CFG: Record<AdStatus, { label: string; color: string }> = {
 }
 
 const LABEL: React.CSSProperties = {
-  display: "block", fontSize: 10, fontWeight: 700, color: "#4A5568",
-  textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5,
+  display: "block", fontSize: 10, fontWeight: 700, color: "#374151",
+  textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5,
 }
 const FIELD: React.CSSProperties = {
   width: "100%", fontSize: 12, fontWeight: 600, color: "#374151",
@@ -221,7 +221,7 @@ function StatChip({ label, value, color }: { label: string; value: number | stri
   return (
     <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16, padding: "12px 16px", flex: "1 1 120px", minWidth: 100 }}>
       <p style={{ fontSize: 22, fontWeight: 900, color, margin: 0, letterSpacing: "-0.02em" }}>{value}</p>
-      <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "2px 0 0" }}>{label}</p>
+      <p style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em", margin: "2px 0 0" }}>{label}</p>
     </div>
   )
 }
@@ -302,7 +302,7 @@ function ContentCardInner({
             </div>
           </div>
         )}
-        <span className="text-[9px]" style={{ color: "#9CA3AF" }}>{fmtDate(item.shot_date)}</span>
+        <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(item.shot_date)}</span>
       </div>
 
       {item.status !== "posted" && (
@@ -440,7 +440,7 @@ function NewContentModal({ clients, pastClients, onClose, onCreated }: {
         <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "10px 12px", borderRadius: 10, background: alreadyPosted ? "rgba(34,197,94,0.06)" : "#F9FAFB", border: `1.5px solid ${alreadyPosted ? "rgba(34,197,94,0.3)" : "#E5E7EB"}` }}>
           <input type="checkbox" checked={alreadyPosted} onChange={e => setAlreadyPosted(e.target.checked)} style={{ width: 15, height: 15, accentColor: "#22C55E" }} />
           <span style={{ fontSize: 12, fontWeight: 700, color: alreadyPosted ? "#16A34A" : "#374151" }}>Already posted</span>
-          <span style={{ fontSize: 10, color: "#9CA3AF" }}>— skip Editing/Edited, log it straight as Posted</span>
+          <span style={{ fontSize: 10, color: "#374151", fontWeight: 600 }}>— skip Editing/Edited, log it straight as Posted</span>
         </label>
 
         {alreadyPosted && (
@@ -1031,7 +1031,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
           </div>
           <div className="md:hidden">
             {colItems(activeMobileCol).length === 0 ? (
-              <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "24px 0" }}>No items</p>
+              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No items</p>
             ) : colItems(activeMobileCol).map(item => (
               <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} />
             ))}
@@ -1054,7 +1054,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
                       <div className="p-3 flex-1">
                         {list.length === 0 ? (
                           <div className="flex items-center justify-center py-8 rounded-xl transition-all" style={{ border: `2px dashed ${overCol === status ? cfg.accent : "#E5E7EB"}` }}>
-                            <p className="text-[11px]" style={{ color: overCol === status ? cfg.accent : "#D1D5DB" }}>{overCol === status ? "Drop here" : "No items"}</p>
+                            <p className="text-[11px]" style={{ color: overCol === status ? cfg.accent : "#374151", fontWeight: 600 }}>{overCol === status ? "Drop here" : "No items"}</p>
                           </div>
                         ) : list.map(item => (
                           <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} />
@@ -1080,7 +1080,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
         <div className="flex flex-col gap-4">
           <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
-              <span style={{ fontSize: 11, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
               <select value={logMonthFilter} onChange={e => setLogMonthFilter(e.target.value)}
                 style={{ ...FIELD, width: "auto", cursor: "pointer", padding: "5px 10px", fontSize: 11 }}>
                 <option value="all">All Time</option>
@@ -1088,14 +1088,14 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
               </select>
             </div>
             {clientKPIs.length === 0 ? (
-              <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "20px 0", margin: 0 }}>No activity {logMonthFilter === "all" ? "yet" : `in ${fmtMonth(logMonthFilter)}`}</p>
+              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "20px 0", margin: 0 }}>No activity {logMonthFilter === "all" ? "yet" : `in ${fmtMonth(logMonthFilter)}`}</p>
             ) : (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: "#F9FAFB" }}>
                       {["Client", "Posted", "Unposted", "Unedited"].map(h => (
-                        <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
+                        <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1155,18 +1155,18 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
                 <thead>
                   <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
                     {["Video/Poster", "Client", "Type", "Platforms", "Posted Date"].map(h => (
-                      <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
+                      <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {logRows.length === 0 ? (
-                    <tr><td colSpan={5} style={{ padding: "32px 14px", textAlign: "center", color: "#9CA3AF", fontSize: 12 }}>No posts logged yet</td></tr>
+                    <tr><td colSpan={5} style={{ padding: "32px 14px", textAlign: "center", color: "#374151", fontWeight: 600, fontSize: 12 }}>No posts logged yet</td></tr>
                   ) : logRows.map(item => (
                     <tr key={item.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
                       <td style={{ padding: "10px 14px", fontWeight: 700, color: "#111827" }}>{item.title}</td>
                       <td style={{ padding: "10px 14px", color: "#6366F1", fontWeight: 600 }}>{item.client_name}</td>
-                      <td style={{ padding: "10px 14px", color: "#6B7280", textTransform: "capitalize" }}>{item.content_type}</td>
+                      <td style={{ padding: "10px 14px", color: "#374151", fontWeight: 600, textTransform: "capitalize" }}>{item.content_type}</td>
                       <td style={{ padding: "10px 14px" }}>
                         <div className="flex flex-wrap items-center gap-1">
                           {item.posts.map(post => {
@@ -1240,12 +1240,12 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
           {ads.length === 0 ? (
             <div style={{ background: "#fff", border: "1px dashed #E5E7EB", borderRadius: 18, padding: "40px 20px", textAlign: "center" }}>
               <Megaphone size={24} style={{ color: "#D1D5DB", margin: "0 auto 8px" }} />
-              <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>No ads tracked yet</p>
+              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, margin: 0 }}>No ads tracked yet</p>
             </div>
           ) : filteredAds.length === 0 ? (
             <div style={{ background: "#fff", border: "1px dashed #E5E7EB", borderRadius: 18, padding: "40px 20px", textAlign: "center" }}>
               <Megaphone size={24} style={{ color: "#D1D5DB", margin: "0 auto 8px" }} />
-              <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>No ads match your filters</p>
+              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, margin: 0 }}>No ads match your filters</p>
               <button onClick={() => { setAdsClientFilter("all"); setAdsStatusFilter("all"); setAdsSearch("") }}
                 style={{ marginTop: 8, fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>
                 Clear filters
@@ -1264,7 +1264,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
                       onClick={() => setExpandedAd(expanded ? null : ad.id)}>
                       <div style={{ minWidth: 0 }}>
                         <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: 0 }}>{ad.ad_name}</p>
-                        <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{ad.client_name} · {ad.platform} · Launched {fmtDate(ad.launch_date)}</p>
+                        <p style={{ fontSize: 11, color: "#6B7280", margin: "2px 0 0" }}>{ad.client_name} · {ad.platform} · Launched {fmtDate(ad.launch_date)}</p>
                         <p style={{ fontSize: 11, color: "#6B7280", margin: "4px 0 0" }}>
                           {latest
                             ? `${fmtCurrency(latest.spend)} spent · ${fmtCompactNumber(latest.reach)} reach · ${latest.ctr}% CTR · ${latest.results} results`
@@ -1304,14 +1304,14 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
                         )}
 
                         <div className="flex items-center justify-between" style={{ marginTop: 12, marginBottom: 8 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>Performance</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Performance</span>
                           <button onClick={() => setPerformanceModalAd(ad)}
                             style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, border: "none", background: "rgba(34,197,94,0.08)", color: "#16A34A", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
                             <Plus size={11} /> Log Performance
                           </button>
                         </div>
                         {ad.performanceEntries.length === 0 ? (
-                          <p style={{ fontSize: 11, color: "#D1D5DB" }}>No performance logged yet</p>
+                          <p style={{ fontSize: 11, color: "#6B7280" }}>No performance logged yet</p>
                         ) : (
                           <div className="flex flex-col gap-2" style={{ marginBottom: 12 }}>
                             {[...ad.performanceEntries].sort((a, b) => b.entry_date.localeCompare(a.entry_date)).map(entry => (
@@ -1338,14 +1338,14 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
                         )}
 
                         <div className="flex items-center justify-between" style={{ marginTop: 12, marginBottom: 8 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>Correction History</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Correction History</span>
                           <button onClick={() => setRevisionModalAd(ad)}
                             style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, border: "none", background: "rgba(99,102,241,0.08)", color: "#6366F1", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
                             <Plus size={11} /> Log Correction
                           </button>
                         </div>
                         {ad.revisions.length === 0 ? (
-                          <p style={{ fontSize: 11, color: "#D1D5DB" }}>No corrections logged yet</p>
+                          <p style={{ fontSize: 11, color: "#6B7280" }}>No corrections logged yet</p>
                         ) : (
                           <div className="flex flex-col gap-2">
                             {ad.revisions.map(rev => (

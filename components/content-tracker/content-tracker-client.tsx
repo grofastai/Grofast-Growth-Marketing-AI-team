@@ -9,15 +9,19 @@ import {
 import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil,
-  Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target,
+  Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
+import { buildClientOptions } from "@/lib/utils/client-options"
+import { latestEntry, isUnderperforming, cpc, cpm, frequency, costPerResult, type AdPerformanceEntry } from "@/lib/ads-tracker/performance-metrics"
 import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
-  createAd, updateAdStatus, deleteAd, addAdRevision,
+  createAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry,
 } from "@/lib/actions/content-tracker"
+import { createTrackerShoot, completeShootWithTitles, updateShootStatus, type CreatedShootItem } from "@/lib/actions/shoots"
+import { isValidShootTransition } from "@/lib/shoots/status-transitions"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb"
@@ -72,11 +76,25 @@ export type Ad = {
   status: AdStatus
   created_at: string
   revisions: AdRevision[]
+  performanceEntries: AdPerformanceEntry[]
+}
+
+export type ShootStatus = "scheduled" | "going" | "completed" | "cancelled"
+export type ShootTitleRef = { id: string; title: string; content_item_id: string | null }
+export type Shoot = {
+  id: string
+  client: string
+  legacyTitle: string
+  start_time: string
+  notes: string | null
+  status: ShootStatus
+  titles: ShootTitleRef[]
 }
 
 type Props = {
   initialItems: ContentItem[]
   initialAds: Ad[]
+  initialShoots: Shoot[]
   currentUserId: string
   clients: { id: string; name: string }[]
   pastClients: { id: string; name: string }[]
@@ -113,9 +131,18 @@ const AD_STATUS_CFG: Record<AdStatus, { label: string; color: string }> = {
   stopped: { label: "Stopped", color: "#EF4444" },
 }
 
+const SHOOT_STATUS_CFG: Record<ShootStatus, { label: string; color: string }> = {
+  scheduled: { label: "Scheduled", color: "#F59E0B" },
+  going:     { label: "Going",     color: "#3B82F6" },
+  completed: { label: "Completed", color: "#22C55E" },
+  cancelled: { label: "Cancelled", color: "#EF4444" },
+}
+const SHOOT_STATUS_ORDER: ShootStatus[] = ["scheduled", "going", "completed", "cancelled"]
+const AD_STATUS_ORDER: AdStatus[] = ["active", "testing", "paused", "stopped"]
+
 const LABEL: React.CSSProperties = {
-  display: "block", fontSize: 10, fontWeight: 700, color: "#4A5568",
-  textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5,
+  display: "block", fontSize: 10, fontWeight: 700, color: "#374151",
+  textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5,
 }
 const FIELD: React.CSSProperties = {
   width: "100%", fontSize: 12, fontWeight: 600, color: "#374151",
@@ -144,6 +171,16 @@ function fmtDateRange(dates: string[]) {
   const sorted = Array.from(new Set(dates)).sort()
   if (sorted.length === 1) return fmtDate(sorted[0])
   return `${fmtDate(sorted[0])} – ${fmtDate(sorted[sorted.length - 1])}`
+}
+function fmtCompactNumber(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}K`
+  return String(Math.round(n))
+}
+function fmtCurrency(n: number): string {
+  return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
+}
+function fmtMetric(n: number | null, formatter: (n: number) => string = String): string {
+  return n === null ? "—" : formatter(n)
 }
 
 // ── Modal shell ──────────────────────────────────────────────────────────────
@@ -182,7 +219,7 @@ function PrimaryButton({ children, onClick, disabled, type = "button" }: { child
 // ── Pill toggle (tab switcher) ───────────────────────────────────────────────
 function TabToggle({ tabs, active, onChange }: { tabs: { key: string; label: string; icon: typeof Layers }[]; active: string; onChange: (k: string) => void }) {
   return (
-    <div style={{ display: "flex", gap: 6, background: "#F3F4F6", borderRadius: 14, padding: 5, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", gap: 6, background: "#1F2937", borderRadius: 14, padding: 5, flexWrap: "wrap" }}>
       {tabs.map(t => {
         const isActive = t.key === active
         const Icon = t.icon
@@ -191,7 +228,7 @@ function TabToggle({ tabs, active, onChange }: { tabs: { key: string; label: str
             style={{
               display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10, border: "none",
               background: isActive ? "linear-gradient(135deg,#FF4D4D,#DE1A1A)" : "transparent",
-              color: isActive ? "#fff" : "#6B7280",
+              color: isActive ? "#fff" : "#D1D5DB",
               boxShadow: isActive ? "0 4px 14px rgba(222,26,26,0.3)" : "none",
               fontSize: 12, fontWeight: 800, cursor: "pointer", transition: "all 0.15s",
             }}>
@@ -200,15 +237,6 @@ function TabToggle({ tabs, active, onChange }: { tabs: { key: string; label: str
           </button>
         )
       })}
-    </div>
-  )
-}
-
-function StatChip({ label, value, color }: { label: string; value: number | string; color: string }) {
-  return (
-    <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16, padding: "12px 16px", flex: "1 1 120px", minWidth: 100 }}>
-      <p style={{ fontSize: 22, fontWeight: 900, color, margin: 0, letterSpacing: "-0.02em" }}>{value}</p>
-      <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "2px 0 0" }}>{label}</p>
     </div>
   )
 }
@@ -289,7 +317,7 @@ function ContentCardInner({
             </div>
           </div>
         )}
-        <span className="text-[9px]" style={{ color: "#9CA3AF" }}>{fmtDate(item.shot_date)}</span>
+        <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(item.shot_date)}</span>
       </div>
 
       {item.status !== "posted" && (
@@ -353,14 +381,275 @@ function DroppableColumn({ status, isOver, children }: { status: ContentStatus; 
   )
 }
 
+// ── Generic kanban primitives — used by the Shoots and Ads boards. The Pipeline
+// board keeps its own ContentItem-typed DraggableCard/DroppableColumn above.
+function KanbanCard({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id })
+  const style = transform ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` } : undefined
+  return (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    <div ref={setNodeRef} style={{ ...style, touchAction: "none" }} {...(listeners as any)} {...(attributes as any)} className="cursor-grab active:cursor-grabbing">
+      {children}
+    </div>
+  )
+}
+
+function KanbanColumn({ id, accent, isOver, children }: { id: string; accent: string; isOver: boolean; children: React.ReactNode }) {
+  const { setNodeRef } = useDroppable({ id })
+  return (
+    <div ref={setNodeRef} className="rounded-2xl transition-all flex flex-col"
+      style={{ border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF", background: isOver ? `${accent}08` : "#F9FAFB", minHeight: 200 }}>
+      {children}
+    </div>
+  )
+}
+
+function KanbanColumnHeader({ label, count, accent }: { label: string; count: number; accent: string }) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3 rounded-t-2xl" style={{ background: "#FFFFFF", borderBottom: "1px solid #E8E9EF" }}>
+      <div className="flex items-center gap-2">
+        <span className="text-[13px] font-black" style={{ color: "#111111" }}>{label}</span>
+        <span className="w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center" style={{ background: `${accent}20`, color: accent }}>{count}</span>
+      </div>
+    </div>
+  )
+}
+
+// ── Shared date filters — every board gets the same month + day controls ──────
+function MonthSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)}
+      style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+      <option value="all">All Time</option>
+      {options.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
+    </select>
+  )
+}
+
+function DayFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-1"
+      style={{ background: "#fff", border: `1.5px solid ${value ? "#DE1A1A" : "#EBEDF2"}`, borderRadius: 10, padding: "0 6px" }}>
+      <CalendarDays size={13} style={{ color: value ? "#DE1A1A" : "#9CA3AF", flexShrink: 0 }} />
+      <input type="date" value={value} onChange={e => onChange(e.target.value)} aria-label="Filter by day"
+        style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 600, color: value ? "#DE1A1A" : "#6B7280", fontFamily: "inherit", cursor: "pointer", padding: "7px 2px" }} />
+      {value && (
+        <button onClick={() => onChange("")} title="Clear day"
+          style={{ padding: "2px 6px", borderRadius: 6, border: "none", background: "rgba(222,26,26,0.08)", color: "#DE1A1A", fontSize: 11, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
+          ✕
+        </button>
+      )}
+    </div>
+  )
+}
+
+function KanbanEmptyCell({ isOver, accent }: { isOver: boolean; accent: string }) {
+  return (
+    <div className="flex items-center justify-center py-8 rounded-xl transition-all" style={{ border: `2px dashed ${isOver ? accent : "#E5E7EB"}` }}>
+      <p className="text-[11px] font-semibold" style={{ color: isOver ? accent : "#9CA3AF" }}>{isOver ? "Drop here" : "Empty"}</p>
+    </div>
+  )
+}
+
+// ── Shoot kanban card ────────────────────────────────────────────────────────
+function ShootCardInner({ shoot, isDragging, onStatus }: {
+  shoot: Shoot; isDragging?: boolean; onStatus: (id: string, status: ShootStatus) => void
+}) {
+  return (
+    <div className="rounded-2xl p-3.5 mb-2.5 select-none"
+      style={{
+        background: isDragging ? "#F3F4F6" : "#FFFFFF",
+        boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
+        opacity: isDragging ? 0.5 : 1,
+      }}>
+      <p className="text-[12px] font-bold leading-snug" style={{ color: "#111827", margin: 0 }}>{shoot.legacyTitle}</p>
+      <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>
+        {shoot.client} · {fmtDate(shoot.start_time.split("T")[0])}
+      </p>
+
+      {/* Video titles only exist once the shoot is marked Done — that's when they're captured. */}
+      {shoot.titles.length > 0 && (
+        <div className="flex flex-wrap gap-1" style={{ marginTop: 8 }}>
+          {shoot.titles.map(t => (
+            <span key={t.id} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+              style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>
+              {t.title}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {shoot.notes && <p className="text-[10px]" style={{ color: "#6B7280", margin: "6px 0 0" }}>{shoot.notes}</p>}
+
+      {(shoot.status === "scheduled" || shoot.status === "going") && (
+        <div className="flex flex-wrap gap-1.5" style={{ marginTop: 10 }}>
+          {shoot.status === "scheduled" && (
+            <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "going")}
+              className="text-[9px] font-bold px-2.5 py-1 rounded-lg"
+              style={{ border: "none", background: "rgba(59,130,246,0.1)", color: "#3B82F6", cursor: "pointer" }}>
+              Mark Going
+            </button>
+          )}
+          {shoot.status === "going" && (
+            <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "completed")}
+              className="text-[9px] font-bold px-2.5 py-1 rounded-lg"
+              style={{ border: "none", background: "rgba(34,197,94,0.1)", color: "#16A34A", cursor: "pointer" }}>
+              Mark Done
+            </button>
+          )}
+          <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "cancelled")}
+            className="text-[9px] font-bold px-2.5 py-1 rounded-lg"
+            style={{ border: "none", background: "rgba(239,68,68,0.08)", color: "#EF4444", cursor: "pointer" }}>
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Ad kanban card ───────────────────────────────────────────────────────────
+function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformance, onLogCorrection, onDelete }: {
+  ad: Ad; expanded?: boolean; isDragging?: boolean
+  onToggleExpand: (id: string) => void
+  onLogPerformance: (ad: Ad) => void
+  onLogCorrection: (ad: Ad) => void
+  onDelete: (id: string) => void
+}) {
+  const latest = latestEntry(ad.performanceEntries)
+  const underperforming = isUnderperforming(ad.performanceEntries)
+
+  return (
+    <div className="rounded-2xl mb-2.5 select-none" style={{
+      background: isDragging ? "#F3F4F6" : "#FFFFFF",
+      border: `1px solid ${underperforming ? "#FCA5A5" : "transparent"}`,
+      boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
+      opacity: isDragging ? 0.5 : 1,
+      overflow: "hidden",
+    }}>
+      <div className="p-3.5 cursor-pointer" onClick={() => onToggleExpand(ad.id)}>
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-[12px] font-bold leading-snug" style={{ color: "#111827", margin: 0 }}>{ad.ad_name}</p>
+          <ChevronDown size={13} className="flex-shrink-0" style={{ color: "#9CA3AF", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+        </div>
+        <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>{ad.client_name} · {ad.platform}</p>
+        <p className="text-[10px]" style={{ color: "#6B7280", margin: "4px 0 0" }}>
+          {latest
+            ? `${fmtCurrency(latest.spend)} · ${latest.ctr}% CTR · ${latest.results} results`
+            : "No performance logged"}
+        </p>
+
+        <div className="flex flex-wrap items-center gap-1" style={{ marginTop: 8 }}>
+          {underperforming && (
+            <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+              style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444" }}>
+              <AlertTriangle size={9} /> Underperforming
+            </span>
+          )}
+          <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{ background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
+            <Target size={9} /> {ad.hook_count} hooks
+          </span>
+          {ad.targeting_type && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+              style={{ background: `${TARGETING_CFG[ad.targeting_type].color}14`, color: TARGETING_CFG[ad.targeting_type].color }}>
+              {TARGETING_CFG[ad.targeting_type].label}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {expanded && (
+        <div style={{ padding: "0 14px 14px", borderTop: "1px solid #F3F4F6" }} onPointerDown={e => e.stopPropagation()}>
+          {ad.targeting_notes && <p className="text-[10px]" style={{ color: "#6B7280", margin: "10px 0" }}>{ad.targeting_notes}</p>}
+
+          <div className="flex items-center justify-between" style={{ marginTop: 10, marginBottom: 6 }}>
+            <span className="text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: "#16A34A" }}>Performance</span>
+            <button onClick={() => onLogPerformance(ad)}
+              className="flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg"
+              style={{ border: "none", background: "rgba(34,197,94,0.08)", color: "#16A34A", cursor: "pointer" }}>
+              <Plus size={10} /> Log
+            </button>
+          </div>
+          {ad.performanceEntries.length === 0 ? (
+            <p className="text-[10px]" style={{ color: "#6B7280" }}>No performance logged yet</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {[...ad.performanceEntries].sort((a, b) => b.entry_date.localeCompare(a.entry_date)).map(entry => (
+                <div key={entry.id} style={{ padding: "6px 10px", borderRadius: 8, background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-bold" style={{ color: "#374151" }}>{fmtDate(entry.entry_date)}</span>
+                    <span className="text-[9px] font-bold" style={{ color: entry.ctr < 1 ? "#EF4444" : "#16A34A" }}>{entry.ctr}% CTR</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-2 gap-y-0.5" style={{ marginTop: 3 }}>
+                    <span className="text-[9px]" style={{ color: "#6B7280" }}>{fmtCurrency(entry.spend)} spend</span>
+                    <span className="text-[9px]" style={{ color: "#6B7280" }}>{fmtCompactNumber(entry.reach)} reach</span>
+                    <span className="text-[9px]" style={{ color: "#6B7280" }}>{entry.clicks} clicks</span>
+                    <span className="text-[9px]" style={{ color: "#6B7280" }}>{entry.results} results</span>
+                    <span className="text-[9px]" style={{ color: "#6B7280" }}>CPC {fmtMetric(cpc(entry), fmtCurrency)}</span>
+                    <span className="text-[9px]" style={{ color: "#6B7280" }}>CPM {fmtMetric(cpm(entry), fmtCurrency)}</span>
+                    <span className="text-[9px]" style={{ color: "#6B7280" }}>Freq {fmtMetric(frequency(entry), n => n.toFixed(2))}</span>
+                    <span className="text-[9px]" style={{ color: "#6B7280" }}>Cost/Result {fmtMetric(costPerResult(entry), fmtCurrency)}</span>
+                  </div>
+                  {entry.note && <p className="text-[9px]" style={{ color: "#6B7280", margin: "3px 0 0" }}>{entry.note}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between" style={{ marginTop: 12, marginBottom: 6 }}>
+            <span className="text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: "#6366F1" }}>Correction History</span>
+            <button onClick={() => onLogCorrection(ad)}
+              className="flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg"
+              style={{ border: "none", background: "rgba(99,102,241,0.08)", color: "#6366F1", cursor: "pointer" }}>
+              <Plus size={10} /> Log
+            </button>
+          </div>
+          {ad.revisions.length === 0 ? (
+            <p className="text-[10px]" style={{ color: "#6B7280" }}>No corrections logged yet</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {ad.revisions.map(rev => (
+                <div key={rev.id} style={{ padding: "6px 10px", borderRadius: 8, background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-bold" style={{ color: "#374151" }}>{fmtDate(rev.revision_date)}</span>
+                    <div className="flex gap-1">
+                      {rev.hook_count_after !== null && <span className="text-[9px] font-bold" style={{ color: "#6366F1" }}>{rev.hook_count_after} hooks</span>}
+                      {rev.targeting_type_after && <span className="text-[9px] font-bold" style={{ color: TARGETING_CFG[rev.targeting_type_after].color }}>· {TARGETING_CFG[rev.targeting_type_after].label}</span>}
+                    </div>
+                  </div>
+                  <p className="text-[9px]" style={{ color: "#6B7280", margin: "3px 0 0" }}>{rev.notes}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button onClick={() => onDelete(ad.id)}
+            className="flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg"
+            style={{ marginTop: 10, border: "none", background: "rgba(222,26,26,0.06)", color: "#de1a1a", cursor: "pointer" }}>
+            <Trash2 size={10} /> Delete Ad
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── New Content modal ────────────────────────────────────────────────────────
-function NewContentModal({ clients, pastClients, onClose, onCreated }: {
+function NewContentModal({ clients, pastClients, defaultContentType = "video", onClose, onCreated }: {
+  defaultContentType?: "video" | "poster"
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   onClose: () => void; onCreated: (item: ContentItem) => void
 }) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
   const [client, setClient] = useState("")
   const [title, setTitle] = useState("")
-  const [contentType, setContentType] = useState<"video" | "poster">("video")
+  // Fixed by the tab you're in (Video vs Poster) — no picker, so you can't create a video
+  // from Poster mode and have it immediately vanish from the board.
+  const contentType = defaultContentType
   const [shotDate, setShotDate] = useState(new Date().toISOString().split("T")[0])
   const [notes, setNotes] = useState("")
   const [alreadyPosted, setAlreadyPosted] = useState(false)
@@ -395,21 +684,10 @@ function NewContentModal({ clients, pastClients, onClose, onCreated }: {
   return (
     <Modal title="New Content Item" onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <ClientSelector clientOptions={clients.map(c => c.name)} pastClientOptions={pastClients.map(c => c.name)} value={client} onValueChange={setClient} required />
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
         <div>
           <label style={LABEL}>Title *</label>
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Sports Day Highlights" />
-        </div>
-        <div>
-          <label style={LABEL}>Content Type</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            {(["video", "poster"] as const).map(t => (
-              <button key={t} onClick={() => setContentType(t)}
-                style={{ flex: 1, padding: "8px 10px", borderRadius: 10, border: `1.5px solid ${contentType === t ? "#6366F1" : "#E5E7EB"}`, background: contentType === t ? "rgba(99,102,241,0.08)" : "#fff", color: contentType === t ? "#6366F1" : "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer", textTransform: "capitalize" }}>
-                {t}
-              </button>
-            ))}
-          </div>
         </div>
         <div>
           <label style={LABEL}>Shot Date</label>
@@ -423,7 +701,7 @@ function NewContentModal({ clients, pastClients, onClose, onCreated }: {
         <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "10px 12px", borderRadius: 10, background: alreadyPosted ? "rgba(34,197,94,0.06)" : "#F9FAFB", border: `1.5px solid ${alreadyPosted ? "rgba(34,197,94,0.3)" : "#E5E7EB"}` }}>
           <input type="checkbox" checked={alreadyPosted} onChange={e => setAlreadyPosted(e.target.checked)} style={{ width: 15, height: 15, accentColor: "#22C55E" }} />
           <span style={{ fontSize: 12, fontWeight: 700, color: alreadyPosted ? "#16A34A" : "#374151" }}>Already posted</span>
-          <span style={{ fontSize: 10, color: "#9CA3AF" }}>— skip Editing/Edited, log it straight as Posted</span>
+          <span style={{ fontSize: 10, color: "#374151", fontWeight: 600 }}>— skip Editing/Edited, log it straight as Posted</span>
         </label>
 
         {alreadyPosted && (
@@ -463,9 +741,15 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   onClose: () => void; onSaved: (updates: { client_name: string; title: string; content_type: "video" | "poster"; shot_date: string; notes: string }) => void
 }) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
   const [client, setClient] = useState(item.client_name)
   const [title, setTitle] = useState(item.title)
-  const [contentType, setContentType] = useState<"video" | "poster">(item.content_type)
+  // Not editable — changing a poster into a video (or vice versa) would move it to the
+  // other tab and make it look like it disappeared.
+  const contentType = item.content_type
   const [shotDate, setShotDate] = useState(item.shot_date || new Date().toISOString().split("T")[0])
   const [notes, setNotes] = useState(item.notes || "")
   const [saving, setSaving] = useState(false)
@@ -483,21 +767,10 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
   return (
     <Modal title="Edit Content Item" onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <ClientSelector clientOptions={clients.map(c => c.name)} pastClientOptions={pastClients.map(c => c.name)} value={client} onValueChange={setClient} required />
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
         <div>
           <label style={LABEL}>Title *</label>
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
-        </div>
-        <div>
-          <label style={LABEL}>Content Type</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            {(["video", "poster"] as const).map(t => (
-              <button key={t} onClick={() => setContentType(t)}
-                style={{ flex: 1, padding: "8px 10px", borderRadius: 10, border: `1.5px solid ${contentType === t ? "#6366F1" : "#E5E7EB"}`, background: contentType === t ? "rgba(99,102,241,0.08)" : "#fff", color: contentType === t ? "#6366F1" : "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer", textTransform: "capitalize" }}>
-                {t}
-              </button>
-            ))}
-          </div>
         </div>
         <div>
           <label style={LABEL}>Shot Date</label>
@@ -515,40 +788,62 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
 }
 
 // ── Add Platform Post modal ──────────────────────────────────────────────────
-function AddPlatformModal({ item, onClose, onAdded }: { item: ContentItem; onClose: () => void; onAdded: (post: ContentPost) => void }) {
-  const [platform, setPlatform] = useState<Platform>("instagram")
+function AddPlatformModal({ item, onClose, onAdded }: { item: ContentItem; onClose: () => void; onAdded: (posts: ContentPost[]) => void }) {
+  const [platforms, setPlatforms] = useState<Platform[]>([])
   const [postedDate, setPostedDate] = useState(new Date().toISOString().split("T")[0])
   const [postLink, setPostLink] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const already = new Set(item.posts.map(p => p.platform))
 
+  function toggle(p: Platform) {
+    setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+  }
+
   async function submit() {
+    if (platforms.length === 0) { setError("Pick at least one platform"); return }
     setSaving(true); setError(null)
-    const res = await addContentPost({ content_item_id: item.id, platform, posted_date: postedDate, post_link: postLink.trim() || undefined })
+
+    // One post row per platform — the date and link are shared across the batch.
+    const results = await Promise.all(platforms.map(platform =>
+      addContentPost({ content_item_id: item.id, platform, posted_date: postedDate, post_link: postLink.trim() || undefined })
+        .then(res => ({ res, platform }))
+    ))
     setSaving(false)
-    if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
-    onAdded({ id: res.id, content_item_id: item.id, platform, posted_date: postedDate, post_link: postLink.trim() || null })
+
+    const failed = results.find(r => !r.res.success || !r.res.id)
+    if (failed) { setError(failed.res.error ?? "Failed to save"); return }
+
+    onAdded(results.map(({ res, platform }) => ({
+      id: res.id!, content_item_id: item.id, platform,
+      posted_date: postedDate, post_link: postLink.trim() || null,
+    })))
   }
 
   return (
     <Modal title={`Post "${item.title}"`} onClose={onClose}>
       <div className="flex flex-col gap-3">
         <div>
-          <label style={LABEL}>Platform *</label>
+          <label style={LABEL}>Platforms * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
               const cfg = PLATFORM_CFG[p]
               const Icon = cfg.icon
               const done = already.has(p)
+              const on = platforms.includes(p)
               return (
-                <button key={p} onClick={() => setPlatform(p)} disabled={done}
-                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${platform === p ? cfg.color : "#E5E7EB"}`, background: platform === p ? `${cfg.color}14` : done ? "#F9FAFB" : "#fff", color: done ? "#D1D5DB" : platform === p ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: done ? "not-allowed" : "pointer" }}>
-                  <Icon size={12} /> {cfg.label} {done && <Check size={10} />}
+                <button key={p} onClick={() => toggle(p)} disabled={done}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : done ? "#F9FAFB" : "#fff", color: done ? "#D1D5DB" : on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: done ? "not-allowed" : "pointer" }}>
+                  <Icon size={12} /> {cfg.label} {done ? <Check size={10} /> : on ? <Check size={10} /> : null}
                 </button>
               )
             })}
           </div>
+          {already.size > 0 && (
+            <p className="text-[10px]" style={{ color: "#6B7280", margin: "6px 0 0" }}>
+              Greyed-out platforms are already posted.
+            </p>
+          )}
         </div>
         <div>
           <label style={LABEL}>Posted Date *</label>
@@ -559,7 +854,9 @@ function AddPlatformModal({ item, onClose, onAdded }: { item: ContentItem; onClo
           <input style={FIELD} value={postLink} onChange={e => setPostLink(e.target.value)} placeholder="Optional URL" />
         </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
-        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Confirm Posted"}</PrimaryButton>
+        <PrimaryButton onClick={submit} disabled={saving}>
+          {saving ? "Saving…" : `Confirm Posted${platforms.length > 0 ? ` (${platforms.length})` : ""}`}
+        </PrimaryButton>
       </div>
     </Modal>
   )
@@ -570,6 +867,10 @@ function NewAdModal({ clients, pastClients, onClose, onCreated }: {
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   onClose: () => void; onCreated: (ad: Ad) => void
 }) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
   const [client, setClient] = useState("")
   const [adName, setAdName] = useState("")
   const [platform, setPlatform] = useState("Meta Ads")
@@ -589,13 +890,14 @@ function NewAdModal({ clients, pastClients, onClose, onCreated }: {
     onCreated({
       id: res.id, client_name: client, ad_name: adName.trim(), platform, launch_date: launchDate, hook_count: hookCount,
       targeting_type: targeting || null, targeting_notes: notes.trim() || null, status: "active", created_at: new Date().toISOString(), revisions: [],
+      performanceEntries: [],
     })
   }
 
   return (
     <Modal title="New Ad" onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <ClientSelector clientOptions={clients.map(c => c.name)} pastClientOptions={pastClients.map(c => c.name)} value={client} onValueChange={setClient} required />
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
         <div>
           <label style={LABEL}>Ad / Video Name *</label>
           <input style={FIELD} value={adName} onChange={e => setAdName(e.target.value)} placeholder="e.g. Summer Offer Hook Test" />
@@ -680,11 +982,233 @@ function AdRevisionModal({ ad, onClose, onAdded }: { ad: Ad; onClose: () => void
   )
 }
 
+// ── Log Performance modal ────────────────────────────────────────────────────
+function AdPerformanceModal({ ad, onClose, onAdded }: { ad: Ad; onClose: () => void; onAdded: (entry: AdPerformanceEntry) => void }) {
+  const [entryDate, setEntryDate] = useState(new Date().toISOString().split("T")[0])
+  const [spend, setSpend] = useState<number | "">("")
+  const [impressions, setImpressions] = useState<number | "">("")
+  const [reach, setReach] = useState<number | "">("")
+  const [clicks, setClicks] = useState<number | "">("")
+  const [ctr, setCtr] = useState<number | "">("")
+  const [results, setResults] = useState<number | "">("")
+  const [note, setNote] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (spend === "" || impressions === "" || reach === "" || clicks === "" || ctr === "" || results === "") {
+      setError("All 6 metrics are required")
+      return
+    }
+    setSaving(true); setError(null)
+    const res = await addAdPerformanceEntry({
+      ad_id: ad.id, entry_date: entryDate,
+      spend, impressions, reach, clicks, ctr, results,
+      note: note.trim() || undefined,
+    })
+    setSaving(false)
+    if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
+    onAdded({
+      id: res.id, ad_id: ad.id, entry_date: entryDate,
+      spend, impressions, reach, clicks, ctr, results,
+      note: note.trim() || null,
+    })
+  }
+
+  return (
+    <Modal title={`Log Performance — ${ad.ad_name}`} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Spend (₹) *</label>
+            <input type="number" min={0} step="0.01" style={FIELD} value={spend} onChange={e => setSpend(e.target.value === "" ? "" : Number(e.target.value))} />
+          </div>
+          <div>
+            <label style={LABEL}>Results *</label>
+            <input type="number" min={0} style={FIELD} value={results} onChange={e => setResults(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Leads / messages / purchases" />
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Impressions *</label>
+            <input type="number" min={0} style={FIELD} value={impressions} onChange={e => setImpressions(e.target.value === "" ? "" : Number(e.target.value))} />
+          </div>
+          <div>
+            <label style={LABEL}>Reach *</label>
+            <input type="number" min={0} style={FIELD} value={reach} onChange={e => setReach(e.target.value === "" ? "" : Number(e.target.value))} />
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Clicks *</label>
+            <input type="number" min={0} style={FIELD} value={clicks} onChange={e => setClicks(e.target.value === "" ? "" : Number(e.target.value))} />
+          </div>
+          <div>
+            <label style={LABEL}>CTR % *</label>
+            <input type="number" min={0} step="0.01" style={FIELD} value={ctr} onChange={e => setCtr(e.target.value === "" ? "" : Number(e.target.value))} />
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Date</label>
+          <input type="date" style={FIELD} value={entryDate} onChange={e => setEntryDate(e.target.value)} />
+        </div>
+        <div>
+          <label style={LABEL}>Note</label>
+          <textarea style={{ ...FIELD, minHeight: 50, resize: "vertical" }} value={note} onChange={e => setNote(e.target.value)} placeholder="Optional — e.g. why it's lagging, what changed" />
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Log Performance"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── New Shoot modal ──────────────────────────────────────────────────────────
+function NewShootModal({ clients, pastClients, onClose, onCreated }: {
+  clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  onClose: () => void; onCreated: (shoot: Shoot) => void
+}) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const [client, setClient] = useState("")
+  const [title, setTitle] = useState("")
+  const [shotDate, setShotDate] = useState(new Date().toISOString().split("T")[0])
+  const [shotTime, setShotTime] = useState("")
+  const [notes, setNotes] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (!client) { setError("Client is required"); return }
+    if (!title.trim()) { setError("Shoot title is required"); return }
+    setSaving(true); setError(null)
+    const res = await createTrackerShoot({
+      client, title: title.trim(), shot_date: shotDate, shot_time: shotTime || undefined, notes: notes.trim() || undefined,
+    })
+    setSaving(false)
+    if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
+    onCreated({
+      id: res.id,
+      client,
+      legacyTitle: title.trim(),
+      start_time: `${shotDate}T${shotTime || "09:00"}:00`,
+      notes: notes.trim() || null,
+      status: "scheduled",
+      titles: [],
+    })
+  }
+
+  return (
+    <Modal title="New Shoot" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
+        <div>
+          <label style={LABEL}>Shoot Title *</label>
+          <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)}
+            placeholder="e.g. SKB Silks Diwali Shoot" />
+          <p className="text-[10px]" style={{ color: "#6B7280", margin: "5px 0 0" }}>
+            The video titles are captured later, when you mark the shoot Done.
+          </p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Shot Date *</label>
+            <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+          </div>
+          <div>
+            <label style={LABEL}>Time <span style={{ fontWeight: 600, textTransform: "none" }}>(optional)</span></label>
+            <input type="time" style={FIELD} value={shotTime} onChange={e => setShotTime(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Notes</label>
+          <textarea style={{ ...FIELD, minHeight: 50, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Schedule Shoot"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Complete Shoot modal — captures the video titles that came out of the shoot ──
+function CompleteShootModal({ shoot, onClose, onCompleted }: {
+  shoot: Shoot
+  onClose: () => void
+  onCompleted: (created: CreatedShootItem[]) => void
+}) {
+  const [titleInput, setTitleInput] = useState("")
+  const [titles, setTitles] = useState<string[]>([])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function addTitle() {
+    const t = titleInput.trim()
+    if (t && !titles.includes(t)) setTitles(prev => [...prev, t])
+    setTitleInput("")
+  }
+
+  async function submit() {
+    if (titles.length === 0) { setError("Add at least one video title"); return }
+    setSaving(true); setError(null)
+    const res = await completeShootWithTitles(shoot.id, titles)
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to complete shoot"); return }
+    onCompleted(res.createdItems ?? [])
+  }
+
+  return (
+    <Modal title={`Shoot Done — ${shoot.legacyTitle}`} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          What videos came out of this shoot? Each one becomes a card in the Pipeline at <strong>Shot</strong>.
+        </p>
+        <div>
+          <label style={LABEL}>Video Titles *</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input style={FIELD} value={titleInput} onChange={e => setTitleInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTitle() } }}
+              placeholder="e.g. Sports Day Highlights" />
+            <button type="button" onClick={addTitle}
+              style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#DE1A1A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+              Add
+            </button>
+          </div>
+          {titles.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+              {titles.map(t => (
+                <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: "rgba(222,26,26,0.08)", border: "1.5px solid rgba(222,26,26,0.25)", fontSize: 12, fontWeight: 600, color: "#de1a1a" }}>
+                  {t}
+                  <button type="button" onClick={() => setTitles(prev => prev.filter(x => x !== t))}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#de1a1a", fontSize: 14, fontWeight: 700 }}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>
+          {saving ? "Saving…" : `Mark Done${titles.length > 0 ? ` (${titles.length} video${titles.length > 1 ? "s" : ""})` : ""}`}
+        </PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
-export default function ContentTrackerClient({ initialItems, initialAds, clients, pastClients }: Props) {
+export default function ContentTrackerClient({ initialItems, initialAds, initialShoots, clients, pastClients }: Props) {
   const [items, setItems] = useState(initialItems)
   const [ads, setAds] = useState(initialAds)
-  const [tab, setTab] = useState<"pipeline" | "log" | "ads">("pipeline")
+  const [shoots, setShoots] = useState(initialShoots)
+  // Top-level mode (Video / Poster / Ads) with sub-tabs beneath it. Posters aren't shot,
+  // so the Shoots sub-tab only exists in Video mode.
+  const [mode, setMode] = useState<"video" | "poster" | "ads">("video")
+  const [subTab, setSubTab] = useState<"shoots" | "pipeline" | "log">("shoots")
+  // Derived rather than reset via an effect — avoids a cascading-render setState-in-effect.
+  const tab = mode === "poster" && subTab === "shoots" ? "pipeline" : subTab
+  const contentTypeForMode: "video" | "poster" = mode === "poster" ? "poster" : "video"
   const [, startTransition] = useTransition()
 
   const [dragId, setDragId] = useState<string | null>(null)
@@ -694,21 +1218,52 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null)
   const [showNewAd, setShowNewAd] = useState(false)
   const [revisionModalAd, setRevisionModalAd] = useState<Ad | null>(null)
+  const [performanceModalAd, setPerformanceModalAd] = useState<Ad | null>(null)
+  const [adsClientFilter, setAdsClientFilter] = useState<string>("all")
+  const [adsSearch, setAdsSearch] = useState("")
+  const [showNewShoot, setShowNewShoot] = useState(false)
+  const [completeShootFor, setCompleteShootFor] = useState<Shoot | null>(null)
+  const [shootsClientFilter, setShootsClientFilter] = useState<string>("all")
+  // Separate drag state per board — only one board is mounted at a time, but keeping
+  // them distinct avoids any chance of a stale id leaking across boards.
+  const [shootDragId, setShootDragId] = useState<string | null>(null)
+  const [shootOverCol, setShootOverCol] = useState<string | null>(null)
+  const [activeShootCol, setActiveShootCol] = useState<ShootStatus>("scheduled")
+  const [adDragId, setAdDragId] = useState<string | null>(null)
+  const [adOverCol, setAdOverCol] = useState<string | null>(null)
+  const [activeAdCol, setActiveAdCol] = useState<AdStatus>("active")
   const [expandedAd, setExpandedAd] = useState<string | null>(null)
   const [logSearch, setLogSearch] = useState("")
   const [logPlatformFilter, setLogPlatformFilter] = useState<Platform | "all">("all")
   const [logClientFilter, setLogClientFilter] = useState<string>("all")
   const [logMonthFilter, setLogMonthFilter] = useState<string>("all")
+  const [logDayFilter, setLogDayFilter] = useState("")
+  const [pipelineDayFilter, setPipelineDayFilter] = useState("")
+  const [shootsMonthFilter, setShootsMonthFilter] = useState<string>("all")
+  const [shootsDayFilter, setShootsDayFilter] = useState("")
+  const [adsMonthFilter, setAdsMonthFilter] = useState<string>("all")
+  const [adsDayFilter, setAdsDayFilter] = useState("")
   const [pipelineClientFilter, setPipelineClientFilter] = useState<string>("all")
   const [pipelineMonthFilter, setPipelineMonthFilter] = useState<string>("all")
   const [activeMobileCol, setActiveMobileCol] = useState<ContentStatus>("shot")
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
-  // Shared client/month option lists — every date that could bucket an item into a
-  // month (shot/edited for in-progress items, posted dates for finished ones), used
-  // by both the Pipeline and Posting Log tabs' filters.
-  const allClientOptions = useMemo(() => Array.from(new Set(items.map(i => i.client_name))).sort(), [items])
+  // Shared client/month option lists used by both the Pipeline and Posting Log tabs'
+  // filters. Client options use the universal dropdown (internal brands pinned first,
+  // then active clients, then past clients) rather than just clients that already have
+  // a content item — otherwise a client with nothing tracked yet can't be filtered to.
+  // Any item's client_name not found in the clients table (legacy/freeform entries)
+  // still gets included so no existing data becomes unfilterable.
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const allClientOptions = useMemo(() => {
+    const known = new Set([...activeClientOptions, ...pastClientOptions])
+    const extra = Array.from(new Set(items.map(i => i.client_name))).filter(n => !known.has(n)).sort()
+    return [...activeClientOptions, ...extra]
+  }, [activeClientOptions, pastClientOptions, items])
   const allMonthOptions = useMemo(() => {
     const months = new Set<string>()
     for (const i of items) {
@@ -719,24 +1274,30 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
     return Array.from(months).sort().reverse()
   }, [items])
 
-  // The item's own "current stage" date — shot/editing bucket by shot date,
-  // edited bucket by edited date, posted bucket by its (latest) post date.
-  function itemMonthBucket(item: ContentItem): string | null {
+  // The item's own "current stage" date — shot/editing by shot date, edited by edited
+  // date, posted by its (latest) post date. Month and day filters both key off this.
+  function itemStageDate(item: ContentItem): string | null {
     if (item.status === "posted") {
       const dates = item.posts.map(p => p.posted_date).sort()
-      return dates.length ? dates[dates.length - 1].slice(0, 7) : null
+      return dates.length ? dates[dates.length - 1] : null
     }
-    if (item.status === "edited") return item.edited_date ? item.edited_date.slice(0, 7) : null
-    return item.shot_date ? item.shot_date.slice(0, 7) : null
+    if (item.status === "edited") return item.edited_date
+    return item.shot_date
+  }
+  function itemMonthBucket(item: ContentItem): string | null {
+    return itemStageDate(item)?.slice(0, 7) ?? null
   }
 
   const pipelineItems = useMemo(() => {
     return items.filter(i => {
+      if (i.content_type !== contentTypeForMode) return false
       if (pipelineClientFilter !== "all" && i.client_name !== pipelineClientFilter) return false
+      if (pipelineDayFilter) return itemStageDate(i) === pipelineDayFilter
       if (pipelineMonthFilter !== "all" && itemMonthBucket(i) !== pipelineMonthFilter) return false
       return true
     })
-  }, [items, pipelineClientFilter, pipelineMonthFilter])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, pipelineClientFilter, pipelineMonthFilter, pipelineDayFilter, contentTypeForMode])
 
   function colItems(status: ContentStatus) { return pipelineItems.filter(i => i.status === status) }
 
@@ -774,16 +1335,11 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
     return { shot, editing, edited, posted, totalPosts }
   }, [items])
 
-  // Same shape but respecting the Pipeline tab's own client/month filter — used by its stat cards
-  const pipelineStats = useMemo(() => ({
-    shot: pipelineItems.filter(i => i.status === "shot").length,
-    editing: pipelineItems.filter(i => i.status === "editing").length,
-    edited: pipelineItems.filter(i => i.status === "edited").length,
-    posted: pipelineItems.filter(i => i.status === "posted").length,
-  }), [pipelineItems])
-
   // Posting log — one row per content item (not per platform); platforms shown as badges within the row
-  const postedItems = useMemo(() => items.filter(i => i.posts.length > 0), [items])
+  const postedItems = useMemo(
+    () => items.filter(i => i.posts.length > 0 && i.content_type === contentTypeForMode),
+    [items, contentTypeForMode]
+  )
   const logClientOptions = allClientOptions
   const logMonthOptions = allMonthOptions
 
@@ -794,6 +1350,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
     const inMonth = (d: string | null) => logMonthFilter === "all" || (!!d && d.slice(0, 7) === logMonthFilter)
     const map = new Map<string, { posted: number; unposted: number; unedited: number }>()
     for (const item of items) {
+      if (item.content_type !== contentTypeForMode) continue
       if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0 })
       const rec = map.get(item.client_name)!
       if (item.status === "posted") {
@@ -808,23 +1365,133 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
       .map(([client, v]) => ({ client, ...v, total: v.posted + v.unposted + v.unedited }))
       .filter(r => r.total > 0)
       .sort((a, b) => b.total - a.total)
-  }, [items, logMonthFilter])
+  }, [items, logMonthFilter, contentTypeForMode])
 
   const logRows = useMemo(() => {
     let rows = postedItems
     if (logPlatformFilter !== "all") rows = rows.filter(i => i.posts.some(p => p.platform === logPlatformFilter))
     if (logClientFilter !== "all") rows = rows.filter(i => i.client_name === logClientFilter)
-    if (logMonthFilter !== "all") rows = rows.filter(i => i.posts.some(p => p.posted_date.slice(0, 7) === logMonthFilter))
+    if (logDayFilter) rows = rows.filter(i => i.posts.some(p => p.posted_date === logDayFilter))
+    else if (logMonthFilter !== "all") rows = rows.filter(i => i.posts.some(p => p.posted_date.slice(0, 7) === logMonthFilter))
     if (logSearch) rows = rows.filter(i => `${i.title} ${i.client_name}`.toLowerCase().includes(logSearch.toLowerCase()))
     return [...rows].sort((a, b) => {
       const aLatest = a.posts.map(p => p.posted_date).sort().reverse()[0]
       const bLatest = b.posts.map(p => p.posted_date).sort().reverse()[0]
       return bLatest.localeCompare(aLatest)
     })
-  }, [postedItems, logSearch, logPlatformFilter, logClientFilter, logMonthFilter])
+  }, [postedItems, logSearch, logPlatformFilter, logClientFilter, logMonthFilter, logDayFilter])
 
-  function handlePostAdded(post: ContentPost) {
-    setItems(prev => prev.map(i => i.id === post.content_item_id ? { ...i, status: "posted", posts: [...i.posts, post] } : i))
+  const adsMonthOptions = useMemo(
+    () => Array.from(new Set(ads.map(a => a.launch_date?.slice(0, 7)).filter(Boolean) as string[])).sort().reverse(),
+    [ads]
+  )
+
+  // Status isn't filtered here — the kanban columns are the status view.
+  // Month/day key off launch_date; ads with no launch date are hidden when either is set.
+  const filteredAds = useMemo(() => {
+    return ads.filter(a => {
+      if (adsClientFilter !== "all" && a.client_name !== adsClientFilter) return false
+      if (adsSearch && !`${a.ad_name} ${a.client_name}`.toLowerCase().includes(adsSearch.toLowerCase())) return false
+      if (adsDayFilter) return a.launch_date === adsDayFilter
+      if (adsMonthFilter !== "all" && a.launch_date?.slice(0, 7) !== adsMonthFilter) return false
+      return true
+    })
+  }, [ads, adsClientFilter, adsSearch, adsMonthFilter, adsDayFilter])
+
+  const shootDate = (s: Shoot) => s.start_time.split("T")[0]
+
+  const shootsMonthOptions = useMemo(
+    () => Array.from(new Set(shoots.map(s => shootDate(s).slice(0, 7)))).sort().reverse(),
+    [shoots]
+  )
+
+  // Status isn't filtered here — the kanban columns are the status view.
+  const filteredShoots = useMemo(() => {
+    return shoots.filter(s => {
+      if (shootsClientFilter !== "all" && s.client !== shootsClientFilter) return false
+      if (shootsDayFilter) return shootDate(s) === shootsDayFilter
+      if (shootsMonthFilter !== "all" && shootDate(s).slice(0, 7) !== shootsMonthFilter) return false
+      return true
+    })
+  }, [shoots, shootsClientFilter, shootsMonthFilter, shootsDayFilter])
+
+  // Completing a shoot needs its video titles, so it routes through a modal rather than
+  // firing the action directly. Going/Cancelled are immediate.
+  function handleShootStatus(shootId: string, status: ShootStatus) {
+    if (status === "completed") {
+      const shoot = shoots.find(s => s.id === shootId)
+      if (shoot) setCompleteShootFor(shoot)
+      return
+    }
+    const previous = shoots.find(s => s.id === shootId)?.status
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, status } : s))
+    startTransition(async () => {
+      const res = await updateShootStatus(shootId, status)
+      if (!res.success && previous) {
+        setShoots(prev => prev.map(s => s.id === shootId ? { ...s, status: previous } : s))
+      }
+    })
+  }
+
+  function handleShootCompleted(shootId: string, created: CreatedShootItem[]) {
+    const newItems: ContentItem[] = created.map(ci => ({
+      id: ci.id, client_name: ci.client_name, title: ci.title, content_type: "video",
+      status: "shot", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
+      created_at: new Date().toISOString(), posts: [],
+    }))
+    setItems(prev => [...newItems, ...prev])
+    setShoots(prev => prev.map(s => s.id === shootId ? {
+      ...s,
+      status: "completed",
+      titles: created.map(ci => ({ id: ci.shoot_title_id, title: ci.title, content_item_id: ci.id })),
+    } : s))
+    setCompleteShootFor(null)
+  }
+
+  function handleAdStatus(adId: string, status: AdStatus) {
+    setAds(prev => prev.map(a => a.id === adId ? { ...a, status } : a))
+    startTransition(async () => { await updateAdStatus(adId, status) })
+  }
+
+  function handleDeleteAd(adId: string) {
+    if (!confirm("Delete this ad?")) return
+    setAds(prev => prev.filter(a => a.id !== adId))
+    startTransition(async () => { await deleteAd(adId) })
+  }
+
+  function handleShootDragOver(e: { over: { id: string } | null }) { setShootOverCol(e.over?.id ?? null) }
+  function handleAdDragOver(e: { over: { id: string } | null }) { setAdOverCol(e.over?.id ?? null) }
+
+  // Shoots board — a drag is only honoured if it's a legal transition (the same rule the
+  // server enforces), so dragging out of a terminal Completed/Cancelled column is a no-op.
+  function handleShootDragEnd(e: DragEndEvent) {
+    const target = e.over?.id as ShootStatus | undefined
+    if (target && SHOOT_STATUS_ORDER.includes(target)) {
+      const shoot = shoots.find(s => s.id === e.active.id)
+      if (shoot && shoot.status !== target && isValidShootTransition(shoot.status, target)) {
+        handleShootStatus(shoot.id, target)
+      }
+    }
+    setShootDragId(null); setShootOverCol(null)
+  }
+
+  // Ads board — any status can move to any other, matching the existing dropdown.
+  function handleAdDragEnd(e: DragEndEvent) {
+    const target = e.over?.id as AdStatus | undefined
+    if (target && AD_STATUS_ORDER.includes(target)) {
+      const ad = ads.find(a => a.id === e.active.id)
+      if (ad && ad.status !== target) handleAdStatus(ad.id, target)
+    }
+    setAdDragId(null); setAdOverCol(null)
+  }
+
+  const draggedShoot = shoots.find(s => s.id === shootDragId)
+  const draggedAd = ads.find(a => a.id === adDragId)
+
+  function handlePostAdded(posts: ContentPost[]) {
+    if (posts.length === 0) return
+    const itemId = posts[0].content_item_id
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, status: "posted", posts: [...i.posts, ...posts] } : i))
     setPlatformModalItem(null)
   }
 
@@ -851,13 +1518,21 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
         ]}
       />
 
-      <TabToggle active={tab} onChange={k => setTab(k as typeof tab)} tabs={[
-        { key: "pipeline", label: "Pipeline", icon: Layers },
-        { key: "log", label: "Posting Log", icon: History },
-        { key: "ads", label: "Ads Tracker", icon: Megaphone },
+      <TabToggle active={mode} onChange={k => setMode(k as typeof mode)} tabs={[
+        { key: "video", label: "Video", icon: Video },
+        { key: "poster", label: "Poster", icon: ImageIcon },
+        { key: "ads", label: "Ads", icon: Megaphone },
       ]} />
 
-      {tab === "pipeline" && (
+      {mode !== "ads" && (
+        <TabToggle active={tab} onChange={k => setSubTab(k as typeof subTab)} tabs={[
+          ...(mode === "video" ? [{ key: "shoots", label: "Shoots", icon: Camera }] : []),
+          { key: "pipeline", label: "Pipeline", icon: Layers },
+          { key: "log", label: "Posting Log", icon: History },
+        ]} />
+      )}
+
+      {mode !== "ads" && tab === "pipeline" && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex gap-2 flex-wrap">
@@ -865,24 +1540,19 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
                 style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
                 <option value="all">All Clients</option>
                 {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                {pastClientOptions.length > 0 && (
+                  <optgroup label="📁 Past Clients">
+                    {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                  </optgroup>
+                )}
               </select>
-              <select value={pipelineMonthFilter} onChange={e => setPipelineMonthFilter(e.target.value)}
-                style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
-                <option value="all">All Time</option>
-                {allMonthOptions.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
-              </select>
+              <MonthSelect value={pipelineMonthFilter} onChange={setPipelineMonthFilter} options={allMonthOptions} />
+              <DayFilter value={pipelineDayFilter} onChange={setPipelineDayFilter} />
             </div>
             <button onClick={() => setShowNewContent(true)}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               <Plus size={14} /> New Content
             </button>
-          </div>
-
-          <div className="flex gap-2 flex-wrap">
-            <StatChip label="Shot" value={pipelineStats.shot} color={STATUS_CFG.shot.accent} />
-            <StatChip label="Editing" value={pipelineStats.editing} color={STATUS_CFG.editing.accent} />
-            <StatChip label="Edited" value={pipelineStats.edited} color={STATUS_CFG.edited.accent} />
-            <StatChip label="Posted" value={pipelineStats.posted} color={STATUS_CFG.posted.accent} />
           </div>
 
           {/* Mobile column switcher */}
@@ -896,7 +1566,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
           </div>
           <div className="md:hidden">
             {colItems(activeMobileCol).length === 0 ? (
-              <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "24px 0" }}>No items</p>
+              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No items</p>
             ) : colItems(activeMobileCol).map(item => (
               <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} />
             ))}
@@ -919,7 +1589,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
                       <div className="p-3 flex-1">
                         {list.length === 0 ? (
                           <div className="flex items-center justify-center py-8 rounded-xl transition-all" style={{ border: `2px dashed ${overCol === status ? cfg.accent : "#E5E7EB"}` }}>
-                            <p className="text-[11px]" style={{ color: overCol === status ? cfg.accent : "#D1D5DB" }}>{overCol === status ? "Drop here" : "No items"}</p>
+                            <p className="text-[11px]" style={{ color: overCol === status ? cfg.accent : "#374151", fontWeight: 600 }}>{overCol === status ? "Drop here" : "No items"}</p>
                           </div>
                         ) : list.map(item => (
                           <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} />
@@ -941,11 +1611,11 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
         </div>
       )}
 
-      {tab === "log" && (
+      {mode !== "ads" && tab === "log" && (
         <div className="flex flex-col gap-4">
           <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
-              <span style={{ fontSize: 11, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
               <select value={logMonthFilter} onChange={e => setLogMonthFilter(e.target.value)}
                 style={{ ...FIELD, width: "auto", cursor: "pointer", padding: "5px 10px", fontSize: 11 }}>
                 <option value="all">All Time</option>
@@ -953,14 +1623,14 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
               </select>
             </div>
             {clientKPIs.length === 0 ? (
-              <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "20px 0", margin: 0 }}>No activity {logMonthFilter === "all" ? "yet" : `in ${fmtMonth(logMonthFilter)}`}</p>
+              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "20px 0", margin: 0 }}>No activity {logMonthFilter === "all" ? "yet" : `in ${fmtMonth(logMonthFilter)}`}</p>
             ) : (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: "#F9FAFB" }}>
                       {["Client", "Posted", "Unposted", "Unedited"].map(h => (
-                        <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
+                        <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -990,7 +1660,14 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
               style={{ ...FIELD, width: "auto", cursor: "pointer", flex: "0 0 auto" }}>
               <option value="all">All Clients</option>
               {logClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+              {pastClientOptions.length > 0 && (
+                <optgroup label="📁 Past Clients">
+                  {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                </optgroup>
+              )}
             </select>
+            <MonthSelect value={logMonthFilter} onChange={setLogMonthFilter} options={logMonthOptions} />
+            <DayFilter value={logDayFilter} onChange={setLogDayFilter} />
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -1015,18 +1692,18 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
                 <thead>
                   <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
                     {["Video/Poster", "Client", "Type", "Platforms", "Posted Date"].map(h => (
-                      <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
+                      <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {logRows.length === 0 ? (
-                    <tr><td colSpan={5} style={{ padding: "32px 14px", textAlign: "center", color: "#9CA3AF", fontSize: 12 }}>No posts logged yet</td></tr>
+                    <tr><td colSpan={5} style={{ padding: "32px 14px", textAlign: "center", color: "#374151", fontWeight: 600, fontSize: 12 }}>No posts logged yet</td></tr>
                   ) : logRows.map(item => (
                     <tr key={item.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
                       <td style={{ padding: "10px 14px", fontWeight: 700, color: "#111827" }}>{item.title}</td>
                       <td style={{ padding: "10px 14px", color: "#6366F1", fontWeight: 600 }}>{item.client_name}</td>
-                      <td style={{ padding: "10px 14px", color: "#6B7280", textTransform: "capitalize" }}>{item.content_type}</td>
+                      <td style={{ padding: "10px 14px", color: "#374151", fontWeight: 600, textTransform: "capitalize" }}>{item.content_type}</td>
                       <td style={{ padding: "10px 14px" }}>
                         <div className="flex flex-wrap items-center gap-1">
                           {item.posts.map(post => {
@@ -1055,100 +1732,183 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
         </div>
       )}
 
-      {tab === "ads" && (
+      {mode === "ads" && (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap" style={{ flex: "1 1 auto" }}>
+              <div style={{ position: "relative", flex: "1 1 200px" }}>
+                <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+                <input value={adsSearch} onChange={e => setAdsSearch(e.target.value)} placeholder="Search ad or client…"
+                  style={{ ...FIELD, paddingLeft: 30 }} />
+              </div>
+              <select value={adsClientFilter} onChange={e => setAdsClientFilter(e.target.value)}
+                style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+                <option value="all">All Clients</option>
+                {activeClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                {pastClientOptions.length > 0 && (
+                  <optgroup label="📁 Past Clients">
+                    {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                  </optgroup>
+                )}
+              </select>
+              <MonthSelect value={adsMonthFilter} onChange={setAdsMonthFilter} options={adsMonthOptions} />
+              <DayFilter value={adsDayFilter} onChange={setAdsDayFilter} />
+            </div>
             <button onClick={() => setShowNewAd(true)}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               <Plus size={14} /> New Ad
             </button>
           </div>
 
-          {ads.length === 0 ? (
-            <div style={{ background: "#fff", border: "1px dashed #E5E7EB", borderRadius: 18, padding: "40px 20px", textAlign: "center" }}>
-              <Megaphone size={24} style={{ color: "#D1D5DB", margin: "0 auto 8px" }} />
-              <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>No ads tracked yet</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {ads.map(ad => {
-                const expanded = expandedAd === ad.id
-                const statusCfg = AD_STATUS_CFG[ad.status]
-                return (
-                  <div key={ad.id} style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
-                    <div style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, cursor: "pointer" }}
-                      onClick={() => setExpandedAd(expanded ? null : ad.id)}>
-                      <div style={{ minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: 0 }}>{ad.ad_name}</p>
-                        <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{ad.client_name} · {ad.platform} · Launched {fmtDate(ad.launch_date)}</p>
+          {/* Mobile column switcher */}
+          <div className="flex md:hidden gap-2 overflow-x-auto pb-1">
+            {AD_STATUS_ORDER.map(s => {
+              const cfg = AD_STATUS_CFG[s]
+              const count = filteredAds.filter(a => a.status === s).length
+              return (
+                <button key={s} onClick={() => setActiveAdCol(s)}
+                  style={{ flexShrink: 0, padding: "6px 14px", borderRadius: 10, border: `1.5px solid ${activeAdCol === s ? cfg.color : "#E5E7EB"}`, background: activeAdCol === s ? `${cfg.color}14` : "#fff", color: activeAdCol === s ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700 }}>
+                  {cfg.label} ({count})
+                </button>
+              )
+            })}
+          </div>
+          <div className="md:hidden">
+            {filteredAds.filter(a => a.status === activeAdCol).length === 0 ? (
+              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No ads</p>
+            ) : filteredAds.filter(a => a.status === activeAdCol).map(ad => (
+              <AdCardInner key={ad.id} ad={ad} expanded={expandedAd === ad.id}
+                onToggleExpand={id => setExpandedAd(expandedAd === id ? null : id)}
+                onLogPerformance={setPerformanceModalAd} onLogCorrection={setRevisionModalAd}
+                onDelete={handleDeleteAd} />
+            ))}
+          </div>
+
+          {/* Desktop kanban */}
+          <div className="hidden md:block">
+            <DndContext sensors={sensors}
+              onDragStart={e => setAdDragId(String(e.active.id))}
+              onDragOver={handleAdDragOver as never}
+              onDragEnd={handleAdDragEnd}>
+              <div className="grid grid-cols-4 gap-4">
+                {AD_STATUS_ORDER.map(status => {
+                  const cfg = AD_STATUS_CFG[status]
+                  const list = filteredAds.filter(a => a.status === status)
+                  return (
+                    <KanbanColumn key={status} id={status} accent={cfg.color} isOver={adOverCol === status}>
+                      <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.color} />
+                      <div className="p-3 flex-1">
+                        {list.length === 0 ? (
+                          <KanbanEmptyCell isOver={adOverCol === status} accent={cfg.color} />
+                        ) : list.map(ad => (
+                          <KanbanCard key={ad.id} id={ad.id}>
+                            <AdCardInner ad={ad} expanded={expandedAd === ad.id} isDragging={adDragId === ad.id}
+                              onToggleExpand={id => setExpandedAd(expandedAd === id ? null : id)}
+                              onLogPerformance={setPerformanceModalAd} onLogCorrection={setRevisionModalAd}
+                              onDelete={handleDeleteAd} />
+                          </KanbanCard>
+                        ))}
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
-                          <Target size={10} className="inline mr-1" />{ad.hook_count} hooks
-                        </span>
-                        {ad.targeting_type && (
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: `${TARGETING_CFG[ad.targeting_type].color}14`, color: TARGETING_CFG[ad.targeting_type].color }}>
-                            {TARGETING_CFG[ad.targeting_type].label}
-                          </span>
-                        )}
-                        <select value={ad.status} onClick={e => e.stopPropagation()}
-                          onChange={e => {
-                            const next = e.target.value as AdStatus
-                            setAds(prev => prev.map(a => a.id === ad.id ? { ...a, status: next } : a))
-                            startTransition(async () => { await updateAdStatus(ad.id, next) })
-                          }}
-                          style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 99, background: `${statusCfg.color}14`, color: statusCfg.color, border: "none", cursor: "pointer" }}>
-                          {(Object.keys(AD_STATUS_CFG) as AdStatus[]).map(s => <option key={s} value={s}>{AD_STATUS_CFG[s].label}</option>)}
-                        </select>
-                        <ChevronDown size={14} style={{ color: "#9CA3AF", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
-                      </div>
-                    </div>
-                    {expanded && (
-                      <div style={{ padding: "0 18px 18px", borderTop: "1px solid #F3F4F6" }}>
-                        {ad.targeting_notes && (
-                          <p style={{ fontSize: 11, color: "#6B7280", margin: "12px 0" }}>{ad.targeting_notes}</p>
-                        )}
-                        <div className="flex items-center justify-between" style={{ marginTop: 12, marginBottom: 8 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>Correction History</span>
-                          <button onClick={() => setRevisionModalAd(ad)}
-                            style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, border: "none", background: "rgba(99,102,241,0.08)", color: "#6366F1", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
-                            <Plus size={11} /> Log Correction
-                          </button>
-                        </div>
-                        {ad.revisions.length === 0 ? (
-                          <p style={{ fontSize: 11, color: "#D1D5DB" }}>No corrections logged yet</p>
-                        ) : (
-                          <div className="flex flex-col gap-2">
-                            {ad.revisions.map(rev => (
-                              <div key={rev.id} style={{ padding: "8px 12px", borderRadius: 10, background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
-                                <div className="flex items-center justify-between">
-                                  <span style={{ fontSize: 10, fontWeight: 700, color: "#374151" }}>{fmtDate(rev.revision_date)}</span>
-                                  <div className="flex gap-1">
-                                    {rev.hook_count_after !== null && <span style={{ fontSize: 9, fontWeight: 700, color: "#6366F1" }}>{rev.hook_count_after} hooks</span>}
-                                    {rev.targeting_type_after && <span style={{ fontSize: 9, fontWeight: 700, color: TARGETING_CFG[rev.targeting_type_after].color }}>· {TARGETING_CFG[rev.targeting_type_after].label}</span>}
-                                  </div>
-                                </div>
-                                <p style={{ fontSize: 11, color: "#6B7280", margin: "4px 0 0" }}>{rev.notes}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <button onClick={() => { if (confirm("Delete this ad?")) { setAds(prev => prev.filter(a => a.id !== ad.id)); startTransition(async () => { await deleteAd(ad.id) }) } }}
-                          style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, border: "none", background: "rgba(222,26,26,0.06)", color: "#de1a1a", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
-                          <Trash2 size={11} /> Delete Ad
-                        </button>
-                      </div>
-                    )}
+                    </KanbanColumn>
+                  )
+                })}
+              </div>
+              <DragOverlay>
+                {draggedAd ? (
+                  <div style={{ width: 260, opacity: 0.95, transform: "rotate(2deg)" }}>
+                    <AdCardInner ad={draggedAd} onToggleExpand={() => {}} onLogPerformance={() => {}} onLogCorrection={() => {}} onDelete={() => {}} />
                   </div>
-                )
-              })}
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </div>
+        </div>
+      )}
+
+      {mode === "video" && tab === "shoots" && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <select value={shootsClientFilter} onChange={e => setShootsClientFilter(e.target.value)}
+                style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+                <option value="all">All Clients</option>
+                {activeClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                {pastClientOptions.length > 0 && (
+                  <optgroup label="📁 Past Clients">
+                    {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                  </optgroup>
+                )}
+              </select>
+              <MonthSelect value={shootsMonthFilter} onChange={setShootsMonthFilter} options={shootsMonthOptions} />
+              <DayFilter value={shootsDayFilter} onChange={setShootsDayFilter} />
             </div>
-          )}
+            <button onClick={() => setShowNewShoot(true)}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+              <Plus size={14} /> New Shoot
+            </button>
+          </div>
+
+          {/* Mobile column switcher */}
+          <div className="flex md:hidden gap-2 overflow-x-auto pb-1">
+            {SHOOT_STATUS_ORDER.map(s => {
+              const cfg = SHOOT_STATUS_CFG[s]
+              const count = filteredShoots.filter(x => x.status === s).length
+              return (
+                <button key={s} onClick={() => setActiveShootCol(s)}
+                  style={{ flexShrink: 0, padding: "6px 14px", borderRadius: 10, border: `1.5px solid ${activeShootCol === s ? cfg.color : "#E5E7EB"}`, background: activeShootCol === s ? `${cfg.color}14` : "#fff", color: activeShootCol === s ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700 }}>
+                  {cfg.label} ({count})
+                </button>
+              )
+            })}
+          </div>
+          <div className="md:hidden">
+            {filteredShoots.filter(s => s.status === activeShootCol).length === 0 ? (
+              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No shoots</p>
+            ) : filteredShoots.filter(s => s.status === activeShootCol).map(shoot => (
+              <ShootCardInner key={shoot.id} shoot={shoot} onStatus={handleShootStatus} />
+            ))}
+          </div>
+
+          {/* Desktop kanban */}
+          <div className="hidden md:block">
+            <DndContext sensors={sensors}
+              onDragStart={e => setShootDragId(String(e.active.id))}
+              onDragOver={handleShootDragOver as never}
+              onDragEnd={handleShootDragEnd}>
+              <div className="grid grid-cols-4 gap-4">
+                {SHOOT_STATUS_ORDER.map(status => {
+                  const cfg = SHOOT_STATUS_CFG[status]
+                  const list = filteredShoots.filter(s => s.status === status)
+                  return (
+                    <KanbanColumn key={status} id={status} accent={cfg.color} isOver={shootOverCol === status}>
+                      <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.color} />
+                      <div className="p-3 flex-1">
+                        {list.length === 0 ? (
+                          <KanbanEmptyCell isOver={shootOverCol === status} accent={cfg.color} />
+                        ) : list.map(shoot => (
+                          <KanbanCard key={shoot.id} id={shoot.id}>
+                            <ShootCardInner shoot={shoot} isDragging={shootDragId === shoot.id} onStatus={handleShootStatus} />
+                          </KanbanCard>
+                        ))}
+                      </div>
+                    </KanbanColumn>
+                  )
+                })}
+              </div>
+              <DragOverlay>
+                {draggedShoot ? (
+                  <div style={{ width: 260, opacity: 0.95, transform: "rotate(2deg)" }}>
+                    <ShootCardInner shoot={draggedShoot} onStatus={() => {}} />
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </div>
         </div>
       )}
 
       {showNewContent && (
-        <NewContentModal clients={clients} pastClients={pastClients} onClose={() => setShowNewContent(false)}
+        <NewContentModal clients={clients} pastClients={pastClients} defaultContentType={contentTypeForMode} onClose={() => setShowNewContent(false)}
           onCreated={item => { setItems(prev => [item, ...prev]); setShowNewContent(false) }} />
       )}
       {platformModalItem && (
@@ -1175,6 +1935,21 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
             } : a))
             setRevisionModalAd(null)
           }} />
+      )}
+      {performanceModalAd && (
+        <AdPerformanceModal ad={performanceModalAd} onClose={() => setPerformanceModalAd(null)}
+          onAdded={entry => {
+            setAds(prev => prev.map(a => a.id === entry.ad_id ? { ...a, performanceEntries: [entry, ...a.performanceEntries] } : a))
+            setPerformanceModalAd(null)
+          }} />
+      )}
+      {showNewShoot && (
+        <NewShootModal clients={clients} pastClients={pastClients} onClose={() => setShowNewShoot(false)}
+          onCreated={shoot => { setShoots(prev => [shoot, ...prev]); setShowNewShoot(false) }} />
+      )}
+      {completeShootFor && (
+        <CompleteShootModal shoot={completeShootFor} onClose={() => setCompleteShootFor(null)}
+          onCompleted={created => handleShootCompleted(completeShootFor.id, created)} />
       )}
     </div>
   )

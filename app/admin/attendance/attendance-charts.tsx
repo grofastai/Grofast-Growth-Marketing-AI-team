@@ -18,11 +18,11 @@ export function AttendanceDonut({ present, notLogged, absent, total }: DonutProp
   const display = data.length === 0 ? [{ name: "No Data", value: 1, color: "#E5E7EB" }] : data
 
   return (
-    <div className="flex flex-wrap items-center gap-5">
-      <div style={{ position: "relative", width: 130, height: 130, flexShrink: 0 }}>
+    <div className="flex flex-wrap items-center gap-4">
+      <div style={{ position: "relative", width: 96, height: 96, flexShrink: 0 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie data={display} cx="50%" cy="50%" innerRadius={40} outerRadius={60}
+            <Pie data={display} cx="50%" cy="50%" innerRadius={30} outerRadius={46}
               dataKey="value" strokeWidth={2} stroke="#FFFFFF">
               {display.map((d, i) => <Cell key={i} fill={d.color} />)}
             </Pie>
@@ -30,19 +30,19 @@ export function AttendanceDonut({ present, notLogged, absent, total }: DonutProp
           </PieChart>
         </ResponsiveContainer>
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-          <span style={{ fontSize: 22, fontWeight: 900, color: "#111827", lineHeight: 1 }}>{total}</span>
-          <span style={{ fontSize: 9, color: "#0F4C4C", fontWeight: 700, marginTop: 1 }}>Total</span>
+          <span style={{ fontSize: 18, fontWeight: 900, color: "#111827", lineHeight: 1 }}>{total}</span>
+          <span style={{ fontSize: 8, color: "#0F4C4C", fontWeight: 700, marginTop: 1 }}>Total</span>
         </div>
       </div>
 
       <div className="flex-1 min-w-0" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {slices.map(s => (
-          <div key={s.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <div key={s.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
               <div style={{ width: 9, height: 9, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: "#0F4C4C", fontWeight: 600 }}>{s.name}</span>
+              <span style={{ fontSize: 12, color: "#0F4C4C", fontWeight: 600, whiteSpace: "nowrap" }}>{s.name}</span>
             </div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", whiteSpace: "nowrap", flexShrink: 0 }}>
               {s.value} ({total > 0 ? Math.round((s.value / total) * 100) : 0}%)
             </span>
           </div>

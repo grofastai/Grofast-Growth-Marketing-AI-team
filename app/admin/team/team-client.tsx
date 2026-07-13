@@ -1543,8 +1543,11 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
     })
   }
 
-  const STAT_CARDS: Array<{ label: string; value: number; sub: string; img: string; bg: string; border: string; num: string; role: "ALL" | "ADMIN" | "MEMBER" | "FREELANCER" }> = [
-    { label: "Total Members", value: stats.total, sub: "All accounts", img: "/brand/team-total-members.png", bg: "linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%)", border: "rgba(236,72,153,0.15)", num: "#EC4899", role: "ALL" },
+  const STAT_CARDS: Array<{ label: string; value: number; sub: string; img: string; bg: string; border: string; num: string; role: "ALL" | "ADMIN" | "MEMBER" | "FREELANCER"; imgClass?: string }> = [
+    // Total Members' art is a wide group shot, not a single character, so `contain`
+    // fits it to the box width and it sprawls left over the count. Give it a smaller
+    // box so it reads the same size as the single-character cards beside it.
+    { label: "Total Members", value: stats.total, sub: "All accounts", img: "/brand/team-total-members.png", bg: "linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%)", border: "rgba(236,72,153,0.15)", num: "#EC4899", role: "ALL", imgClass: "w-[50px] h-[50px] sm:w-28 sm:h-24 lg:w-[155px] lg:h-[135px]" },
     { label: "Admin Accounts", value: stats.admins, sub: "Admin access", img: "/brand/team-admins.png", bg: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "rgba(139,92,246,0.15)", num: "#7C3AED", role: "ADMIN" },
     { label: "Team Members", value: stats.teamMembers, sub: "Member accounts", img: "/brand/team-active-members.png", bg: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "rgba(34,197,94,0.15)", num: "#16A34A", role: "MEMBER" },
   ]
@@ -1607,7 +1610,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                 </div>
               )}
               {/* Illustration */}
-              <div className="absolute right-0 bottom-0 w-[60px] h-[60px] sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
+              <div className={`absolute right-0 bottom-0 pointer-events-none ${s.imgClass ?? "w-[60px] h-[60px] sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px]"}`}>
                 <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
               </div>
               {/* Text */}

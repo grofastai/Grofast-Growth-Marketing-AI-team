@@ -4,8 +4,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import {
-  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema,
-  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput,
+  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema,
+  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput,
 } from '@/lib/validations/content-tracker'
 
 function adminSupabase() {
@@ -252,6 +252,32 @@ export async function addAdRevision(input: AddAdRevisionInput): Promise<{ succes
   if (parsed.data.hook_count_after !== undefined) adUpdates.hook_count = parsed.data.hook_count_after
   if (parsed.data.targeting_type_after) adUpdates.targeting_type = parsed.data.targeting_type_after
   await ctx.admin.from('ads_tracker').update(adUpdates).eq('id', parsed.data.ad_id).eq('company_id', ctx.companyId)
+
+  revalidateTracker()
+  return { success: true, id: data.id }
+}
+
+export async function addAdPerformanceEntry(input: AddAdPerformanceEntryInput): Promise<{ success: boolean; error?: string; id?: string }> {
+  const parsed = addAdPerformanceEntrySchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { data, error } = await ctx.admin.from('ad_performance_entries').insert({
+    ad_id:       parsed.data.ad_id,
+    company_id:  ctx.companyId,
+    entry_date:  parsed.data.entry_date,
+    spend:       parsed.data.spend,
+    impressions: parsed.data.impressions,
+    reach:       parsed.data.reach,
+    clicks:      parsed.data.clicks,
+    ctr:         parsed.data.ctr,
+    results:     parsed.data.results,
+    note:        parsed.data.note || null,
+    created_by:  ctx.id,
+  }).select('id').single()
+  if (error) return { success: false, error: error.message }
 
   revalidateTracker()
   return { success: true, id: data.id }

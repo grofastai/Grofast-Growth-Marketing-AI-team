@@ -9,15 +9,16 @@ import {
 import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil,
-  Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target,
+  Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
 import { buildClientOptions } from "@/lib/utils/client-options"
+import { latestEntry, isUnderperforming, type AdPerformanceEntry } from "@/lib/ads-tracker/performance-metrics"
 import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
-  createAd, updateAdStatus, deleteAd, addAdRevision,
+  createAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry,
 } from "@/lib/actions/content-tracker"
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -73,6 +74,7 @@ export type Ad = {
   status: AdStatus
   created_at: string
   revisions: AdRevision[]
+  performanceEntries: AdPerformanceEntry[]
 }
 
 type Props = {
@@ -602,6 +604,7 @@ function NewAdModal({ clients, pastClients, onClose, onCreated }: {
     onCreated({
       id: res.id, client_name: client, ad_name: adName.trim(), platform, launch_date: launchDate, hook_count: hookCount,
       targeting_type: targeting || null, targeting_notes: notes.trim() || null, status: "active", created_at: new Date().toISOString(), revisions: [],
+      performanceEntries: [],
     })
   }
 

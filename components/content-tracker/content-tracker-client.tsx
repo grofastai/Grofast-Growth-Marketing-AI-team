@@ -14,7 +14,7 @@ import {
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
 import { buildClientOptions } from "@/lib/utils/client-options"
-import { latestEntry, isUnderperforming, type AdPerformanceEntry } from "@/lib/ads-tracker/performance-metrics"
+import { latestEntry, isUnderperforming, cpc, cpm, frequency, costPerResult, type AdPerformanceEntry } from "@/lib/ads-tracker/performance-metrics"
 import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
@@ -147,6 +147,16 @@ function fmtDateRange(dates: string[]) {
   const sorted = Array.from(new Set(dates)).sort()
   if (sorted.length === 1) return fmtDate(sorted[0])
   return `${fmtDate(sorted[0])} – ${fmtDate(sorted[sorted.length - 1])}`
+}
+function fmtCompactNumber(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}K`
+  return String(Math.round(n))
+}
+function fmtCurrency(n: number): string {
+  return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
+}
+function fmtMetric(n: number | null, formatter: (n: number) => string = String): string {
+  return n === null ? "—" : formatter(n)
 }
 
 // ── Modal shell ──────────────────────────────────────────────────────────────
@@ -1246,15 +1256,27 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
               {filteredAds.map(ad => {
                 const expanded = expandedAd === ad.id
                 const statusCfg = AD_STATUS_CFG[ad.status]
+                const latest = latestEntry(ad.performanceEntries)
+                const underperforming = isUnderperforming(ad.performanceEntries)
                 return (
-                  <div key={ad.id} style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
+                  <div key={ad.id} style={{ background: "#fff", border: `1px solid ${underperforming ? "#FCA5A5" : "#E5E7EB"}`, borderRadius: 18, overflow: "hidden" }}>
                     <div style={{ padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, cursor: "pointer" }}
                       onClick={() => setExpandedAd(expanded ? null : ad.id)}>
                       <div style={{ minWidth: 0 }}>
                         <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: 0 }}>{ad.ad_name}</p>
                         <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{ad.client_name} · {ad.platform} · Launched {fmtDate(ad.launch_date)}</p>
+                        <p style={{ fontSize: 11, color: "#6B7280", margin: "4px 0 0" }}>
+                          {latest
+                            ? `${fmtCurrency(latest.spend)} spent · ${fmtCompactNumber(latest.reach)} reach · ${latest.ctr}% CTR · ${latest.results} results`
+                            : "No performance logged"}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
+                        {underperforming && (
+                          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(239,68,68,0.1)", color: "#EF4444" }}>
+                            <AlertTriangle size={10} /> Underperforming
+                          </span>
+                        )}
                         <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
                           <Target size={10} className="inline mr-1" />{ad.hook_count} hooks
                         </span>
@@ -1280,6 +1302,41 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
                         {ad.targeting_notes && (
                           <p style={{ fontSize: 11, color: "#6B7280", margin: "12px 0" }}>{ad.targeting_notes}</p>
                         )}
+
+                        <div className="flex items-center justify-between" style={{ marginTop: 12, marginBottom: 8 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>Performance</span>
+                          <button onClick={() => setPerformanceModalAd(ad)}
+                            style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, border: "none", background: "rgba(34,197,94,0.08)", color: "#16A34A", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
+                            <Plus size={11} /> Log Performance
+                          </button>
+                        </div>
+                        {ad.performanceEntries.length === 0 ? (
+                          <p style={{ fontSize: 11, color: "#D1D5DB" }}>No performance logged yet</p>
+                        ) : (
+                          <div className="flex flex-col gap-2" style={{ marginBottom: 12 }}>
+                            {[...ad.performanceEntries].sort((a, b) => b.entry_date.localeCompare(a.entry_date)).map(entry => (
+                              <div key={entry.id} style={{ padding: "8px 12px", borderRadius: 10, background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
+                                <div className="flex items-center justify-between">
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: "#374151" }}>{fmtDate(entry.entry_date)}</span>
+                                  <span style={{ fontSize: 9, fontWeight: 700, color: entry.ctr < 1 ? "#EF4444" : "#16A34A" }}>{entry.ctr}% CTR</span>
+                                </div>
+                                <div className="flex flex-wrap gap-x-3 gap-y-1" style={{ marginTop: 4 }}>
+                                  <span style={{ fontSize: 10, color: "#6B7280" }}>{fmtCurrency(entry.spend)} spend</span>
+                                  <span style={{ fontSize: 10, color: "#6B7280" }}>{fmtCompactNumber(entry.impressions)} impr</span>
+                                  <span style={{ fontSize: 10, color: "#6B7280" }}>{fmtCompactNumber(entry.reach)} reach</span>
+                                  <span style={{ fontSize: 10, color: "#6B7280" }}>{entry.clicks} clicks</span>
+                                  <span style={{ fontSize: 10, color: "#6B7280" }}>{entry.results} results</span>
+                                  <span style={{ fontSize: 10, color: "#6B7280" }}>CPC {fmtMetric(cpc(entry), fmtCurrency)}</span>
+                                  <span style={{ fontSize: 10, color: "#6B7280" }}>CPM {fmtMetric(cpm(entry), fmtCurrency)}</span>
+                                  <span style={{ fontSize: 10, color: "#6B7280" }}>Freq {fmtMetric(frequency(entry), n => n.toFixed(2))}</span>
+                                  <span style={{ fontSize: 10, color: "#6B7280" }}>Cost/Result {fmtMetric(costPerResult(entry), fmtCurrency)}</span>
+                                </div>
+                                {entry.note && <p style={{ fontSize: 11, color: "#6B7280", margin: "4px 0 0" }}>{entry.note}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
                         <div className="flex items-center justify-between" style={{ marginTop: 12, marginBottom: 8 }}>
                           <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>Correction History</span>
                           <button onClick={() => setRevisionModalAd(ad)}
@@ -1346,6 +1403,13 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
               targeting_type: rev.targeting_type_after ?? a.targeting_type,
             } : a))
             setRevisionModalAd(null)
+          }} />
+      )}
+      {performanceModalAd && (
+        <AdPerformanceModal ad={performanceModalAd} onClose={() => setPerformanceModalAd(null)}
+          onAdded={entry => {
+            setAds(prev => prev.map(a => a.id === entry.ad_id ? { ...a, performanceEntries: [entry, ...a.performanceEntries] } : a))
+            setPerformanceModalAd(null)
           }} />
       )}
     </div>

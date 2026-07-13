@@ -181,10 +181,14 @@ export default function FlMediaClient({
       <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
         {/* Premium reddish header */}
-        <div style={{ padding: "20px 24px 18px", background: "linear-gradient(135deg, #7F0000 0%, #B01230 50%, #DC143C 100%)", boxShadow: "0 4px 24px rgba(176,18,48,0.3)", position: "relative", overflow: "hidden", flexShrink: 0 }}>
+        <div className="lg:pr-[150px]" style={{ padding: "20px 24px 18px", background: "linear-gradient(135deg, #7F0000 0%, #B01230 50%, #DC143C 100%)", boxShadow: "0 4px 24px rgba(176,18,48,0.3)", position: "relative", overflow: "hidden", flexShrink: 0 }}>
           {/* Decorative circles */}
           <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
           <div style={{ position: "absolute", bottom: -30, left: 120, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+          {/* Media production character — reserved gutter on large screens only so it never overlaps the name/month-nav text */}
+          <img src="/brand/freelancer-media-production-character.png" alt="" aria-hidden="true"
+            className="hidden lg:block"
+            style={{ position: "absolute", bottom: 0, right: 14, height: "135%", maxHeight: 150, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.35))", zIndex: 1 }} />
           <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
               {selectedMember && (

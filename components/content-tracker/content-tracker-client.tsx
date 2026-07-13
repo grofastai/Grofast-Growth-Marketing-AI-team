@@ -182,7 +182,7 @@ function PrimaryButton({ children, onClick, disabled, type = "button" }: { child
 // ── Pill toggle (tab switcher) ───────────────────────────────────────────────
 function TabToggle({ tabs, active, onChange }: { tabs: { key: string; label: string; icon: typeof Layers }[]; active: string; onChange: (k: string) => void }) {
   return (
-    <div style={{ display: "flex", gap: 6, background: "#F3F4F6", borderRadius: 14, padding: 5, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", gap: 6, background: "#1F2937", borderRadius: 14, padding: 5, flexWrap: "wrap" }}>
       {tabs.map(t => {
         const isActive = t.key === active
         const Icon = t.icon
@@ -191,7 +191,7 @@ function TabToggle({ tabs, active, onChange }: { tabs: { key: string; label: str
             style={{
               display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10, border: "none",
               background: isActive ? "linear-gradient(135deg,#FF4D4D,#DE1A1A)" : "transparent",
-              color: isActive ? "#fff" : "#6B7280",
+              color: isActive ? "#fff" : "#D1D5DB",
               boxShadow: isActive ? "0 4px 14px rgba(222,26,26,0.3)" : "none",
               fontSize: 12, fontWeight: 800, cursor: "pointer", transition: "all 0.15s",
             }}>

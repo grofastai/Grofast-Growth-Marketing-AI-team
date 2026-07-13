@@ -48,6 +48,8 @@ This file exists so that anyone on the team, on any laptop, can open the project
 - A Full Day Leave now blocks submitting a Daily Update for that date whether it's today or a past date (previously only blocked today).
 - Added sanity zones on logout: 12–18 hour gap on the same day asks "is that correct?" before accepting; over 18 hours is treated as definitely forgotten and requires a manual time correction (real work days here never exceed ~17.5 hours, even the longest shoot days).
 
+**Login freelancers (Freelance Media Production) now see Shooting/Editing hours on Dashboard + History** (2026-07-13) — the data was already being computed for them, but a leftover guard hid the whole right-side stats panel on Dashboard regardless of content, and History's stats panel only ever showed shoot/edit *counts*, never the hours. Both now match what full-time Media sees.
+
 **History now surfaces days with attendance but no submitted update** (2026-07-13) — previously invisible; now shows a distinct "Not Submitted" card so it's not silently lost.
 
 **Admin Activities drawer redesigned to match Member History** (2026-07-13) — entry cards are now visually identical to how a member sees their own History (same icons, colors, layout), read-only (no edit/delete, since it's an admin viewing someone else's data), sorted by actual clock time instead of raw database order.

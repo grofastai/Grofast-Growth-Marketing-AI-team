@@ -50,6 +50,8 @@ This file exists so that anyone on the team, on any laptop, can open the project
 
 **Login freelancers (Freelance Media Production) now see Shooting/Editing hours on Dashboard + History** (2026-07-13) — the data was already being computed for them, but a leftover guard hid the whole right-side stats panel on Dashboard regardless of content, and History's stats panel only ever showed shoot/edit *counts*, never the hours. Both now match what full-time Media sees.
 
+**Full-time Media's History stats panel also got Shooting Hrs added (below Total Shoots), and the existing "Other" stat was moved from the very end of the list (after Overtime) to just above Break Hours** (2026-07-13) — same day as the freelancer fix above, same underlying idea: hours were already computed (`stats.shootH`), just never surfaced next to the count.
+
 **History now surfaces days with attendance but no submitted update** (2026-07-13) — previously invisible; now shows a distinct "Not Submitted" card so it's not silently lost.
 
 **Admin Activities drawer redesigned to match Member History** (2026-07-13) — entry cards are now visually identical to how a member sees their own History (same icons, colors, layout), read-only (no edit/delete, since it's an admin viewing someone else's data), sorted by actual clock time instead of raw database order.

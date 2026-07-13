@@ -24,7 +24,7 @@ export default async function AdminContentTrackerPage() {
   const companyId = profile?.company_id
   if (!companyId) redirect("/login")
 
-  const [{ items, ads, shoots }, clientsResult, pastClientsResult] = await Promise.all([
+  const [{ items, ads, shoots, members }, clientsResult, pastClientsResult] = await Promise.all([
     getContentTrackerData(companyId),
     admin.from("clients").select("id, name").eq("company_id", companyId).eq("status", "active").order("name"),
     admin.from("clients").select("id, name").eq("company_id", companyId).eq("status", "past").order("name"),
@@ -35,6 +35,7 @@ export default async function AdminContentTrackerPage() {
       initialItems={items}
       initialAds={ads}
       initialShoots={shoots}
+      members={members}
       currentUserId={user.id}
       clients={(clientsResult.data ?? []) as { id: string; name: string }[]}
       pastClients={(pastClientsResult.data ?? []) as { id: string; name: string }[]}

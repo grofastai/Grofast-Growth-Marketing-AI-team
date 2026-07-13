@@ -78,7 +78,8 @@ export type CreatedShootItem = {
 
 export async function updateShootStatus(
   id: string,
-  status: ShootStatus
+  status: ShootStatus,
+  goingBy?: string[]
 ): Promise<{ success: boolean; error?: string; createdItems?: CreatedShootItem[] }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -96,7 +97,11 @@ export async function updateShootStatus(
     return { success: false, error: `Cannot move from ${shoot.status} to ${status}` }
   }
 
-  const { error } = await admin.from('shoots').update({ status }).eq('id', id)
+  // Marking Going records WHO is covering the shoot, so the rest of the team can see it.
+  const updates: Record<string, unknown> = { status }
+  if (status === 'going' && goingBy && goingBy.length > 0) updates.going_by = goingBy
+
+  const { error } = await admin.from('shoots').update(updates).eq('id', id)
   if (error) return { success: false, error: error.message }
 
   let createdItems: CreatedShootItem[] | undefined

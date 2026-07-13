@@ -88,13 +88,17 @@ export type Shoot = {
   start_time: string
   notes: string | null
   status: ShootStatus
+  goingByUsers: { id: string; name: string }[]
   titles: ShootTitleRef[]
 }
+
+export type Member = { id: string; name: string }
 
 type Props = {
   initialItems: ContentItem[]
   initialAds: Ad[]
   initialShoots: Shoot[]
+  members: Member[]
   currentUserId: string
   clients: { id: string; name: string }[]
   pastClients: { id: string; name: string }[]
@@ -310,13 +314,25 @@ function ContentCardInner({
             </div>
           </div>
         )}
-        {item.editedByUser && (
+        {/* While it's in Editing, name the editor outright — the point of asking "who's
+            starting this?" is that the rest of the team can see it without hovering. */}
+        {item.editedByUser && item.status === "editing" ? (
+          <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+            title={`${item.editedByUser.name} is editing this`}
+            style={{ background: "rgba(155,107,255,0.12)", color: "#9B6BFF" }}>
+            <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
+              style={{ background: "#9B6BFF", color: "#fff" }}>
+              {initials(item.editedByUser.name)}
+            </span>
+            {item.editedByUser.name}
+          </span>
+        ) : item.editedByUser ? (
           <div className="flex items-center gap-1" title={`Edited by ${item.editedByUser.name}`}>
             <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#9B6BFF", color: "#fff" }}>
               {initials(item.editedByUser.name)}
             </div>
           </div>
-        )}
+        ) : null}
         <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(item.shot_date)}</span>
       </div>
 
@@ -474,6 +490,23 @@ function ShootCardInner({ shoot, isDragging, onStatus }: {
             <span key={t.id} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
               style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>
               {t.title}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Who's covering the shoot — recorded when it's marked Going. */}
+      {shoot.goingByUsers.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1" style={{ marginTop: 8 }}>
+          {shoot.goingByUsers.map(u => (
+            <span key={u.id} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+              title={`${u.name} is going`}
+              style={{ background: "rgba(59,130,246,0.1)", color: "#3B82F6" }}>
+              <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
+                style={{ background: "#3B82F6", color: "#fff" }}>
+                {initials(u.name)}
+              </span>
+              {u.name}
             </span>
           ))}
         </div>
@@ -1096,6 +1129,7 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
       start_time: `${shotDate}T${shotTime || "09:00"}:00`,
       notes: notes.trim() || null,
       status: "scheduled",
+      goingByUsers: [],
       titles: [],
     })
   }
@@ -1128,6 +1162,100 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
         </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Schedule Shoot"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── "Who's starting the edit?" — the accountability prompt when a video enters Editing ──
+function StartEditingModal({ item, members, currentUserId, onClose, onConfirm }: {
+  item: ContentItem
+  members: Member[]
+  currentUserId: string
+  onClose: () => void
+  onConfirm: (editorId: string, editorName: string) => void
+}) {
+  // Defaults to whoever clicked — the common case is "I'm starting this" — but a manager
+  // can reassign to anyone.
+  const [editorId, setEditorId] = useState(
+    members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
+  )
+  const [error, setError] = useState<string | null>(null)
+
+  function submit() {
+    const editor = members.find(m => m.id === editorId)
+    if (!editor) { setError("Pick who's starting this edit"); return }
+    onConfirm(editor.id, editor.name)
+  }
+
+  return (
+    <Modal title="Who's starting this edit?" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          <strong style={{ color: "#111827" }}>{item.title}</strong> is moving to Editing. Recording who
+          started it means the rest of the team can see it&apos;s being worked on.
+        </p>
+        <div>
+          <label style={LABEL}>Editor *</label>
+          <select style={{ ...FIELD, cursor: "pointer" }} value={editorId} onChange={e => setEditorId(e.target.value)}>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>{m.name}{m.id === currentUserId ? " (me)" : ""}</option>
+            ))}
+          </select>
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit}>Start Editing</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── "Who's going?" — the accountability prompt when a shoot is marked Going ──────
+function GoingCrewModal({ shoot, members, currentUserId, onClose, onConfirm }: {
+  shoot: Shoot
+  members: Member[]
+  currentUserId: string
+  onClose: () => void
+  onConfirm: (crew: Member[]) => void
+}) {
+  const [crew, setCrew] = useState<string[]>(
+    members.some(m => m.id === currentUserId) ? [currentUserId] : []
+  )
+  const [error, setError] = useState<string | null>(null)
+
+  function toggle(id: string) {
+    setCrew(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  function submit() {
+    if (crew.length === 0) { setError("Pick at least one person going"); return }
+    onConfirm(members.filter(m => crew.includes(m.id)))
+  }
+
+  return (
+    <Modal title="Who's going on this shoot?" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          <strong style={{ color: "#111827" }}>{shoot.legacyTitle}</strong> — pick everyone covering it.
+        </p>
+        <div>
+          <label style={LABEL}>Crew * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {members.map(m => {
+              const on = crew.includes(m.id)
+              return (
+                <button key={m.id} onClick={() => toggle(m.id)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {on && <Check size={11} />} {m.name}{m.id === currentUserId ? " (me)" : ""}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit}>
+          Mark Going{crew.length > 0 ? ` (${crew.length})` : ""}
+        </PrimaryButton>
       </div>
     </Modal>
   )
@@ -1198,7 +1326,7 @@ function CompleteShootModal({ shoot, onClose, onCompleted }: {
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
-export default function ContentTrackerClient({ initialItems, initialAds, initialShoots, clients, pastClients }: Props) {
+export default function ContentTrackerClient({ initialItems, initialAds, initialShoots, members, currentUserId, clients, pastClients }: Props) {
   const [items, setItems] = useState(initialItems)
   const [ads, setAds] = useState(initialAds)
   const [shoots, setShoots] = useState(initialShoots)
@@ -1223,6 +1351,8 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [adsSearch, setAdsSearch] = useState("")
   const [showNewShoot, setShowNewShoot] = useState(false)
   const [completeShootFor, setCompleteShootFor] = useState<Shoot | null>(null)
+  const [startEditingItem, setStartEditingItem] = useState<ContentItem | null>(null)
+  const [goingCrewFor, setGoingCrewFor] = useState<Shoot | null>(null)
   const [shootsClientFilter, setShootsClientFilter] = useState<string>("all")
   // Separate drag state per board — only one board is mounted at a time, but keeping
   // them distinct avoids any chance of a stale id leaking across boards.
@@ -1303,8 +1433,18 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
   function advance(item: ContentItem, next: ContentStatus) {
     if (next === "posted") { setPlatformModalItem(item); return }
+    // Entering Editing asks who's starting it — that's the accountability moment.
+    if (next === "editing" && members.length > 0) { setStartEditingItem(item); return }
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, ...(next === "edited" ? { edited_date: new Date().toISOString().split("T")[0] } : {}) } : i))
     startTransition(async () => { await updateContentItemStatus(item.id, next) })
+  }
+
+  function handleStartEditing(item: ContentItem, editorId: string, editorName: string) {
+    setItems(prev => prev.map(i => i.id === item.id
+      ? { ...i, status: "editing", editedByUser: { id: editorId, name: editorName } }
+      : i))
+    setStartEditingItem(null)
+    startTransition(async () => { await updateContentItemStatus(item.id, "editing", editorId) })
   }
 
   function handleDeleteItem(id: string) {
@@ -1415,15 +1555,19 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     })
   }, [shoots, shootsClientFilter, shootsMonthFilter, shootsDayFilter])
 
-  // Completing a shoot needs its video titles, so it routes through a modal rather than
-  // firing the action directly. Going/Cancelled are immediate.
+  // Completing needs the video titles, and Going needs the crew — both route through a
+  // modal rather than firing the action directly. Cancelled is immediate.
   function handleShootStatus(shootId: string, status: ShootStatus) {
+    const shoot = shoots.find(s => s.id === shootId)
     if (status === "completed") {
-      const shoot = shoots.find(s => s.id === shootId)
       if (shoot) setCompleteShootFor(shoot)
       return
     }
-    const previous = shoots.find(s => s.id === shootId)?.status
+    if (status === "going" && members.length > 0) {
+      if (shoot) setGoingCrewFor(shoot)
+      return
+    }
+    const previous = shoot?.status
     setShoots(prev => prev.map(s => s.id === shootId ? { ...s, status } : s))
     startTransition(async () => {
       const res = await updateShootStatus(shootId, status)
@@ -1431,6 +1575,12 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         setShoots(prev => prev.map(s => s.id === shootId ? { ...s, status: previous } : s))
       }
     })
+  }
+
+  function handleGoingCrew(shootId: string, crew: Member[]) {
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, status: "going", goingByUsers: crew } : s))
+    setGoingCrewFor(null)
+    startTransition(async () => { await updateShootStatus(shootId, "going", crew.map(m => m.id)) })
   }
 
   function handleShootCompleted(shootId: string, created: CreatedShootItem[]) {
@@ -1950,6 +2100,16 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       {completeShootFor && (
         <CompleteShootModal shoot={completeShootFor} onClose={() => setCompleteShootFor(null)}
           onCompleted={created => handleShootCompleted(completeShootFor.id, created)} />
+      )}
+      {startEditingItem && (
+        <StartEditingModal item={startEditingItem} members={members} currentUserId={currentUserId}
+          onClose={() => setStartEditingItem(null)}
+          onConfirm={(editorId, editorName) => handleStartEditing(startEditingItem, editorId, editorName)} />
+      )}
+      {goingCrewFor && (
+        <GoingCrewModal shoot={goingCrewFor} members={members} currentUserId={currentUserId}
+          onClose={() => setGoingCrewFor(null)}
+          onConfirm={crew => handleGoingCrew(goingCrewFor.id, crew)} />
       )}
     </div>
   )

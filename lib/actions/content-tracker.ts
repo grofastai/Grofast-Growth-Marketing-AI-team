@@ -95,15 +95,27 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
 
 export async function updateContentItemStatus(
   id: string,
-  status: 'shot' | 'editing' | 'edited' | 'posted'
+  status: 'shot' | 'editing' | 'edited' | 'posted',
+  editorId?: string
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
 
   const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
+
+  // Moving to Editing is where the editor is recorded — that's the accountability
+  // moment ("who is starting this?"), so edited_by is set here, not on completion.
+  if (status === 'editing' && editorId) {
+    updates.edited_by = editorId
+  }
+
   if (status === 'edited') {
-    updates.edited_by = ctx.id
     updates.edited_date = new Date().toISOString().split('T')[0]
+    // Don't clobber the editor picked when it entered Editing. Only fall back to the
+    // current user if it somehow skipped that step and has no editor recorded.
+    const { data: existing } = await ctx.admin
+      .from('content_items').select('edited_by').eq('id', id).eq('company_id', ctx.companyId).single()
+    if (!existing?.edited_by) updates.edited_by = ctx.id
   }
 
   const { error } = await ctx.admin.from('content_items').update(updates).eq('id', id).eq('company_id', ctx.companyId)

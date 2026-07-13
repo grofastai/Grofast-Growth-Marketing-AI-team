@@ -1504,6 +1504,106 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         </div>
       )}
 
+      {tab === "shoots" && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <select value={shootsClientFilter} onChange={e => setShootsClientFilter(e.target.value)}
+                style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+                <option value="all">All Clients</option>
+                {activeClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                {pastClientOptions.length > 0 && (
+                  <optgroup label="📁 Past Clients">
+                    {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                  </optgroup>
+                )}
+              </select>
+              <button onClick={() => setShootsStatusFilter("all")}
+                style={{ padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${shootsStatusFilter === "all" ? "#DE1A1A" : "#E5E7EB"}`, background: shootsStatusFilter === "all" ? "rgba(222,26,26,0.08)" : "#fff", color: shootsStatusFilter === "all" ? "#DE1A1A" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                All Statuses
+              </button>
+              {(Object.keys(SHOOT_STATUS_CFG) as ShootStatus[]).map(s => {
+                const cfg = SHOOT_STATUS_CFG[s]
+                return (
+                  <button key={s} onClick={() => setShootsStatusFilter(s)}
+                    style={{ padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${shootsStatusFilter === s ? cfg.color : "#E5E7EB"}`, background: shootsStatusFilter === s ? `${cfg.color}14` : "#fff", color: shootsStatusFilter === s ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    {cfg.label}
+                  </button>
+                )
+              })}
+            </div>
+            <button onClick={() => setShowNewShoot(true)}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+              <Plus size={14} /> New Shoot
+            </button>
+          </div>
+
+          {shoots.length === 0 ? (
+            <div style={{ background: "#fff", border: "1px dashed #E5E7EB", borderRadius: 18, padding: "40px 20px", textAlign: "center" }}>
+              <Camera size={24} style={{ color: "#D1D5DB", margin: "0 auto 8px" }} />
+              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, margin: 0 }}>No shoots scheduled yet</p>
+            </div>
+          ) : filteredShoots.length === 0 ? (
+            <div style={{ background: "#fff", border: "1px dashed #E5E7EB", borderRadius: 18, padding: "40px 20px", textAlign: "center" }}>
+              <Camera size={24} style={{ color: "#D1D5DB", margin: "0 auto 8px" }} />
+              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, margin: 0 }}>No shoots match your filters</p>
+              <button onClick={() => { setShootsClientFilter("all"); setShootsStatusFilter("all") }}
+                style={{ marginTop: 8, fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {filteredShoots.map(shoot => {
+                const cfg = SHOOT_STATUS_CFG[shoot.status]
+                const titleChips = shoot.titles.length > 0 ? shoot.titles : [{ id: "legacy", title: shoot.legacyTitle, content_item_id: null }]
+                return (
+                  <div key={shoot.id} style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, padding: "14px 18px" }}>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: 0 }}>{shoot.client}</p>
+                        <p style={{ fontSize: 11, color: "#6B7280", margin: "2px 0 0" }}>{fmtDate(shoot.start_time.split("T")[0])}</p>
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: `${cfg.color}14`, color: cfg.color }}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1" style={{ marginTop: 10 }}>
+                      {titleChips.map(t => (
+                        <span key={t.id} style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 99, background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>
+                          {t.title}
+                        </span>
+                      ))}
+                    </div>
+                    {shoot.notes && <p style={{ fontSize: 11, color: "#6B7280", margin: "8px 0 0" }}>{shoot.notes}</p>}
+                    {(shoot.status === "scheduled" || shoot.status === "going") && (
+                      <div className="flex gap-2" style={{ marginTop: 12 }}>
+                        {shoot.status === "scheduled" && (
+                          <button onClick={() => handleShootStatus(shoot.id, "going")}
+                            style={{ padding: "6px 14px", borderRadius: 10, border: "none", background: "rgba(59,130,246,0.1)", color: "#3B82F6", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                            Mark Going
+                          </button>
+                        )}
+                        {shoot.status === "going" && (
+                          <button onClick={() => handleShootStatus(shoot.id, "completed")}
+                            style={{ padding: "6px 14px", borderRadius: 10, border: "none", background: "rgba(34,197,94,0.1)", color: "#16A34A", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                            Mark Done
+                          </button>
+                        )}
+                        <button onClick={() => handleShootStatus(shoot.id, "cancelled")}
+                          style={{ padding: "6px 14px", borderRadius: 10, border: "none", background: "rgba(239,68,68,0.08)", color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {showNewContent && (
         <NewContentModal clients={clients} pastClients={pastClients} onClose={() => setShowNewContent(false)}
           onCreated={item => { setItems(prev => [item, ...prev]); setShowNewContent(false) }} />
@@ -1539,6 +1639,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
             setAds(prev => prev.map(a => a.id === entry.ad_id ? { ...a, performanceEntries: [entry, ...a.performanceEntries] } : a))
             setPerformanceModalAd(null)
           }} />
+      )}
+      {showNewShoot && (
+        <NewShootModal clients={clients} pastClients={pastClients} onClose={() => setShowNewShoot(false)}
+          onCreated={shoot => { setShoots(prev => [shoot, ...prev]); setShowNewShoot(false) }} />
       )}
     </div>
   )

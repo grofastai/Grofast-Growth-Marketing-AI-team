@@ -733,8 +733,12 @@ export default function HistoryClient({
   const dateActive   = selectedDate.length > 0
 
   // Filtered updates (by date if active, by search if active)
+  // Search intentionally ignores the selected month pill — a search is a
+  // "find this anywhere" action, not scoped to whichever tab happens to be
+  // open. Without this, searching for something logged in an earlier month
+  // silently returned zero results while the current month tab stayed active.
   const filtered = useMemo(() => {
-    let base = monthFiltered
+    let base = searchActive ? updates : monthFiltered
     if (dateActive) base = base.filter(u => u.date === selectedDate)
     if (!searchActive) return base
     const q = search.toLowerCase()
@@ -748,7 +752,7 @@ export default function HistoryClient({
         (e.project_name ?? "").toLowerCase().includes(q)
       )
     })
-  }, [monthFiltered, search, searchActive, selectedDate, dateActive])
+  }, [monthFiltered, updates, search, searchActive, selectedDate, dateActive])
 
   // Latest day for hero (always from month, not search-filtered)
   const latest = monthFiltered[0] ?? null

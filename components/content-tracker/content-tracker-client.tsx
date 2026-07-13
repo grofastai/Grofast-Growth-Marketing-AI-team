@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
+import { buildClientOptions } from "@/lib/utils/client-options"
 import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
@@ -358,6 +359,10 @@ function NewContentModal({ clients, pastClients, onClose, onCreated }: {
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   onClose: () => void; onCreated: (item: ContentItem) => void
 }) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
   const [client, setClient] = useState("")
   const [title, setTitle] = useState("")
   const [contentType, setContentType] = useState<"video" | "poster">("video")
@@ -395,7 +400,7 @@ function NewContentModal({ clients, pastClients, onClose, onCreated }: {
   return (
     <Modal title="New Content Item" onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <ClientSelector clientOptions={clients.map(c => c.name)} pastClientOptions={pastClients.map(c => c.name)} value={client} onValueChange={setClient} required />
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
         <div>
           <label style={LABEL}>Title *</label>
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Sports Day Highlights" />
@@ -463,6 +468,10 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   onClose: () => void; onSaved: (updates: { client_name: string; title: string; content_type: "video" | "poster"; shot_date: string; notes: string }) => void
 }) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
   const [client, setClient] = useState(item.client_name)
   const [title, setTitle] = useState(item.title)
   const [contentType, setContentType] = useState<"video" | "poster">(item.content_type)
@@ -483,7 +492,7 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
   return (
     <Modal title="Edit Content Item" onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <ClientSelector clientOptions={clients.map(c => c.name)} pastClientOptions={pastClients.map(c => c.name)} value={client} onValueChange={setClient} required />
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
         <div>
           <label style={LABEL}>Title *</label>
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
@@ -570,6 +579,10 @@ function NewAdModal({ clients, pastClients, onClose, onCreated }: {
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   onClose: () => void; onCreated: (ad: Ad) => void
 }) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
   const [client, setClient] = useState("")
   const [adName, setAdName] = useState("")
   const [platform, setPlatform] = useState("Meta Ads")
@@ -595,7 +608,7 @@ function NewAdModal({ clients, pastClients, onClose, onCreated }: {
   return (
     <Modal title="New Ad" onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <ClientSelector clientOptions={clients.map(c => c.name)} pastClientOptions={pastClients.map(c => c.name)} value={client} onValueChange={setClient} required />
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
         <div>
           <label style={LABEL}>Ad / Video Name *</label>
           <input style={FIELD} value={adName} onChange={e => setAdName(e.target.value)} placeholder="e.g. Summer Offer Hook Test" />
@@ -705,10 +718,21 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
-  // Shared client/month option lists — every date that could bucket an item into a
-  // month (shot/edited for in-progress items, posted dates for finished ones), used
-  // by both the Pipeline and Posting Log tabs' filters.
-  const allClientOptions = useMemo(() => Array.from(new Set(items.map(i => i.client_name))).sort(), [items])
+  // Shared client/month option lists used by both the Pipeline and Posting Log tabs'
+  // filters. Client options use the universal dropdown (internal brands pinned first,
+  // then active clients, then past clients) rather than just clients that already have
+  // a content item — otherwise a client with nothing tracked yet can't be filtered to.
+  // Any item's client_name not found in the clients table (legacy/freeform entries)
+  // still gets included so no existing data becomes unfilterable.
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const allClientOptions = useMemo(() => {
+    const known = new Set([...activeClientOptions, ...pastClientOptions])
+    const extra = Array.from(new Set(items.map(i => i.client_name))).filter(n => !known.has(n)).sort()
+    return [...activeClientOptions, ...extra]
+  }, [activeClientOptions, pastClientOptions, items])
   const allMonthOptions = useMemo(() => {
     const months = new Set<string>()
     for (const i of items) {
@@ -865,6 +889,11 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
                 style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
                 <option value="all">All Clients</option>
                 {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                {pastClientOptions.length > 0 && (
+                  <optgroup label="📁 Past Clients">
+                    {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                  </optgroup>
+                )}
               </select>
               <select value={pipelineMonthFilter} onChange={e => setPipelineMonthFilter(e.target.value)}
                 style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
@@ -990,6 +1019,11 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
               style={{ ...FIELD, width: "auto", cursor: "pointer", flex: "0 0 auto" }}>
               <option value="all">All Clients</option>
               {logClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+              {pastClientOptions.length > 0 && (
+                <optgroup label="📁 Past Clients">
+                  {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                </optgroup>
+              )}
             </select>
           </div>
 

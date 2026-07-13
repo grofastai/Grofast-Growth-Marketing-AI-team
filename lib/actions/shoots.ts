@@ -154,24 +154,26 @@ export async function updateShootStatus(
   return { success: true, createdItems }
 }
 
-type CreateShootWithTitlesInput = {
+type CreateTrackerShootInput = {
   client: string
-  titles: string[]
+  title: string
   shot_date: string
   shot_time?: string
   notes?: string
 }
 
-export async function createShootWithTitles(
-  input: CreateShootWithTitlesInput
+// Scheduling only records the SHOOT (e.g. "SKB Silks Diwali Shoot"). The individual
+// video titles aren't known until the shoot actually happens — they're captured on
+// completion via completeShootWithTitles.
+export async function createTrackerShoot(
+  input: CreateTrackerShootInput
 ): Promise<{ success: boolean; error?: string; id?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
 
-  const cleanTitles = input.titles.map(t => t.trim()).filter(Boolean)
   if (!input.client.trim()) return { success: false, error: 'Client is required' }
-  if (cleanTitles.length === 0) return { success: false, error: 'Add at least one title' }
+  if (!input.title.trim()) return { success: false, error: 'Shoot title is required' }
   if (!input.shot_date) return { success: false, error: 'Shot date is required' }
 
   const company_id = await getCompanyId(user.id)
@@ -184,7 +186,7 @@ export async function createShootWithTitles(
 
   const { data: shoot, error } = await admin.from('shoots').insert({
     company_id,
-    title: cleanTitles.length === 1 ? cleanTitles[0] : `${cleanTitles.length} videos`,
+    title: input.title.trim(),
     client: input.client.trim(),
     location: '',
     start_time,
@@ -195,17 +197,87 @@ export async function createShootWithTitles(
   }).select('id').single()
   if (error) return { success: false, error: error.message }
 
-  const titleRows = cleanTitles.map(title => ({
-    shoot_id: shoot.id, company_id, title, created_by: user.id,
-  }))
-  const { error: titlesError } = await admin.from('shoot_titles').insert(titleRows)
-  if (titlesError) return { success: false, error: titlesError.message }
-
   revalidatePath('/admin/shoots')
   revalidatePath('/member/shoots')
   revalidatePath('/admin/content-tracker')
   revalidatePath('/member/content-tracker')
   return { success: true, id: shoot.id }
+}
+
+// Completing a shoot is where the video titles are captured — one shoot_titles row and
+// one content_items row (status: shot) per video that actually came out of the shoot.
+export async function completeShootWithTitles(
+  shootId: string,
+  titles: string[]
+): Promise<{ success: boolean; error?: string; createdItems?: CreatedShootItem[] }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const cleanTitles = titles.map(t => t.trim()).filter(Boolean)
+  if (cleanTitles.length === 0) return { success: false, error: 'Add at least one video title' }
+
+  const admin = adminSupabase()
+  const { data: shoot } = await admin
+    .from('shoots')
+    .select('id, status, client, start_time, notes, company_id')
+    .eq('id', shootId)
+    .single()
+  if (!shoot) return { success: false, error: 'Shoot not found' }
+
+  if (!isValidShootTransition(shoot.status as ShootStatus, 'completed')) {
+    return { success: false, error: `Cannot move from ${shoot.status} to completed` }
+  }
+
+  const shotDate = shoot.start_time.split('T')[0]
+
+  const { data: insertedTitles, error: titlesError } = await admin.from('shoot_titles').insert(
+    cleanTitles.map(title => ({
+      shoot_id: shootId, company_id: shoot.company_id, title, created_by: user.id,
+    }))
+  ).select('id, title')
+  if (titlesError || !insertedTitles) return { success: false, error: titlesError?.message ?? 'Failed to save titles' }
+
+  const { data: insertedItems, error: itemsError } = await admin.from('content_items').insert(
+    insertedTitles.map(t => ({
+      company_id: shoot.company_id,
+      client_name: shoot.client,
+      title: t.title,
+      content_type: 'video',
+      status: 'shot',
+      shot_by: user.id,
+      shot_date: shotDate,
+      notes: shoot.notes,
+      created_by: user.id,
+    }))
+  ).select('id')
+  if (itemsError || !insertedItems) return { success: false, error: itemsError?.message ?? 'Failed to create content items' }
+
+  const createdItems: CreatedShootItem[] = []
+  for (let i = 0; i < insertedTitles.length; i++) {
+    const t = insertedTitles[i]
+    const item = insertedItems[i]
+    await admin.from('shoot_titles').update({ content_item_id: item.id }).eq('id', t.id)
+    createdItems.push({
+      id: item.id,
+      shoot_title_id: t.id,
+      client_name: shoot.client,
+      title: t.title,
+      content_type: 'video',
+      status: 'shot',
+      shot_date: shotDate,
+      notes: shoot.notes,
+    })
+  }
+
+  const { error: statusError } = await admin.from('shoots').update({ status: 'completed' }).eq('id', shootId)
+  if (statusError) return { success: false, error: statusError.message }
+
+  revalidatePath('/admin/shoots')
+  revalidatePath('/member/shoots')
+  revalidatePath('/admin/content-tracker')
+  revalidatePath('/member/content-tracker')
+  return { success: true, createdItems }
 }
 
 export async function deleteShoot(id: string): Promise<{ success: boolean; error?: string }> {

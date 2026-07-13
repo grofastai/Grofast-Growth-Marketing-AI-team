@@ -167,13 +167,17 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
 
   // Build set of dates covered by an approved full_day leave (these win over clock-in)
   const fullDayLeaveDates = new Set<string>()
+  // Every date covered by ANY approved leave, of any type — a clocked-in day that
+  // falls under one of these already has an explanation on file, so it shouldn't
+  // be flagged as a missing submission even if the daily update itself is absent.
+  const anyLeaveDates = new Set<string>()
   for (const leave of (leavesResult.data ?? []) as { leave_type: string; from_date: string; to_date: string }[]) {
-    if (leave.leave_type === 'full_day') {
-      const from = new Date(leave.from_date)
-      const to   = new Date(leave.to_date)
-      for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-        fullDayLeaveDates.add(d.toISOString().split('T')[0])
-      }
+    const from = new Date(leave.from_date)
+    const to   = new Date(leave.to_date)
+    for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+      const ds = d.toISOString().split('T')[0]
+      anyLeaveDates.add(ds)
+      if (leave.leave_type === 'full_day') fullDayLeaveDates.add(ds)
     }
   }
 
@@ -194,6 +198,14 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   const participatedUpdates = (participatedResult.data ?? []) as unknown as ParticipatedUpdate[]
   const members = (membersResult.data ?? []) as MemberInfo[]
   const attendanceDates = Array.from(clockedInDates)
+
+  // Days that genuinely fell through the cracks: clocked in, no daily update
+  // ever submitted, and no approved leave of any kind on file to explain it.
+  // These need to be visible and flagged, not silently skipped.
+  const updateDateSet = new Set(rawUpdates.map(u => u.date))
+  const missingSubmissionDates = attendanceDates.filter(
+    d => !updateDateSet.has(d) && !anyLeaveDates.has(d)
+  )
 
   type ApprovedLeave = {
     id: string; leave_type: string; from_date: string; to_date: string
@@ -217,6 +229,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
       participatedUpdates={participatedUpdates}
       members={members}
       attendanceDates={attendanceDates}
+      missingSubmissionDates={missingSubmissionDates}
       approvedLeaves={approvedLeaves}
       companyLeaves={companyLeaves}
       defaultDate={defaultDate}

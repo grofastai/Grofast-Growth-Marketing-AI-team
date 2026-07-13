@@ -707,6 +707,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null)
   const [showNewAd, setShowNewAd] = useState(false)
   const [revisionModalAd, setRevisionModalAd] = useState<Ad | null>(null)
+  const [adsClientFilter, setAdsClientFilter] = useState<string>("all")
   const [expandedAd, setExpandedAd] = useState<string | null>(null)
   const [logSearch, setLogSearch] = useState("")
   const [logPlatformFilter, setLogPlatformFilter] = useState<Platform | "all">("all")
@@ -846,6 +847,11 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
       return bLatest.localeCompare(aLatest)
     })
   }, [postedItems, logSearch, logPlatformFilter, logClientFilter, logMonthFilter])
+
+  const filteredAds = useMemo(
+    () => adsClientFilter === "all" ? ads : ads.filter(a => a.client_name === adsClientFilter),
+    [ads, adsClientFilter]
+  )
 
   function handlePostAdded(post: ContentPost) {
     setItems(prev => prev.map(i => i.id === post.content_item_id ? { ...i, status: "posted", posts: [...i.posts, post] } : i))
@@ -1091,7 +1097,17 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
 
       {tab === "ads" && (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <select value={adsClientFilter} onChange={e => setAdsClientFilter(e.target.value)}
+              style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+              <option value="all">All Clients</option>
+              {activeClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+              {pastClientOptions.length > 0 && (
+                <optgroup label="📁 Past Clients">
+                  {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                </optgroup>
+              )}
+            </select>
             <button onClick={() => setShowNewAd(true)}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               <Plus size={14} /> New Ad
@@ -1103,9 +1119,18 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
               <Megaphone size={24} style={{ color: "#D1D5DB", margin: "0 auto 8px" }} />
               <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>No ads tracked yet</p>
             </div>
+          ) : filteredAds.length === 0 ? (
+            <div style={{ background: "#fff", border: "1px dashed #E5E7EB", borderRadius: 18, padding: "40px 20px", textAlign: "center" }}>
+              <Megaphone size={24} style={{ color: "#D1D5DB", margin: "0 auto 8px" }} />
+              <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>No ads for {adsClientFilter}</p>
+              <button onClick={() => setAdsClientFilter("all")}
+                style={{ marginTop: 8, fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>
+                Clear filter
+              </button>
+            </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {ads.map(ad => {
+              {filteredAds.map(ad => {
                 const expanded = expandedAd === ad.id
                 const statusCfg = AD_STATUS_CFG[ad.status]
                 return (

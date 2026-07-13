@@ -173,7 +173,7 @@ export default async function AttendancePage({
       icon: <AlertCircle size={16} style={{ color: "#F59E0B" }} />,
       // This character is drawn larger within its canvas than the other three, so at the
       // shared width it reads oversized and crowds the count. Give it a smaller box.
-      imgClass: "w-[42px] sm:w-[52px] md:w-[74px] lg:w-[90px]",
+      imgClass: "w-[62px] sm:w-[52px] md:w-[74px] lg:w-[90px]",
     },
     {
       label: "Total Members", value: totalMembers,
@@ -249,11 +249,11 @@ export default async function AttendancePage({
             {/* Soft bg circle */}
             <div style={{ position: "absolute", top: -20, right: -20, width: 90, height: 90, borderRadius: "50%", background: s.accentBg }} />
             {/* Character image — width keyed to breakpoints (not vw) since each card is only ~45% of viewport width on the mobile 2-col grid; vw-based sizing made the image proportionally oversized for its card */}
-            <div className={s.imgClass ?? "w-[52px] sm:w-[64px] md:w-[90px] lg:w-[110px]"} style={{ position: "absolute", top: 0, bottom: 0, right: 0, pointerEvents: "none" }}>
+            <div className={s.imgClass ?? "w-[72px] sm:w-[64px] md:w-[90px] lg:w-[110px]"} style={{ position: "absolute", top: 0, bottom: 0, right: 0, pointerEvents: "none" }}>
               <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right center" }} />
             </div>
             {/* Text column — right padding matches the image width above (plus a small gap) so the label/number can never run under it, and minWidth:0 lets the label wrap instead of overflowing the card */}
-            <div className="pr-[60px] sm:pr-[72px] md:pr-[98px] lg:pr-[118px]" style={{ position: "relative" }}>
+            <div className="pr-[80px] sm:pr-[72px] md:pr-[98px] lg:pr-[118px]" style={{ position: "relative" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, minWidth: 0 }}>
                 <div style={{ width: 30, height: 30, borderRadius: 9, background: s.accentBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   {s.icon}

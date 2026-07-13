@@ -41,7 +41,7 @@ interface Props {
   todayApprovedLeave?: { leave_type: string; reason: string | null; half_day_from_time?: string | null; half_day_to_time?: string | null } | null
   todayWfhLeave?: { leave_type: string; status: string; created_at: string } | null
   isMedia?: boolean
-  yesterdayStatus?: 'ok' | 'no_login' | 'no_logout'
+  yesterdayStatus?: 'ok' | 'no_login' | 'no_logout' | 'missing_update'
   yesterdayStr?: string
 }
 
@@ -495,15 +495,32 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               {/* NOT LOGGED IN */}
               {notLogged && (
                 <div className="space-y-4">
-                  {/* ── Yesterday absent block (2A) ── */}
+                  {/* ── No login recorded block (2A) ── */}
                   {yesterdayStatus === 'no_login' && (
                     <div className="rounded-2xl p-5 text-center" style={{ background: "rgba(239,68,68,0.06)", border: "1.5px solid rgba(239,68,68,0.25)" }}>
                       <AlertTriangle size={28} style={{ color: "#DC2626", margin: "0 auto 8px" }} />
-                      <p className="text-[14px] font-black mb-1" style={{ color: "#DC2626" }}>Yesterday No Login Recorded</p>
+                      <p className="text-[14px] font-black mb-1" style={{ color: "#DC2626" }}>No Login Recorded</p>
                       <p className="text-[12px]" style={{ color: "#6B7280" }}>
                         You did not clock in on {new Date(yesterdayStr + "T12:00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })}.
                         Please contact admin to mark your attendance before logging in today.
                       </p>
+                    </div>
+                  )}
+                  {/* ── Daily Update missing block — clocked in that day but never submitted ── */}
+                  {yesterdayStatus === 'missing_update' && (
+                    <div className="rounded-2xl p-5 text-center" style={{ background: "rgba(245,158,11,0.06)", border: "1.5px solid rgba(245,158,11,0.3)" }}>
+                      <AlertTriangle size={28} style={{ color: "#D97706", margin: "0 auto 8px" }} />
+                      <p className="text-[14px] font-black mb-1" style={{ color: "#D97706" }}>Daily Update Missing</p>
+                      <p className="text-[12px] mb-3" style={{ color: "#6B7280" }}>
+                        You haven&apos;t submitted your Daily Update for {new Date(yesterdayStr + "T12:00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })}.
+                        Submit it before logging in again.
+                      </p>
+                      <button
+                        onClick={() => router.push("/member/update")}
+                        className="px-4 py-2 rounded-xl text-[13px] font-bold"
+                        style={{ background: "#D97706", color: "#fff" }}>
+                        Go Submit It
+                      </button>
                     </div>
                   )}
                   {/* ── Yesterday no logout block (2B) ── */}
@@ -565,8 +582,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       </div>
                     </div>
                   )}
-                  {/* Block clock-in entirely if yesterday has no login (2A) */}
-                  {yesterdayStatus === 'no_login' ? null : (todayApprovedLeave && todayApprovedLeave.leave_type !== "half_day") ? (
+                  {/* Block clock-in entirely if the last working day has no login or no submitted update (2A) */}
+                  {(yesterdayStatus === 'no_login' || yesterdayStatus === 'missing_update') ? null : (todayApprovedLeave && todayApprovedLeave.leave_type !== "half_day") ? (
                     <div className="rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(239,68,68,0.02) 100%)", border: "1.5px solid rgba(239,68,68,0.2)" }}>
                       <div className="text-3xl mb-2">🏖️</div>
                       <p className="text-[15px] font-black mb-2" style={{ color: "#DC2626" }}>Full Day Leave Approved</p>
@@ -729,7 +746,13 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     )}
                     <button
                       onClick={() => {
-                        if (todayLog?.clock_in && calcHours(todayLog.clock_in, null) > 12) {
+                        const hrs = todayLog?.clock_in ? calcHours(todayLog.clock_in, null) : 0
+                        if (hrs > 18) {
+                          // Zone 2 — over 18h is treated as definitely forgotten, no live
+                          // logout allowed at all; go straight to entering the real time.
+                          openEditTimes(today, todayLog!.clock_in, null)
+                        } else if (hrs > 12) {
+                          // Zone 1 — 12-18h, ask before accepting the live logout time.
                           setShowClockOutConfirm(true)
                         } else {
                           handle(clockOut)
@@ -741,7 +764,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       {isPending ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
                       Log Out
                     </button>
-                    {/* 12h overtime confirmation modal */}
+                    {/* 12-18h overtime confirmation modal (Zone 1) */}
                     {showClockOutConfirm && (
                       <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.45)" }}>
                         <div className="rounded-2xl p-6 max-w-[340px] w-full mx-4 space-y-4" style={{ background: "#fff", boxShadow: "0 8px 48px rgba(0,0,0,0.18)" }}>
@@ -761,10 +784,10 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               Yes, Log Out Now
                             </button>
                             <button
-                              onClick={() => setShowClockOutConfirm(false)}
+                              onClick={() => { setShowClockOutConfirm(false); openEditTimes(today, todayLog!.clock_in, null) }}
                               className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
                               style={{ background: "#F3F4F6", color: "#6B7280" }}>
-                              Cancel
+                              No, Enter Real Time
                             </button>
                           </div>
                         </div>

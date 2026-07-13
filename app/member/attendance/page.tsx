@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import AttendanceClient from "./attendance-client"
 import { calcNetWorkHours } from "@/lib/utils/work-hours"
 import { blockFreelancerMedia } from "@/lib/utils/freelancer-guard"
+import { findLastWorkingDayIssues } from "@/lib/actions/attendance"
 
 function adminSupabase() {
   return createClient(
@@ -246,45 +247,23 @@ export default async function AttendancePage() {
     loginHours: monthLoginHrs, avgLoginHours: monthAvgLoginHrs,
   }
 
-  // ── Yesterday status check (Changes 2A, 2B) ────────────────────────────────
-  // Skip entirely for management team, freelancer media, or when impersonating
-  type YesterdayStatus = 'ok' | 'no_login' | 'no_logout'
+  // ── Last working day status check (Changes 2A, 2B) ─────────────────────────
+  // Skip entirely for management team, freelancer media, or when impersonating.
+  // Shares the same walk-back logic as the full-screen gate (lib/actions/attendance.ts)
+  // instead of a separate yesterday-only check, so a leave/blank day in between can
+  // no longer hide an older unfinished session or missing update.
+  type YesterdayStatus = 'ok' | 'no_login' | 'no_logout' | 'missing_update'
   let yesterdayStatus: YesterdayStatus = 'ok'
   let yesterdayStr = ''
 
-  if (!isManagement && !isFreelancer && !impersonateId) {
-    const yDate = new Date()
-    yDate.setDate(yDate.getDate() - 1)
-    yesterdayStr = yDate.toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
-
-    const [
-      { data: yLog },
-      { data: yLeave },
-      { data: yHoliday },
-    ] = await Promise.all([
-      admin.from('attendance_logs')
-        .select('clock_in, clock_out')
-        .eq('user_id', effectiveUserId).eq('date', yesterdayStr).maybeSingle(),
-      admin.from('leaves')
-        .select('id')
-        .eq('user_id', effectiveUserId)
-        .lte('from_date', yesterdayStr)
-        .gte('to_date', yesterdayStr)
-        .in('status', ['approved', 'pending'])
-        .maybeSingle(),
-      admin.from('company_leaves')
-        .select('id')
-        .eq('company_id', profile?.company_id ?? '')
-        .eq('date', yesterdayStr)
-        .maybeSingle(),
-    ])
-
-    if (!yLeave && !yHoliday) {
-      if (!yLog?.clock_in) {
-        yesterdayStatus = 'no_login'
-      } else if (!yLog?.clock_out) {
-        yesterdayStatus = 'no_logout'
-      }
+  if (!isManagement && !isFreelancer && !impersonateId && profile?.company_id) {
+    const issues = await findLastWorkingDayIssues({ userId: effectiveUserId, companyId: profile.company_id })
+    if (issues.forgotLogout) {
+      yesterdayStatus = 'no_logout'
+      yesterdayStr = issues.forgotLogoutDate
+    } else if (issues.missingUpdate) {
+      yesterdayStatus = issues.missingUpdateHadClockIn ? 'missing_update' : 'no_login'
+      yesterdayStr = issues.missingUpdateDate
     }
   }
 

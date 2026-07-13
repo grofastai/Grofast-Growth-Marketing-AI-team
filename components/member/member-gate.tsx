@@ -6,8 +6,9 @@ import { logoutAction } from "@/lib/actions/auth"
 
 interface Props {
   forgotLogout: boolean
+  forgotLogoutDate: string
   missingUpdate: boolean
-  yesterdayDate: string
+  missingUpdateDate: string
 }
 
 function fmtDate(d: string) {
@@ -16,7 +17,7 @@ function fmtDate(d: string) {
   })
 }
 
-export default function MemberGate({ forgotLogout, missingUpdate, yesterdayDate }: Props) {
+export default function MemberGate({ forgotLogout, forgotLogoutDate, missingUpdate, missingUpdateDate }: Props) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -52,7 +53,7 @@ export default function MemberGate({ forgotLogout, missingUpdate, yesterdayDate 
             Forgot to Clock Out
           </h2>
           <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", margin: "0 0 16px" }}>
-            {fmtDate(yesterdayDate)}
+            {fmtDate(forgotLogoutDate)}
           </p>
 
           <div style={{
@@ -124,7 +125,7 @@ export default function MemberGate({ forgotLogout, missingUpdate, yesterdayDate 
           Daily Update Missing
         </h2>
         <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", margin: "0 0 16px" }}>
-          {fmtDate(yesterdayDate)}
+          {fmtDate(missingUpdateDate)}
         </p>
 
         <div style={{

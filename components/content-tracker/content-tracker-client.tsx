@@ -799,6 +799,98 @@ function AdPerformanceModal({ ad, onClose, onAdded }: { ad: Ad; onClose: () => v
   )
 }
 
+// ── New Shoot modal ──────────────────────────────────────────────────────────
+function NewShootModal({ clients, pastClients, onClose, onCreated }: {
+  clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  onClose: () => void; onCreated: (shoot: Shoot) => void
+}) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const [client, setClient] = useState("")
+  const [titleInput, setTitleInput] = useState("")
+  const [titles, setTitles] = useState<string[]>([])
+  const [shotDate, setShotDate] = useState(new Date().toISOString().split("T")[0])
+  const [shotTime, setShotTime] = useState("")
+  const [notes, setNotes] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function addTitle() {
+    const t = titleInput.trim()
+    if (t && !titles.includes(t)) setTitles(prev => [...prev, t])
+    setTitleInput("")
+  }
+
+  async function submit() {
+    if (!client) { setError("Client is required"); return }
+    if (titles.length === 0) { setError("Add at least one title"); return }
+    setSaving(true); setError(null)
+    const res = await createShootWithTitles({
+      client, titles, shot_date: shotDate, shot_time: shotTime || undefined, notes: notes.trim() || undefined,
+    })
+    setSaving(false)
+    if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
+    onCreated({
+      id: res.id,
+      client,
+      legacyTitle: titles.length === 1 ? titles[0] : `${titles.length} videos`,
+      start_time: `${shotDate}T${shotTime || "09:00"}:00`,
+      notes: notes.trim() || null,
+      status: "scheduled",
+      titles: titles.map((title, i) => ({ id: `local-${i}`, title, content_item_id: null })),
+    })
+  }
+
+  return (
+    <Modal title="New Shoot" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
+        <div>
+          <label style={LABEL}>Titles *</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input style={FIELD} value={titleInput} onChange={e => setTitleInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTitle() } }}
+              placeholder="e.g. Sports Day Highlights" />
+            <button type="button" onClick={addTitle}
+              style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#DE1A1A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+              Add
+            </button>
+          </div>
+          {titles.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+              {titles.map(t => (
+                <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: "rgba(222,26,26,0.08)", border: "1.5px solid rgba(222,26,26,0.25)", fontSize: 12, fontWeight: 600, color: "#de1a1a" }}>
+                  {t}
+                  <button type="button" onClick={() => setTitles(prev => prev.filter(x => x !== t))}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#de1a1a", fontSize: 14, fontWeight: 700 }}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Shot Date *</label>
+            <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+          </div>
+          <div>
+            <label style={LABEL}>Time <span style={{ fontWeight: 600, textTransform: "none" }}>(optional)</span></label>
+            <input type="time" style={FIELD} value={shotTime} onChange={e => setShotTime(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Notes</label>
+          <textarea style={{ ...FIELD, minHeight: 50, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Schedule Shoot"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 export default function ContentTrackerClient({ initialItems, initialAds, initialShoots, clients, pastClients }: Props) {
   const [items, setItems] = useState(initialItems)

@@ -20,6 +20,7 @@ import {
   addContentPost, deleteContentPost,
   createAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry,
 } from "@/lib/actions/content-tracker"
+import { createShootWithTitles, updateShootStatus, type CreatedShootItem } from "@/lib/actions/shoots"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb"
@@ -77,9 +78,22 @@ export type Ad = {
   performanceEntries: AdPerformanceEntry[]
 }
 
+export type ShootStatus = "scheduled" | "going" | "completed" | "cancelled"
+export type ShootTitleRef = { id: string; title: string; content_item_id: string | null }
+export type Shoot = {
+  id: string
+  client: string
+  legacyTitle: string
+  start_time: string
+  notes: string | null
+  status: ShootStatus
+  titles: ShootTitleRef[]
+}
+
 type Props = {
   initialItems: ContentItem[]
   initialAds: Ad[]
+  initialShoots: Shoot[]
   currentUserId: string
   clients: { id: string; name: string }[]
   pastClients: { id: string; name: string }[]
@@ -114,6 +128,13 @@ const AD_STATUS_CFG: Record<AdStatus, { label: string; color: string }> = {
   testing: { label: "Testing", color: "#6366F1" },
   paused:  { label: "Paused",  color: "#F59E0B" },
   stopped: { label: "Stopped", color: "#EF4444" },
+}
+
+const SHOOT_STATUS_CFG: Record<ShootStatus, { label: string; color: string }> = {
+  scheduled: { label: "Scheduled", color: "#F59E0B" },
+  going:     { label: "Going",     color: "#3B82F6" },
+  completed: { label: "Completed", color: "#22C55E" },
+  cancelled: { label: "Cancelled", color: "#EF4444" },
 }
 
 const LABEL: React.CSSProperties = {
@@ -213,15 +234,6 @@ function TabToggle({ tabs, active, onChange }: { tabs: { key: string; label: str
           </button>
         )
       })}
-    </div>
-  )
-}
-
-function StatChip({ label, value, color }: { label: string; value: number | string; color: string }) {
-  return (
-    <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16, padding: "12px 16px", flex: "1 1 120px", minWidth: 100 }}>
-      <p style={{ fontSize: 22, fontWeight: 900, color, margin: 0, letterSpacing: "-0.02em" }}>{value}</p>
-      <p style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em", margin: "2px 0 0" }}>{label}</p>
     </div>
   )
 }
@@ -788,10 +800,11 @@ function AdPerformanceModal({ ad, onClose, onAdded }: { ad: Ad; onClose: () => v
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
-export default function ContentTrackerClient({ initialItems, initialAds, clients, pastClients }: Props) {
+export default function ContentTrackerClient({ initialItems, initialAds, initialShoots, clients, pastClients }: Props) {
   const [items, setItems] = useState(initialItems)
   const [ads, setAds] = useState(initialAds)
-  const [tab, setTab] = useState<"pipeline" | "log" | "ads">("pipeline")
+  const [shoots, setShoots] = useState(initialShoots)
+  const [tab, setTab] = useState<"pipeline" | "log" | "ads" | "shoots">("pipeline")
   const [, startTransition] = useTransition()
 
   const [dragId, setDragId] = useState<string | null>(null)
@@ -805,6 +818,9 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
   const [adsClientFilter, setAdsClientFilter] = useState<string>("all")
   const [adsSearch, setAdsSearch] = useState("")
   const [adsStatusFilter, setAdsStatusFilter] = useState<AdStatus | "all">("all")
+  const [showNewShoot, setShowNewShoot] = useState(false)
+  const [shootsClientFilter, setShootsClientFilter] = useState<string>("all")
+  const [shootsStatusFilter, setShootsStatusFilter] = useState<ShootStatus | "all">("all")
   const [expandedAd, setExpandedAd] = useState<string | null>(null)
   const [logSearch, setLogSearch] = useState("")
   const [logPlatformFilter, setLogPlatformFilter] = useState<Platform | "all">("all")
@@ -896,14 +912,6 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
     return { shot, editing, edited, posted, totalPosts }
   }, [items])
 
-  // Same shape but respecting the Pipeline tab's own client/month filter — used by its stat cards
-  const pipelineStats = useMemo(() => ({
-    shot: pipelineItems.filter(i => i.status === "shot").length,
-    editing: pipelineItems.filter(i => i.status === "editing").length,
-    edited: pipelineItems.filter(i => i.status === "edited").length,
-    posted: pipelineItems.filter(i => i.status === "posted").length,
-  }), [pipelineItems])
-
   // Posting log — one row per content item (not per platform); platforms shown as badges within the row
   const postedItems = useMemo(() => items.filter(i => i.posts.length > 0), [items])
   const logClientOptions = allClientOptions
@@ -953,6 +961,40 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
     return rows
   }, [ads, adsClientFilter, adsStatusFilter, adsSearch])
 
+  const filteredShoots = useMemo(() => {
+    let rows = shoots
+    if (shootsClientFilter !== "all") rows = rows.filter(s => s.client === shootsClientFilter)
+    if (shootsStatusFilter !== "all") rows = rows.filter(s => s.status === shootsStatusFilter)
+    return rows
+  }, [shoots, shootsClientFilter, shootsStatusFilter])
+
+  function handleShootStatus(shootId: string, status: ShootStatus) {
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, status } : s))
+    startTransition(async () => {
+      const res = await updateShootStatus(shootId, status)
+      if (!res.success) {
+        setShoots(prev => prev.map(s => s.id === shootId ? { ...s, status: initialShoots.find(is => is.id === shootId)?.status ?? s.status } : s))
+        return
+      }
+      const created: CreatedShootItem[] = res.createdItems ?? []
+      if (created.length > 0) {
+        const newItems: ContentItem[] = created.map(ci => ({
+          id: ci.id, client_name: ci.client_name, title: ci.title, content_type: "video",
+          status: "shot", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
+          created_at: new Date().toISOString(), posts: [],
+        }))
+        setItems(prev => [...newItems, ...prev])
+        setShoots(prev => prev.map(s => s.id === shootId ? {
+          ...s,
+          titles: s.titles.map(t => {
+            const match = created.find(ci => ci.shoot_title_id === t.id)
+            return match ? { ...t, content_item_id: match.id } : t
+          }),
+        } : s))
+      }
+    })
+  }
+
   function handlePostAdded(post: ContentPost) {
     setItems(prev => prev.map(i => i.id === post.content_item_id ? { ...i, status: "posted", posts: [...i.posts, post] } : i))
     setPlatformModalItem(null)
@@ -985,6 +1027,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
         { key: "pipeline", label: "Pipeline", icon: Layers },
         { key: "log", label: "Posting Log", icon: History },
         { key: "ads", label: "Ads Tracker", icon: Megaphone },
+        { key: "shoots", label: "Shoots", icon: Camera },
       ]} />
 
       {tab === "pipeline" && (
@@ -1011,13 +1054,6 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               <Plus size={14} /> New Content
             </button>
-          </div>
-
-          <div className="flex gap-2 flex-wrap">
-            <StatChip label="Shot" value={pipelineStats.shot} color={STATUS_CFG.shot.accent} />
-            <StatChip label="Editing" value={pipelineStats.editing} color={STATUS_CFG.editing.accent} />
-            <StatChip label="Edited" value={pipelineStats.edited} color={STATUS_CFG.edited.accent} />
-            <StatChip label="Posted" value={pipelineStats.posted} color={STATUS_CFG.posted.accent} />
           </div>
 
           {/* Mobile column switcher */}
@@ -1304,7 +1340,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
                         )}
 
                         <div className="flex items-center justify-between" style={{ marginTop: 12, marginBottom: 8 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Performance</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.06em" }}>Performance</span>
                           <button onClick={() => setPerformanceModalAd(ad)}
                             style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, border: "none", background: "rgba(34,197,94,0.08)", color: "#16A34A", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
                             <Plus size={11} /> Log Performance
@@ -1338,7 +1374,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, clients
                         )}
 
                         <div className="flex items-center justify-between" style={{ marginTop: 12, marginBottom: 8 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Correction History</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.06em" }}>Correction History</span>
                           <button onClick={() => setRevisionModalAd(ad)}
                             style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 8, border: "none", background: "rgba(99,102,241,0.08)", color: "#6366F1", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
                             <Plus size={11} /> Log Correction

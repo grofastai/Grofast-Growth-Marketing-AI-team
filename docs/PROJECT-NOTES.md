@@ -4,6 +4,8 @@ This file exists so that anyone on the team, on any laptop, can open the project
 
 **How this file stays useful:** every time a real feature is added, a real bug is fixed, or an important decision is made, this file gets updated and pushed along with the code change. Read it before starting new work on this project, especially if you're on a laptop that hasn't touched it recently.
 
+**Standing rule for any fix — keep everything in sync:** before calling a fix done, check whether the same logic, display, or data is duplicated somewhere else in the codebase and needs the identical update. This project has already shipped bugs from exactly this gap — e.g. three separate places independently re-implemented the same "check yesterday's attendance" logic and drifted out of sync with each other (see the Attendance login/logout gating entry below). Don't just patch the one spot that was reported; find the siblings too.
+
 ---
 
 ## Who's who / how the team works

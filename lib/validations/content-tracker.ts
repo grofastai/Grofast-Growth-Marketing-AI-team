@@ -54,3 +54,16 @@ export const addAdRevisionSchema = z.object({
   targeting_type_after:  z.enum(TARGETING_TYPES).optional(),
 })
 export type AddAdRevisionInput = z.infer<typeof addAdRevisionSchema>
+
+export const addAdPerformanceEntrySchema = z.object({
+  ad_id:       z.string().uuid(),
+  entry_date:  z.string().min(1, 'Date is required'),
+  spend:       z.number().min(0),
+  impressions: z.number().int().min(0),
+  reach:       z.number().int().min(0),
+  clicks:      z.number().int().min(0),
+  ctr:         z.number().min(0),
+  results:     z.number().int().min(0),
+  note:        z.string().optional(),
+})
+export type AddAdPerformanceEntryInput = z.infer<typeof addAdPerformanceEntrySchema>

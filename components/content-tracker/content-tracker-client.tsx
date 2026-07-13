@@ -696,6 +696,87 @@ function AdRevisionModal({ ad, onClose, onAdded }: { ad: Ad; onClose: () => void
   )
 }
 
+// ── Log Performance modal ────────────────────────────────────────────────────
+function AdPerformanceModal({ ad, onClose, onAdded }: { ad: Ad; onClose: () => void; onAdded: (entry: AdPerformanceEntry) => void }) {
+  const [entryDate, setEntryDate] = useState(new Date().toISOString().split("T")[0])
+  const [spend, setSpend] = useState<number | "">("")
+  const [impressions, setImpressions] = useState<number | "">("")
+  const [reach, setReach] = useState<number | "">("")
+  const [clicks, setClicks] = useState<number | "">("")
+  const [ctr, setCtr] = useState<number | "">("")
+  const [results, setResults] = useState<number | "">("")
+  const [note, setNote] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (spend === "" || impressions === "" || reach === "" || clicks === "" || ctr === "" || results === "") {
+      setError("All 6 metrics are required")
+      return
+    }
+    setSaving(true); setError(null)
+    const res = await addAdPerformanceEntry({
+      ad_id: ad.id, entry_date: entryDate,
+      spend, impressions, reach, clicks, ctr, results,
+      note: note.trim() || undefined,
+    })
+    setSaving(false)
+    if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
+    onAdded({
+      id: res.id, ad_id: ad.id, entry_date: entryDate,
+      spend, impressions, reach, clicks, ctr, results,
+      note: note.trim() || null,
+    })
+  }
+
+  return (
+    <Modal title={`Log Performance — ${ad.ad_name}`} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Spend (₹) *</label>
+            <input type="number" min={0} step="0.01" style={FIELD} value={spend} onChange={e => setSpend(e.target.value === "" ? "" : Number(e.target.value))} />
+          </div>
+          <div>
+            <label style={LABEL}>Results *</label>
+            <input type="number" min={0} style={FIELD} value={results} onChange={e => setResults(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Leads / messages / purchases" />
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Impressions *</label>
+            <input type="number" min={0} style={FIELD} value={impressions} onChange={e => setImpressions(e.target.value === "" ? "" : Number(e.target.value))} />
+          </div>
+          <div>
+            <label style={LABEL}>Reach *</label>
+            <input type="number" min={0} style={FIELD} value={reach} onChange={e => setReach(e.target.value === "" ? "" : Number(e.target.value))} />
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Clicks *</label>
+            <input type="number" min={0} style={FIELD} value={clicks} onChange={e => setClicks(e.target.value === "" ? "" : Number(e.target.value))} />
+          </div>
+          <div>
+            <label style={LABEL}>CTR % *</label>
+            <input type="number" min={0} step="0.01" style={FIELD} value={ctr} onChange={e => setCtr(e.target.value === "" ? "" : Number(e.target.value))} />
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Date</label>
+          <input type="date" style={FIELD} value={entryDate} onChange={e => setEntryDate(e.target.value)} />
+        </div>
+        <div>
+          <label style={LABEL}>Note</label>
+          <textarea style={{ ...FIELD, minHeight: 50, resize: "vertical" }} value={note} onChange={e => setNote(e.target.value)} placeholder="Optional — e.g. why it's lagging, what changed" />
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Log Performance"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 export default function ContentTrackerClient({ initialItems, initialAds, clients, pastClients }: Props) {
   const [items, setItems] = useState(initialItems)

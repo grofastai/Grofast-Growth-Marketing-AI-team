@@ -262,6 +262,8 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
       else if (e.task_type === "shoot") { flShootCount++; flShootHrs += entryDurH(e) }
     }
   }
+  flEditHrs  = Math.round(flEditHrs  * 10) / 10
+  flShootHrs = Math.round(flShootHrs * 10) / 10
   const flTotalVideos = flEditCount + flShootCount
   const flWorkingHrs  = totalMonthHrs // edit+shoot+learning+collab, merged per day
   const flAvgEdit     = flEditCount  > 0 ? Math.round((flEditHrs / flEditCount) * 10) / 10 : 0
@@ -382,9 +384,9 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
   // Right-panel quick stats
   const rightStats: { icon: React.ElementType; iconBg: string; iconColor: string; value: string | number; label: string; href: string; count?: number }[] = isFreelancerMedia ? [
-    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: flEditCount,  label: "Videos Edited", href: "/member/history" },
-    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: flShootCount, label: "Videos Shot",   href: "/member/history" },
-    { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
+    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: flShootHrs > 0 ? `${flShootHrs}h` : "—", label: "SHOOTING", href: "/member/history", count: flShootCount },
+    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: flEditHrs  > 0 ? `${flEditHrs}h`  : "—", label: "EDITING",  href: "/member/history", count: flEditCount },
+    { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "LEARNING HRS", href: "/member/history" },
   ] : isMedia ? [
     { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: mediaShootHrs > 0 ? `${mediaShootHrs}h` : "—",      label: "SHOOTING", href: "/member/history", count: mediaShootCount },
     { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: mediaEditHrs > 0 ? `${mediaEditHrs}h` : "—",        label: "EDITING", href: "/member/history", count: mediaEditCount },
@@ -646,9 +648,9 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
           )}
         </div>
 
-        {/* RIGHT — monthly quick stats (media/non-media) + salary + today summary */}
+        {/* RIGHT — monthly quick stats (media/non-media/freelancer-media) + salary + today summary */}
         <div className="space-y-3">
-          {!isFreelancerMedia && rightStats.map(stat => (
+          {rightStats.map(stat => (
             <Link key={stat.label} href={stat.href}
               className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
               style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>

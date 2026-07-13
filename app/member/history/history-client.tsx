@@ -868,6 +868,9 @@ export default function HistoryClient({
     const submitted = new Set(updates.map(u => u.date))
     let count = 0
     const d = new Date()
+    // Today not submitted yet doesn't break the streak — the day isn't over.
+    // Start counting from yesterday instead of zeroing out a real run.
+    if (!submitted.has(d.toISOString().split("T")[0])) d.setDate(d.getDate() - 1)
     // eslint-disable-next-line no-constant-condition
     while (true) {
       const ds = d.toISOString().split("T")[0]

@@ -20,6 +20,7 @@ import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
   createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, markReadyToPost, requestCorrection,
+  createAdsVideoScript, recordVoiceOver, updateAdsVideoScript,
 } from "@/lib/actions/content-tracker"
 import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
@@ -615,6 +616,91 @@ function ContentCardInner({
   )
 }
 
+// ── Ads Video card — the Scripting/Voice Over board's card, distinct from
+// ContentCardInner because its fields (hooks, use-for, priority) don't apply once an
+// item reaches the shared Ready to Edit board (which reuses ContentCardInner).
+function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
+  item: ContentItem
+  isDragging?: boolean
+  onAdvance: (item: ContentItem, next: ContentStatus) => void
+  onEdit: (item: ContentItem) => void
+  onDelete: (id: string) => void
+}) {
+  const cardMenu: CardMenuItem[] = [
+    { label: "Edit details", icon: Pencil, onClick: () => onEdit(item) },
+    { label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true },
+  ]
+  const next = NEXT_STATUS[item.status]
+
+  return (
+    <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
+      style={{
+        background: isDragging ? "#F3F4F6" : "#FFFFFF",
+        boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
+        border: "1px solid transparent",
+        opacity: isDragging ? 0.5 : 1,
+      }}>
+      <div className="flex items-start gap-2 mb-2">
+        <span className="flex-shrink-0 mt-0.5 opacity-30 group-hover:opacity-70 transition-opacity" title="Drag anywhere on the card to move it">
+          <GripVertical size={13} style={{ color: "#6B7280" }} />
+        </span>
+        <div style={{ width: 22, height: 22, borderRadius: 7, background: "rgba(217,119,6,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Video size={12} style={{ color: "#D97706" }} />
+        </div>
+        <p className="text-[12px] font-semibold leading-snug line-clamp-2 flex-1" style={{ color: "#111111" }}>{item.title}</p>
+        <CardMenu items={cardMenu} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1 mb-2.5">
+        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full truncate max-w-[110px]"
+          style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>{item.client_name}</span>
+        {item.priority && (
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${PRIORITY_CFG[item.priority].color}18`, color: PRIORITY_CFG[item.priority].color }}>
+            {PRIORITY_CFG[item.priority].label}
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1 mb-2.5">
+        {item.hook_count !== null && (
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#F3F4F6", color: "#374151" }}>
+            {item.hook_count} hook{item.hook_count === 1 ? "" : "s"}
+          </span>
+        )}
+        {item.use_for.map(u => {
+          const cfg = USE_FOR_CFG[u]
+          const Icon = cfg.icon
+          return (
+            <span key={u} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+              style={{ background: `${cfg.color}18`, color: cfg.color }}>
+              <Icon size={9} /> {cfg.label}
+            </span>
+          )
+        })}
+      </div>
+
+      {item.voiceoverBy && (
+        <div className="flex items-center gap-1 mb-2" title={`Voiced by ${item.voiceoverBy.name}`}>
+          <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#EAB308", color: "#fff" }}>
+            {initials(item.voiceoverBy.name)}
+          </div>
+          <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{item.voiceoverBy.name}</span>
+        </div>
+      )}
+
+      {next && (
+        <button
+          onPointerDown={e => e.stopPropagation()}
+          onClick={() => onAdvance(item, next)}
+          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
+          style={{ background: `${STATUS_CFG[next].accent}14`, color: STATUS_CFG[next].accent }}>
+          {item.status === "voiceover" ? <>Send to Ready to Edit <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
+        </button>
+      )}
+    </div>
+  )
+}
+
 function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvance: (item: ContentItem, next: ContentStatus) => void; onDelete: (id: string) => void; onAddPlatform: (item: ContentItem) => void; onEdit: (item: ContentItem) => void; onRequestCorrection: (item: ContentItem) => void }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: props.item.id, data: { status: props.item.status } })
   const style = transform ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` } : undefined
@@ -1189,6 +1275,167 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
 
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Add Content Item"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── New Ads Video modal — Scripting stage ────────────────────────────────────
+function NewAdsVideoModal({ clients, pastClients, onClose, onCreated }: {
+  clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  onClose: () => void; onCreated: (item: ContentItem) => void
+}) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const [client, setClient] = useState("")
+  const [title, setTitle] = useState("")
+  const [hookCount, setHookCount] = useState(1)
+  const [useFor, setUseFor] = useState<UseFor[]>([])
+  const [priority, setPriority] = useState<Priority>("medium")
+  const [notes, setNotes] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function toggleUseFor(u: UseFor) {
+    setUseFor(prev => prev.includes(u) ? prev.filter(x => x !== u) : [...prev, u])
+  }
+
+  async function submit() {
+    if (!client || !title.trim()) { setError("Client and title are required"); return }
+    if (useFor.length === 0) { setError("Pick at least one \"use for\""); return }
+    setSaving(true); setError(null)
+    const res = await createAdsVideoScript({ client_name: client, title: title.trim(), hook_count: hookCount, use_for: useFor, priority, notes: notes.trim() || undefined })
+    setSaving(false)
+    if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
+    onCreated({
+      id: res.id, client_name: client, title: title.trim(), content_type: "video", source: "ads_video",
+      status: "scripting", shot_date: null, edited_date: null, notes: notes.trim() || null, created_at: new Date().toISOString(),
+      ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
+      hook_count: hookCount, use_for: useFor, priority, voiceover_date: null, reviewed_at: null, posts: [],
+    })
+  }
+
+  return (
+    <Modal title="New Ads Video" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
+        <div>
+          <label style={LABEL}>Title *</label>
+          <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Diwali Offer Hook Set" />
+        </div>
+        <div>
+          <label style={LABEL}>How many hooks?</label>
+          <input type="number" min={0} style={FIELD} value={hookCount} onChange={e => setHookCount(Math.max(0, Number(e.target.value)))} />
+        </div>
+        <div>
+          <label style={LABEL}>Use For * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {(Object.keys(USE_FOR_CFG) as UseFor[]).map(u => {
+              const cfg = USE_FOR_CFG[u]
+              const Icon = cfg.icon
+              const on = useFor.includes(u)
+              return (
+                <button key={u} type="button" onClick={() => toggleUseFor(u)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  <Icon size={12} /> {cfg.label} {on && <Check size={10} />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Priority</label>
+          <select style={{ ...FIELD, cursor: "pointer" }} value={priority} onChange={e => setPriority(e.target.value as Priority)}>
+            {(Object.keys(PRIORITY_CFG) as Priority[]).map(p => <option key={p} value={p}>{PRIORITY_CFG[p].label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={LABEL}>Notes <span style={{ fontWeight: 600, textTransform: "none" }}>(the script brief)</span></label>
+          <textarea style={{ ...FIELD, minHeight: 60, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Add to Scripting"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Edit Ads Video modal — same field set as creation, pre-filled ───────────
+function EditAdsVideoModal({ item, clients, pastClients, onClose, onSaved }: {
+  item: ContentItem
+  clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  onClose: () => void
+  onSaved: (updates: { client_name: string; title: string; hook_count: number; use_for: UseFor[]; priority: Priority; notes: string }) => void
+}) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const [client, setClient] = useState(item.client_name)
+  const [title, setTitle] = useState(item.title)
+  const [hookCount, setHookCount] = useState(item.hook_count ?? 0)
+  const [useFor, setUseFor] = useState<UseFor[]>(item.use_for)
+  const [priority, setPriority] = useState<Priority>(item.priority ?? "medium")
+  const [notes, setNotes] = useState(item.notes || "")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function toggleUseFor(u: UseFor) {
+    setUseFor(prev => prev.includes(u) ? prev.filter(x => x !== u) : [...prev, u])
+  }
+
+  async function submit() {
+    if (!client || !title.trim()) { setError("Client and title are required"); return }
+    if (useFor.length === 0) { setError("Pick at least one \"use for\""); return }
+    setSaving(true); setError(null)
+    const res = await updateAdsVideoScript({ content_item_id: item.id, client_name: client, title: title.trim(), hook_count: hookCount, use_for: useFor, priority, notes: notes.trim() || undefined })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onSaved({ client_name: client, title: title.trim(), hook_count: hookCount, use_for: useFor, priority, notes: notes.trim() })
+  }
+
+  return (
+    <Modal title="Edit Ads Video" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
+        <div>
+          <label style={LABEL}>Title *</label>
+          <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
+        </div>
+        <div>
+          <label style={LABEL}>How many hooks?</label>
+          <input type="number" min={0} style={FIELD} value={hookCount} onChange={e => setHookCount(Math.max(0, Number(e.target.value)))} />
+        </div>
+        <div>
+          <label style={LABEL}>Use For * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {(Object.keys(USE_FOR_CFG) as UseFor[]).map(u => {
+              const cfg = USE_FOR_CFG[u]
+              const Icon = cfg.icon
+              const on = useFor.includes(u)
+              return (
+                <button key={u} type="button" onClick={() => toggleUseFor(u)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  <Icon size={12} /> {cfg.label} {on && <Check size={10} />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Priority</label>
+          <select style={{ ...FIELD, cursor: "pointer" }} value={priority} onChange={e => setPriority(e.target.value as Priority)}>
+            {(Object.keys(PRIORITY_CFG) as Priority[]).map(p => <option key={p} value={p}>{PRIORITY_CFG[p].label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={LABEL}>Notes</label>
+          <textarea style={{ ...FIELD, minHeight: 60, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</PrimaryButton>
       </div>
     </Modal>
   )
@@ -1789,6 +2036,57 @@ function StartEditingModal({ item, members, currentUserId, onClose, onConfirm }:
   )
 }
 
+// ── "Who recorded this?" — the accountability prompt when a script enters Voice Over ──
+function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
+  item: ContentItem
+  freelancers: VoiceFreelancer[]
+  onClose: () => void
+  onConfirm: (voiceoverBy: VoiceFreelancer, date: string) => void
+}) {
+  const [voiceoverId, setVoiceoverId] = useState(freelancers[0]?.id ?? "")
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    const freelancer = freelancers.find(f => f.id === voiceoverId)
+    if (!freelancer) { setError("Pick who recorded the voice-over"); return }
+    setSaving(true); setError(null)
+    const res = await recordVoiceOver({ content_item_id: item.id, voiceover_by: freelancer.id, voiceover_date: date })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onConfirm(freelancer, date)
+  }
+
+  return (
+    <Modal title="Who recorded the voice-over?" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          <strong style={{ color: "#111827" }}>{item.title}</strong> is moving to Voice Over.
+        </p>
+        {freelancers.length === 0 ? (
+          <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>
+            No active Freelance RJ Voiceover artists found — add one under Freelancers first.
+          </p>
+        ) : (
+          <div>
+            <label style={LABEL}>Voice Artist *</label>
+            <select style={{ ...FIELD, cursor: "pointer" }} value={voiceoverId} onChange={e => setVoiceoverId(e.target.value)}>
+              {freelancers.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          </div>
+        )}
+        <div>
+          <label style={LABEL}>Date</label>
+          <input type="date" style={FIELD} value={date} onChange={e => setDate(e.target.value)} />
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving || freelancers.length === 0}>{saving ? "Saving…" : "Confirm Voice Over"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
 // ── "Who's going?" — the accountability prompt when a shoot is marked Going ──────
 function GoingCrewModal({ shoot, members, currentUserId, onClose, onConfirm }: {
   shoot: Shoot
@@ -2187,6 +2485,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [shootDragId, setShootDragId] = useState<string | null>(null)
   const [shootOverCol, setShootOverCol] = useState<string | null>(null)
   const [activeShootCol, setActiveShootCol] = useState<ShootStatus>("scheduled")
+  const [adsVideoDragId, setAdsVideoDragId] = useState<string | null>(null)
+  const [adsVideoOverCol, setAdsVideoOverCol] = useState<string | null>(null)
+  const [showNewAdsVideo, setShowNewAdsVideo] = useState(false)
+  const [editAdsVideoFor, setEditAdsVideoFor] = useState<ContentItem | null>(null)
   const [adDragId, setAdDragId] = useState<string | null>(null)
   const [adOverCol, setAdOverCol] = useState<string | null>(null)
   const [activeAdCol, setActiveAdCol] = useState<AdStatus>("active")
@@ -2331,6 +2633,17 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     }
     setDragId(null); setOverCol(null)
   }
+
+  function handleAdsVideoDragOver(e: { over: { id: string } | null }) { setAdsVideoOverCol(e.over?.id ?? null) }
+  function handleAdsVideoDragEnd(e: DragEndEvent) {
+    const overId = e.over?.id as ContentStatus | undefined
+    if (overId) {
+      const item = items.find(i => i.id === e.active.id)
+      if (item && item.status !== overId && isValidPipelineTransition(item.status, overId)) advance(item, overId)
+    }
+    setAdsVideoDragId(null); setAdsVideoOverCol(null)
+  }
+  const draggedAdsVideo = items.find(i => i.id === adsVideoDragId)
 
   // Overview numbers are navigation, not decoration — clicking one lands you on the board
   // it came from, so you can act on it.
@@ -2791,6 +3104,65 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         </div>
       )}
 
+      {mode === "video" && tab === "adsvideo" && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+              Video that starts as a script, not a shoot — scripting and voice-over here, then it joins the shared production board at Ready to Edit.
+            </p>
+            <button onClick={() => setShowNewAdsVideo(true)}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+              <Plus size={14} /> New Ads Video
+            </button>
+          </div>
+
+          <div className="md:hidden flex flex-col gap-3">
+            {ADS_VIDEO_ORDER.map(status => (
+              <div key={status}>
+                <p className="text-[11px] font-black mb-2" style={{ color: "#111111" }}>{STATUS_CFG[status].label} ({adsVideoColItems(status).length})</p>
+                {adsVideoColItems(status).length === 0 ? (
+                  <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "16px 0" }}>No items</p>
+                ) : adsVideoColItems(status).map(item => (
+                  <AdsVideoCardInner key={item.id} item={item} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} />
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden md:block">
+            <DndContext sensors={sensors} onDragStart={e => setAdsVideoDragId(String(e.active.id))} onDragOver={handleAdsVideoDragOver as never} onDragEnd={handleAdsVideoDragEnd}>
+              <div className="grid grid-cols-2 gap-3">
+                {ADS_VIDEO_ORDER.map(status => {
+                  const list = adsVideoColItems(status)
+                  const cfg = STATUS_CFG[status]
+                  return (
+                    <KanbanColumn key={status} id={status} accent={cfg.accent} isOver={adsVideoOverCol === status}>
+                      <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.accent} />
+                      <div className="p-3 flex-1">
+                        {list.length === 0 ? (
+                          <KanbanEmptyCell isOver={adsVideoOverCol === status} accent={cfg.accent} />
+                        ) : list.map(item => (
+                          <KanbanCard key={item.id} id={item.id}>
+                            <AdsVideoCardInner item={item} isDragging={adsVideoDragId === item.id} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} />
+                          </KanbanCard>
+                        ))}
+                      </div>
+                    </KanbanColumn>
+                  )
+                })}
+              </div>
+              <DragOverlay>
+                {draggedAdsVideo ? (
+                  <div style={{ width: 260, opacity: 0.95, transform: "rotate(2deg)" }}>
+                    <AdsVideoCardInner item={draggedAdsVideo} onAdvance={() => {}} onEdit={() => {}} onDelete={() => {}} />
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </div>
+        </div>
+      )}
+
       {(mode === "video" || mode === "poster") && tab === "log" && (
         <div className="flex flex-col gap-4">
           {/* Upcoming queue — what's scheduled but hasn't gone out yet, soonest first. */}
@@ -3219,6 +3591,30 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         <StartEditingModal item={startEditingItem} members={members} currentUserId={currentUserId}
           onClose={() => setStartEditingItem(null)}
           onConfirm={(editorId, editorName) => handleStartEditing(startEditingItem, editorId, editorName)} />
+      )}
+      {showNewAdsVideo && (
+        <NewAdsVideoModal
+          clients={clients} pastClients={pastClients}
+          onClose={() => setShowNewAdsVideo(false)}
+          onCreated={item => { setItems(prev => [item, ...prev]); setShowNewAdsVideo(false) }}
+        />
+      )}
+      {voiceOverItem && (
+        <VoiceOverModal
+          item={voiceOverItem} freelancers={voiceoverFreelancers}
+          onClose={() => setVoiceOverItem(null)}
+          onConfirm={(freelancer, date) => handleVoiceOverRecorded(voiceOverItem, freelancer, date)}
+        />
+      )}
+      {editAdsVideoFor && (
+        <EditAdsVideoModal
+          item={editAdsVideoFor} clients={clients} pastClients={pastClients}
+          onClose={() => setEditAdsVideoFor(null)}
+          onSaved={updates => {
+            setItems(prev => prev.map(i => i.id === editAdsVideoFor.id ? { ...i, ...updates, notes: updates.notes || null } : i))
+            setEditAdsVideoFor(null)
+          }}
+        />
       )}
       {readyToPostItem && (
         <ReadyToPostModal item={readyToPostItem} onClose={() => setReadyToPostItem(null)}

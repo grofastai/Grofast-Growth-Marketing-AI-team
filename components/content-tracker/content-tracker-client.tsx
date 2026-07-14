@@ -9,7 +9,7 @@ import {
 import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil,
-  Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw,
+  Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw, LayoutDashboard,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
@@ -22,6 +22,7 @@ import {
 } from "@/lib/actions/content-tracker"
 import { createTrackerShoot, completeShootWithTitles, updateShootStatus, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
+import { computeOverview, type AttentionItem } from "@/lib/content-tracker/overview"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb"
@@ -246,14 +247,16 @@ function PrimaryButton({ children, onClick, disabled, type = "button" }: { child
 // ── Pill toggle (tab switcher) ───────────────────────────────────────────────
 // Each mode owns an accent so you always know which board you're on at a glance —
 // the section rail below picks it up, tying the two levels together.
-type TrackerMode = "video" | "poster" | "ads"
+type TrackerMode = "overview" | "video" | "poster" | "ads"
 const MODE_ACCENT: Record<TrackerMode, { solid: string; grad: string; glow: string; soft: string }> = {
+  overview: { solid: "#0EA5E9", grad: "linear-gradient(135deg,#38BDF8,#0EA5E9)", glow: "rgba(14,165,233,0.45)", soft: "rgba(14,165,233,0.10)" },
   video: { solid: "#DE1A1A", grad: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", glow: "rgba(222,26,26,0.45)", soft: "rgba(222,26,26,0.10)" },
   poster: { solid: "#7C3AED", grad: "linear-gradient(135deg,#A78BFA,#7C3AED)", glow: "rgba(124,58,237,0.45)", soft: "rgba(124,58,237,0.10)" },
   ads: { solid: "#D97706", grad: "linear-gradient(135deg,#FBBF24,#D97706)", glow: "rgba(217,119,6,0.45)", soft: "rgba(217,119,6,0.10)" },
 }
 
 const NAV_MODES: { key: TrackerMode; label: string; icon: typeof Layers }[] = [
+  { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "video", label: "Video", icon: Video },
   { key: "poster", label: "Poster", icon: ImageIcon },
   { key: "ads", label: "Ads", icon: Megaphone },
@@ -606,6 +609,48 @@ function DayFilter({ value, onChange }: { value: string; onChange: (v: string) =
           ✕
         </button>
       )}
+    </div>
+  )
+}
+
+// ── Overview building blocks ─────────────────────────────────────────────────
+function OverviewStat({ label, value, accent, onClick }: {
+  label: string; value: number; accent: string; onClick: () => void
+}) {
+  return (
+    <button onClick={onClick}
+      className="text-left hover:opacity-90 transition-opacity"
+      style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16, padding: "14px 16px", cursor: "pointer" }}>
+      <p style={{ fontSize: 26, fontWeight: 900, color: accent, margin: 0, letterSpacing: "-0.02em" }}>{value}</p>
+      <p style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em", margin: "2px 0 0" }}>{label}</p>
+    </button>
+  )
+}
+
+function OverviewBlock({ title, accent, icon: Icon, rows }: {
+  title: string
+  accent: string
+  icon: typeof Layers
+  rows: { key: string; label: string; value: number; onClick: () => void }[]
+}) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
+        <Icon size={13} style={{ color: accent }} />
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{title}</span>
+      </div>
+      <div className="flex flex-col">
+        {rows.map(r => (
+          <button key={r.key} onClick={r.onClick}
+            className="flex items-center justify-between hover:bg-slate-50"
+            style={{ padding: "9px 16px", borderBottom: "1px solid #F9FAFB", border: "none", background: "transparent", cursor: "pointer" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{r.label}</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: r.value > 0 ? accent : "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>
+              {r.value}
+            </span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -1637,10 +1682,12 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [shoots, setShoots] = useState(initialShoots)
   // Top-level mode (Video / Poster / Ads) with sub-tabs beneath it. Posters aren't shot,
   // so the Shoots sub-tab only exists in Video mode.
-  const [mode, setMode] = useState<"video" | "poster" | "ads">("video")
+  const [mode, setMode] = useState<TrackerMode>("overview")
   const [subTab, setSubTab] = useState<"shoots" | "pipeline" | "log">("shoots")
   // Derived rather than reset via an effect — avoids a cascading-render setState-in-effect.
   const tab = mode === "poster" && subTab === "shoots" ? "pipeline" : subTab
+  // Overview and Ads have no content type of their own; falling back to "video" keeps the
+  // Pipeline/Log memos below well-defined even while those boards aren't rendered.
   const contentTypeForMode: "video" | "poster" = mode === "poster" ? "poster" : "video"
   const [, startTransition] = useTransition()
 
@@ -1793,19 +1840,37 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     setDragId(null); setOverCol(null)
   }
 
+  // Overview numbers are navigation, not decoration — clicking one lands you on the board
+  // it came from, so you can act on it.
+  function goTo(target: AttentionItem["target"]) {
+    setMode(target.mode)
+    if (target.tab) setSubTab(target.tab)
+  }
+
   const draggedItem = items.find(i => i.id === dragId)
 
   // Stats — global totals, always unfiltered (shown in the hero chips)
   // Nav badges. Modes count live work (anything not yet posted / ads still running);
   // sections count what you'd actually find on that board for the current mode.
+  // Overview's badge is the count of things actually needing action — it's the number you'd
+  // want to see without opening the tab.
+  const overview = useMemo(
+    () => computeOverview({
+      items, shoots, ads,
+      today: new Date().toISOString().split("T")[0],
+    }),
+    [items, shoots, ads]
+  )
+
   const navCounts = useMemo(() => ({
+    overview: overview.attention.reduce((sum, a) => sum + a.count, 0),
     video: items.filter(i => i.content_type === "video" && i.status !== "posted").length,
     poster: items.filter(i => i.content_type === "poster" && i.status !== "posted").length,
     ads: ads.filter(a => a.status === "active").length,
-  }), [items, ads])
+  }), [items, ads, overview])
 
   const navSections = useMemo(() => {
-    if (mode === "ads") return []
+    if (mode === "ads" || mode === "overview") return []
     const ofMode = items.filter(i => i.content_type === contentTypeForMode)
     return [
       ...(mode === "video"
@@ -2045,7 +2110,84 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         sections={navSections}
       />
 
-      {mode !== "ads" && tab === "pipeline" && (
+      {mode === "overview" && (
+        <div className="flex flex-col gap-4">
+          {/* Needs attention — actionable problems first, or an all-clear. */}
+          <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
+              <AlertTriangle size={13} style={{ color: overview.attention.length > 0 ? "#D97706" : "#16A34A" }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Needs Attention
+              </span>
+            </div>
+            {overview.attention.length === 0 ? (
+              <p style={{ fontSize: 12, fontWeight: 600, color: "#16A34A", padding: "16px", margin: 0 }}>
+                All clear — nothing overdue or stalled.
+              </p>
+            ) : (
+              <div className="flex flex-col">
+                {overview.attention.map(a => (
+                  <button key={a.kind} onClick={() => goTo(a.target)}
+                    className="flex items-center justify-between text-left hover:bg-slate-50"
+                    style={{ padding: "10px 16px", borderBottom: "1px solid #F9FAFB", border: "none", background: "transparent", cursor: "pointer" }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{a.label}</span>
+                    <ArrowRight size={13} style={{ color: "#9CA3AF" }} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Posting — the time-sensitive block. */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <OverviewStat label="Due Today" value={overview.posting.dueToday} accent="#0EA5E9"
+              onClick={() => goTo({ mode: "video", tab: "log" })} />
+            <OverviewStat label="Due This Week" value={overview.posting.dueThisWeek} accent="#6366F1"
+              onClick={() => goTo({ mode: "video", tab: "log" })} />
+            <OverviewStat label="Overdue" value={overview.posting.overdue} accent="#EF4444"
+              onClick={() => goTo({ mode: "video", tab: "log" })} />
+          </div>
+
+          {/* Videos and Posters — stage counts. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <OverviewBlock title="Videos" accent={MODE_ACCENT.video.solid} icon={Video}
+              rows={STATUS_ORDER.map(s => ({
+                key: s,
+                label: STATUS_CFG[s].label,
+                value: overview.videos[s],
+                onClick: () => goTo({ mode: "video", tab: s === "posted" ? "log" : "pipeline" }),
+              }))} />
+            <OverviewBlock title="Posters" accent={MODE_ACCENT.poster.solid} icon={ImageIcon}
+              rows={STATUS_ORDER.map(s => ({
+                key: s,
+                label: STATUS_CFG[s].label,
+                value: overview.posters[s],
+                onClick: () => goTo({ mode: "poster", tab: s === "posted" ? "log" : "pipeline" }),
+              }))} />
+          </div>
+
+          {/* Shoots and Ads. Ads is status-counts-only on purpose — the campaign/budget
+              restructure is owned separately, so this stays deliberately shallow. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <OverviewBlock title="Shoots" accent="#3B82F6" icon={Camera}
+              rows={SHOOT_STATUS_ORDER.map(s => ({
+                key: s,
+                label: SHOOT_STATUS_CFG[s].label,
+                value: overview.shoots[s],
+                onClick: () => goTo({ mode: "video", tab: "shoots" }),
+              }))} />
+            <OverviewBlock title="Ads" accent={MODE_ACCENT.ads.solid} icon={Megaphone}
+              rows={AD_STATUS_ORDER.map(s => ({
+                key: s,
+                label: AD_STATUS_CFG[s].label,
+                value: overview.ads[s],
+                onClick: () => goTo({ mode: "ads", tab: null }),
+              }))} />
+          </div>
+        </div>
+      )}
+
+      {(mode === "video" || mode === "poster") && tab === "pipeline" && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex gap-2 flex-wrap">
@@ -2124,7 +2266,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         </div>
       )}
 
-      {mode !== "ads" && tab === "log" && (
+      {(mode === "video" || mode === "poster") && tab === "log" && (
         <div className="flex flex-col gap-4">
           {/* Upcoming queue — what's scheduled but hasn't gone out yet, soonest first. */}
           {readyQueue.length > 0 && (

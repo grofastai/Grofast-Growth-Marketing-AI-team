@@ -73,7 +73,7 @@ export async function createShoot(
 
 export type CreatedShootItem = {
   id: string; shoot_title_id: string; client_name: string; title: string
-  content_type: 'video'; status: 'shot'; shot_date: string | null; notes: string | null
+  content_type: 'video'; status: 'ready_to_edit'; shot_date: string | null; notes: string | null
 }
 
 export async function updateShootStatus(
@@ -120,7 +120,8 @@ export async function updateShootStatus(
         client_name: shoot.client,
         title: t.title,
         content_type: 'video',
-        status: 'shot',
+        source: 'shoot',
+        status: 'ready_to_edit',
         shot_by: user.id,
         shot_date: shotDate,
         notes: shoot.notes,
@@ -143,7 +144,7 @@ export async function updateShootStatus(
             client_name: shoot.client,
             title: t.title,
             content_type: 'video',
-            status: 'shot',
+            status: 'ready_to_edit',
             shot_date: shotDate,
             notes: shoot.notes,
           })
@@ -250,7 +251,8 @@ export async function completeShootWithTitles(
       client_name: shoot.client,
       title: t.title,
       content_type: 'video',
-      status: 'shot',
+      source: 'shoot',
+      status: 'ready_to_edit',
       shot_by: user.id,
       shot_date: shotDate,
       notes: shoot.notes,
@@ -270,7 +272,7 @@ export async function completeShootWithTitles(
       client_name: shoot.client,
       title: t.title,
       content_type: 'video',
-      status: 'shot',
+      status: 'ready_to_edit',
       shot_date: shotDate,
       notes: shoot.notes,
     })

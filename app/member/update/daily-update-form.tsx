@@ -1774,10 +1774,21 @@ export default function DailyUpdateForm({
               setScriptings([])
               setDevelopments([])
               setNmEdits([])
+              // Learning and Break carry their own state (learningBlocks/others,
+              // nonMediaBreaks) separate from the lists above — same class of bug as
+              // the earlier Development/Scripting fix: leaving these out meant the
+              // Learning and Break tabs kept showing the just-submitted entry instead
+              // of starting blank.
+              setLearningBlocks([newLearningBlock()])
+              setLearningStarted(false)
+              setLearningParticipantIds([])
+              setOthers([])
+              setLearningError(null)
+              setNonMediaBreaks([])
               setEditMode(true)
               setSubmitted(false)
               if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
-              else { setMediaDone(false) }
+              else { setMediaDone(false); setLearningDone(false); setBreaksDone(false) }
             }}
               style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 24px", borderRadius:12, border:"1.5px solid #E5E7EB", background:"#F9FAFB", color:"#374151", fontSize:13, fontWeight:700, cursor:"pointer" }}>
               ➕ Add Another Update

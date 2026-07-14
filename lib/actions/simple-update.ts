@@ -37,6 +37,11 @@ export async function submitSimpleUpdate(
   if (!profile?.company_id) return { success: false, error: 'Profile not found' }
 
   const cid = profile.company_id
+  // The form checks this too, but an empty list must never reach the table: a row with
+  // no entries still reads as "update submitted" to anything that only looks for the
+  // row, which is exactly how the attendance gate got bypassed.
+  if (entries.length === 0) return { success: false, error: 'Add at least one task before submitting.' }
+
   const workEntries = entries.map(e => ({
     task_type: 'work',
     title: e.title,

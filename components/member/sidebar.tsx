@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, ClipboardList, Target, CalendarOff,
   Megaphone, User, LogOut, Clock, History, LifeBuoy, ChevronRight,
-  MoreHorizontal, X, Bell, ArrowRight, StickyNote, CalendarDays, Users2, Layers,
+  MoreHorizontal, X, Bell, ArrowRight, StickyNote, Users2, Layers,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 import { getUnreadNotifications, markAllRead, type NotificationRow } from "@/lib/actions/notifications"
@@ -34,7 +34,6 @@ const navItems = [
   { label: "Daily Update",     href: "/member/update",             icon: ClipboardList },
   { label: "History",          href: "/member/history",            icon: History },
   { label: "My Tasks",         href: "/member/tasks",              icon: Target },
-  { label: "Content Calendar", href: "/member/content-calendar",   icon: CalendarDays },
   { label: "Content Tracker",  href: "/member/content-tracker",    icon: Layers },
   { label: "Leaves",           href: "/member/leaves",             icon: CalendarOff },
   { label: "Announcements",    href: "/member/announcements",      icon: Megaphone },
@@ -53,7 +52,6 @@ const mainBottomNav = [
 
 const moreNavItems = [
   { label: "My Tasks",       href: "/member/tasks",            icon: Target },
-  { label: "Content Cal",    href: "/member/content-calendar", icon: CalendarDays },
   { label: "Content Tracker", href: "/member/content-tracker", icon: Layers },
   { label: "Leaves",         href: "/member/leaves",           icon: CalendarOff },
   { label: "Announcements",  href: "/member/announcements",    icon: Megaphone },
@@ -67,10 +65,9 @@ const DIVIDER = "rgba(255,255,255,0.08)"
 const MOBILE_BG = "linear-gradient(90deg, #0a0a0a 0%, #1a0000 60%, #de1a1a 100%)"
 
 // Freelancer-media login (team = "Freelance Media Production") gets a trimmed
-// portal — no Attendance, Content Calendar, or Leaves.
+// portal — no Attendance or Leaves.
 const FL_MEDIA_HIDDEN = new Set([
   "/member/attendance",
-  "/member/content-calendar",
   "/member/leaves",
 ])
 
@@ -80,15 +77,15 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
   const [showMore, setShowMore] = useState(false)
 
   const baseNavItems = canManageFreelancers
-    ? [...navItems.slice(0, 6), { label: "Freelancers", href: "/member/freelancers", icon: Users2 }, ...navItems.slice(6)]
+    ? [...navItems.slice(0, 5), { label: "Freelancers", href: "/member/freelancers", icon: Users2 }, ...navItems.slice(5)]
     : navItems
   const activeNavItems = isFreelancerMedia
     ? baseNavItems.filter(i => !FL_MEDIA_HIDDEN.has(i.href))
     : baseNavItems
 
-  // Same order as the desktop sidebar: Freelancers slots in after Content Cal
+  // Same order as the desktop sidebar: Freelancers slots in after My Tasks
   const baseMoreNavItems = canManageFreelancers
-    ? [...moreNavItems.slice(0, 2), { label: "Freelancers", href: "/member/freelancers", icon: Users2 }, ...moreNavItems.slice(2)]
+    ? [...moreNavItems.slice(0, 1), { label: "Freelancers", href: "/member/freelancers", icon: Users2 }, ...moreNavItems.slice(1)]
     : moreNavItems
   const activeMoreNavItems = isFreelancerMedia
     ? baseMoreNavItems.filter(i => !FL_MEDIA_HIDDEN.has(i.href))

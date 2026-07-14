@@ -270,23 +270,23 @@ function TaskCardInner({
     : null
 
   return (
-    <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
+    <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none touch-none"
       onClick={() => onDetail?.(task)}
+      {...dragProps?.listeners} {...dragProps?.attributes}
       style={{
         background: isDragging ? "#F3F4F6" : "#FFFFFF",
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: isOverdue ? "1px solid rgba(222,26,26,0.2)" : "1px solid transparent",
         opacity: isDragging ? 0.5 : 1,
-        cursor: onDetail ? "pointer" : dragProps ? "grab" : "default",
+        cursor: dragProps ? "grab" : onDetail ? "pointer" : "default",
       }}>
 
       {/* Title + drag handle */}
       <div className="flex items-start gap-2 mb-2">
         {dragProps && (
-          <button {...dragProps.listeners} {...dragProps.attributes}
-            className="flex-shrink-0 mt-0.5 opacity-30 group-hover:opacity-70 transition-opacity cursor-grab active:cursor-grabbing touch-none">
+          <div className="flex-shrink-0 mt-0.5 opacity-30 group-hover:opacity-70 transition-opacity">
             <GripVertical size={13} style={{ color: "#6B7280" }} />
-          </button>
+          </div>
         )}
         <div className="flex-1 min-w-0">
           <p className="text-[12px] font-semibold leading-snug line-clamp-2 hover:text-[#de1a1a] transition-colors"

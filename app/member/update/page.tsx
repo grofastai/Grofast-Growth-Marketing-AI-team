@@ -6,6 +6,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import DailyUpdateForm, { type ActiveLeave, type CollabWindow } from "./daily-update-form"
+import { hasFiledUpdate, findUnfiledUpdateDate } from "@/lib/attendance-gate"
 import { Loader2 } from "lucide-react"
 
 function adminSupabase() {
@@ -128,10 +129,11 @@ export default async function UpdatePage() {
       .eq("user_id", effectiveUserId)
       .eq("date", today)
       .maybeSingle(),
-    // 4B: did yesterday have a submitted update?
+    // 4B: did yesterday have a submitted update? A row that exists but holds no entries
+    // is not a submission — see hasFiledUpdate.
     admin
       .from("daily_updates")
-      .select("id")
+      .select("work_entries, learning_hours")
       .eq("user_id", effectiveUserId)
       .eq("date", yesterdayStr)
       .maybeSingle(),
@@ -177,9 +179,16 @@ export default async function UpdatePage() {
   const todayClockedIn = !!(todayClockLog as { clock_in: string | null } | null)?.clock_in
   const requiresClockIn = !isManagement && !isFreelancer && !impersonateId
 
-  // 4B: auto-select yesterday if: no update for yesterday, not on leave/holiday, and not management/freelancer
-  const yesterdayMissing = !yesterdayUpdate && !yesterdayLeave && !yesterdayHoliday
-  const defaultDate = (!isManagement && !isFreelancer && yesterdayMissing) ? yesterdayStr : undefined
+  // 4B: open the form on the day the gate is blocking, so "Submit This Day's Update" lands
+  // on the right date. That's the oldest worked day with no entries — which may be older
+  // than yesterday if a past day was emptied out — falling back to yesterday when the member
+  // simply never showed up and filed nothing.
+  const unfiledDate = (!isManagement && !isFreelancer)
+    ? await findUnfiledUpdateDate(admin, companyId, effectiveUserId, today)
+    : null
+  const yesterdayMissing = !hasFiledUpdate(yesterdayUpdate) && !yesterdayLeave && !yesterdayHoliday
+  const defaultDate = unfiledDate
+    ?? ((!isManagement && !isFreelancer && yesterdayMissing) ? yesterdayStr : undefined)
 
   const fallback = (
     <div className="flex items-center justify-center py-16">

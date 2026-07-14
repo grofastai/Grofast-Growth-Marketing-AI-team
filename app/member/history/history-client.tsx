@@ -71,10 +71,18 @@ const TASK_CFG = {
 }
 const DOT_COLORS = ["#22C55E","#F59E0B","#6366F1","#EF4444","#0EA5E9","#EC4899"]
 
+// Month labels are produced by monthLabel() with en-US long names, so read them back by
+// name rather than handing "July 2026 1" to Date(): that string is non-standard, and
+// Safari returns Invalid Date for it where Chrome guesses correctly.
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+]
 function labelToMonthInput(label: string): string {
-  const d = new Date(label + " 1")
-  if (isNaN(d.getTime())) return ""
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+  const [name, year] = label.split(" ")
+  const idx = MONTH_NAMES.indexOf(name)
+  if (idx < 0 || !/^\d{4}$/.test(year ?? "")) return ""
+  return `${year}-${String(idx + 1).padStart(2, "0")}`
 }
 function monthInputToLabel(val: string): string {
   return new Date(val + "-01T12:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" })
@@ -356,9 +364,22 @@ export default function HistoryClient({
   const isFreelancerMedia = workLayout ? workLayout === 'freelance_media' : team === "Freelance Media Production"
   const isMedia = workLayout ? workLayout !== 'non_media' : (team === "Media Team" || team === "Media Production Team" || team === "Freelance Media Production")
 
+  // Carry the chip's short label alongside its long one, both derived from the ISO date.
+  // Deriving it later by re-parsing the long label ("July 2026") is what broke iOS: Safari
+  // rejects that non-standard string where Chrome accepts it, so every chip read
+  // "Invalid Date" on iPhone. Never round-trip a display label back through Date().
   const months = useMemo(() => {
-    const seen = new Set<string>(), result: string[] = []
-    for (const u of updates) { const m = monthLabel(u.date); if (!seen.has(m)) { seen.add(m); result.push(m) } }
+    const seen = new Set<string>()
+    const result: { label: string; short: string }[] = []
+    for (const u of updates) {
+      const label = monthLabel(u.date)
+      if (seen.has(label)) continue
+      seen.add(label)
+      result.push({
+        label,
+        short: new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
+      })
+    }
     return result
   }, [updates])
 
@@ -1115,19 +1136,18 @@ export default function HistoryClient({
             All
           </button>
           {months.map(m => {
-            const active = selectedMonth === m
-            const shortLabel = new Date(m + " 1").toLocaleDateString("en-US", { month:"short", year:"2-digit" })
+            const active = selectedMonth === m.label
             return (
               <button
-                key={m}
-                onClick={() => { setSelectedMonth(active ? "" : m); setSelectedDate("") }}
+                key={m.label}
+                onClick={() => { setSelectedMonth(active ? "" : m.label); setSelectedDate("") }}
                 style={{
                   padding:"6px 16px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
                   background: active ? "#DE1A1A" : "#F5F6FA",
                   color:      active ? "#FFFFFF"  : "#6B7280",
                   border:     active ? "1.5px solid #DE1A1A" : "1.5px solid transparent",
                 }}>
-                {shortLabel}
+                {m.short}
               </button>
             )
           })}

@@ -12,10 +12,13 @@ function adminSupabase() {
 // Shared by both /admin/content-tracker and /member/content-tracker — the data
 // is company-wide (everyone sees what everyone else logged), so there is no
 // role-specific filtering to do here.
-export async function getContentTrackerData(companyId: string): Promise<{ items: ContentItem[]; ads: Ad[]; shoots: Shoot[]; members: { id: string; name: string }[] }> {
+export async function getContentTrackerData(companyId: string): Promise<{
+  items: ContentItem[]; ads: Ad[]; shoots: Shoot[]; members: { id: string; name: string }[]
+  voiceoverFreelancers: { id: string; name: string }[]
+}> {
   const admin = adminSupabase()
 
-  const [itemsRes, postsRes, usersRes, adsRes, revisionsRes, performanceRes, shootsRes, shootTitlesRes, correctionsRes] = await Promise.all([
+  const [itemsRes, postsRes, usersRes, adsRes, revisionsRes, performanceRes, shootsRes, shootTitlesRes, correctionsRes, freelancersRes] = await Promise.all([
     admin.from('content_items').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
     admin.from('content_item_posts').select('*').eq('company_id', companyId).order('posted_date', { ascending: false }),
     admin.from('users').select('id, name').eq('company_id', companyId),
@@ -25,9 +28,20 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
     admin.from('shoots').select('id, title, client, start_time, notes, status, going_by').eq('company_id', companyId).order('start_time', { ascending: false }),
     admin.from('shoot_titles').select('id, shoot_id, title, content_item_id').eq('company_id', companyId),
     admin.from('content_corrections').select('*').eq('company_id', companyId).order('correction_date', { ascending: false }),
+    admin.from('freelancers').select('id, name, team, status').eq('company_id', companyId),
   ])
 
-  type ItemRow = { id: string; client_name: string; title: string; content_type: 'video' | 'poster'; status: 'shot' | 'editing' | 'edited' | 'ready' | 'posted'; shot_by: string | null; shot_date: string | null; edited_by: string | null; edited_date: string | null; notes: string | null; created_at: string; ready_platforms: string[] | null; scheduled_post_date: string | null; scheduled_post_time: string | null }
+  type ItemRow = {
+    id: string; client_name: string; title: string; content_type: 'video' | 'poster'
+    status: 'scripting' | 'voiceover' | 'design' | 'ready_to_edit' | 'editing' | 'edited' | 'on_review' | 'ready_to_post' | 'posted'
+    source: 'shoot' | 'ads_video' | 'poster'
+    shot_by: string | null; shot_date: string | null; edited_by: string | null; edited_date: string | null
+    notes: string | null; created_at: string
+    ready_platforms: string[] | null; scheduled_post_date: string | null; scheduled_post_time: string | null
+    hook_count: number | null; use_for: string[] | null; priority: string | null
+    scripted_by: string | null; voiceover_by: string | null; voiceover_date: string | null
+    reviewed_by: string | null; reviewed_at: string | null
+  }
   type PostRow = { id: string; content_item_id: string; platform: 'instagram' | 'youtube' | 'facebook' | 'linkedin' | 'gmb'; posted_date: string; posted_by: string | null; post_link: string | null }
   type UserRow = { id: string; name: string }
   type AdRow = { id: string; client_name: string; ad_name: string; platform: string; launch_date: string | null; hook_count: number; targeting_type: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null; targeting_notes: string | null; status: 'active' | 'paused' | 'testing' | 'stopped'; created_at: string }
@@ -36,6 +50,7 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
   type ShootRow = { id: string; title: string; client: string; start_time: string; notes: string | null; status: 'scheduled' | 'going' | 'completed' | 'cancelled'; going_by: string[] | null }
   type ShootTitleRow = { id: string; shoot_id: string; title: string; content_item_id: string | null }
   type CorrectionRow = { id: string; content_item_id: string; correction_date: string; notes: string; requested_by: string | null; assigned_to: string | null }
+  type FreelancerRow = { id: string; name: string; team: string | null; status: string }
 
   const itemRows = (itemsRes.data ?? []) as ItemRow[]
   const postRows = (postsRes.data ?? []) as PostRow[]
@@ -46,8 +61,15 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
   const shootRows = (shootsRes.data ?? []) as ShootRow[]
   const shootTitleRows = (shootTitlesRes.data ?? []) as ShootTitleRow[]
   const correctionRows = (correctionsRes.data ?? []) as CorrectionRow[]
+  const freelancerRows = (freelancersRes.data ?? []) as FreelancerRow[]
 
   const userMap = new Map(userRows.map(u => [u.id, u]))
+  const freelancerMap = new Map(freelancerRows.map(f => [f.id, f]))
+  // The live voice-over roster for the picker — active RJ Voiceover freelancers only.
+  const voiceoverFreelancers = freelancerRows
+    .filter(f => f.team === 'Freelance RJ Voiceover' && f.status === 'active')
+    .map(f => ({ id: f.id, name: f.name }))
+    .sort((a, b) => a.name.localeCompare(b.name))
   const postsByItem = new Map<string, PostRow[]>()
   for (const p of postRows) {
     if (!postsByItem.has(p.content_item_id)) postsByItem.set(p.content_item_id, [])
@@ -80,6 +102,7 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
     title: row.title,
     content_type: row.content_type,
     status: row.status,
+    source: row.source,
     shot_date: row.shot_date,
     edited_date: row.edited_date,
     notes: row.notes,
@@ -87,8 +110,16 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
     ready_platforms: (row.ready_platforms ?? []) as ContentItem['ready_platforms'],
     scheduled_post_date: row.scheduled_post_date,
     scheduled_post_time: row.scheduled_post_time,
+    hook_count: row.hook_count,
+    use_for: (row.use_for ?? []) as ContentItem['use_for'],
+    priority: row.priority as ContentItem['priority'],
+    voiceover_date: row.voiceover_date,
+    reviewed_at: row.reviewed_at,
     shotByUser: row.shot_by ? (userMap.get(row.shot_by) ?? null) : null,
     editedByUser: row.edited_by ? (userMap.get(row.edited_by) ?? null) : null,
+    scriptedByUser: row.scripted_by ? (userMap.get(row.scripted_by) ?? null) : null,
+    reviewedByUser: row.reviewed_by ? (userMap.get(row.reviewed_by) ?? null) : null,
+    voiceoverBy: row.voiceover_by ? (freelancerMap.get(row.voiceover_by) ? { id: row.voiceover_by, name: freelancerMap.get(row.voiceover_by)!.name } : null) : null,
     corrections: (correctionsByItem.get(row.id) ?? []).map(c => ({
       id: c.id,
       content_item_id: c.content_item_id,
@@ -135,5 +166,5 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
 
   const members = userRows.map(u => ({ id: u.id, name: u.name })).sort((a, b) => a.name.localeCompare(b.name))
 
-  return { items, ads, shoots, members }
+  return { items, ads, shoots, members, voiceoverFreelancers }
 }

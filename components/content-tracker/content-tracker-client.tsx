@@ -909,6 +909,18 @@ function OverviewBlock({ title, accent, icon: Icon, rows }: {
   )
 }
 
+// Frosted-glass stat card for the hero's rightSlot — same treatment the old Content
+// Calendar used for its date/total/uploaded trio next to the character illustration.
+function HeroGlassStat({ label, value, sub }: { label: string; value: number | string; sub: string }) {
+  return (
+    <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 14, padding: "clamp(8px,2vw,12px) clamp(10px,2.5vw,16px)", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 72, flexShrink: 0 }}>
+      <p style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>{label}</p>
+      <p style={{ fontSize: "clamp(22px,5.5vw,30px)", fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{value}</p>
+      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>{sub}</p>
+    </div>
+  )
+}
+
 function KanbanEmptyCell({ isOver, accent }: { isOver: boolean; accent: string }) {
   return (
     <div className="flex items-center justify-center py-8 rounded-xl transition-all" style={{ border: `2px dashed ${isOver ? accent : "#E5E7EB"}` }}>
@@ -3048,10 +3060,21 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           { icon: <Megaphone size={11} />, label: `${ads.filter(a => a.status === "active").length} active ads` },
         ]}
         rightSlot={
-          // Reused from the retired Content Calendar hero — same character, same spot.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src="/brand/content-cal-hero-girl.png" alt=""
-            style={{ height: "clamp(64px,16vw,110px)", width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
+          // Reused from the retired Content Calendar hero — same character and the same
+          // frosted-glass date/total/posted trio, one scrollable row on mobile.
+          <div className="flex flex-nowrap overflow-x-auto md:flex-wrap md:overflow-visible" style={{ alignItems: "center", gap: 12, scrollbarWidth: "none", maxWidth: "100%" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/content-cal-hero-girl.png" alt=""
+              style={{ height: "clamp(64px,16vw,110px)", width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
+            <div className="flex gap-2" style={{ flexShrink: 0 }}>
+              <HeroGlassStat
+                label={`${new Date().toLocaleDateString("en-US", { month: "short" }).toUpperCase()} ${new Date().getFullYear()}`}
+                value={new Date().getDate()}
+                sub={new Date().toLocaleDateString("en-US", { weekday: "long" })} />
+              <HeroGlassStat label="Total" value={items.length} sub="Content" />
+              <HeroGlassStat label="Posted" value={stats.posted} sub="Done ✓" />
+            </div>
+          </div>
         }
       />
 

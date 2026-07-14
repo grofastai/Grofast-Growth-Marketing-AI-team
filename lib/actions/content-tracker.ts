@@ -4,8 +4,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import {
-  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema,
-  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput,
+  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema,
+  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput,
 } from '@/lib/validations/content-tracker'
 
 function adminSupabase() {
@@ -295,6 +295,31 @@ export async function createAd(input: CreateAdInput): Promise<{ success: boolean
 
   revalidateTracker()
   return { success: true, id: data.id }
+}
+
+// Edit an ad's details. Deliberately does NOT touch status, hook_count, performance or the
+// correction history — each of those has its own flow, and folding them in here would let
+// an "edit details" action silently rewrite the ad's tracked history.
+export async function updateAd(input: UpdateAdInput): Promise<{ success: boolean; error?: string }> {
+  const parsed = updateAdSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { error } = await ctx.admin.from('ads_tracker').update({
+    client_name:     parsed.data.client_name,
+    ad_name:         parsed.data.ad_name,
+    platform:        parsed.data.platform,
+    launch_date:     parsed.data.launch_date || null,
+    targeting_type:  parsed.data.targeting_type || null,
+    targeting_notes: parsed.data.targeting_notes || null,
+    updated_at:      new Date().toISOString(),
+  }).eq('id', parsed.data.ad_id).eq('company_id', ctx.companyId)
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true }
 }
 
 export async function updateAdStatus(

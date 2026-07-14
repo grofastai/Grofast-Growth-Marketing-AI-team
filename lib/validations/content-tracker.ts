@@ -49,6 +49,17 @@ export const createAdSchema = z.object({
 })
 export type CreateAdInput = z.infer<typeof createAdSchema>
 
+export const updateAdSchema = z.object({
+  ad_id:           z.string().uuid(),
+  client_name:     z.string().min(1, 'Client is required'),
+  ad_name:         z.string().min(1, 'Ad name is required'),
+  platform:        z.string().min(1),
+  launch_date:     z.string().optional(),
+  targeting_type:  z.enum(TARGETING_TYPES).optional(),
+  targeting_notes: z.string().optional(),
+})
+export type UpdateAdInput = z.infer<typeof updateAdSchema>
+
 export const addAdRevisionSchema = z.object({
   ad_id:                 z.string().uuid(),
   notes:                 z.string().min(1, 'Revision notes are required'),

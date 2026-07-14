@@ -213,7 +213,8 @@ export async function createTrackerShoot(
 // one content_items row (status: shot) per video that actually came out of the shoot.
 export async function completeShootWithTitles(
   shootId: string,
-  titles: string[]
+  titles: string[],
+  goingBy?: string[]
 ): Promise<{ success: boolean; error?: string; createdItems?: CreatedShootItem[] }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -275,7 +276,12 @@ export async function completeShootWithTitles(
     })
   }
 
-  const { error: statusError } = await admin.from('shoots').update({ status: 'completed' }).eq('id', shootId)
+  // Crew is captured here too, not just at Going — a shoot dragged straight to Completed
+  // would otherwise end up Done with no record of who actually went.
+  const completeUpdates: Record<string, unknown> = { status: 'completed' }
+  if (goingBy && goingBy.length > 0) completeUpdates.going_by = goingBy
+
+  const { error: statusError } = await admin.from('shoots').update(completeUpdates).eq('id', shootId)
   if (statusError) return { success: false, error: statusError.message }
 
   revalidatePath('/admin/shoots')
@@ -283,6 +289,63 @@ export async function completeShootWithTitles(
   revalidatePath('/admin/content-tracker')
   revalidatePath('/member/content-tracker')
   return { success: true, createdItems }
+}
+
+// Edit a Tracker-created shoot's details. Deliberately does NOT touch status, crew, or the
+// video titles — those each have their own flow, and folding them in here would let an
+// "edit details" action silently undo a completion.
+export async function updateTrackerShoot(
+  shootId: string,
+  input: { client: string; title: string; shot_date: string; shot_time?: string; notes?: string }
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  if (!input.client.trim()) return { success: false, error: 'Client is required' }
+  if (!input.title.trim()) return { success: false, error: 'Shoot title is required' }
+  if (!input.shot_date) return { success: false, error: 'Shot date is required' }
+
+  const admin = adminSupabase()
+  const time = input.shot_time || '09:00'
+  const start_time = `${input.shot_date}T${time}:00+05:30`
+  const end_time = new Date(new Date(start_time).getTime() + 2 * 60 * 60 * 1000).toISOString()
+
+  const { error } = await admin.from('shoots').update({
+    client: input.client.trim(),
+    title: input.title.trim(),
+    start_time,
+    end_time,
+    notes: input.notes?.trim() || null,
+  }).eq('id', shootId)
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/shoots')
+  revalidatePath('/member/shoots')
+  revalidatePath('/admin/content-tracker')
+  revalidatePath('/member/content-tracker')
+  return { success: true }
+}
+
+// Set or correct who went on a shoot at any point — including after it's Completed, so an
+// older shoot with no crew recorded can be backfilled.
+export async function updateShootCrew(
+  shootId: string,
+  crew: string[]
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { error } = await admin.from('shoots').update({ going_by: crew }).eq('id', shootId)
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/shoots')
+  revalidatePath('/member/shoots')
+  revalidatePath('/admin/content-tracker')
+  revalidatePath('/member/content-tracker')
+  return { success: true }
 }
 
 export async function deleteShoot(id: string): Promise<{ success: boolean; error?: string }> {

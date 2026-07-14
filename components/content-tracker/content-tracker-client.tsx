@@ -10,6 +10,7 @@ import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil,
   Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw, LayoutDashboard,
+  MoreVertical, Users,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
@@ -18,9 +19,9 @@ import { latestEntry, isUnderperforming, cpc, cpm, frequency, costPerResult, typ
 import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
-  createAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, markReadyToPost, requestCorrection,
+  createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, markReadyToPost, requestCorrection,
 } from "@/lib/actions/content-tracker"
-import { createTrackerShoot, completeShootWithTitles, updateShootStatus, type CreatedShootItem } from "@/lib/actions/shoots"
+import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
 import { computeOverview, type AttentionItem } from "@/lib/content-tracker/overview"
 
@@ -364,6 +365,15 @@ function ContentCardInner({
   const age = item.status === "shot" ? daysAgo(item.shot_date) : item.status === "edited" ? daysAgo(item.edited_date) : null
   const stale = age !== null && age >= 3
 
+  // The drag overlay renders this card with no handlers, so an empty menu is expected there
+  // and the kebab is simply omitted.
+  const cardMenu: CardMenuItem[] = []
+  if (onEdit) cardMenu.push({ label: "Edit details", icon: Pencil, onClick: () => onEdit(item) })
+  if (onRequestCorrection && item.status === "edited") {
+    cardMenu.push({ label: "Needs correction", icon: RotateCcw, onClick: () => onRequestCorrection(item) })
+  }
+  if (onEdit) cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true })
+
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
       style={{
@@ -382,6 +392,7 @@ function ContentCardInner({
           <TypeIcon size={12} style={{ color: "#6366F1" }} />
         </div>
         <p className="text-[12px] font-semibold leading-snug line-clamp-2 flex-1" style={{ color: "#111111" }}>{item.title}</p>
+        {cardMenu.length > 0 && <CardMenu items={cardMenu} />}
       </div>
 
       <div className="flex flex-wrap items-center gap-1 mb-2.5">
@@ -506,20 +517,6 @@ function ContentCardInner({
         </button>
       )}
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 4, marginTop: 6 }}>
-        {onEdit && (
-          <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(item)} title="Edit details"
-            style={{ padding: "3px 6px", borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", opacity: 0.4 }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.4")}>
-            <Pencil size={11} style={{ color: "#6366F1" }} />
-          </button>
-        )}
-        <button onPointerDown={e => e.stopPropagation()} onClick={() => onDelete(item.id)} title="Delete"
-          style={{ padding: "3px 6px", borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", opacity: 0.4 }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.4")}>
-          <Trash2 size={11} style={{ color: "#de1a1a" }} />
-        </button>
-      </div>
     </div>
   )
 }
@@ -613,6 +610,73 @@ function DayFilter({ value, onChange }: { value: string; onChange: (v: string) =
   )
 }
 
+// ── Card actions menu ────────────────────────────────────────────────────────
+// One kebab on every card, so Edit/Delete live in the same place no matter what you're
+// looking at. onPointerDown is stopped throughout — these cards are drag handles, and
+// without it opening the menu would start a drag instead.
+type CardMenuItem = { label: string; icon: typeof Layers; onClick: () => void; danger?: boolean }
+
+function CardMenu({ items }: { items: CardMenuItem[] }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
+        title="Actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 rounded"
+        style={{
+          display: "grid", placeItems: "center", width: 22, height: 22, borderRadius: 6,
+          border: "none", background: open ? "#F1F5F9" : "transparent", cursor: "pointer",
+          color: "#9CA3AF",
+        }}>
+        <MoreVertical size={13} />
+      </button>
+
+      {open && (
+        <>
+          {/* Click-away catcher. Fixed, so it also closes when you click elsewhere on the board. */}
+          <div
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); setOpen(false) }}
+            style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+
+          <div role="menu"
+            onPointerDown={e => e.stopPropagation()}
+            style={{
+              position: "absolute", right: 0, top: 24, zIndex: 41,
+              minWidth: 148, overflow: "hidden",
+              background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10,
+              boxShadow: "0 10px 28px rgba(16,24,40,0.14)",
+            }}>
+            {items.map(it => {
+              const Icon = it.icon
+              return (
+                <button key={it.label} role="menuitem"
+                  onClick={e => { e.stopPropagation(); setOpen(false); it.onClick() }}
+                  className="w-full hover:bg-slate-50"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "8px 12px", border: "none", background: "transparent",
+                    cursor: "pointer", textAlign: "left",
+                    fontSize: 11.5, fontWeight: 700,
+                    color: it.danger ? "#DE1A1A" : "#374151",
+                  }}>
+                  <Icon size={12} />
+                  {it.label}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Overview building blocks ─────────────────────────────────────────────────
 function OverviewStat({ label, value, accent, onClick }: {
   label: string; value: number; accent: string; onClick: () => void
@@ -663,10 +727,57 @@ function KanbanEmptyCell({ isOver, accent }: { isOver: boolean; accent: string }
   )
 }
 
+// A shoot can produce a lot of videos. Wrapping 8 of them as pills turns the card into
+// unreadable soup in a narrow kanban column, so: a count, then a scannable list capped at
+// three, with the rest a click away. Dots rather than numbers — the videos aren't a
+// sequence, and numbering would imply an order that doesn't exist.
+function ShootTitleList({ titles }: { titles: ShootTitleRef[] }) {
+  const [expanded, setExpanded] = useState(false)
+  const COLLAPSED = 3
+  const shown = expanded ? titles : titles.slice(0, COLLAPSED)
+  const hidden = titles.length - shown.length
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-lg"
+        style={{ background: "rgba(99,102,241,0.09)", color: "#6366F1" }}>
+        <Video size={10} /> {titles.length} video{titles.length === 1 ? "" : "s"}
+      </span>
+
+      <div className="flex flex-col" style={{ marginTop: 6 }}>
+        {shown.map(t => (
+          <div key={t.id} className="flex items-center gap-2"
+            style={{ padding: "5px 0", borderBottom: "1px solid #F3F4F6" }}>
+            <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#6366F1", flexShrink: 0 }} />
+            <span className="text-[11px] truncate" style={{ color: "#374151" }}>{t.title}</span>
+          </div>
+        ))}
+      </div>
+
+      {titles.length > COLLAPSED && (
+        <button onPointerDown={e => e.stopPropagation()} onClick={() => setExpanded(v => !v)}
+          className="text-[10px] font-bold"
+          style={{ marginTop: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: expanded ? "#9CA3AF" : "#6366F1" }}>
+          {expanded ? "Show less" : `+ ${hidden} more`}
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ── Shoot kanban card ────────────────────────────────────────────────────────
-function ShootCardInner({ shoot, isDragging, onStatus }: {
-  shoot: Shoot; isDragging?: boolean; onStatus: (id: string, status: ShootStatus) => void
+function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDelete }: {
+  shoot: Shoot; isDragging?: boolean
+  onStatus: (id: string, status: ShootStatus) => void
+  onEditCrew?: (shoot: Shoot) => void
+  onEdit?: (shoot: Shoot) => void
+  onDelete?: (shoot: Shoot) => void
 }) {
+  const menu: CardMenuItem[] = []
+  if (onEdit) menu.push({ label: "Edit shoot", icon: Pencil, onClick: () => onEdit(shoot) })
+  if (onEditCrew) menu.push({ label: "Who went", icon: Users, onClick: () => onEditCrew(shoot) })
+  if (onDelete) menu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(shoot), danger: true })
+
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 select-none"
       style={{
@@ -674,37 +785,45 @@ function ShootCardInner({ shoot, isDragging, onStatus }: {
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         opacity: isDragging ? 0.5 : 1,
       }}>
-      <p className="text-[12px] font-bold leading-snug" style={{ color: "#111827", margin: 0 }}>{shoot.legacyTitle}</p>
-      <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>
-        {shoot.client} · {fmtDate(shoot.start_time.split("T")[0])}
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <div style={{ minWidth: 0 }}>
+          <p className="text-[12px] font-bold leading-snug" style={{ color: "#111827", margin: 0 }}>{shoot.legacyTitle}</p>
+          <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>
+            {shoot.client} · {fmtDate(shoot.start_time.split("T")[0])}
+          </p>
+        </div>
+        {menu.length > 0 && <CardMenu items={menu} />}
+      </div>
 
       {/* Video titles only exist once the shoot is marked Done — that's when they're captured. */}
-      {shoot.titles.length > 0 && (
-        <div className="flex flex-wrap gap-1" style={{ marginTop: 8 }}>
-          {shoot.titles.map(t => (
-            <span key={t.id} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-              style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>
-              {t.title}
-            </span>
-          ))}
-        </div>
-      )}
+      {shoot.titles.length > 0 && <ShootTitleList titles={shoot.titles} />}
 
-      {/* Who's covering the shoot — recorded when it's marked Going. */}
-      {shoot.goingByUsers.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1" style={{ marginTop: 8 }}>
-          {shoot.goingByUsers.map(u => (
-            <span key={u.id} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-              title={`${u.name} is going`}
-              style={{ background: "rgba(59,130,246,0.1)", color: "#3B82F6" }}>
-              <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
-                style={{ background: "#3B82F6", color: "#fff" }}>
-                {initials(u.name)}
-              </span>
-              {u.name}
-            </span>
-          ))}
+      {/* Who covered the shoot. Always shown — an empty crew is itself worth seeing, and it's
+          editable at any point so older shoots with nobody recorded can be filled in. */}
+      {onEditCrew && (
+        <div style={{ marginTop: 8 }}>
+          <span className="text-[9px] font-bold uppercase tracking-[0.06em]" style={{ color: "#9CA3AF" }}>Who went</span>
+          {shoot.goingByUsers.length === 0 ? (
+            <button onPointerDown={e => e.stopPropagation()} onClick={() => onEditCrew(shoot)}
+              className="block text-[10px] font-bold"
+              style={{ marginTop: 3, background: "none", border: "none", padding: 0, cursor: "pointer", color: "#3B82F6" }}>
+              + Add crew
+            </button>
+          ) : (
+            <div className="flex flex-wrap items-center gap-1" style={{ marginTop: 3 }}>
+              {shoot.goingByUsers.map(u => (
+                <span key={u.id} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  title={u.name}
+                  style={{ background: "rgba(59,130,246,0.1)", color: "#3B82F6" }}>
+                  <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
+                    style={{ background: "#3B82F6", color: "#fff" }}>
+                    {initials(u.name)}
+                  </span>
+                  {u.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -738,15 +857,25 @@ function ShootCardInner({ shoot, isDragging, onStatus }: {
 }
 
 // ── Ad kanban card ───────────────────────────────────────────────────────────
-function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformance, onLogCorrection, onDelete }: {
+function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformance, onLogCorrection, onDelete, onEdit }: {
   ad: Ad; expanded?: boolean; isDragging?: boolean
   onToggleExpand: (id: string) => void
   onLogPerformance: (ad: Ad) => void
   onLogCorrection: (ad: Ad) => void
   onDelete: (id: string) => void
+  onEdit?: (ad: Ad) => void
 }) {
   const latest = latestEntry(ad.performanceEntries)
   const underperforming = isUnderperforming(ad.performanceEntries)
+
+  // The drag overlay passes no-op handlers, so the kebab is omitted there.
+  const cardMenu: CardMenuItem[] = []
+  if (onEdit) {
+    cardMenu.push({ label: "Edit ad", icon: Pencil, onClick: () => onEdit(ad) })
+    cardMenu.push({ label: "Log performance", icon: Target, onClick: () => onLogPerformance(ad) })
+    cardMenu.push({ label: "Log correction", icon: RotateCcw, onClick: () => onLogCorrection(ad) })
+    cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(ad.id), danger: true })
+  }
 
   return (
     <div className="rounded-2xl mb-2.5 select-none" style={{
@@ -754,12 +883,16 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
       border: `1px solid ${underperforming ? "#FCA5A5" : "transparent"}`,
       boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
       opacity: isDragging ? 0.5 : 1,
-      overflow: "hidden",
+      // Not `hidden` — the kebab's dropdown escapes the card bounds and would be clipped.
+      overflow: "visible",
     }}>
       <div className="p-3.5 cursor-pointer" onClick={() => onToggleExpand(ad.id)}>
         <div className="flex items-start justify-between gap-2">
           <p className="text-[12px] font-bold leading-snug" style={{ color: "#111827", margin: 0 }}>{ad.ad_name}</p>
-          <ChevronDown size={13} className="flex-shrink-0" style={{ color: "#9CA3AF", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {cardMenu.length > 0 && <CardMenu items={cardMenu} />}
+            <ChevronDown size={13} style={{ color: "#9CA3AF", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+          </div>
         </div>
         <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>{ad.client_name} · {ad.platform}</p>
         <p className="text-[10px]" style={{ color: "#6B7280", margin: "4px 0 0" }}>
@@ -1612,13 +1745,22 @@ function GoingCrewModal({ shoot, members, currentUserId, onClose, onConfirm }: {
 }
 
 // ── Complete Shoot modal — captures the video titles that came out of the shoot ──
-function CompleteShootModal({ shoot, onClose, onCompleted }: {
+function CompleteShootModal({ shoot, members, currentUserId, onClose, onCompleted }: {
   shoot: Shoot
+  members: Member[]
+  currentUserId: string
   onClose: () => void
-  onCompleted: (created: CreatedShootItem[]) => void
+  onCompleted: (created: CreatedShootItem[], crew: Member[]) => void
 }) {
   const [titleInput, setTitleInput] = useState("")
   const [titles, setTitles] = useState<string[]>([])
+  // Crew is asked here too, not just at Going — a shoot dragged straight to Completed would
+  // otherwise end up Done with no record of who went. Pre-filled with whoever was marked
+  // Going, so the common path is just "confirm".
+  const [crew, setCrew] = useState<string[]>(() => {
+    if (shoot.goingByUsers.length > 0) return shoot.goingByUsers.map(u => u.id)
+    return members.some(m => m.id === currentUserId) ? [currentUserId] : []
+  })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -1628,13 +1770,17 @@ function CompleteShootModal({ shoot, onClose, onCompleted }: {
     setTitleInput("")
   }
 
+  function toggleCrew(id: string) {
+    setCrew(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
   async function submit() {
     if (titles.length === 0) { setError("Add at least one video title"); return }
     setSaving(true); setError(null)
-    const res = await completeShootWithTitles(shoot.id, titles)
+    const res = await completeShootWithTitles(shoot.id, titles, crew)
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to complete shoot"); return }
-    onCompleted(res.createdItems ?? [])
+    onCompleted(res.createdItems ?? [], members.filter(m => crew.includes(m.id)))
   }
 
   return (
@@ -1666,10 +1812,237 @@ function CompleteShootModal({ shoot, onClose, onCompleted }: {
             </div>
           )}
         </div>
+
+        {members.length > 0 && (
+          <div>
+            <label style={LABEL}>Who went? <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {members.map(m => {
+                const on = crew.includes(m.id)
+                return (
+                  <button key={m.id} type="button" onClick={() => toggleCrew(m.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    {on && <Check size={11} />} {m.name}{m.id === currentUserId ? " (me)" : ""}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>
           {saving ? "Saving…" : `Mark Done${titles.length > 0 ? ` (${titles.length} video${titles.length > 1 ? "s" : ""})` : ""}`}
         </PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Set / correct who went — usable at any point, including after the shoot is Done, so an
+// older shoot with no crew recorded can be backfilled. ─────────────────────────
+function EditCrewModal({ shoot, members, currentUserId, onClose, onSaved }: {
+  shoot: Shoot
+  members: Member[]
+  currentUserId: string
+  onClose: () => void
+  onSaved: (crew: Member[]) => void
+}) {
+  const [crew, setCrew] = useState<string[]>(shoot.goingByUsers.map(u => u.id))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function toggle(id: string) {
+    setCrew(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  async function submit() {
+    setSaving(true); setError(null)
+    const res = await updateShootCrew(shoot.id, crew)
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onSaved(members.filter(m => crew.includes(m.id)))
+  }
+
+  return (
+    <Modal title={`Who went — ${shoot.legacyTitle}`} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          Set or correct who covered this shoot. Works even after it&apos;s Done.
+        </p>
+        <div>
+          <label style={LABEL}>Crew</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {members.map(m => {
+              const on = crew.includes(m.id)
+              return (
+                <button key={m.id} type="button" onClick={() => toggle(m.id)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {on && <Check size={11} />} {m.name}{m.id === currentUserId ? " (me)" : ""}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>
+          {saving ? "Saving…" : `Save Crew${crew.length > 0 ? ` (${crew.length})` : ""}`}
+        </PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Edit shoot details ───────────────────────────────────────────────────────
+function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
+  shoot: Shoot
+  clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  onClose: () => void
+  onSaved: (patch: { client: string; legacyTitle: string; start_time: string; notes: string | null }) => void
+}) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const [client, setClient] = useState(shoot.client)
+  const [title, setTitle] = useState(shoot.legacyTitle)
+  const [shotDate, setShotDate] = useState(shoot.start_time.split("T")[0])
+  const [shotTime, setShotTime] = useState(() => {
+    const t = shoot.start_time.split("T")[1]
+    return t ? t.slice(0, 5) : ""
+  })
+  const [notes, setNotes] = useState(shoot.notes ?? "")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (!client) { setError("Client is required"); return }
+    if (!title.trim()) { setError("Shoot title is required"); return }
+    setSaving(true); setError(null)
+    const res = await updateTrackerShoot(shoot.id, {
+      client, title: title.trim(), shot_date: shotDate,
+      shot_time: shotTime || undefined, notes: notes.trim() || undefined,
+    })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onSaved({
+      client,
+      legacyTitle: title.trim(),
+      start_time: `${shotDate}T${shotTime || "09:00"}:00`,
+      notes: notes.trim() || null,
+    })
+  }
+
+  return (
+    <Modal title="Edit Shoot" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
+        <div>
+          <label style={LABEL}>Shoot Title *</label>
+          <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Shot Date *</label>
+            <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+          </div>
+          <div>
+            <label style={LABEL}>Time</label>
+            <input type="time" style={FIELD} value={shotTime} onChange={e => setShotTime(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Notes</label>
+          <textarea style={{ ...FIELD, minHeight: 50, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} />
+        </div>
+        <p className="text-[10px]" style={{ color: "#9CA3AF", margin: 0 }}>
+          Crew and video titles are edited from their own actions — they aren&apos;t changed here.
+        </p>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Edit ad details ──────────────────────────────────────────────────────────
+function EditAdModal({ ad, clients, pastClients, onClose, onSaved }: {
+  ad: Ad
+  clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  onClose: () => void
+  onSaved: (patch: Pick<Ad, "client_name" | "ad_name" | "platform" | "launch_date" | "targeting_type" | "targeting_notes">) => void
+}) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const [client, setClient] = useState(ad.client_name)
+  const [adName, setAdName] = useState(ad.ad_name)
+  const [platform, setPlatform] = useState(ad.platform)
+  const [launchDate, setLaunchDate] = useState(ad.launch_date ?? "")
+  const [targeting, setTargeting] = useState<TargetingType | "">(ad.targeting_type ?? "")
+  const [notes, setNotes] = useState(ad.targeting_notes ?? "")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (!client) { setError("Client is required"); return }
+    if (!adName.trim()) { setError("Ad name is required"); return }
+    setSaving(true); setError(null)
+    const res = await updateAd({
+      ad_id: ad.id, client_name: client, ad_name: adName.trim(), platform,
+      launch_date: launchDate || undefined,
+      targeting_type: targeting || undefined,
+      targeting_notes: notes.trim() || undefined,
+    })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onSaved({
+      client_name: client, ad_name: adName.trim(), platform,
+      launch_date: launchDate || null,
+      targeting_type: targeting || null,
+      targeting_notes: notes.trim() || null,
+    })
+  }
+
+  return (
+    <Modal title="Edit Ad" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
+        <div>
+          <label style={LABEL}>Ad / Video Name *</label>
+          <input style={FIELD} value={adName} onChange={e => setAdName(e.target.value)} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Platform</label>
+            <input style={FIELD} value={platform} onChange={e => setPlatform(e.target.value)} />
+          </div>
+          <div>
+            <label style={LABEL}>Launch Date</label>
+            <input type="date" style={FIELD} value={launchDate} onChange={e => setLaunchDate(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Targeting Strategy</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {(Object.keys(TARGETING_CFG) as TargetingType[]).map(t => (
+              <button key={t} type="button" onClick={() => setTargeting(targeting === t ? "" : t)}
+                style={{ padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${targeting === t ? TARGETING_CFG[t].color : "#E5E7EB"}`, background: targeting === t ? `${TARGETING_CFG[t].color}14` : "#fff", color: targeting === t ? TARGETING_CFG[t].color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                {TARGETING_CFG[t].label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Strategy Notes</label>
+          <textarea style={{ ...FIELD, minHeight: 50, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} />
+        </div>
+        <p className="text-[10px]" style={{ color: "#9CA3AF", margin: 0 }}>
+          Status, hooks, performance and corrections have their own actions — they aren&apos;t changed here.
+        </p>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</PrimaryButton>
       </div>
     </Modal>
   )
@@ -1707,6 +2080,9 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [readyToPostItem, setReadyToPostItem] = useState<ContentItem | null>(null)
   const [correctionItem, setCorrectionItem] = useState<ContentItem | null>(null)
   const [goingCrewFor, setGoingCrewFor] = useState<Shoot | null>(null)
+  const [editCrewFor, setEditCrewFor] = useState<Shoot | null>(null)
+  const [editShootFor, setEditShootFor] = useState<Shoot | null>(null)
+  const [editAdFor, setEditAdFor] = useState<Ad | null>(null)
   const [shootsClientFilter, setShootsClientFilter] = useState<string>("all")
   // Separate drag state per board — only one board is mounted at a time, but keeping
   // them distinct avoids any chance of a stale id leaking across boards.
@@ -2012,7 +2388,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     startTransition(async () => { await updateShootStatus(shootId, "going", crew.map(m => m.id)) })
   }
 
-  function handleShootCompleted(shootId: string, created: CreatedShootItem[]) {
+  function handleShootCompleted(shootId: string, created: CreatedShootItem[], crew: Member[]) {
     const newItems: ContentItem[] = created.map(ci => ({
       id: ci.id, client_name: ci.client_name, title: ci.title, content_type: "video",
       status: "shot", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
@@ -2023,9 +2399,37 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     setShoots(prev => prev.map(s => s.id === shootId ? {
       ...s,
       status: "completed",
+      goingByUsers: crew.length > 0 ? crew : s.goingByUsers,
       titles: created.map(ci => ({ id: ci.shoot_title_id, title: ci.title, content_item_id: ci.id })),
     } : s))
     setCompleteShootFor(null)
+  }
+
+  function handleCrewSaved(shootId: string, crew: Member[]) {
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, goingByUsers: crew } : s))
+    setEditCrewFor(null)
+  }
+
+  function handleDeleteShoot(shoot: Shoot) {
+    // Deleting a completed shoot cascades its shoot_titles away, but the content items it
+    // produced are their own records and survive — say so, rather than letting someone
+    // assume the videos vanish too.
+    const warning = shoot.titles.length > 0
+      ? `Delete "${shoot.legacyTitle}"?\n\nThe ${shoot.titles.length} video(s) it produced stay in the Pipeline — only the shoot record is removed.`
+      : `Delete "${shoot.legacyTitle}"?`
+    if (!confirm(warning)) return
+    setShoots(prev => prev.filter(s => s.id !== shoot.id))
+    startTransition(async () => { await deleteShoot(shoot.id) })
+  }
+
+  function handleShootSaved(shootId: string, patch: { client: string; legacyTitle: string; start_time: string; notes: string | null }) {
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, ...patch } : s))
+    setEditShootFor(null)
+  }
+
+  function handleAdSaved(adId: string, patch: Pick<Ad, "client_name" | "ad_name" | "platform" | "launch_date" | "targeting_type" | "targeting_notes">) {
+    setAds(prev => prev.map(a => a.id === adId ? { ...a, ...patch } : a))
+    setEditAdFor(null)
   }
 
   function handleAdStatus(adId: string, status: AdStatus) {
@@ -2502,7 +2906,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               <AdCardInner key={ad.id} ad={ad} expanded={expandedAd === ad.id}
                 onToggleExpand={id => setExpandedAd(expandedAd === id ? null : id)}
                 onLogPerformance={setPerformanceModalAd} onLogCorrection={setRevisionModalAd}
-                onDelete={handleDeleteAd} />
+                onDelete={handleDeleteAd} onEdit={setEditAdFor} />
             ))}
           </div>
 
@@ -2527,7 +2931,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                             <AdCardInner ad={ad} expanded={expandedAd === ad.id} isDragging={adDragId === ad.id}
                               onToggleExpand={id => setExpandedAd(expandedAd === id ? null : id)}
                               onLogPerformance={setPerformanceModalAd} onLogCorrection={setRevisionModalAd}
-                              onDelete={handleDeleteAd} />
+                              onDelete={handleDeleteAd} onEdit={setEditAdFor} />
                           </KanbanCard>
                         ))}
                       </div>
@@ -2587,7 +2991,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
             {filteredShoots.filter(s => s.status === activeShootCol).length === 0 ? (
               <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No shoots</p>
             ) : filteredShoots.filter(s => s.status === activeShootCol).map(shoot => (
-              <ShootCardInner key={shoot.id} shoot={shoot} onStatus={handleShootStatus} />
+              <ShootCardInner key={shoot.id} shoot={shoot} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={setEditShootFor} onDelete={handleDeleteShoot} />
             ))}
           </div>
 
@@ -2609,7 +3013,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                           <KanbanEmptyCell isOver={shootOverCol === status} accent={cfg.color} />
                         ) : list.map(shoot => (
                           <KanbanCard key={shoot.id} id={shoot.id}>
-                            <ShootCardInner shoot={shoot} isDragging={shootDragId === shoot.id} onStatus={handleShootStatus} />
+                            <ShootCardInner shoot={shoot} isDragging={shootDragId === shoot.id} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={setEditShootFor} onDelete={handleDeleteShoot} />
                           </KanbanCard>
                         ))}
                       </div>
@@ -2671,8 +3075,24 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           onCreated={shoot => { setShoots(prev => [shoot, ...prev]); setShowNewShoot(false) }} />
       )}
       {completeShootFor && (
-        <CompleteShootModal shoot={completeShootFor} onClose={() => setCompleteShootFor(null)}
-          onCompleted={created => handleShootCompleted(completeShootFor.id, created)} />
+        <CompleteShootModal shoot={completeShootFor} members={members} currentUserId={currentUserId}
+          onClose={() => setCompleteShootFor(null)}
+          onCompleted={(created, crew) => handleShootCompleted(completeShootFor.id, created, crew)} />
+      )}
+      {editCrewFor && (
+        <EditCrewModal shoot={editCrewFor} members={members} currentUserId={currentUserId}
+          onClose={() => setEditCrewFor(null)}
+          onSaved={crew => handleCrewSaved(editCrewFor.id, crew)} />
+      )}
+      {editShootFor && (
+        <EditShootModal shoot={editShootFor} clients={clients} pastClients={pastClients}
+          onClose={() => setEditShootFor(null)}
+          onSaved={patch => handleShootSaved(editShootFor.id, patch)} />
+      )}
+      {editAdFor && (
+        <EditAdModal ad={editAdFor} clients={clients} pastClients={pastClients}
+          onClose={() => setEditAdFor(null)}
+          onSaved={patch => handleAdSaved(editAdFor.id, patch)} />
       )}
       {startEditingItem && (
         <StartEditingModal item={startEditingItem} members={members} currentUserId={currentUserId}

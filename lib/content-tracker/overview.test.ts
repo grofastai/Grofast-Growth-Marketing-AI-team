@@ -18,10 +18,10 @@ function item(overrides: Partial<OverviewItem> = {}): OverviewItem {
   }
 }
 function shoot(overrides: Partial<OverviewShoot> = {}): OverviewShoot {
-  return { id: 's1', status: 'scheduled', start_time: `${TODAY}T09:00:00`, ...overrides }
+  return { id: 's1', status: 'scheduled', start_time: `${TODAY}T09:00:00`, created_at: `${TODAY}T09:00:00Z`, ...overrides }
 }
 function ad(overrides: Partial<OverviewAd> = {}): OverviewAd {
-  return { id: 'a1', status: 'active', ...overrides }
+  return { id: 'a1', status: 'active', created_at: `${TODAY}T09:00:00Z`, ...overrides }
 }
 const EMPTY_STAGES = { scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0, editing: 0, edited: 0, on_review: 0, ready_to_post: 0, posted: 0 }
 
@@ -220,5 +220,64 @@ describe('needs attention — ordering and empty state', () => {
       shoots: [], ads: [], today: TODAY,
     })
     expect(o.attention).toEqual([])
+  })
+})
+
+describe('range filter — scopes stage counts, not posting/attention', () => {
+  it('excludes items created outside the range from stage counts', () => {
+    const o = computeOverview({
+      items: [
+        item({ id: '1', status: 'ready_to_edit', created_at: '2026-06-15T00:00:00Z' }),
+        item({ id: '2', status: 'ready_to_edit', created_at: '2026-07-10T00:00:00Z' }),
+      ],
+      shoots: [], ads: [], today: TODAY,
+      range: { from: '2026-07-01', to: '2026-07-31' },
+    })
+    expect(o.videos.ready_to_edit).toBe(1)
+  })
+
+  it('excludes shoots and ads created outside the range', () => {
+    const o = computeOverview({
+      items: [],
+      shoots: [
+        shoot({ id: 's1', status: 'completed', created_at: '2026-06-01T00:00:00Z' }),
+        shoot({ id: 's2', status: 'completed', created_at: '2026-07-10T00:00:00Z' }),
+      ],
+      ads: [
+        ad({ id: 'a1', status: 'active', created_at: '2026-06-01T00:00:00Z' }),
+        ad({ id: 'a2', status: 'active', created_at: '2026-07-10T00:00:00Z' }),
+      ],
+      today: TODAY,
+      range: { from: '2026-07-01', to: '2026-07-31' },
+    })
+    expect(o.shoots.completed).toBe(1)
+    expect(o.ads.active).toBe(1)
+  })
+
+  it('does not affect posting or attention counts, even outside the range', () => {
+    const o = computeOverview({
+      items: [
+        item({
+          id: '1', status: 'ready_to_post', created_at: '2026-01-01T00:00:00Z',
+          scheduled_post_date: '2026-07-01',
+        }),
+      ],
+      shoots: [], ads: [], today: TODAY,
+      range: { from: '2026-07-10', to: '2026-07-14' },
+    })
+    expect(o.posting.overdue).toBe(1)
+    expect(o.attention.find(a => a.kind === 'overdue')?.count).toBe(1)
+  })
+
+  it('with no range, behaves exactly as before (everything counted)', () => {
+    const o = computeOverview({
+      items: [item({ id: '1', status: 'ready_to_edit', created_at: '2020-01-01T00:00:00Z' })],
+      shoots: [shoot({ created_at: '2020-01-01T00:00:00Z' })],
+      ads: [ad({ created_at: '2020-01-01T00:00:00Z' })],
+      today: TODAY,
+    })
+    expect(o.videos.ready_to_edit).toBe(1)
+    expect(o.shoots.scheduled).toBe(1)
+    expect(o.ads.active).toBe(1)
   })
 })

@@ -25,7 +25,7 @@ export async function getContentTrackerData(companyId: string): Promise<{
     admin.from('ads_tracker').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
     admin.from('ad_revisions').select('*').eq('company_id', companyId).order('revision_date', { ascending: false }),
     admin.from('ad_performance_entries').select('*').eq('company_id', companyId).order('entry_date', { ascending: false }),
-    admin.from('shoots').select('id, title, client, start_time, notes, status, going_by').eq('company_id', companyId).order('start_time', { ascending: false }),
+    admin.from('shoots').select('id, title, client, start_time, notes, status, going_by, created_at').eq('company_id', companyId).order('start_time', { ascending: false }),
     admin.from('shoot_titles').select('id, shoot_id, title, content_item_id').eq('company_id', companyId),
     admin.from('content_corrections').select('*').eq('company_id', companyId).order('correction_date', { ascending: false }),
     admin.from('freelancers').select('id, name, team, status').eq('company_id', companyId),
@@ -47,7 +47,7 @@ export async function getContentTrackerData(companyId: string): Promise<{
   type AdRow = { id: string; client_name: string; ad_name: string; platform: string; launch_date: string | null; hook_count: number; targeting_type: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null; targeting_notes: string | null; status: 'active' | 'paused' | 'testing' | 'stopped'; created_at: string }
   type RevisionRow = { id: string; ad_id: string; revision_date: string; notes: string; hook_count_after: number | null; targeting_type_after: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null }
   type PerformanceRow = { id: string; ad_id: string; entry_date: string; spend: number; impressions: number; reach: number; clicks: number; ctr: number; results: number; note: string | null }
-  type ShootRow = { id: string; title: string; client: string; start_time: string; notes: string | null; status: 'scheduled' | 'going' | 'completed' | 'cancelled'; going_by: string[] | null }
+  type ShootRow = { id: string; title: string; client: string; start_time: string; notes: string | null; status: 'scheduled' | 'going' | 'completed' | 'cancelled'; going_by: string[] | null; created_at: string }
   type ShootTitleRow = { id: string; shoot_id: string; title: string; content_item_id: string | null }
   type CorrectionRow = { id: string; content_item_id: string; correction_date: string; notes: string; requested_by: string | null; assigned_to: string | null }
   type FreelancerRow = { id: string; name: string; team: string | null; status: string }
@@ -154,6 +154,7 @@ export async function getContentTrackerData(companyId: string): Promise<{
     client: row.client,
     legacyTitle: row.title,
     start_time: row.start_time,
+    created_at: row.created_at,
     notes: row.notes,
     status: row.status,
     goingByUsers: (row.going_by ?? [])

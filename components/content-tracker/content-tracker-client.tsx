@@ -27,7 +27,12 @@ import { computeOverview, type AttentionItem } from "@/lib/content-tracker/overv
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb"
-type ContentStatus = "shot" | "editing" | "edited" | "ready" | "posted"
+type UseFor = Platform | "ads"
+type Priority = "low" | "medium" | "high" | "urgent"
+type ContentSource = "shoot" | "ads_video" | "poster"
+type ContentStatus =
+  | "scripting" | "voiceover" | "design" | "ready_to_edit"
+  | "editing" | "edited" | "on_review" | "ready_to_post" | "posted"
 type TargetingType = "broad" | "interest" | "lookalike" | "retargeting"
 type AdStatus = "active" | "paused" | "testing" | "stopped"
 
@@ -57,6 +62,7 @@ export type ContentItem = {
   title: string
   content_type: "video" | "poster"
   status: ContentStatus
+  source: ContentSource
   shot_date: string | null
   edited_date: string | null
   notes: string | null
@@ -65,11 +71,22 @@ export type ContentItem = {
   ready_platforms: Platform[]
   scheduled_post_date: string | null
   scheduled_post_time: string | null
+  // Ads Video (Scripting) fields — null/empty for shoot- and poster-sourced items.
+  hook_count: number | null
+  use_for: UseFor[]
+  priority: Priority | null
+  voiceover_date: string | null
+  reviewed_at: string | null
   shotByUser?: Person
   editedByUser?: Person
+  scriptedByUser?: Person
+  reviewedByUser?: Person
+  voiceoverBy?: { id: string; name: string } | null
   corrections: ContentCorrection[]
   posts: ContentPost[]
 }
+
+export type VoiceFreelancer = { id: string; name: string }
 
 export type AdRevision = {
   id: string
@@ -118,17 +135,39 @@ type Props = {
   currentUserId: string
   clients: { id: string; name: string }[]
   pastClients: { id: string; name: string }[]
+  voiceoverFreelancers: VoiceFreelancer[]
 }
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
-  shot:    { label: "Shot",          accent: "#F59E0B" },
-  editing: { label: "Editing",       accent: "#6366F1" },
-  edited:  { label: "Edited",        accent: "#9B6BFF" },
-  ready:   { label: "Ready to Post", accent: "#0EA5E9" },
-  posted:  { label: "Posted",        accent: "#22C55E" },
+  scripting:     { label: "Scripting",     accent: "#F97316" },
+  voiceover:     { label: "Voice Over",    accent: "#EAB308" },
+  design:        { label: "Design",        accent: "#F59E0B" },
+  ready_to_edit: { label: "Ready to Edit", accent: "#F59E0B" },
+  editing:       { label: "Editing",       accent: "#6366F1" },
+  edited:        { label: "Edited",        accent: "#9B6BFF" },
+  on_review:     { label: "On Review",     accent: "#EC4899" },
+  ready_to_post: { label: "Ready to Post", accent: "#0EA5E9" },
+  posted:        { label: "Posted",        accent: "#22C55E" },
 }
-const STATUS_ORDER: ContentStatus[] = ["shot", "editing", "edited", "ready", "posted"]
+// The production board's column order — differs by content type only in its first column
+// (shoot/ads-video video enters at Ready to Edit; posters enter at Design).
+const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "editing", "edited", "on_review", "ready_to_post"]
+const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "editing", "edited", "on_review", "ready_to_post"]
+// The Ads Video sub-tab's own two-column board — feeds INTO Ready to Edit, doesn't include it.
+const ADS_VIDEO_ORDER: ContentStatus[] = ["scripting", "voiceover"]
+// The default "move forward" target for the generic advance button. on_review is
+// deliberately absent — it branches two ways (approve / correction) and gets its own
+// two-button UI instead of a single generic button. posted is terminal.
+const NEXT_STATUS: Partial<Record<ContentStatus, ContentStatus>> = {
+  scripting: "voiceover",
+  voiceover: "ready_to_edit",
+  design: "editing",
+  ready_to_edit: "editing",
+  editing: "edited",
+  edited: "on_review",
+  ready_to_post: "posted",
+}
 
 const PLATFORM_CFG: Record<Platform, { label: string; color: string; icon: typeof Camera }> = {
   instagram: { label: "Instagram", color: "#E1306C", icon: Camera },
@@ -136,6 +175,18 @@ const PLATFORM_CFG: Record<Platform, { label: string; color: string; icon: typeo
   facebook:  { label: "Facebook",  color: "#1877F2", icon: ThumbsUp },
   linkedin:  { label: "LinkedIn",  color: "#0A66C2", icon: Building2 },
   gmb:       { label: "GMB",       color: "#1E8E3E", icon: Store },
+}
+
+const USE_FOR_CFG: Record<UseFor, { label: string; color: string; icon: typeof Camera }> = {
+  ...PLATFORM_CFG,
+  ads: { label: "Ads", color: "#D97706", icon: Megaphone },
+}
+
+const PRIORITY_CFG: Record<Priority, { label: string; color: string }> = {
+  low:    { label: "Low",    color: "#6B7280" },
+  medium: { label: "Medium", color: "#3B82F6" },
+  high:   { label: "High",   color: "#F59E0B" },
+  urgent: { label: "Urgent", color: "#DE1A1A" },
 }
 
 const TARGETING_CFG: Record<TargetingType, { label: string; color: string }> = {
@@ -183,6 +234,12 @@ function daysAgo(d?: string | null) {
   if (!d) return null
   const diff = Math.floor((Date.now() - new Date(d + "T00:00:00").getTime()) / 86400000)
   return diff
+}
+// The date that anchors "how long has this been sitting here" — shot_date for shoot
+// video, voiceover_date for ads video, falling back to created_at for either if neither
+// is set yet (an ads-video item still in Scripting has no voiceover_date at all).
+function originDate(item: ContentItem): string | null {
+  return item.shot_date ?? item.voiceover_date ?? item.created_at?.slice(0, 10) ?? null
 }
 function fmtMonth(ym: string) {
   const [y, m] = ym.split("-").map(Number)
@@ -2049,7 +2106,7 @@ function EditAdModal({ ad, clients, pastClients, onClose, onSaved }: {
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
-export default function ContentTrackerClient({ initialItems, initialAds, initialShoots, members, currentUserId, clients, pastClients }: Props) {
+export default function ContentTrackerClient({ initialItems, initialAds, initialShoots, members, currentUserId, clients, pastClients, voiceoverFreelancers }: Props) {
   const [items, setItems] = useState(initialItems)
   const [ads, setAds] = useState(initialAds)
   const [shoots, setShoots] = useState(initialShoots)

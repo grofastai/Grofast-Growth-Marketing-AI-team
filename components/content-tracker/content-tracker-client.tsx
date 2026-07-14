@@ -23,6 +23,7 @@ import {
 } from "@/lib/actions/content-tracker"
 import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
+import { isValidPipelineTransition } from "@/lib/content-tracker/pipeline-transitions"
 import { computeOverview, type AttentionItem } from "@/lib/content-tracker/overview"
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -419,17 +420,20 @@ function ContentCardInner({
   onEdit?: (item: ContentItem) => void
 }) {
   const TypeIcon = item.content_type === "video" ? Video : ImageIcon
-  const age = item.status === "shot" ? daysAgo(item.shot_date) : item.status === "edited" ? daysAgo(item.edited_date) : null
+  const age = (item.status === "ready_to_edit" || item.status === "design") ? daysAgo(originDate(item))
+    : item.status === "edited" ? daysAgo(item.edited_date) : null
   const stale = age !== null && age >= 3
 
   // The drag overlay renders this card with no handlers, so an empty menu is expected there
   // and the kebab is simply omitted.
   const cardMenu: CardMenuItem[] = []
   if (onEdit) cardMenu.push({ label: "Edit details", icon: Pencil, onClick: () => onEdit(item) })
-  if (onRequestCorrection && item.status === "edited") {
+  if (onRequestCorrection && item.status === "on_review") {
     cardMenu.push({ label: "Needs correction", icon: RotateCcw, onClick: () => onRequestCorrection(item) })
   }
   if (onEdit) cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true })
+
+  const next = NEXT_STATUS[item.status]
 
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
@@ -455,12 +459,30 @@ function ContentCardInner({
       <div className="flex flex-wrap items-center gap-1 mb-2.5">
         <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full truncate max-w-[110px]"
           style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>{item.client_name}</span>
+        {item.source === "ads_video" && (
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(217,119,6,0.1)", color: "#D97706" }}>
+            🎙️ Ads Video
+          </span>
+        )}
         {stale && (
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-auto" style={{ background: "rgba(245,158,11,0.1)", color: "#D97706" }}>
             {age}d stuck
           </span>
         )}
       </div>
+
+      {item.priority && (
+        <div className="flex flex-wrap items-center gap-1 mb-2.5">
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${PRIORITY_CFG[item.priority].color}18`, color: PRIORITY_CFG[item.priority].color }}>
+            {PRIORITY_CFG[item.priority].label}
+          </span>
+          {item.hook_count !== null && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#F3F4F6", color: "#374151" }}>
+              {item.hook_count} hook{item.hook_count === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
+      )}
 
       {item.status === "posted" && item.posts.length > 0 && (
         <div className="flex flex-wrap items-center gap-1 mb-2.5">
@@ -485,6 +507,13 @@ function ContentCardInner({
             </div>
           </div>
         )}
+        {item.voiceoverBy && (item.status === "voiceover" || item.status === "ready_to_edit") && (
+          <div className="flex items-center gap-1" title={`Voiced by ${item.voiceoverBy.name}`}>
+            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#EAB308", color: "#fff" }}>
+              {initials(item.voiceoverBy.name)}
+            </div>
+          </div>
+        )}
         {/* While it's in Editing, name the editor outright — the point of asking "who's
             starting this?" is that the rest of the team can see it without hovering. */}
         {item.editedByUser && item.status === "editing" ? (
@@ -504,11 +533,11 @@ function ContentCardInner({
             </div>
           </div>
         ) : null}
-        <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(item.shot_date)}</span>
+        <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(originDate(item))}</span>
       </div>
 
       {/* Scheduled slot — shown while it's queued in Ready to Post. */}
-      {item.status === "ready" && item.scheduled_post_date && (
+      {item.status === "ready_to_post" && item.scheduled_post_date && (
         <div className="mb-2 p-2 rounded-xl" style={{ background: "rgba(14,165,233,0.08)" }}>
           <div className="flex items-center gap-1 mb-1">
             <CalendarDays size={10} style={{ color: "#0EA5E9" }} />
@@ -545,25 +574,33 @@ function ContentCardInner({
         </div>
       )}
 
-      {item.status !== "posted" && (
+      {/* The review gate: approve moves it on, a correction sends it back to Editing. */}
+      {item.status === "on_review" ? (
+        <div className="flex flex-col gap-1.5">
+          <button
+            onPointerDown={e => e.stopPropagation()}
+            onClick={() => onAdvance(item, "ready_to_post")}
+            className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
+            style={{ background: `${STATUS_CFG.ready_to_post.accent}14`, color: STATUS_CFG.ready_to_post.accent }}>
+            Approve <ArrowRight size={10} />
+          </button>
+          {onRequestCorrection && (
+            <button
+              onPointerDown={e => e.stopPropagation()}
+              onClick={() => onRequestCorrection(item)}
+              className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
+              style={{ background: "rgba(245,158,11,0.1)", color: "#D97706" }}>
+              <RotateCcw size={10} /> Needs Correction
+            </button>
+          )}
+        </div>
+      ) : next && (
         <button
           onPointerDown={e => e.stopPropagation()}
-          onClick={() => onAdvance(item, STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1])}
+          onClick={() => onAdvance(item, next)}
           className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
-          style={{ background: `${STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].accent}14`, color: STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].accent }}>
-          {item.status === "ready" ? <>Mark Posted <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].label} <ArrowRight size={10} /></>}
-        </button>
-      )}
-
-      {/* The correction path — an Edited item can go forward to scheduling, or back to
-          Editing if the review turns up changes. */}
-      {item.status === "edited" && onRequestCorrection && (
-        <button
-          onPointerDown={e => e.stopPropagation()}
-          onClick={() => onRequestCorrection(item)}
-          className="w-full py-1.5 mt-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
-          style={{ background: "rgba(245,158,11,0.1)", color: "#D97706" }}>
-          <RotateCcw size={10} /> Needs Correction
+          style={{ background: `${STATUS_CFG[next].accent}14`, color: STATUS_CFG[next].accent }}>
+          {item.status === "ready_to_post" ? <>Mark Posted <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
         </button>
       )}
       {item.status === "posted" && (
@@ -2134,6 +2171,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [showNewShoot, setShowNewShoot] = useState(false)
   const [completeShootFor, setCompleteShootFor] = useState<Shoot | null>(null)
   const [startEditingItem, setStartEditingItem] = useState<ContentItem | null>(null)
+  const [voiceOverItem, setVoiceOverItem] = useState<ContentItem | null>(null)
   const [readyToPostItem, setReadyToPostItem] = useState<ContentItem | null>(null)
   const [correctionItem, setCorrectionItem] = useState<ContentItem | null>(null)
   const [goingCrewFor, setGoingCrewFor] = useState<Shoot | null>(null)
@@ -2220,10 +2258,13 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
   function advance(item: ContentItem, next: ContentStatus) {
     if (next === "posted") { setPlatformModalItem(item); return }
-    // Ready to Post asks where and when it's going out.
-    if (next === "ready") { setReadyToPostItem(item); return }
+    // Ready to Post asks where and when it's going out — used both for the normal forward
+    // path and for approving out of On Review.
+    if (next === "ready_to_post") { setReadyToPostItem(item); return }
     // Entering Editing asks who's starting it — that's the accountability moment.
     if (next === "editing" && members.length > 0) { setStartEditingItem(item); return }
+    // Entering Voice Over asks who recorded it.
+    if (next === "voiceover") { setVoiceOverItem(item); return }
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, ...(next === "edited" ? { edited_date: new Date().toISOString().split("T")[0] } : {}) } : i))
     startTransition(async () => { await updateContentItemStatus(item.id, next) })
   }
@@ -2257,6 +2298,13 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     startTransition(async () => { await updateContentItemStatus(item.id, "editing", editorId) })
   }
 
+  function handleVoiceOverRecorded(item: ContentItem, voiceoverBy: VoiceFreelancer, date: string) {
+    setItems(prev => prev.map(i => i.id === item.id
+      ? { ...i, status: "voiceover", voiceoverBy, voiceover_date: date }
+      : i))
+    setVoiceOverItem(null)
+  }
+
   function handleDeleteItem(id: string) {
     setItems(prev => prev.filter(i => i.id !== id))
     startTransition(async () => { await deleteContentItem(id) })
@@ -2266,9 +2314,9 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   function handleDragOver(e: { over: { id: string } | null }) { setOverCol(e.over?.id ?? null) }
   function handleDragEnd(e: DragEndEvent) {
     const overId = e.over?.id as ContentStatus | undefined
-    if (overId && STATUS_ORDER.includes(overId)) {
+    if (overId) {
       const item = items.find(i => i.id === e.active.id)
-      if (item && item.status !== overId) advance(item, overId)
+      if (item && item.status !== overId && isValidPipelineTransition(item.status, overId)) advance(item, overId)
     }
     setDragId(null); setOverCol(null)
   }

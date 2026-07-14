@@ -42,7 +42,7 @@ export async function getContentTrackerData(companyId: string): Promise<{
     scripted_by: string | null; voiceover_by: string | null; voiceover_date: string | null
     reviewed_by: string | null; reviewed_at: string | null
   }
-  type PostRow = { id: string; content_item_id: string; platform: 'instagram' | 'youtube' | 'facebook' | 'linkedin' | 'gmb'; posted_date: string; posted_by: string | null; post_link: string | null }
+  type PostRow = { id: string; content_item_id: string; platform: 'instagram' | 'youtube' | 'facebook' | 'linkedin' | 'gmb' | 'ads'; posted_date: string; posted_by: string | null; post_link: string | null }
   type UserRow = { id: string; name: string }
   type AdRow = { id: string; client_name: string; ad_name: string; platform: string; launch_date: string | null; hook_count: number; targeting_type: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null; targeting_notes: string | null; status: 'active' | 'paused' | 'testing' | 'stopped'; created_at: string }
   type RevisionRow = { id: string; ad_id: string; revision_date: string; notes: string; hook_count_after: number | null; targeting_type_after: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null }

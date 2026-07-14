@@ -45,9 +45,11 @@ export async function GET(req: NextRequest) {
   const today = `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`
 
   // Find attendance records: clocked in today but no clock_out
+  // attendance_logs.user_id has no FK constraint to users.id in this schema, so an
+  // embedded users(...) join can't be resolved — fetch users separately and merge.
   const { data: unclosed } = await admin
-    .from('attendance')
-    .select('id, user_id, clock_in, users(id, name, phone)')
+    .from('attendance_logs')
+    .select('id, user_id, clock_in')
     .eq('company_id', companyId)
     .eq('date', today)
     .not('clock_in', 'is', null)
@@ -57,20 +59,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ autoLoggedOut: 0, message: 'All members clocked out' })
   }
 
+  const { data: users } = await admin
+    .from('users')
+    .select('id, name, phone')
+    .in('id', unclosed.map(rec => rec.user_id))
+  const userById = new Map((users ?? []).map(u => [u.id, u]))
+
   const clockOutTime = now.toISOString()
   let autoLoggedOut = 0
   let notified = 0
 
   await Promise.all(
-    unclosed.map(async (rec: any) => {
+    unclosed.map(async (rec) => {
       const { error } = await admin
-        .from('attendance')
+        .from('attendance_logs')
         .update({ clock_out: clockOutTime })
         .eq('id', rec.id)
 
       if (!error) autoLoggedOut++
 
-      const user = Array.isArray(rec.users) ? rec.users[0] : rec.users
+      const user = userById.get(rec.user_id)
       if (user?.phone) {
         const firstName = (user.name as string).split(' ')[0]
         const ok = await sendWhatsAppTemplate(
@@ -94,10 +102,7 @@ export async function GET(req: NextRequest) {
 
   if (adminUser?.phone && unclosed.length > 0) {
     const names = unclosed
-      .map((r: any) => {
-        const u = Array.isArray(r.users) ? r.users[0] : r.users
-        return (u?.name as string) ?? 'Unknown'
-      })
+      .map(r => userById.get(r.user_id)?.name ?? 'Unknown')
       .slice(0, 5)
       .join(', ')
     const display = unclosed.length > 5 ? `${names} and ${unclosed.length - 5} more` : names

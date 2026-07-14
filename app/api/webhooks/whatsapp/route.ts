@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 import { autoInsertLeaveHistory } from '@/lib/leave-approval-effects'
+import { findUnresolvedLogoutDate, formatGateDate } from '@/lib/attendance-gate'
 
 // GET — Meta webhook verification handshake
 export async function GET(req: NextRequest) {
@@ -302,6 +303,12 @@ async function handleAttendanceButtonReply(
     return
   }
 
+  const unresolvedDate = await findUnresolvedLogoutDate(supabase, user.company_id, user.id, today)
+  if (unresolvedDate) {
+    await sendWhatsAppReply(from, `You forgot to clock out on ${formatGateDate(unresolvedDate)}. Please open the GroFast app → Attendance page and fix your logout time before marking attendance today.`)
+    return
+  }
+
   if (buttonId === 'attendance_leave') {
     const { error: leaveErr } = await supabase.from('attendance_logs').insert({
       company_id: user.company_id,
@@ -396,6 +403,12 @@ async function handleAttendanceTextReply(from: string, text: string) {
 
   if (existingRows && existingRows.length > 0) {
     await sendWhatsAppReply(from, 'Your attendance is already marked for today ✅')
+    return
+  }
+
+  const unresolvedDate = await findUnresolvedLogoutDate(supabase, user.company_id, user.id, today)
+  if (unresolvedDate) {
+    await sendWhatsAppReply(from, `You forgot to clock out on ${formatGateDate(unresolvedDate)}. Please open the GroFast app → Attendance page and fix your logout time before marking attendance today.`)
     return
   }
 

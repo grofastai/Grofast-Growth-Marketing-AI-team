@@ -29,8 +29,10 @@ import { isValidPipelineTransition } from "@/lib/content-tracker/pipeline-transi
 import { computeOverview, type AttentionItem } from "@/lib/content-tracker/overview"
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb"
-type UseFor = Platform | "ads"
+// "ads" is a real posting destination — an Ads Video can be scheduled/posted straight
+// to Ads with no organic platform attached, so it lives in Platform, not just UseFor.
+type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb" | "ads"
+type UseFor = Platform
 type Priority = "low" | "medium" | "high" | "urgent"
 type ContentSource = "shoot" | "ads_video" | "poster"
 type ContentStatus =
@@ -178,12 +180,10 @@ const PLATFORM_CFG: Record<Platform, { label: string; color: string; icon: typeo
   facebook:  { label: "Facebook",  color: "#1877F2", icon: ThumbsUp },
   linkedin:  { label: "LinkedIn",  color: "#0A66C2", icon: Building2 },
   gmb:       { label: "GMB",       color: "#1E8E3E", icon: Store },
+  ads:       { label: "Ads",       color: "#D97706", icon: Megaphone },
 }
 
-const USE_FOR_CFG: Record<UseFor, { label: string; color: string; icon: typeof Camera }> = {
-  ...PLATFORM_CFG,
-  ads: { label: "Ads", color: "#D97706", icon: Megaphone },
-}
+const USE_FOR_CFG: Record<UseFor, { label: string; color: string; icon: typeof Camera }> = PLATFORM_CFG
 
 const PRIORITY_CFG: Record<Priority, { label: string; color: string }> = {
   low:    { label: "Low",    color: "#6B7280" },
@@ -2558,6 +2558,11 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       if (i.shot_date) months.add(i.shot_date.slice(0, 7))
       if (i.edited_date) months.add(i.edited_date.slice(0, 7))
       for (const p of i.posts) months.add(p.posted_date.slice(0, 7))
+      // Ads Video items never get a shot_date — without this they'd have no month
+      // bucket at all and would vanish from every day/month-filtered view.
+      if (i.source === "ads_video" && !i.shot_date) {
+        months.add((i.voiceover_date ?? i.created_at).slice(0, 7))
+      }
     }
     return Array.from(months).sort().reverse()
   }, [items])
@@ -2570,7 +2575,9 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       return dates.length ? dates[dates.length - 1] : null
     }
     if (item.status === "edited") return item.edited_date
-    return item.shot_date
+    // Ads Video items have no shot_date — fall back to when voice-over was recorded,
+    // or creation date, so a day/month filter doesn't silently hide them.
+    return item.shot_date ?? item.voiceover_date ?? item.created_at.slice(0, 10)
   }
   function itemMonthBucket(item: ContentItem): string | null {
     return itemStageDate(item)?.slice(0, 7) ?? null
@@ -2606,8 +2613,15 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     if (next === "editing" && members.length > 0) { setStartEditingItem(item); return }
     // Entering Voice Over asks who recorded it.
     if (next === "voiceover") { setVoiceOverItem(item); return }
+    const previous = item.status
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, ...(next === "edited" ? { edited_date: new Date().toISOString().split("T")[0] } : {}) } : i))
-    startTransition(async () => { await updateContentItemStatus(item.id, next) })
+    startTransition(async () => {
+      const res = await updateContentItemStatus(item.id, next)
+      if (!res.success) {
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: previous } : i))
+        alert(res.error ?? `Failed to move to ${STATUS_CFG[next].label}`)
+      }
+    })
   }
 
   function handleCorrectionRequested(correction: ContentCorrection) {
@@ -2829,7 +2843,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       if (shoot) setCompleteShootFor(shoot)
       return
     }
-    if (status === "going" && members.length > 0) {
+    if (status === "going" && members.length > 0 && !shoot?.goingByUsers.length) {
       if (shoot) setGoingCrewFor(shoot)
       return
     }

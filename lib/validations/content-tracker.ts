@@ -1,8 +1,16 @@
 import { z } from 'zod'
 
-export const CONTENT_STATUSES = ['shot', 'editing', 'edited', 'ready', 'posted'] as const
+export const CONTENT_STATUSES = [
+  'scripting', 'voiceover', 'design', 'ready_to_edit',
+  'editing', 'edited', 'on_review', 'ready_to_post', 'posted',
+] as const
 export const CONTENT_TYPES    = ['video', 'poster'] as const
+export const CONTENT_SOURCES  = ['shoot', 'ads_video', 'poster'] as const
 export const PLATFORMS        = ['instagram', 'youtube', 'facebook', 'linkedin', 'gmb'] as const
+// What an Ads Video script is intended for — the same platform set plus "ads" itself,
+// since a script can be written purely for a paid ad with no organic platform attached.
+export const USE_FOR_OPTIONS  = ['ads', 'instagram', 'youtube', 'facebook', 'linkedin', 'gmb'] as const
+export const PRIORITY_LEVELS  = ['low', 'medium', 'high', 'urgent'] as const
 export const TARGETING_TYPES  = ['broad', 'interest', 'lookalike', 'retargeting'] as const
 export const AD_STATUSES      = ['active', 'paused', 'testing', 'stopped'] as const
 
@@ -75,6 +83,39 @@ export const requestCorrectionSchema = z.object({
   assigned_to:     z.string().uuid().optional(),
 })
 export type RequestCorrectionInput = z.infer<typeof requestCorrectionSchema>
+
+// Scripting is where an Ads Video starts — no shoot, no shot_date.
+export const createAdsVideoScriptSchema = z.object({
+  client_name: z.string().min(1, 'Client is required'),
+  title:       z.string().min(1, 'Title is required'),
+  hook_count:  z.number().int().min(0).default(0),
+  use_for:     z.array(z.enum(USE_FOR_OPTIONS)).min(1, 'Pick at least one'),
+  priority:    z.enum(PRIORITY_LEVELS).default('medium'),
+  notes:       z.string().optional(),
+})
+export type CreateAdsVideoScriptInput = z.infer<typeof createAdsVideoScriptSchema>
+
+// Assigning the recorded voice-over — who, and when. Moves the item to "voiceover".
+export const recordVoiceOverSchema = z.object({
+  content_item_id: z.string().uuid(),
+  voiceover_by:    z.string().uuid(),
+  voiceover_date:  z.string().min(1, 'Date is required'),
+})
+export type RecordVoiceOverInput = z.infer<typeof recordVoiceOverSchema>
+
+// Editing an Ads Video's scripting details — same field set as creation, minus status.
+// Deliberately separate from updateContentItemSchema (which has shot_date, meaningless
+// for an ads-video item) rather than bolting these fields on there.
+export const updateAdsVideoScriptSchema = z.object({
+  content_item_id: z.string().uuid(),
+  client_name:     z.string().min(1, 'Client is required'),
+  title:           z.string().min(1, 'Title is required'),
+  hook_count:      z.number().int().min(0).default(0),
+  use_for:         z.array(z.enum(USE_FOR_OPTIONS)).min(1, 'Pick at least one'),
+  priority:        z.enum(PRIORITY_LEVELS).default('medium'),
+  notes:           z.string().optional(),
+})
+export type UpdateAdsVideoScriptInput = z.infer<typeof updateAdsVideoScriptSchema>
 
 // Moving an item to "Ready to Post" schedules it: which platforms, which day, what time.
 export const markReadyToPostSchema = z.object({

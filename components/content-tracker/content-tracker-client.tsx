@@ -244,26 +244,102 @@ function PrimaryButton({ children, onClick, disabled, type = "button" }: { child
 }
 
 // ── Pill toggle (tab switcher) ───────────────────────────────────────────────
-function TabToggle({ tabs, active, onChange }: { tabs: { key: string; label: string; icon: typeof Layers }[]; active: string; onChange: (k: string) => void }) {
+// Each mode owns an accent so you always know which board you're on at a glance —
+// the section rail below picks it up, tying the two levels together.
+type TrackerMode = "video" | "poster" | "ads"
+const MODE_ACCENT: Record<TrackerMode, { solid: string; grad: string; glow: string; soft: string }> = {
+  video: { solid: "#DE1A1A", grad: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", glow: "rgba(222,26,26,0.45)", soft: "rgba(222,26,26,0.10)" },
+  poster: { solid: "#7C3AED", grad: "linear-gradient(135deg,#A78BFA,#7C3AED)", glow: "rgba(124,58,237,0.45)", soft: "rgba(124,58,237,0.10)" },
+  ads: { solid: "#D97706", grad: "linear-gradient(135deg,#FBBF24,#D97706)", glow: "rgba(217,119,6,0.45)", soft: "rgba(217,119,6,0.10)" },
+}
+
+const NAV_MODES: { key: TrackerMode; label: string; icon: typeof Layers }[] = [
+  { key: "video", label: "Video", icon: Video },
+  { key: "poster", label: "Poster", icon: ImageIcon },
+  { key: "ads", label: "Ads", icon: Megaphone },
+]
+
+// Two levels, two different visual languages: the mode rail is a solid switch on dark,
+// the section rail is an underlined tab strip on white. Stacking two identical pill bars
+// made them read as siblings when one actually governs the other.
+function TrackerNav({ mode, onMode, tab, onTab, modeCounts, sections }: {
+  mode: TrackerMode
+  onMode: (m: TrackerMode) => void
+  tab: string
+  onTab: (t: string) => void
+  modeCounts: Record<TrackerMode, number>
+  sections: { key: string; label: string; icon: typeof Layers; count: number }[]
+}) {
+  const accent = MODE_ACCENT[mode]
   return (
-    <div style={{ display: "flex", gap: 6, background: "#1F2937", borderRadius: 14, padding: 5, flexWrap: "wrap" }}>
-      {tabs.map(t => {
-        const isActive = t.key === active
-        const Icon = t.icon
-        return (
-          <button key={t.key} onClick={() => onChange(t.key)}
-            style={{
-              display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10, border: "none",
-              background: isActive ? "linear-gradient(135deg,#FF4D4D,#DE1A1A)" : "transparent",
-              color: isActive ? "#fff" : "#D1D5DB",
-              boxShadow: isActive ? "0 4px 14px rgba(222,26,26,0.3)" : "none",
-              fontSize: 12, fontWeight: 800, cursor: "pointer", transition: "all 0.15s",
-            }}>
-            <Icon size={13} />
-            {t.label}
-          </button>
-        )
-      })}
+    <div style={{ borderRadius: 18, overflow: "hidden", border: "1px solid #E5E7EB", background: "#fff", boxShadow: "0 1px 2px rgba(16,24,40,0.05)" }}>
+      <div style={{ display: "flex", gap: 4, background: "#0F172A", padding: 6 }}>
+        {NAV_MODES.map(m => {
+          const on = m.key === mode
+          const a = MODE_ACCENT[m.key]
+          const Icon = m.icon
+          return (
+            <button key={m.key} onClick={() => onMode(m.key)} aria-pressed={on}
+              className="flex-1 md:flex-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                padding: "9px clamp(10px,2.4vw,20px)", borderRadius: 12, border: "none", cursor: "pointer",
+                background: on ? a.grad : "transparent",
+                boxShadow: on ? `0 6px 18px ${a.glow}` : "none",
+                transition: "background .18s ease, box-shadow .18s ease",
+              }}>
+              <span style={{
+                display: "grid", placeItems: "center", width: 24, height: 24, borderRadius: 8, flexShrink: 0,
+                background: on ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.07)",
+                color: on ? "#fff" : "#94A3B8",
+              }}>
+                <Icon size={13} />
+              </span>
+              <span style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: "-0.01em", color: on ? "#fff" : "#94A3B8" }}>{m.label}</span>
+              <span className="hidden md:inline-block" style={{
+                fontSize: 10.5, fontWeight: 800, fontVariantNumeric: "tabular-nums", lineHeight: "16px",
+                minWidth: 20, textAlign: "center", padding: "0 5px", borderRadius: 6,
+                color: on ? "#fff" : "#64748B",
+                background: on ? "rgba(255,255,255,0.20)" : "rgba(255,255,255,0.06)",
+              }}>{modeCounts[m.key]}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {sections.length > 0 && (
+        <div style={{ display: "flex", gap: "clamp(14px,3vw,26px)", padding: "0 clamp(12px,3vw,18px)", overflowX: "auto" }}>
+          {sections.map(s => {
+            const on = s.key === tab
+            const Icon = s.icon
+            return (
+              <button key={s.key} onClick={() => onTab(s.key)} aria-current={on ? "page" : undefined}
+                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:rounded"
+                style={{
+                  position: "relative", display: "flex", alignItems: "center", gap: 7, flexShrink: 0,
+                  padding: "13px 2px", background: "none", border: "none", cursor: "pointer",
+                }}>
+                {/* Icons are decoration here — dropped on small screens so all three labels fit without scrolling. */}
+                <Icon size={13} className="hidden md:block" style={{ color: on ? accent.solid : "#94A3B8" }} />
+                <span style={{
+                  fontSize: 11, fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase",
+                  color: on ? "#0F172A" : "#94A3B8", whiteSpace: "nowrap",
+                }}>{s.label}</span>
+                <span style={{
+                  fontSize: 10, fontWeight: 800, fontVariantNumeric: "tabular-nums", lineHeight: "15px",
+                  padding: "0 5px", borderRadius: 5,
+                  color: on ? accent.solid : "#94A3B8",
+                  background: on ? accent.soft : "#F1F5F9",
+                }}>{s.count}</span>
+                <span aria-hidden style={{
+                  position: "absolute", left: 0, right: 0, bottom: 0, height: 2.5, borderRadius: "3px 3px 0 0",
+                  background: on ? accent.grad : "transparent",
+                }} />
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -1720,6 +1796,26 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const draggedItem = items.find(i => i.id === dragId)
 
   // Stats — global totals, always unfiltered (shown in the hero chips)
+  // Nav badges. Modes count live work (anything not yet posted / ads still running);
+  // sections count what you'd actually find on that board for the current mode.
+  const navCounts = useMemo(() => ({
+    video: items.filter(i => i.content_type === "video" && i.status !== "posted").length,
+    poster: items.filter(i => i.content_type === "poster" && i.status !== "posted").length,
+    ads: ads.filter(a => a.status === "active").length,
+  }), [items, ads])
+
+  const navSections = useMemo(() => {
+    if (mode === "ads") return []
+    const ofMode = items.filter(i => i.content_type === contentTypeForMode)
+    return [
+      ...(mode === "video"
+        ? [{ key: "shoots", label: "Shoots", icon: Camera, count: shoots.filter(s => s.status === "scheduled" || s.status === "going").length }]
+        : []),
+      { key: "pipeline", label: "Pipeline", icon: Layers, count: ofMode.filter(i => i.status !== "posted").length },
+      { key: "log", label: "Posting Log", icon: History, count: ofMode.filter(i => i.status === "posted").length },
+    ]
+  }, [mode, items, shoots, contentTypeForMode])
+
   const stats = useMemo(() => {
     const shot = items.filter(i => i.status === "shot").length
     const editing = items.filter(i => i.status === "editing").length
@@ -1940,19 +2036,14 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         ]}
       />
 
-      <TabToggle active={mode} onChange={k => setMode(k as typeof mode)} tabs={[
-        { key: "video", label: "Video", icon: Video },
-        { key: "poster", label: "Poster", icon: ImageIcon },
-        { key: "ads", label: "Ads", icon: Megaphone },
-      ]} />
-
-      {mode !== "ads" && (
-        <TabToggle active={tab} onChange={k => setSubTab(k as typeof subTab)} tabs={[
-          ...(mode === "video" ? [{ key: "shoots", label: "Shoots", icon: Camera }] : []),
-          { key: "pipeline", label: "Pipeline", icon: Layers },
-          { key: "log", label: "Posting Log", icon: History },
-        ]} />
-      )}
+      <TrackerNav
+        mode={mode}
+        onMode={setMode}
+        tab={tab}
+        onTab={k => setSubTab(k as typeof subTab)}
+        modeCounts={navCounts}
+        sections={navSections}
+      />
 
       {mode !== "ads" && tab === "pipeline" && (
         <div className="flex flex-col gap-4">

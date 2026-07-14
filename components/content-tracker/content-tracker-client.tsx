@@ -1131,8 +1131,10 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
     if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
     onCreated({
       id: res.id, client_name: client, title: title.trim(), content_type: contentType,
-      status: alreadyPosted ? "posted" : "shot",
+      status: alreadyPosted ? "posted" : (contentType === "poster" ? "design" : "ready_to_edit"),
+      source: contentType === "poster" ? "poster" : "shoot",
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
+      hook_count: null, use_for: [], priority: null, voiceover_date: null, reviewed_at: null,
       shot_date: shotDate, edited_date: alreadyPosted ? postedDate : null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({ id: `${res.id}-${i}`, content_item_id: res.id!, platform, posted_date: postedDate, post_link: null })) : [],
     })
@@ -1709,7 +1711,7 @@ function ReadyToPostModal({ item, onClose, onScheduled }: {
       <div className="flex flex-col gap-3">
         <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
           <strong style={{ color: "#111827" }}>{item.title}</strong> — where and when is this going out?
-          It&apos;ll queue up in the Posting Log until you mark it Posted.
+          It&apos;ll queue up on the Posted tab until you mark it Posted.
         </p>
         <div>
           <label style={LABEL}>Platforms * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
@@ -2150,9 +2152,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   // Top-level mode (Video / Poster / Ads) with sub-tabs beneath it. Posters aren't shot,
   // so the Shoots sub-tab only exists in Video mode.
   const [mode, setMode] = useState<TrackerMode>("overview")
-  const [subTab, setSubTab] = useState<"shoots" | "pipeline" | "log">("shoots")
+  const [subTab, setSubTab] = useState<"shoots" | "adsvideo" | "pipeline" | "log">("shoots")
   // Derived rather than reset via an effect — avoids a cascading-render setState-in-effect.
-  const tab = mode === "poster" && subTab === "shoots" ? "pipeline" : subTab
+  // Posters have neither Shoots nor Ads Video, so both fall back to Pipeline.
+  const tab = mode === "poster" && (subTab === "shoots" || subTab === "adsvideo") ? "pipeline" : subTab
   // Overview and Ads have no content type of their own; falling back to "video" keeps the
   // Pipeline/Log memos below well-defined even while those boards aren't rendered.
   const contentTypeForMode: "video" | "poster" = mode === "poster" ? "poster" : "video"
@@ -2200,7 +2203,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [adsDayFilter, setAdsDayFilter] = useState("")
   const [pipelineClientFilter, setPipelineClientFilter] = useState<string>("all")
   const [pipelineMonthFilter, setPipelineMonthFilter] = useState<string>("all")
-  const [activeMobileCol, setActiveMobileCol] = useState<ContentStatus>("shot")
+  const [activeMobileCol, setActiveMobileCol] = useState<ContentStatus>("ready_to_edit")
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
@@ -2254,7 +2257,15 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, pipelineClientFilter, pipelineMonthFilter, pipelineDayFilter, contentTypeForMode])
 
+  const pipelineOrder = contentTypeForMode === "poster" ? POSTER_PIPELINE_ORDER : VIDEO_PIPELINE_ORDER
+
   function colItems(status: ContentStatus) { return pipelineItems.filter(i => i.status === status) }
+
+  const adsVideoItems = useMemo(
+    () => items.filter(i => i.content_type === "video" && i.source === "ads_video" && ADS_VIDEO_ORDER.includes(i.status)),
+    [items]
+  )
+  function adsVideoColItems(status: ContentStatus) { return adsVideoItems.filter(i => i.status === status) }
 
   function advance(item: ContentItem, next: ContentStatus) {
     if (next === "posted") { setPlatformModalItem(item); return }
@@ -2282,7 +2293,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
   function handleReadyToPost(item: ContentItem, platforms: Platform[], date: string, time: string) {
     setItems(prev => prev.map(i => i.id === item.id ? {
-      ...i, status: "ready",
+      ...i, status: "ready_to_post",
       ready_platforms: platforms,
       scheduled_post_date: date,
       scheduled_post_time: time || null,
@@ -2353,29 +2364,33 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const navSections = useMemo(() => {
     if (mode === "ads" || mode === "overview") return []
     const ofMode = items.filter(i => i.content_type === contentTypeForMode)
+    const activeAdsVideo = items.filter(i => i.content_type === "video" && i.source === "ads_video" && (i.status === "scripting" || i.status === "voiceover"))
     return [
       ...(mode === "video"
         ? [{ key: "shoots", label: "Shoots", icon: Camera, count: shoots.filter(s => s.status === "scheduled" || s.status === "going").length }]
         : []),
-      { key: "pipeline", label: "Pipeline", icon: Layers, count: ofMode.filter(i => i.status !== "posted").length },
-      { key: "log", label: "Posting Log", icon: History, count: ofMode.filter(i => i.status === "posted").length },
+      ...(mode === "video"
+        ? [{ key: "adsvideo", label: "Ads Video", icon: Sparkles, count: activeAdsVideo.length }]
+        : []),
+      { key: "pipeline", label: "Ready to Edit", icon: Layers, count: ofMode.filter(i => pipelineOrder.includes(i.status)).length },
+      { key: "log", label: "Posted", icon: History, count: ofMode.filter(i => i.status === "posted").length },
     ]
-  }, [mode, items, shoots, contentTypeForMode])
+  }, [mode, items, shoots, contentTypeForMode, pipelineOrder])
 
   const stats = useMemo(() => {
-    const shot = items.filter(i => i.status === "shot").length
+    const readyToEdit = items.filter(i => i.status === "ready_to_edit").length
     const editing = items.filter(i => i.status === "editing").length
     const edited = items.filter(i => i.status === "edited").length
-    const ready = items.filter(i => i.status === "ready").length
+    const readyToPost = items.filter(i => i.status === "ready_to_post").length
     const posted = items.filter(i => i.status === "posted").length
     const totalPosts = items.reduce((s, i) => s + i.posts.length, 0)
-    return { shot, editing, edited, ready, posted, totalPosts }
+    return { readyToEdit, editing, edited, readyToPost, posted, totalPosts }
   }, [items])
 
   // The "what's due next" queue — items scheduled into Ready to Post, soonest first.
   const readyQueue = useMemo(
     () => items
-      .filter(i => i.status === "ready" && i.content_type === contentTypeForMode && i.scheduled_post_date)
+      .filter(i => i.status === "ready_to_post" && i.content_type === contentTypeForMode && i.scheduled_post_date)
       .sort((a, b) => {
         const byDate = (a.scheduled_post_date ?? "").localeCompare(b.scheduled_post_date ?? "")
         if (byDate !== 0) return byDate
@@ -2495,9 +2510,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
   function handleShootCompleted(shootId: string, created: CreatedShootItem[], crew: Member[]) {
     const newItems: ContentItem[] = created.map(ci => ({
-      id: ci.id, client_name: ci.client_name, title: ci.title, content_type: "video",
-      status: "shot", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
+      id: ci.id, client_name: ci.client_name, title: ci.title, content_type: "video", source: "shoot",
+      status: "ready_to_edit", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
+      hook_count: null, use_for: [], priority: null, voiceover_date: null, reviewed_at: null,
       created_at: new Date().toISOString(), posts: [],
     }))
     setItems(prev => [...newItems, ...prev])
@@ -2589,7 +2605,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       if (i.id !== contentItemId) return i
       const posts = i.posts.filter(p => p.id !== postId)
       // Mirrors the server: back to the queue if it still has a slot, else to Edited.
-      const fallback: ContentStatus = i.scheduled_post_date ? "ready" : "edited"
+      const fallback: ContentStatus = i.scheduled_post_date ? "ready_to_post" : "edited"
       return { ...i, posts, status: posts.length === 0 ? fallback : i.status }
     }))
     startTransition(async () => { await deleteContentPost(postId, contentItemId) })
@@ -2603,8 +2619,8 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         title="Content & Ads Tracker"
         subtitle="Every video and poster from shoot to post — plus a full ad hooks & targeting history."
         chips={[
-          { icon: <Video size={11} />, label: `${stats.shot + stats.editing + stats.edited} in pipeline` },
-          { icon: <CalendarDays size={11} />, label: `${stats.ready} ready to post` },
+          { icon: <Video size={11} />, label: `${stats.readyToEdit + stats.editing + stats.edited} in pipeline` },
+          { icon: <CalendarDays size={11} />, label: `${stats.readyToPost} ready to post` },
           { icon: <Check size={11} />, label: `${stats.posted} posted` },
           { icon: <Megaphone size={11} />, label: `${ads.filter(a => a.status === "active").length} active ads` },
         ]}
@@ -2721,7 +2737,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
           {/* Mobile column switcher */}
           <div className="flex md:hidden gap-2 overflow-x-auto pb-1">
-            {STATUS_ORDER.map(s => (
+            {pipelineOrder.map(s => (
               <button key={s} onClick={() => setActiveMobileCol(s)}
                 style={{ flexShrink: 0, padding: "6px 14px", borderRadius: 10, border: `1.5px solid ${activeMobileCol === s ? STATUS_CFG[s].accent : "#E5E7EB"}`, background: activeMobileCol === s ? `${STATUS_CFG[s].accent}14` : "#fff", color: activeMobileCol === s ? STATUS_CFG[s].accent : "#6B7280", fontSize: 11, fontWeight: 700 }}>
                 {STATUS_CFG[s].label} ({colItems(s).length})
@@ -2739,7 +2755,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           <div className="hidden md:block">
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver as never} onDragEnd={handleDragEnd}>
               <div className="grid grid-cols-5 gap-3">
-                {STATUS_ORDER.map(status => {
+                {pipelineOrder.map(status => {
                   const list = colItems(status)
                   const cfg = STATUS_CFG[status]
                   return (
@@ -2850,7 +2866,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                         <td style={{ padding: "9px 14px", fontWeight: 700, color: logClientFilter === row.client ? "#DE1A1A" : "#111827" }}>{row.client}</td>
                         <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
                         <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.edited.accent }}>{row.unposted}</td>
-                        <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.shot.accent }}>{row.unedited}</td>
+                        <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.ready_to_edit.accent }}>{row.unedited}</td>
                       </tr>
                     ))}
                   </tbody>

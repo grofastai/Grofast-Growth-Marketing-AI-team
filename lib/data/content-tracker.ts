@@ -26,7 +26,7 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
     admin.from('shoot_titles').select('id, shoot_id, title, content_item_id').eq('company_id', companyId),
   ])
 
-  type ItemRow = { id: string; client_name: string; title: string; content_type: 'video' | 'poster'; status: 'shot' | 'editing' | 'edited' | 'posted'; shot_by: string | null; shot_date: string | null; edited_by: string | null; edited_date: string | null; notes: string | null; created_at: string }
+  type ItemRow = { id: string; client_name: string; title: string; content_type: 'video' | 'poster'; status: 'shot' | 'editing' | 'edited' | 'ready' | 'posted'; shot_by: string | null; shot_date: string | null; edited_by: string | null; edited_date: string | null; notes: string | null; created_at: string; ready_platforms: string[] | null; scheduled_post_date: string | null; scheduled_post_time: string | null }
   type PostRow = { id: string; content_item_id: string; platform: 'instagram' | 'youtube' | 'facebook' | 'linkedin' | 'gmb'; posted_date: string; posted_by: string | null; post_link: string | null }
   type UserRow = { id: string; name: string }
   type AdRow = { id: string; client_name: string; ad_name: string; platform: string; launch_date: string | null; hook_count: number; targeting_type: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null; targeting_notes: string | null; status: 'active' | 'paused' | 'testing' | 'stopped'; created_at: string }
@@ -76,6 +76,9 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
     edited_date: row.edited_date,
     notes: row.notes,
     created_at: row.created_at,
+    ready_platforms: (row.ready_platforms ?? []) as ContentItem['ready_platforms'],
+    scheduled_post_date: row.scheduled_post_date,
+    scheduled_post_time: row.scheduled_post_time,
     shotByUser: row.shot_by ? (userMap.get(row.shot_by) ?? null) : null,
     editedByUser: row.edited_by ? (userMap.get(row.edited_by) ?? null) : null,
     posts: (postsByItem.get(row.id) ?? []).map(p => ({

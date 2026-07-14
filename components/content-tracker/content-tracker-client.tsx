@@ -18,14 +18,14 @@ import { latestEntry, isUnderperforming, cpc, cpm, frequency, costPerResult, typ
 import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
-  createAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry,
+  createAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, markReadyToPost,
 } from "@/lib/actions/content-tracker"
 import { createTrackerShoot, completeShootWithTitles, updateShootStatus, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb"
-type ContentStatus = "shot" | "editing" | "edited" | "posted"
+type ContentStatus = "shot" | "editing" | "edited" | "ready" | "posted"
 type TargetingType = "broad" | "interest" | "lookalike" | "retargeting"
 type AdStatus = "active" | "paused" | "testing" | "stopped"
 
@@ -50,6 +50,10 @@ export type ContentItem = {
   edited_date: string | null
   notes: string | null
   created_at: string
+  // Set when the item is scheduled into "Ready to Post" — the intent, not the record.
+  ready_platforms: Platform[]
+  scheduled_post_date: string | null
+  scheduled_post_time: string | null
   shotByUser?: Person
   editedByUser?: Person
   posts: ContentPost[]
@@ -106,12 +110,13 @@ type Props = {
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
-  shot:    { label: "Shot",    accent: "#F59E0B" },
-  editing: { label: "Editing", accent: "#6366F1" },
-  edited:  { label: "Edited",  accent: "#9B6BFF" },
-  posted:  { label: "Posted",  accent: "#22C55E" },
+  shot:    { label: "Shot",          accent: "#F59E0B" },
+  editing: { label: "Editing",       accent: "#6366F1" },
+  edited:  { label: "Edited",        accent: "#9B6BFF" },
+  ready:   { label: "Ready to Post", accent: "#0EA5E9" },
+  posted:  { label: "Posted",        accent: "#22C55E" },
 }
-const STATUS_ORDER: ContentStatus[] = ["shot", "editing", "edited", "posted"]
+const STATUS_ORDER: ContentStatus[] = ["shot", "editing", "edited", "ready", "posted"]
 
 const PLATFORM_CFG: Record<Platform, { label: string; color: string; icon: typeof Camera }> = {
   instagram: { label: "Instagram", color: "#E1306C", icon: Camera },
@@ -175,6 +180,14 @@ function fmtDateRange(dates: string[]) {
   const sorted = Array.from(new Set(dates)).sort()
   if (sorted.length === 1) return fmtDate(sorted[0])
   return `${fmtDate(sorted[0])} – ${fmtDate(sorted[sorted.length - 1])}`
+}
+// "14:30:00" / "14:30" -> "2:30 PM"
+function fmtTime(t?: string | null): string {
+  if (!t) return ""
+  const [h, m] = t.split(":").map(Number)
+  const period = h >= 12 ? "PM" : "AM"
+  const hr = h % 12 || 12
+  return `${hr}:${String(m).padStart(2, "0")} ${period}`
 }
 function fmtCompactNumber(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}K`
@@ -336,13 +349,37 @@ function ContentCardInner({
         <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(item.shot_date)}</span>
       </div>
 
+      {/* Scheduled slot — shown while it's queued in Ready to Post. */}
+      {item.status === "ready" && item.scheduled_post_date && (
+        <div className="mb-2 p-2 rounded-xl" style={{ background: "rgba(14,165,233,0.08)" }}>
+          <div className="flex items-center gap-1 mb-1">
+            <CalendarDays size={10} style={{ color: "#0EA5E9" }} />
+            <span className="text-[9px] font-bold" style={{ color: "#0EA5E9" }}>
+              {fmtDate(item.scheduled_post_date)}{item.scheduled_post_time ? ` · ${fmtTime(item.scheduled_post_time)}` : ""}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {item.ready_platforms.map(p => {
+              const cfg = PLATFORM_CFG[p]
+              const Icon = cfg.icon
+              return (
+                <span key={p} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={{ background: `${cfg.color}18`, color: cfg.color }}>
+                  <Icon size={9} /> {cfg.label}
+                </span>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {item.status !== "posted" && (
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1])}
           className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
           style={{ background: `${STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].accent}14`, color: STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].accent }}>
-          {item.status === "edited" ? <>Post Now <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].label} <ArrowRight size={10} /></>}
+          {item.status === "ready" ? <>Mark Posted <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].label} <ArrowRight size={10} /></>}
         </button>
       )}
       {item.status === "posted" && (
@@ -709,6 +746,7 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
     onCreated({
       id: res.id, client_name: client, title: title.trim(), content_type: contentType,
       status: alreadyPosted ? "posted" : "shot",
+      ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null,
       shot_date: shotDate, edited_date: alreadyPosted ? postedDate : null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({ id: `${res.id}-${i}`, content_item_id: res.id!, platform, posted_date: postedDate, post_link: null })) : [],
     })
@@ -825,8 +863,15 @@ function AddPlatformModal({ item, members, currentUserId, onClose, onAdded }: {
   item: ContentItem; members: Member[]; currentUserId: string
   onClose: () => void; onAdded: (posts: ContentPost[]) => void
 }) {
-  const [platforms, setPlatforms] = useState<Platform[]>([])
-  const [postedDate, setPostedDate] = useState(new Date().toISOString().split("T")[0])
+  const already = useMemo(() => new Set(item.posts.map(p => p.platform)), [item.posts])
+  // Prefill from what was scheduled at "Ready to Post" — you already picked the platforms
+  // and date then, so don't make anyone pick them twice. Still editable in case it changed.
+  const [platforms, setPlatforms] = useState<Platform[]>(
+    () => (item.ready_platforms ?? []).filter(p => !already.has(p))
+  )
+  const [postedDate, setPostedDate] = useState(
+    item.scheduled_post_date || new Date().toISOString().split("T")[0]
+  )
   const [postLink, setPostLink] = useState("")
   // Who's posting — defaults to whoever clicked, but can be assigned to someone else.
   const [postedBy, setPostedBy] = useState(
@@ -834,7 +879,6 @@ function AddPlatformModal({ item, members, currentUserId, onClose, onAdded }: {
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const already = new Set(item.posts.map(p => p.platform))
 
   function toggle(p: Platform) {
     setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
@@ -1189,6 +1233,77 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   )
 }
 
+// ── "Ready to Post" — schedules WHICH platforms and WHEN, before it actually goes out ──
+function ReadyToPostModal({ item, onClose, onScheduled }: {
+  item: ContentItem
+  onClose: () => void
+  onScheduled: (platforms: Platform[], date: string, time: string) => void
+}) {
+  const [platforms, setPlatforms] = useState<Platform[]>([])
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [time, setTime] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function toggle(p: Platform) {
+    setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+  }
+
+  async function submit() {
+    if (platforms.length === 0) { setError("Pick at least one platform"); return }
+    if (!date) { setError("Pick the posting date"); return }
+    setSaving(true); setError(null)
+    const res = await markReadyToPost({
+      content_item_id: item.id,
+      ready_platforms: platforms,
+      scheduled_post_date: date,
+      scheduled_post_time: time || undefined,
+    })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to schedule"); return }
+    onScheduled(platforms, date, time)
+  }
+
+  return (
+    <Modal title="Ready to Post" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          <strong style={{ color: "#111827" }}>{item.title}</strong> — where and when is this going out?
+          It&apos;ll queue up in the Posting Log until you mark it Posted.
+        </p>
+        <div>
+          <label style={LABEL}>Platforms * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
+              const cfg = PLATFORM_CFG[p]
+              const Icon = cfg.icon
+              const on = platforms.includes(p)
+              return (
+                <button key={p} onClick={() => toggle(p)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  <Icon size={12} /> {cfg.label} {on && <Check size={10} />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Posting Date *</label>
+            <input type="date" style={FIELD} value={date} onChange={e => setDate(e.target.value)} />
+          </div>
+          <div>
+            <label style={LABEL}>Time <span style={{ fontWeight: 600, textTransform: "none" }}>(optional)</span></label>
+            <input type="time" style={FIELD} value={time} onChange={e => setTime(e.target.value)} />
+          </div>
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Schedule Post"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
 // ── "Who's starting the edit?" — the accountability prompt when a video enters Editing ──
 function StartEditingModal({ item, members, currentUserId, onClose, onConfirm }: {
   item: ContentItem
@@ -1374,6 +1489,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [showNewShoot, setShowNewShoot] = useState(false)
   const [completeShootFor, setCompleteShootFor] = useState<Shoot | null>(null)
   const [startEditingItem, setStartEditingItem] = useState<ContentItem | null>(null)
+  const [readyToPostItem, setReadyToPostItem] = useState<ContentItem | null>(null)
   const [goingCrewFor, setGoingCrewFor] = useState<Shoot | null>(null)
   const [shootsClientFilter, setShootsClientFilter] = useState<string>("all")
   // Separate drag state per board — only one board is mounted at a time, but keeping
@@ -1455,10 +1571,22 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
   function advance(item: ContentItem, next: ContentStatus) {
     if (next === "posted") { setPlatformModalItem(item); return }
+    // Ready to Post asks where and when it's going out.
+    if (next === "ready") { setReadyToPostItem(item); return }
     // Entering Editing asks who's starting it — that's the accountability moment.
     if (next === "editing" && members.length > 0) { setStartEditingItem(item); return }
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, ...(next === "edited" ? { edited_date: new Date().toISOString().split("T")[0] } : {}) } : i))
     startTransition(async () => { await updateContentItemStatus(item.id, next) })
+  }
+
+  function handleReadyToPost(item: ContentItem, platforms: Platform[], date: string, time: string) {
+    setItems(prev => prev.map(i => i.id === item.id ? {
+      ...i, status: "ready",
+      ready_platforms: platforms,
+      scheduled_post_date: date,
+      scheduled_post_time: time || null,
+    } : i))
+    setReadyToPostItem(null)
   }
 
   function handleStartEditing(item: ContentItem, editorId: string, editorName: string) {
@@ -1492,10 +1620,24 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     const shot = items.filter(i => i.status === "shot").length
     const editing = items.filter(i => i.status === "editing").length
     const edited = items.filter(i => i.status === "edited").length
+    const ready = items.filter(i => i.status === "ready").length
     const posted = items.filter(i => i.status === "posted").length
     const totalPosts = items.reduce((s, i) => s + i.posts.length, 0)
-    return { shot, editing, edited, posted, totalPosts }
+    return { shot, editing, edited, ready, posted, totalPosts }
   }, [items])
+
+  // The "what's due next" queue — items scheduled into Ready to Post, soonest first.
+  const readyQueue = useMemo(
+    () => items
+      .filter(i => i.status === "ready" && i.content_type === contentTypeForMode && i.scheduled_post_date)
+      .sort((a, b) => {
+        const byDate = (a.scheduled_post_date ?? "").localeCompare(b.scheduled_post_date ?? "")
+        if (byDate !== 0) return byDate
+        // No time set sorts last within the day — a specific slot is more urgent than "sometime".
+        return (a.scheduled_post_time ?? "99:99").localeCompare(b.scheduled_post_time ?? "99:99")
+      }),
+    [items, contentTypeForMode]
+  )
 
   // Posting log — one row per content item (not per platform); platforms shown as badges within the row
   const postedItems = useMemo(
@@ -1609,6 +1751,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     const newItems: ContentItem[] = created.map(ci => ({
       id: ci.id, client_name: ci.client_name, title: ci.title, content_type: "video",
       status: "shot", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
+      ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null,
       created_at: new Date().toISOString(), posts: [],
     }))
     setItems(prev => [...newItems, ...prev])
@@ -1671,7 +1814,9 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     setItems(prev => prev.map(i => {
       if (i.id !== contentItemId) return i
       const posts = i.posts.filter(p => p.id !== postId)
-      return { ...i, posts, status: posts.length === 0 ? "edited" : i.status }
+      // Mirrors the server: back to the queue if it still has a slot, else to Edited.
+      const fallback: ContentStatus = i.scheduled_post_date ? "ready" : "edited"
+      return { ...i, posts, status: posts.length === 0 ? fallback : i.status }
     }))
     startTransition(async () => { await deleteContentPost(postId, contentItemId) })
   }
@@ -1685,6 +1830,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         subtitle="Every video and poster from shoot to post — plus a full ad hooks & targeting history."
         chips={[
           { icon: <Video size={11} />, label: `${stats.shot + stats.editing + stats.edited} in pipeline` },
+          { icon: <CalendarDays size={11} />, label: `${stats.ready} ready to post` },
           { icon: <Check size={11} />, label: `${stats.posted} posted` },
           { icon: <Megaphone size={11} />, label: `${ads.filter(a => a.status === "active").length} active ads` },
         ]}
@@ -1746,7 +1892,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
           <div className="hidden md:block">
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver as never} onDragEnd={handleDragEnd}>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-5 gap-3">
                 {STATUS_ORDER.map(status => {
                   const list = colItems(status)
                   const cfg = STATUS_CFG[status]
@@ -1785,6 +1931,51 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
       {mode !== "ads" && tab === "log" && (
         <div className="flex flex-col gap-4">
+          {/* Upcoming queue — what's scheduled but hasn't gone out yet, soonest first. */}
+          {readyQueue.length > 0 && (
+            <div style={{ background: "#fff", border: "1px solid #BAE6FD", borderRadius: 18, overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6", background: "rgba(14,165,233,0.05)" }}>
+                <CalendarDays size={13} style={{ color: "#0EA5E9" }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#0EA5E9", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Ready to Post — {readyQueue.length} queued
+                </span>
+              </div>
+              <div className="flex flex-col">
+                {readyQueue.map(item => (
+                  <div key={item.id} className="flex items-center justify-between flex-wrap gap-2"
+                    style={{ padding: "10px 16px", borderBottom: "1px solid #F9FAFB" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <p className="text-[12px] font-bold" style={{ color: "#111827", margin: 0 }}>{item.title}</p>
+                      <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>{item.client_name}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full"
+                        style={{ background: "rgba(14,165,233,0.1)", color: "#0EA5E9" }}>
+                        <CalendarDays size={10} />
+                        {fmtDate(item.scheduled_post_date)}{item.scheduled_post_time ? ` · ${fmtTime(item.scheduled_post_time)}` : ""}
+                      </span>
+                      {item.ready_platforms.map(p => {
+                        const cfg = PLATFORM_CFG[p]
+                        const Icon = cfg.icon
+                        return (
+                          <span key={p} className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full"
+                            style={{ background: `${cfg.color}14`, color: cfg.color }}>
+                            <Icon size={10} /> {cfg.label}
+                          </span>
+                        )
+                      })}
+                      <button onClick={() => setPlatformModalItem(item)}
+                        className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                        style={{ border: "none", background: "rgba(34,197,94,0.1)", color: "#16A34A", cursor: "pointer" }}>
+                        Mark Posted
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
@@ -2150,6 +2341,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         <StartEditingModal item={startEditingItem} members={members} currentUserId={currentUserId}
           onClose={() => setStartEditingItem(null)}
           onConfirm={(editorId, editorName) => handleStartEditing(startEditingItem, editorId, editorName)} />
+      )}
+      {readyToPostItem && (
+        <ReadyToPostModal item={readyToPostItem} onClose={() => setReadyToPostItem(null)}
+          onScheduled={(platforms, date, time) => handleReadyToPost(readyToPostItem, platforms, date, time)} />
       )}
       {goingCrewFor && (
         <GoingCrewModal shoot={goingCrewFor} members={members} currentUserId={currentUserId}

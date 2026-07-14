@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const CONTENT_STATUSES = ['shot', 'editing', 'edited', 'posted'] as const
+export const CONTENT_STATUSES = ['shot', 'editing', 'edited', 'ready', 'posted'] as const
 export const CONTENT_TYPES    = ['video', 'poster'] as const
 export const PLATFORMS        = ['instagram', 'youtube', 'facebook', 'linkedin', 'gmb'] as const
 export const TARGETING_TYPES  = ['broad', 'interest', 'lookalike', 'retargeting'] as const
@@ -56,6 +56,15 @@ export const addAdRevisionSchema = z.object({
   targeting_type_after:  z.enum(TARGETING_TYPES).optional(),
 })
 export type AddAdRevisionInput = z.infer<typeof addAdRevisionSchema>
+
+// Moving an item to "Ready to Post" schedules it: which platforms, which day, what time.
+export const markReadyToPostSchema = z.object({
+  content_item_id:     z.string().uuid(),
+  ready_platforms:     z.array(z.enum(PLATFORMS)).min(1, 'Pick at least one platform'),
+  scheduled_post_date: z.string().min(1, 'Posting date is required'),
+  scheduled_post_time: z.string().optional(),
+})
+export type MarkReadyToPostInput = z.infer<typeof markReadyToPostSchema>
 
 export const addAdPerformanceEntrySchema = z.object({
   ad_id:       z.string().uuid(),

@@ -4,8 +4,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import {
-  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema,
-  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput,
+  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema,
+  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput,
 } from '@/lib/validations/content-tracker'
 
 function adminSupabase() {
@@ -93,9 +93,32 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
   return { success: true }
 }
 
+// Scheduling an item into "Ready to Post" — captures which platforms it's going to and
+// when, so the team has a queue of what's due. content_item_posts is still only written
+// when it's actually marked Posted; this is the intent, not the record.
+export async function markReadyToPost(input: MarkReadyToPostInput): Promise<{ success: boolean; error?: string }> {
+  const parsed = markReadyToPostSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { error } = await ctx.admin.from('content_items').update({
+    status:              'ready',
+    ready_platforms:     parsed.data.ready_platforms,
+    scheduled_post_date: parsed.data.scheduled_post_date,
+    scheduled_post_time: parsed.data.scheduled_post_time || null,
+    updated_at:          new Date().toISOString(),
+  }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true }
+}
+
 export async function updateContentItemStatus(
   id: string,
-  status: 'shot' | 'editing' | 'edited' | 'posted',
+  status: 'shot' | 'editing' | 'edited' | 'ready' | 'posted',
   editorId?: string
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await currentUser()
@@ -172,14 +195,17 @@ export async function deleteContentPost(id: string, contentItemId: string): Prom
   const { error } = await ctx.admin.from('content_item_posts').delete().eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
 
-  // If that was the last platform post for this item, drop it back to "edited"
-  // rather than leaving it marked posted with nothing to show for it.
+  // If that was the last platform post for this item, it's no longer "posted". Fall back
+  // to "ready" if it still has a scheduled slot (so it returns to the queue rather than
+  // losing its schedule), otherwise to "edited".
   const { count } = await ctx.admin.from('content_item_posts')
     .select('id', { count: 'exact', head: true })
     .eq('content_item_id', contentItemId)
   if (!count) {
+    const { data: item } = await ctx.admin.from('content_items')
+      .select('scheduled_post_date').eq('id', contentItemId).eq('company_id', ctx.companyId).single()
     await ctx.admin.from('content_items')
-      .update({ status: 'edited', updated_at: new Date().toISOString() })
+      .update({ status: item?.scheduled_post_date ? 'ready' : 'edited', updated_at: new Date().toISOString() })
       .eq('id', contentItemId)
       .eq('company_id', ctx.companyId)
   }

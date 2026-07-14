@@ -2989,14 +2989,14 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           {/* Videos and Posters — stage counts. */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <OverviewBlock title="Videos" accent={MODE_ACCENT.video.solid} icon={Video}
-              rows={STATUS_ORDER.map(s => ({
+              rows={[...ADS_VIDEO_ORDER, ...VIDEO_PIPELINE_ORDER, "posted" as ContentStatus].map(s => ({
                 key: s,
                 label: STATUS_CFG[s].label,
                 value: overview.videos[s],
-                onClick: () => goTo({ mode: "video", tab: s === "posted" ? "log" : "pipeline" }),
+                onClick: () => goTo({ mode: "video", tab: s === "posted" ? "log" : (s === "scripting" || s === "voiceover") ? "adsvideo" : "pipeline" }),
               }))} />
             <OverviewBlock title="Posters" accent={MODE_ACCENT.poster.solid} icon={ImageIcon}
-              rows={STATUS_ORDER.map(s => ({
+              rows={[...POSTER_PIPELINE_ORDER, "posted" as ContentStatus].map(s => ({
                 key: s,
                 label: STATUS_CFG[s].label,
                 value: overview.posters[s],

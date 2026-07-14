@@ -84,13 +84,21 @@ export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ s
 
   const { data: existing } = await admin
     .from('attendance_logs')
-    .select('id')
+    .select('id, clock_in, status')
     .eq('company_id', ctx.companyId)
     .eq('user_id', ctx.userId)
     .eq('date', today)
-    .single()
+    .maybeSingle()
 
-  if (existing) return { success: false, error: 'Already logged attendance today' }
+  // Approving a leave auto-inserts a placeholder attendance_logs row (see
+  // lib/actions/leaves.ts) so the day shows correctly on Attendance/History.
+  // For half_day that placeholder only covers the leave's own hours — once
+  // that window has passed the member can still clock in for the rest of the
+  // day, so we upgrade the placeholder in place instead of blocking. Any other
+  // existing row (a real clock-in, or a full_day/absent placeholder) still
+  // blocks a second clock-in for today.
+  const halfDayPlaceholder = existing?.status === 'half_day' && !existing.clock_in ? existing : null
+  if (existing && !halfDayPlaceholder) return { success: false, error: 'Already logged attendance today' }
 
   // Block clock-in if on approved full-day leave
   const { data: approvedLeave } = await admin
@@ -121,14 +129,22 @@ export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ s
 
   const clockInTime = new Date().toISOString()
 
-  const { error } = await admin.from('attendance_logs').insert({
-    company_id: ctx.companyId,
-    user_id: ctx.userId,
-    date: today,
-    clock_in: clockInTime,
-    work_type: workType,
-    status: 'present',
-  })
+  // A same-day unique constraint exists on (company_id, user_id, date), so a half-day
+  // placeholder row must be updated in place rather than inserted alongside.
+  const { error } = halfDayPlaceholder
+    ? await admin.from('attendance_logs').update({
+        clock_in: clockInTime,
+        work_type: workType,
+        status: 'present',
+      }).eq('id', halfDayPlaceholder.id)
+    : await admin.from('attendance_logs').insert({
+        company_id: ctx.companyId,
+        user_id: ctx.userId,
+        date: today,
+        clock_in: clockInTime,
+        work_type: workType,
+        status: 'present',
+      })
 
   if (error) return { success: false, error: error.message }
 

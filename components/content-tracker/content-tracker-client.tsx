@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
+import { useConfirm } from "@/components/ui/ConfirmDialog"
 import { buildClientOptions } from "@/lib/utils/client-options"
 import { latestEntry, isUnderperforming, cpc, cpm, frequency, costPerResult, type AdPerformanceEntry } from "@/lib/ads-tracker/performance-metrics"
 import {
@@ -2359,6 +2360,31 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
   )
 }
 
+// ── Delete shoot — choose whether the videos it produced go with it ─────────
+function DeleteShootModal({ shoot, onClose, onConfirm }: {
+  shoot: Shoot
+  onClose: () => void
+  onConfirm: (cascadeVideos: boolean) => void
+}) {
+  const videoCount = shoot.titles.length
+  return (
+    <Modal title={`Delete "${shoot.legacyTitle}"?`} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p style={{ fontSize: 13, color: "#6B7280", margin: 0, lineHeight: 1.5 }}>
+          This shoot produced {videoCount} video{videoCount === 1 ? "" : "s"}. Choose what happens to {videoCount === 1 ? "it" : "them"}.
+        </p>
+        <button onClick={() => onConfirm(false)}
+          style={{ width: "100%", padding: "10px 16px", borderRadius: 12, border: "1.5px solid #E5E7EB", background: "#fff", color: "#111827", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+          Delete shoot only — keep video{videoCount === 1 ? "" : "s"} in Pipeline
+        </button>
+        <PrimaryButton onClick={() => onConfirm(true)}>
+          Delete shoot + {videoCount} video{videoCount === 1 ? "" : "s"}
+        </PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
 // ── Edit ad details ──────────────────────────────────────────────────────────
 function EditAdModal({ ad, clients, pastClients, onClose, onSaved }: {
   ad: Ad
@@ -2458,6 +2484,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   // Pipeline/Log memos below well-defined even while those boards aren't rendered.
   const contentTypeForMode: "video" | "poster" = mode === "poster" ? "poster" : "video"
   const [, startTransition] = useTransition()
+  const confirm = useConfirm()
 
   const [dragId, setDragId] = useState<string | null>(null)
   const [overCol, setOverCol] = useState<string | null>(null)
@@ -2478,6 +2505,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [goingCrewFor, setGoingCrewFor] = useState<Shoot | null>(null)
   const [editCrewFor, setEditCrewFor] = useState<Shoot | null>(null)
   const [editShootFor, setEditShootFor] = useState<Shoot | null>(null)
+  const [deleteShootFor, setDeleteShootFor] = useState<Shoot | null>(null)
   const [editAdFor, setEditAdFor] = useState<Ad | null>(null)
   const [shootsClientFilter, setShootsClientFilter] = useState<string>("all")
   // Separate drag state per board — only one board is mounted at a time, but keeping
@@ -2845,15 +2873,29 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   }
 
   function handleDeleteShoot(shoot: Shoot) {
-    // Deleting a completed shoot cascades its shoot_titles away, but the content items it
-    // produced are their own records and survive — say so, rather than letting someone
-    // assume the videos vanish too.
-    const warning = shoot.titles.length > 0
-      ? `Delete "${shoot.legacyTitle}"?\n\nThe ${shoot.titles.length} video(s) it produced stay in the Pipeline — only the shoot record is removed.`
-      : `Delete "${shoot.legacyTitle}"?`
-    if (!confirm(warning)) return
+    // A shoot that produced no videos has nothing to choose between — just confirm plainly.
+    if (shoot.titles.length === 0) {
+      confirm({ title: `Delete "${shoot.legacyTitle}"?`, message: "This cannot be undone.", icon: "trash" }).then(ok => {
+        if (!ok) return
+        setShoots(prev => prev.filter(s => s.id !== shoot.id))
+        startTransition(async () => { await deleteShoot(shoot.id) })
+      })
+      return
+    }
+    setDeleteShootFor(shoot)
+  }
+
+  async function handleConfirmDeleteShoot(cascadeVideos: boolean) {
+    const shoot = deleteShootFor
+    if (!shoot) return
+    setDeleteShootFor(null)
+    const contentItemIds = shoot.titles.map(t => t.content_item_id).filter((id): id is string => !!id)
     setShoots(prev => prev.filter(s => s.id !== shoot.id))
-    startTransition(async () => { await deleteShoot(shoot.id) })
+    if (cascadeVideos) setItems(prev => prev.filter(i => !contentItemIds.includes(i.id)))
+    startTransition(async () => {
+      await deleteShoot(shoot.id)
+      if (cascadeVideos) await Promise.all(contentItemIds.map(id => deleteContentItem(id)))
+    })
   }
 
   function handleShootSaved(shootId: string, patch: { client: string; legacyTitle: string; start_time: string; notes: string | null }) {
@@ -2871,8 +2913,8 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     startTransition(async () => { await updateAdStatus(adId, status) })
   }
 
-  function handleDeleteAd(adId: string) {
-    if (!confirm("Delete this ad?")) return
+  async function handleDeleteAd(adId: string) {
+    if (!(await confirm({ message: "Delete this ad?", icon: "trash" }))) return
     setAds(prev => prev.filter(a => a.id !== adId))
     startTransition(async () => { await deleteAd(adId) })
   }
@@ -3571,6 +3613,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         <CompleteShootModal shoot={completeShootFor} members={members} currentUserId={currentUserId}
           onClose={() => setCompleteShootFor(null)}
           onCompleted={(created, crew) => handleShootCompleted(completeShootFor.id, created, crew)} />
+      )}
+      {deleteShootFor && (
+        <DeleteShootModal shoot={deleteShootFor} onClose={() => setDeleteShootFor(null)}
+          onConfirm={handleConfirmDeleteShoot} />
       )}
       {editCrewFor && (
         <EditCrewModal shoot={editCrewFor} members={members} currentUserId={currentUserId}

@@ -28,7 +28,7 @@ export default async function MemberContentTrackerPage() {
   const companyId = profile?.company_id
   if (!companyId) redirect("/login")
 
-  const [{ items, ads, shoots, members }, clientsResult, pastClientsResult] = await Promise.all([
+  const [{ items, ads, shoots, members, voiceoverFreelancers }, clientsResult, pastClientsResult] = await Promise.all([
     getContentTrackerData(companyId),
     admin.from("clients").select("id, name").eq("company_id", companyId).eq("status", "active").order("name"),
     admin.from("clients").select("id, name").eq("company_id", companyId).eq("status", "past").order("name"),
@@ -43,6 +43,7 @@ export default async function MemberContentTrackerPage() {
       currentUserId={effectiveUserId}
       clients={(clientsResult.data ?? []) as { id: string; name: string }[]}
       pastClients={(pastClientsResult.data ?? []) as { id: string; name: string }[]}
+      voiceoverFreelancers={voiceoverFreelancers}
     />
   )
 }

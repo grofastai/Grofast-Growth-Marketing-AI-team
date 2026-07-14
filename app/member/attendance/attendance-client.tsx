@@ -362,7 +362,11 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const isAbsent  = todayLog?.status === "leave"
   const isIn      = !!todayLog?.clock_in && !todayLog?.clock_out && todayLog?.status === "present"
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
-  const notLogged = !todayLog
+  // A Half Day leave approval auto-inserts a placeholder row (status: "half_day", no
+  // clock_in) so History/Attendance show the leave — but that placeholder isn't a real
+  // clock-in. Without this, none of isAbsent/isIn/isDone/notLogged matched it and the
+  // Log In button silently vanished for the rest of the day.
+  const notLogged = !todayLog || (todayLog.status === "half_day" && !todayLog.clock_in)
   // WFH approved but auto-clock-in not yet reflected — only for same-day requests (pre-planned leaves skip auto clock-in)
   const isWfhApprovedNoClockIn = isSameDayWfhRequest && todayWfhLeave?.status === "approved" && !todayLog?.clock_in
   const breakTotalMins  = todayLog?.break_total_mins ?? 0

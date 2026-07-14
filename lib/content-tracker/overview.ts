@@ -2,7 +2,9 @@
 // unit-tested because the date arithmetic (overdue / this week / days-stuck) is exactly
 // where off-by-one bugs silently misreport the state of the board.
 
-export type OverviewStatus = 'shot' | 'editing' | 'edited' | 'ready' | 'posted'
+export type OverviewStatus =
+  | 'scripting' | 'voiceover' | 'design' | 'ready_to_edit'
+  | 'editing' | 'edited' | 'on_review' | 'ready_to_post' | 'posted'
 export type OverviewShootStatus = 'scheduled' | 'going' | 'completed' | 'cancelled'
 export type OverviewAdStatus = 'active' | 'testing' | 'paused' | 'stopped'
 
@@ -12,7 +14,10 @@ export type OverviewItem = {
   id: string
   content_type: 'video' | 'poster'
   status: OverviewStatus
+  source: 'shoot' | 'ads_video' | 'poster'
   shot_date: string | null
+  voiceover_date: string | null
+  created_at: string
   scheduled_post_date: string | null
   corrections: { correction_date: string }[]
 }
@@ -31,8 +36,8 @@ export type PostingCounts = { dueToday: number; dueThisWeek: number; overdue: nu
 export type ShootCounts = Record<OverviewShootStatus, number>
 export type AdCounts = Record<OverviewAdStatus, number>
 
-export type AttentionKind = 'overdue' | 'stuck-editing' | 'shoots-today' | 'repeat-corrections'
-export type AttentionTarget = { mode: 'video' | 'poster' | 'ads'; tab: 'shoots' | 'pipeline' | 'log' | null }
+export type AttentionKind = 'overdue' | 'stuck-editing' | 'shoots-today' | 'repeat-corrections' | 'awaiting-review' | 'in-scripting'
+export type AttentionTarget = { mode: 'video' | 'poster' | 'ads'; tab: 'shoots' | 'adsvideo' | 'pipeline' | 'log' | null }
 export type AttentionItem = {
   kind: AttentionKind
   count: number
@@ -67,7 +72,10 @@ function daysBetween(from: string, to: string): number {
 }
 
 function emptyStages(): StageCounts {
-  return { shot: 0, editing: 0, edited: 0, ready: 0, posted: 0 }
+  return {
+    scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0,
+    editing: 0, edited: 0, on_review: 0, ready_to_post: 0, posted: 0,
+  }
 }
 
 function countStages(items: OverviewItem[], type: 'video' | 'poster'): StageCounts {
@@ -78,11 +86,13 @@ function countStages(items: OverviewItem[], type: 'video' | 'poster'): StageCoun
   return counts
 }
 
-// When did this item most recently ENTER its current editing state? An item bounced back
+// When did this item most recently ENTER its current editing state? Takes the LATEST of
+// every date that could mark that moment: shot_date (shoot origin), voiceover_date (ads-video
+// origin), created_at (fallback for either), and any correction bounce. An item bounced back
 // for a correction has an old shot_date but has only just re-entered Editing — using
 // shot_date alone would wrongly flag it as stalled the moment someone returns it.
 function editingSince(item: OverviewItem): string | null {
-  const dates = [item.shot_date, ...item.corrections.map(c => c.correction_date)]
+  const dates = [item.shot_date, item.voiceover_date, item.created_at.slice(0, 10), ...item.corrections.map(c => c.correction_date)]
     .filter((d): d is string => !!d)
   if (dates.length === 0) return null
   return dates.sort()[dates.length - 1]
@@ -93,7 +103,7 @@ export function computeOverview({ items, shoots, ads, today }: OverviewInput): O
 
   const readyWithDate = items.filter(
     (i): i is OverviewItem & { scheduled_post_date: string } =>
-      i.status === 'ready' && !!i.scheduled_post_date
+      i.status === 'ready_to_post' && !!i.scheduled_post_date
   )
 
   const posting: PostingCounts = {
@@ -126,6 +136,9 @@ export function computeOverview({ items, shoots, ads, today }: OverviewInput): O
     i => i.corrections.length >= REPEAT_CORRECTION_THRESHOLD
   ).length
 
+  const awaitingReview = items.filter(i => i.status === 'on_review').length
+  const inScripting = items.filter(i => i.status === 'scripting' || i.status === 'voiceover').length
+
   // Most actionable first. Zero-count entries are omitted entirely rather than shown as
   // "0 overdue" — a clean board should look clean.
   const candidates: AttentionItem[] = [
@@ -134,6 +147,12 @@ export function computeOverview({ items, shoots, ads, today }: OverviewInput): O
       count: posting.overdue,
       label: `${posting.overdue} post${posting.overdue === 1 ? '' : 's'} overdue`,
       target: { mode: 'video', tab: 'log' },
+    },
+    {
+      kind: 'awaiting-review',
+      count: awaitingReview,
+      label: `${awaitingReview} item${awaitingReview === 1 ? '' : 's'} awaiting review`,
+      target: { mode: 'video', tab: 'pipeline' },
     },
     {
       kind: 'stuck-editing',
@@ -146,6 +165,12 @@ export function computeOverview({ items, shoots, ads, today }: OverviewInput): O
       count: repeatCorrections,
       label: `${repeatCorrections} item${repeatCorrections === 1 ? '' : 's'} bounced back ${REPEAT_CORRECTION_THRESHOLD}+ times`,
       target: { mode: 'video', tab: 'pipeline' },
+    },
+    {
+      kind: 'in-scripting',
+      count: inScripting,
+      label: `${inScripting} ads video${inScripting === 1 ? '' : 's'} in scripting/VO`,
+      target: { mode: 'video', tab: 'adsvideo' },
     },
     {
       kind: 'shoots-today',

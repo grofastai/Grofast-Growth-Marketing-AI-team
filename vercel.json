@@ -56,10 +56,9 @@
       "path": "/api/cron/cleanup-tasks",
       "schedule": "0 2 * * *"
     },
-    {
-      "path": "/api/cron/recurring-tasks",
-      "schedule": "30 18 * * *"
-    },
+    { "path": "/api/cron/recurring-tasks", "schedule": "30 18 * * *" },
+    { "path": "/api/cron/recurring-tasks", "schedule": "30 20 * * *" },
+    { "path": "/api/cron/recurring-tasks", "schedule": "30 4 * * *" },
     {
       "path": "/api/cron/attendance-nudge",
       "schedule": "30 4 * * *"

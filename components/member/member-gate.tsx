@@ -61,7 +61,7 @@ export default function MemberGate({ forgotLogout, forgotLogoutDate, missingUpda
             border: "1px solid rgba(239,68,68,0.15)",
           }}>
             <p style={{ fontSize: 13, color: "#6B7280", margin: 0, lineHeight: 1.6, textAlign: "center" }}>
-              You forgot to clock out yesterday. Fix your logout time on the Attendance page to continue.
+              You forgot to clock out on this day. Fix your logout time on the Attendance page to continue.
             </p>
           </div>
 
@@ -133,7 +133,7 @@ export default function MemberGate({ forgotLogout, forgotLogoutDate, missingUpda
           border: "1px solid rgba(245,158,11,0.2)",
         }}>
           <p style={{ fontSize: 13, color: "#6B7280", margin: 0, lineHeight: 1.6, textAlign: "center" }}>
-            You haven&apos;t submitted your daily update for yesterday. Submit it to unlock all features.
+            This day has no work entries logged. Submit the update for it to unlock all features.
           </p>
         </div>
 
@@ -147,7 +147,7 @@ export default function MemberGate({ forgotLogout, forgotLogoutDate, missingUpda
           }}
         >
           <FileText size={15} />
-          Submit Yesterday&apos;s Update
+          Submit This Day&apos;s Update
         </button>
 
         <form action={logoutAction} style={{ marginTop: 10 }}>

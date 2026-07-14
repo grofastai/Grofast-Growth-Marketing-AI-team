@@ -4,9 +4,10 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import {
-  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema,
-  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput,
+  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema,
+  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput,
 } from '@/lib/validations/content-tracker'
+import { isValidPipelineTransition, type ContentPipelineStatus } from '@/lib/content-tracker/pipeline-transitions'
 
 function adminSupabase() {
   return createClient(
@@ -44,12 +45,18 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
   const today = new Date().toISOString().split('T')[0]
   const shotDate = parsed.data.shot_date || today
 
+  // Manual entry has no shoot/script behind it — video defaults to the shoot origin
+  // (this modal is the backfill path for "we shot this off-book"), poster to its own.
+  const source = parsed.data.content_type === 'poster' ? 'poster' : 'shoot'
+  const entryStatus = parsed.data.content_type === 'poster' ? 'design' : 'ready_to_edit'
+
   const { data, error } = await ctx.admin.from('content_items').insert({
     company_id:   ctx.companyId,
     client_name:  parsed.data.client_name,
     title:        parsed.data.title,
     content_type: parsed.data.content_type,
-    status:       isBackfillPosted ? 'posted' : 'shot',
+    source,
+    status:       isBackfillPosted ? 'posted' : entryStatus,
     shot_by:      ctx.id,
     shot_date:    shotDate,
     edited_by:    isBackfillPosted ? ctx.id : null,
@@ -93,17 +100,124 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
   return { success: true }
 }
 
+export type CreatedCorrection = {
+  id: string; content_item_id: string; correction_date: string; notes: string
+  requestedByUser: { id: string; name: string } | null
+  assignedToUser: { id: string; name: string } | null
+}
+
+// The correction loop: an Edited item that needs changes goes BACK to Editing with a
+// note about what to fix. The round-trip is logged (append-only) rather than overwritten,
+// so you can see a video went through N rounds instead of just its current state.
+export async function requestCorrection(
+  input: RequestCorrectionInput
+): Promise<{ success: boolean; error?: string; correction?: CreatedCorrection }> {
+  const parsed = requestCorrectionSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { data: current } = await ctx.admin
+    .from('content_items').select('status').eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId).single()
+  if (!current) return { success: false, error: 'Content item not found' }
+  if (current.status !== 'on_review') {
+    return { success: false, error: 'Corrections can only be requested from On Review' }
+  }
+
+  const { data: row, error } = await ctx.admin.from('content_corrections').insert({
+    content_item_id: parsed.data.content_item_id,
+    company_id:      ctx.companyId,
+    notes:           parsed.data.notes,
+    requested_by:    ctx.id,
+    assigned_to:     parsed.data.assigned_to || null,
+  }).select('id, correction_date').single()
+  if (error) return { success: false, error: error.message }
+
+  // Back to Editing. If the correction was assigned to someone, they become the editor —
+  // otherwise whoever was already editing keeps it.
+  const updates: Record<string, unknown> = { status: 'editing', updated_at: new Date().toISOString() }
+  if (parsed.data.assigned_to) updates.edited_by = parsed.data.assigned_to
+
+  const { error: statusError } = await ctx.admin.from('content_items')
+    .update(updates)
+    .eq('id', parsed.data.content_item_id)
+    .eq('company_id', ctx.companyId)
+  if (statusError) return { success: false, error: statusError.message }
+
+  const names = await ctx.admin.from('users').select('id, name')
+    .in('id', [ctx.id, parsed.data.assigned_to].filter(Boolean) as string[])
+  const nameMap = new Map((names.data ?? []).map(u => [u.id, u as { id: string; name: string }]))
+
+  revalidateTracker()
+  return {
+    success: true,
+    correction: {
+      id: row.id,
+      content_item_id: parsed.data.content_item_id,
+      correction_date: row.correction_date,
+      notes: parsed.data.notes,
+      requestedByUser: nameMap.get(ctx.id) ?? null,
+      assignedToUser: parsed.data.assigned_to ? (nameMap.get(parsed.data.assigned_to) ?? null) : null,
+    },
+  }
+}
+
+// Scheduling an item into "Ready to Post" — captures which platforms it's going to and
+// when, so the team has a queue of what's due. content_item_posts is still only written
+// when it's actually marked Posted; this is the intent, not the record.
+export async function markReadyToPost(input: MarkReadyToPostInput): Promise<{ success: boolean; error?: string }> {
+  const parsed = markReadyToPostSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { error } = await ctx.admin.from('content_items').update({
+    status:              'ready_to_post',
+    ready_platforms:     parsed.data.ready_platforms,
+    scheduled_post_date: parsed.data.scheduled_post_date,
+    scheduled_post_time: parsed.data.scheduled_post_time || null,
+    // Reaching Ready to Post always means it was approved out of On Review — record who.
+    reviewed_by:         ctx.id,
+    reviewed_at:         new Date().toISOString(),
+    updated_at:          new Date().toISOString(),
+  }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true }
+}
+
 export async function updateContentItemStatus(
   id: string,
-  status: 'shot' | 'editing' | 'edited' | 'posted'
+  status: ContentPipelineStatus,
+  editorId?: string
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
 
+  const { data: current } = await ctx.admin
+    .from('content_items').select('status, edited_by').eq('id', id).eq('company_id', ctx.companyId).single()
+  if (!current) return { success: false, error: 'Content item not found' }
+
+  if (!isValidPipelineTransition(current.status as ContentPipelineStatus, status)) {
+    return { success: false, error: `Cannot move from ${current.status} to ${status}` }
+  }
+
   const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
+
+  // Moving to Editing is where the editor is recorded — that's the accountability
+  // moment ("who is starting this?"), so edited_by is set here, not on completion.
+  if (status === 'editing' && editorId) {
+    updates.edited_by = editorId
+  }
+
   if (status === 'edited') {
-    updates.edited_by = ctx.id
     updates.edited_date = new Date().toISOString().split('T')[0]
+    // Don't clobber the editor picked when it entered Editing. Only fall back to the
+    // current user if it somehow skipped that step and has no editor recorded.
+    if (!current.edited_by) updates.edited_by = ctx.id
   }
 
   const { error } = await ctx.admin.from('content_items').update(updates).eq('id', id).eq('company_id', ctx.companyId)
@@ -139,7 +253,7 @@ export async function addContentPost(input: AddContentPostInput): Promise<{ succ
     platform:        parsed.data.platform,
     posted_date:     parsed.data.posted_date,
     post_link:       parsed.data.post_link || null,
-    posted_by:       ctx.id,
+    posted_by:       parsed.data.posted_by || ctx.id,
   }).select('id').single()
   if (error) return { success: false, error: error.message }
 
@@ -160,14 +274,17 @@ export async function deleteContentPost(id: string, contentItemId: string): Prom
   const { error } = await ctx.admin.from('content_item_posts').delete().eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
 
-  // If that was the last platform post for this item, drop it back to "edited"
-  // rather than leaving it marked posted with nothing to show for it.
+  // If that was the last platform post for this item, it's no longer "posted". Fall back
+  // to "ready" if it still has a scheduled slot (so it returns to the queue rather than
+  // losing its schedule), otherwise to "edited".
   const { count } = await ctx.admin.from('content_item_posts')
     .select('id', { count: 'exact', head: true })
     .eq('content_item_id', contentItemId)
   if (!count) {
+    const { data: item } = await ctx.admin.from('content_items')
+      .select('scheduled_post_date').eq('id', contentItemId).eq('company_id', ctx.companyId).single()
     await ctx.admin.from('content_items')
-      .update({ status: 'edited', updated_at: new Date().toISOString() })
+      .update({ status: item?.scheduled_post_date ? 'ready_to_post' : 'edited', updated_at: new Date().toISOString() })
       .eq('id', contentItemId)
       .eq('company_id', ctx.companyId)
   }
@@ -201,6 +318,31 @@ export async function createAd(input: CreateAdInput): Promise<{ success: boolean
 
   revalidateTracker()
   return { success: true, id: data.id }
+}
+
+// Edit an ad's details. Deliberately does NOT touch status, hook_count, performance or the
+// correction history — each of those has its own flow, and folding them in here would let
+// an "edit details" action silently rewrite the ad's tracked history.
+export async function updateAd(input: UpdateAdInput): Promise<{ success: boolean; error?: string }> {
+  const parsed = updateAdSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { error } = await ctx.admin.from('ads_tracker').update({
+    client_name:     parsed.data.client_name,
+    ad_name:         parsed.data.ad_name,
+    platform:        parsed.data.platform,
+    launch_date:     parsed.data.launch_date || null,
+    targeting_type:  parsed.data.targeting_type || null,
+    targeting_notes: parsed.data.targeting_notes || null,
+    updated_at:      new Date().toISOString(),
+  }).eq('id', parsed.data.ad_id).eq('company_id', ctx.companyId)
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true }
 }
 
 export async function updateAdStatus(
@@ -281,4 +423,83 @@ export async function addAdPerformanceEntry(input: AddAdPerformanceEntryInput): 
 
   revalidateTracker()
   return { success: true, id: data.id }
+}
+
+// ── Ads Video (Scripting -> Voice Over) ──────────────────────────────────────
+
+export async function createAdsVideoScript(input: CreateAdsVideoScriptInput): Promise<{ success: boolean; error?: string; id?: string }> {
+  const parsed = createAdsVideoScriptSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { data, error } = await ctx.admin.from('content_items').insert({
+    company_id:   ctx.companyId,
+    client_name:  parsed.data.client_name,
+    title:        parsed.data.title,
+    content_type: 'video',
+    source:       'ads_video',
+    status:       'scripting',
+    hook_count:   parsed.data.hook_count,
+    use_for:      parsed.data.use_for,
+    priority:     parsed.data.priority,
+    scripted_by:  ctx.id,
+    notes:        parsed.data.notes || null,
+    created_by:   ctx.id,
+  }).select('id').single()
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true, id: data.id }
+}
+
+export async function recordVoiceOver(input: RecordVoiceOverInput): Promise<{ success: boolean; error?: string }> {
+  const parsed = recordVoiceOverSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { data: current } = await ctx.admin
+    .from('content_items').select('status').eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId).single()
+  if (!current) return { success: false, error: 'Content item not found' }
+  if (!isValidPipelineTransition(current.status as ContentPipelineStatus, 'voiceover')) {
+    return { success: false, error: `Cannot move from ${current.status} to voiceover` }
+  }
+
+  const { error } = await ctx.admin.from('content_items').update({
+    status:         'voiceover',
+    voiceover_by:   parsed.data.voiceover_by,
+    voiceover_date: parsed.data.voiceover_date,
+    updated_at:     new Date().toISOString(),
+  }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true }
+}
+
+// Edit an Ads Video's scripting details. Deliberately does NOT touch status/voiceover —
+// those have their own flow, same convention as updateAd not touching an ad's status.
+export async function updateAdsVideoScript(input: UpdateAdsVideoScriptInput): Promise<{ success: boolean; error?: string }> {
+  const parsed = updateAdsVideoScriptSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { error } = await ctx.admin.from('content_items').update({
+    client_name: parsed.data.client_name,
+    title:       parsed.data.title,
+    hook_count:  parsed.data.hook_count,
+    use_for:     parsed.data.use_for,
+    priority:    parsed.data.priority,
+    notes:       parsed.data.notes || null,
+    updated_at:  new Date().toISOString(),
+  }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true }
 }

@@ -9,7 +9,8 @@ import {
 import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil,
-  Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays,
+  Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw, LayoutDashboard,
+  MoreVertical, Users,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
@@ -18,14 +19,22 @@ import { latestEntry, isUnderperforming, cpc, cpm, frequency, costPerResult, typ
 import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
-  createAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry,
+  createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, markReadyToPost, requestCorrection,
+  createAdsVideoScript, recordVoiceOver, updateAdsVideoScript,
 } from "@/lib/actions/content-tracker"
-import { createTrackerShoot, completeShootWithTitles, updateShootStatus, type CreatedShootItem } from "@/lib/actions/shoots"
+import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
+import { isValidPipelineTransition } from "@/lib/content-tracker/pipeline-transitions"
+import { computeOverview, type AttentionItem } from "@/lib/content-tracker/overview"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb"
-type ContentStatus = "shot" | "editing" | "edited" | "posted"
+type UseFor = Platform | "ads"
+type Priority = "low" | "medium" | "high" | "urgent"
+type ContentSource = "shoot" | "ads_video" | "poster"
+type ContentStatus =
+  | "scripting" | "voiceover" | "design" | "ready_to_edit"
+  | "editing" | "edited" | "on_review" | "ready_to_post" | "posted"
 type TargetingType = "broad" | "interest" | "lookalike" | "retargeting"
 type AdStatus = "active" | "paused" | "testing" | "stopped"
 
@@ -40,20 +49,46 @@ export type ContentPost = {
   postedByUser?: Person
 }
 
+export type ContentCorrection = {
+  id: string
+  content_item_id: string
+  correction_date: string
+  notes: string
+  requestedByUser: Person
+  assignedToUser: Person
+}
+
 export type ContentItem = {
   id: string
   client_name: string
   title: string
   content_type: "video" | "poster"
   status: ContentStatus
+  source: ContentSource
   shot_date: string | null
   edited_date: string | null
   notes: string | null
   created_at: string
+  // Set when the item is scheduled into "Ready to Post" — the intent, not the record.
+  ready_platforms: Platform[]
+  scheduled_post_date: string | null
+  scheduled_post_time: string | null
+  // Ads Video (Scripting) fields — null/empty for shoot- and poster-sourced items.
+  hook_count: number | null
+  use_for: UseFor[]
+  priority: Priority | null
+  voiceover_date: string | null
+  reviewed_at: string | null
   shotByUser?: Person
   editedByUser?: Person
+  scriptedByUser?: Person
+  reviewedByUser?: Person
+  voiceoverBy?: { id: string; name: string } | null
+  corrections: ContentCorrection[]
   posts: ContentPost[]
 }
+
+export type VoiceFreelancer = { id: string; name: string }
 
 export type AdRevision = {
   id: string
@@ -88,26 +123,53 @@ export type Shoot = {
   start_time: string
   notes: string | null
   status: ShootStatus
+  goingByUsers: { id: string; name: string }[]
   titles: ShootTitleRef[]
 }
+
+export type Member = { id: string; name: string }
 
 type Props = {
   initialItems: ContentItem[]
   initialAds: Ad[]
   initialShoots: Shoot[]
+  members: Member[]
   currentUserId: string
   clients: { id: string; name: string }[]
   pastClients: { id: string; name: string }[]
+  voiceoverFreelancers: VoiceFreelancer[]
 }
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
-  shot:    { label: "Shot",    accent: "#F59E0B" },
-  editing: { label: "Editing", accent: "#6366F1" },
-  edited:  { label: "Edited",  accent: "#9B6BFF" },
-  posted:  { label: "Posted",  accent: "#22C55E" },
+  scripting:     { label: "Scripting",     accent: "#F97316" },
+  voiceover:     { label: "Voice Over",    accent: "#EAB308" },
+  design:        { label: "Design",        accent: "#F59E0B" },
+  ready_to_edit: { label: "Ready to Edit", accent: "#F59E0B" },
+  editing:       { label: "Editing",       accent: "#6366F1" },
+  edited:        { label: "Edited",        accent: "#9B6BFF" },
+  on_review:     { label: "On Review",     accent: "#EC4899" },
+  ready_to_post: { label: "Ready to Post", accent: "#0EA5E9" },
+  posted:        { label: "Posted",        accent: "#22C55E" },
 }
-const STATUS_ORDER: ContentStatus[] = ["shot", "editing", "edited", "posted"]
+// The production board's column order — differs by content type only in its first column
+// (shoot/ads-video video enters at Ready to Edit; posters enter at Design).
+const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "editing", "edited", "on_review", "ready_to_post"]
+const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "editing", "edited", "on_review", "ready_to_post"]
+// The Ads Video sub-tab's own two-column board — feeds INTO Ready to Edit, doesn't include it.
+const ADS_VIDEO_ORDER: ContentStatus[] = ["scripting", "voiceover"]
+// The default "move forward" target for the generic advance button. on_review is
+// deliberately absent — it branches two ways (approve / correction) and gets its own
+// two-button UI instead of a single generic button. posted is terminal.
+const NEXT_STATUS: Partial<Record<ContentStatus, ContentStatus>> = {
+  scripting: "voiceover",
+  voiceover: "ready_to_edit",
+  design: "editing",
+  ready_to_edit: "editing",
+  editing: "edited",
+  edited: "on_review",
+  ready_to_post: "posted",
+}
 
 const PLATFORM_CFG: Record<Platform, { label: string; color: string; icon: typeof Camera }> = {
   instagram: { label: "Instagram", color: "#E1306C", icon: Camera },
@@ -115,6 +177,18 @@ const PLATFORM_CFG: Record<Platform, { label: string; color: string; icon: typeo
   facebook:  { label: "Facebook",  color: "#1877F2", icon: ThumbsUp },
   linkedin:  { label: "LinkedIn",  color: "#0A66C2", icon: Building2 },
   gmb:       { label: "GMB",       color: "#1E8E3E", icon: Store },
+}
+
+const USE_FOR_CFG: Record<UseFor, { label: string; color: string; icon: typeof Camera }> = {
+  ...PLATFORM_CFG,
+  ads: { label: "Ads", color: "#D97706", icon: Megaphone },
+}
+
+const PRIORITY_CFG: Record<Priority, { label: string; color: string }> = {
+  low:    { label: "Low",    color: "#6B7280" },
+  medium: { label: "Medium", color: "#3B82F6" },
+  high:   { label: "High",   color: "#F59E0B" },
+  urgent: { label: "Urgent", color: "#DE1A1A" },
 }
 
 const TARGETING_CFG: Record<TargetingType, { label: string; color: string }> = {
@@ -163,6 +237,12 @@ function daysAgo(d?: string | null) {
   const diff = Math.floor((Date.now() - new Date(d + "T00:00:00").getTime()) / 86400000)
   return diff
 }
+// The date that anchors "how long has this been sitting here" — shot_date for shoot
+// video, voiceover_date for ads video, falling back to created_at for either if neither
+// is set yet (an ads-video item still in Scripting has no voiceover_date at all).
+function originDate(item: ContentItem): string | null {
+  return item.shot_date ?? item.voiceover_date ?? item.created_at?.slice(0, 10) ?? null
+}
 function fmtMonth(ym: string) {
   const [y, m] = ym.split("-").map(Number)
   return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" })
@@ -171,6 +251,14 @@ function fmtDateRange(dates: string[]) {
   const sorted = Array.from(new Set(dates)).sort()
   if (sorted.length === 1) return fmtDate(sorted[0])
   return `${fmtDate(sorted[0])} – ${fmtDate(sorted[sorted.length - 1])}`
+}
+// "14:30:00" / "14:30" -> "2:30 PM"
+function fmtTime(t?: string | null): string {
+  if (!t) return ""
+  const [h, m] = t.split(":").map(Number)
+  const period = h >= 12 ? "PM" : "AM"
+  const hr = h % 12 || 12
+  return `${hr}:${String(m).padStart(2, "0")} ${period}`
 }
 function fmtCompactNumber(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}K`
@@ -217,45 +305,136 @@ function PrimaryButton({ children, onClick, disabled, type = "button" }: { child
 }
 
 // ── Pill toggle (tab switcher) ───────────────────────────────────────────────
-function TabToggle({ tabs, active, onChange }: { tabs: { key: string; label: string; icon: typeof Layers }[]; active: string; onChange: (k: string) => void }) {
+// Each mode owns an accent so you always know which board you're on at a glance —
+// the section rail below picks it up, tying the two levels together.
+type TrackerMode = "overview" | "video" | "poster" | "ads"
+const MODE_ACCENT: Record<TrackerMode, { solid: string; grad: string; glow: string; soft: string }> = {
+  overview: { solid: "#0EA5E9", grad: "linear-gradient(135deg,#38BDF8,#0EA5E9)", glow: "rgba(14,165,233,0.45)", soft: "rgba(14,165,233,0.10)" },
+  video: { solid: "#DE1A1A", grad: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", glow: "rgba(222,26,26,0.45)", soft: "rgba(222,26,26,0.10)" },
+  poster: { solid: "#7C3AED", grad: "linear-gradient(135deg,#A78BFA,#7C3AED)", glow: "rgba(124,58,237,0.45)", soft: "rgba(124,58,237,0.10)" },
+  ads: { solid: "#D97706", grad: "linear-gradient(135deg,#FBBF24,#D97706)", glow: "rgba(217,119,6,0.45)", soft: "rgba(217,119,6,0.10)" },
+}
+
+const NAV_MODES: { key: TrackerMode; label: string; icon: typeof Layers }[] = [
+  { key: "overview", label: "Overview", icon: LayoutDashboard },
+  { key: "video", label: "Video", icon: Video },
+  { key: "poster", label: "Poster", icon: ImageIcon },
+  { key: "ads", label: "Ads", icon: Megaphone },
+]
+
+// Two levels, two different visual languages: the mode rail is a solid switch on dark,
+// the section rail is an underlined tab strip on white. Stacking two identical pill bars
+// made them read as siblings when one actually governs the other.
+function TrackerNav({ mode, onMode, tab, onTab, modeCounts, sections }: {
+  mode: TrackerMode
+  onMode: (m: TrackerMode) => void
+  tab: string
+  onTab: (t: string) => void
+  modeCounts: Record<TrackerMode, number>
+  sections: { key: string; label: string; icon: typeof Layers; count: number }[]
+}) {
+  const accent = MODE_ACCENT[mode]
   return (
-    <div style={{ display: "flex", gap: 6, background: "#1F2937", borderRadius: 14, padding: 5, flexWrap: "wrap" }}>
-      {tabs.map(t => {
-        const isActive = t.key === active
-        const Icon = t.icon
-        return (
-          <button key={t.key} onClick={() => onChange(t.key)}
-            style={{
-              display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10, border: "none",
-              background: isActive ? "linear-gradient(135deg,#FF4D4D,#DE1A1A)" : "transparent",
-              color: isActive ? "#fff" : "#D1D5DB",
-              boxShadow: isActive ? "0 4px 14px rgba(222,26,26,0.3)" : "none",
-              fontSize: 12, fontWeight: 800, cursor: "pointer", transition: "all 0.15s",
-            }}>
-            <Icon size={13} />
-            {t.label}
-          </button>
-        )
-      })}
+    <div style={{ borderRadius: 18, overflow: "hidden", border: "1px solid #E5E7EB", background: "#fff", boxShadow: "0 1px 2px rgba(16,24,40,0.05)" }}>
+      <div style={{ display: "flex", gap: 4, background: "#0F172A", padding: 6 }}>
+        {NAV_MODES.map(m => {
+          const on = m.key === mode
+          const a = MODE_ACCENT[m.key]
+          const Icon = m.icon
+          return (
+            <button key={m.key} onClick={() => onMode(m.key)} aria-pressed={on}
+              className="flex-1 md:flex-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                padding: "9px clamp(10px,2.4vw,20px)", borderRadius: 12, border: "none", cursor: "pointer",
+                background: on ? a.grad : "transparent",
+                boxShadow: on ? `0 6px 18px ${a.glow}` : "none",
+                transition: "background .18s ease, box-shadow .18s ease",
+              }}>
+              <span style={{
+                display: "grid", placeItems: "center", width: 24, height: 24, borderRadius: 8, flexShrink: 0,
+                background: on ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.07)",
+                color: on ? "#fff" : "#94A3B8",
+              }}>
+                <Icon size={13} />
+              </span>
+              <span style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: "-0.01em", color: on ? "#fff" : "#94A3B8" }}>{m.label}</span>
+              <span className="hidden md:inline-block" style={{
+                fontSize: 10.5, fontWeight: 800, fontVariantNumeric: "tabular-nums", lineHeight: "16px",
+                minWidth: 20, textAlign: "center", padding: "0 5px", borderRadius: 6,
+                color: on ? "#fff" : "#64748B",
+                background: on ? "rgba(255,255,255,0.20)" : "rgba(255,255,255,0.06)",
+              }}>{modeCounts[m.key]}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {sections.length > 0 && (
+        <div style={{ display: "flex", gap: "clamp(14px,3vw,26px)", padding: "0 clamp(12px,3vw,18px)", overflowX: "auto" }}>
+          {sections.map(s => {
+            const on = s.key === tab
+            const Icon = s.icon
+            return (
+              <button key={s.key} onClick={() => onTab(s.key)} aria-current={on ? "page" : undefined}
+                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:rounded"
+                style={{
+                  position: "relative", display: "flex", alignItems: "center", gap: 7, flexShrink: 0,
+                  padding: "13px 2px", background: "none", border: "none", cursor: "pointer",
+                }}>
+                {/* Icons are decoration here — dropped on small screens so all three labels fit without scrolling. */}
+                <Icon size={13} className="hidden md:block" style={{ color: on ? accent.solid : "#94A3B8" }} />
+                <span style={{
+                  fontSize: 11, fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase",
+                  color: on ? "#0F172A" : "#94A3B8", whiteSpace: "nowrap",
+                }}>{s.label}</span>
+                <span style={{
+                  fontSize: 10, fontWeight: 800, fontVariantNumeric: "tabular-nums", lineHeight: "15px",
+                  padding: "0 5px", borderRadius: 5,
+                  color: on ? accent.solid : "#94A3B8",
+                  background: on ? accent.soft : "#F1F5F9",
+                }}>{s.count}</span>
+                <span aria-hidden style={{
+                  position: "absolute", left: 0, right: 0, bottom: 0, height: 2.5, borderRadius: "3px 3px 0 0",
+                  background: on ? accent.grad : "transparent",
+                }} />
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
 
 // ── Kanban card ──────────────────────────────────────────────────────────────
 function ContentCardInner({
-  item, isDraggable, isDragging, onAdvance, onDelete, onAddPlatform, onEdit,
+  item, isDraggable, isDragging, onAdvance, onDelete, onAddPlatform, onEdit, onRequestCorrection,
 }: {
   item: ContentItem
   isDraggable?: boolean
   isDragging?: boolean
   onAdvance: (item: ContentItem, next: ContentStatus) => void
   onDelete: (id: string) => void
+  onRequestCorrection?: (item: ContentItem) => void
   onAddPlatform: (item: ContentItem) => void
   onEdit?: (item: ContentItem) => void
 }) {
   const TypeIcon = item.content_type === "video" ? Video : ImageIcon
-  const age = item.status === "shot" ? daysAgo(item.shot_date) : item.status === "edited" ? daysAgo(item.edited_date) : null
+  const age = (item.status === "ready_to_edit" || item.status === "design") ? daysAgo(originDate(item))
+    : item.status === "edited" ? daysAgo(item.edited_date) : null
   const stale = age !== null && age >= 3
+
+  // The drag overlay renders this card with no handlers, so an empty menu is expected there
+  // and the kebab is simply omitted.
+  const cardMenu: CardMenuItem[] = []
+  if (onEdit) cardMenu.push({ label: "Edit details", icon: Pencil, onClick: () => onEdit(item) })
+  if (onRequestCorrection && item.status === "on_review") {
+    cardMenu.push({ label: "Needs correction", icon: RotateCcw, onClick: () => onRequestCorrection(item) })
+  }
+  if (onEdit) cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true })
+
+  const next = NEXT_STATUS[item.status]
 
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
@@ -275,17 +454,36 @@ function ContentCardInner({
           <TypeIcon size={12} style={{ color: "#6366F1" }} />
         </div>
         <p className="text-[12px] font-semibold leading-snug line-clamp-2 flex-1" style={{ color: "#111111" }}>{item.title}</p>
+        {cardMenu.length > 0 && <CardMenu items={cardMenu} />}
       </div>
 
       <div className="flex flex-wrap items-center gap-1 mb-2.5">
         <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full truncate max-w-[110px]"
           style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>{item.client_name}</span>
+        {item.source === "ads_video" && (
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(217,119,6,0.1)", color: "#D97706" }}>
+            🎙️ Ads Video
+          </span>
+        )}
         {stale && (
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-auto" style={{ background: "rgba(245,158,11,0.1)", color: "#D97706" }}>
             {age}d stuck
           </span>
         )}
       </div>
+
+      {item.priority && (
+        <div className="flex flex-wrap items-center gap-1 mb-2.5">
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${PRIORITY_CFG[item.priority].color}18`, color: PRIORITY_CFG[item.priority].color }}>
+            {PRIORITY_CFG[item.priority].label}
+          </span>
+          {item.hook_count !== null && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#F3F4F6", color: "#374151" }}>
+              {item.hook_count} hook{item.hook_count === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
+      )}
 
       {item.status === "posted" && item.posts.length > 0 && (
         <div className="flex flex-wrap items-center gap-1 mb-2.5">
@@ -310,23 +508,100 @@ function ContentCardInner({
             </div>
           </div>
         )}
-        {item.editedByUser && (
+        {item.voiceoverBy && (item.status === "voiceover" || item.status === "ready_to_edit") && (
+          <div className="flex items-center gap-1" title={`Voiced by ${item.voiceoverBy.name}`}>
+            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#EAB308", color: "#fff" }}>
+              {initials(item.voiceoverBy.name)}
+            </div>
+          </div>
+        )}
+        {/* While it's in Editing, name the editor outright — the point of asking "who's
+            starting this?" is that the rest of the team can see it without hovering. */}
+        {item.editedByUser && item.status === "editing" ? (
+          <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+            title={`${item.editedByUser.name} is editing this`}
+            style={{ background: "rgba(155,107,255,0.12)", color: "#9B6BFF" }}>
+            <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
+              style={{ background: "#9B6BFF", color: "#fff" }}>
+              {initials(item.editedByUser.name)}
+            </span>
+            {item.editedByUser.name}
+          </span>
+        ) : item.editedByUser ? (
           <div className="flex items-center gap-1" title={`Edited by ${item.editedByUser.name}`}>
             <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#9B6BFF", color: "#fff" }}>
               {initials(item.editedByUser.name)}
             </div>
           </div>
-        )}
-        <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(item.shot_date)}</span>
+        ) : null}
+        <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(originDate(item))}</span>
       </div>
 
-      {item.status !== "posted" && (
+      {/* Scheduled slot — shown while it's queued in Ready to Post. */}
+      {item.status === "ready_to_post" && item.scheduled_post_date && (
+        <div className="mb-2 p-2 rounded-xl" style={{ background: "rgba(14,165,233,0.08)" }}>
+          <div className="flex items-center gap-1 mb-1">
+            <CalendarDays size={10} style={{ color: "#0EA5E9" }} />
+            <span className="text-[9px] font-bold" style={{ color: "#0EA5E9" }}>
+              {fmtDate(item.scheduled_post_date)}{item.scheduled_post_time ? ` · ${fmtTime(item.scheduled_post_time)}` : ""}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {item.ready_platforms.map(p => {
+              const cfg = PLATFORM_CFG[p]
+              const Icon = cfg.icon
+              return (
+                <span key={p} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={{ background: `${cfg.color}18`, color: cfg.color }}>
+                  <Icon size={9} /> {cfg.label}
+                </span>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Correction round-trips — shows this went back N times, and what for. */}
+      {item.corrections.length > 0 && (
+        <div className="mb-2">
+          <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full w-fit"
+            title={item.corrections.map(c => c.notes).join(" · ")}
+            style={{ background: "rgba(245,158,11,0.12)", color: "#D97706" }}>
+            <RotateCcw size={9} /> {item.corrections.length} correction{item.corrections.length > 1 ? "s" : ""}
+          </span>
+          <p className="text-[9px] mt-1 line-clamp-2" style={{ color: "#6B7280" }}>
+            {item.corrections[0].notes}
+          </p>
+        </div>
+      )}
+
+      {/* The review gate: approve moves it on, a correction sends it back to Editing. */}
+      {item.status === "on_review" ? (
+        <div className="flex flex-col gap-1.5">
+          <button
+            onPointerDown={e => e.stopPropagation()}
+            onClick={() => onAdvance(item, "ready_to_post")}
+            className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
+            style={{ background: `${STATUS_CFG.ready_to_post.accent}14`, color: STATUS_CFG.ready_to_post.accent }}>
+            Approve <ArrowRight size={10} />
+          </button>
+          {onRequestCorrection && (
+            <button
+              onPointerDown={e => e.stopPropagation()}
+              onClick={() => onRequestCorrection(item)}
+              className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
+              style={{ background: "rgba(245,158,11,0.1)", color: "#D97706" }}>
+              <RotateCcw size={10} /> Needs Correction
+            </button>
+          )}
+        </div>
+      ) : next && (
         <button
           onPointerDown={e => e.stopPropagation()}
-          onClick={() => onAdvance(item, STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1])}
+          onClick={() => onAdvance(item, next)}
           className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
-          style={{ background: `${STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].accent}14`, color: STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].accent }}>
-          {item.status === "edited" ? <>Post Now <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].label} <ArrowRight size={10} /></>}
+          style={{ background: `${STATUS_CFG[next].accent}14`, color: STATUS_CFG[next].accent }}>
+          {item.status === "ready_to_post" ? <>Mark Posted <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
         </button>
       )}
       {item.status === "posted" && (
@@ -337,25 +612,96 @@ function ContentCardInner({
         </button>
       )}
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 4, marginTop: 6 }}>
-        {onEdit && (
-          <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(item)} title="Edit details"
-            style={{ padding: "3px 6px", borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", opacity: 0.4 }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.4")}>
-            <Pencil size={11} style={{ color: "#6366F1" }} />
-          </button>
-        )}
-        <button onPointerDown={e => e.stopPropagation()} onClick={() => onDelete(item.id)} title="Delete"
-          style={{ padding: "3px 6px", borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", opacity: 0.4 }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.4")}>
-          <Trash2 size={11} style={{ color: "#de1a1a" }} />
-        </button>
-      </div>
     </div>
   )
 }
 
-function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvance: (item: ContentItem, next: ContentStatus) => void; onDelete: (id: string) => void; onAddPlatform: (item: ContentItem) => void; onEdit: (item: ContentItem) => void }) {
+// ── Ads Video card — the Scripting/Voice Over board's card, distinct from
+// ContentCardInner because its fields (hooks, use-for, priority) don't apply once an
+// item reaches the shared Ready to Edit board (which reuses ContentCardInner).
+function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
+  item: ContentItem
+  isDragging?: boolean
+  onAdvance: (item: ContentItem, next: ContentStatus) => void
+  onEdit: (item: ContentItem) => void
+  onDelete: (id: string) => void
+}) {
+  const cardMenu: CardMenuItem[] = [
+    { label: "Edit details", icon: Pencil, onClick: () => onEdit(item) },
+    { label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true },
+  ]
+  const next = NEXT_STATUS[item.status]
+
+  return (
+    <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
+      style={{
+        background: isDragging ? "#F3F4F6" : "#FFFFFF",
+        boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
+        border: "1px solid transparent",
+        opacity: isDragging ? 0.5 : 1,
+      }}>
+      <div className="flex items-start gap-2 mb-2">
+        <span className="flex-shrink-0 mt-0.5 opacity-30 group-hover:opacity-70 transition-opacity" title="Drag anywhere on the card to move it">
+          <GripVertical size={13} style={{ color: "#6B7280" }} />
+        </span>
+        <div style={{ width: 22, height: 22, borderRadius: 7, background: "rgba(217,119,6,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Video size={12} style={{ color: "#D97706" }} />
+        </div>
+        <p className="text-[12px] font-semibold leading-snug line-clamp-2 flex-1" style={{ color: "#111111" }}>{item.title}</p>
+        <CardMenu items={cardMenu} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1 mb-2.5">
+        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full truncate max-w-[110px]"
+          style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>{item.client_name}</span>
+        {item.priority && (
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${PRIORITY_CFG[item.priority].color}18`, color: PRIORITY_CFG[item.priority].color }}>
+            {PRIORITY_CFG[item.priority].label}
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1 mb-2.5">
+        {item.hook_count !== null && (
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#F3F4F6", color: "#374151" }}>
+            {item.hook_count} hook{item.hook_count === 1 ? "" : "s"}
+          </span>
+        )}
+        {item.use_for.map(u => {
+          const cfg = USE_FOR_CFG[u]
+          const Icon = cfg.icon
+          return (
+            <span key={u} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+              style={{ background: `${cfg.color}18`, color: cfg.color }}>
+              <Icon size={9} /> {cfg.label}
+            </span>
+          )
+        })}
+      </div>
+
+      {item.voiceoverBy && (
+        <div className="flex items-center gap-1 mb-2" title={`Voiced by ${item.voiceoverBy.name}`}>
+          <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#EAB308", color: "#fff" }}>
+            {initials(item.voiceoverBy.name)}
+          </div>
+          <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{item.voiceoverBy.name}</span>
+        </div>
+      )}
+
+      {next && (
+        <button
+          onPointerDown={e => e.stopPropagation()}
+          onClick={() => onAdvance(item, next)}
+          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
+          style={{ background: `${STATUS_CFG[next].accent}14`, color: STATUS_CFG[next].accent }}>
+          {item.status === "voiceover" ? <>Send to Ready to Edit <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvance: (item: ContentItem, next: ContentStatus) => void; onDelete: (id: string) => void; onAddPlatform: (item: ContentItem) => void; onEdit: (item: ContentItem) => void; onRequestCorrection: (item: ContentItem) => void }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: props.item.id, data: { status: props.item.status } })
   const style = transform ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` } : undefined
   return (
@@ -365,7 +711,8 @@ function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvanc
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     <div ref={setNodeRef} style={{ ...style, touchAction: "none" }} {...(listeners as any)} {...(attributes as any)} className="cursor-grab active:cursor-grabbing">
       <ContentCardInner item={props.item} isDraggable isDragging={props.isDragging}
-        onAdvance={props.onAdvance} onDelete={props.onDelete} onAddPlatform={props.onAddPlatform} onEdit={props.onEdit} />
+        onAdvance={props.onAdvance} onDelete={props.onDelete} onAddPlatform={props.onAddPlatform} onEdit={props.onEdit}
+        onRequestCorrection={props.onRequestCorrection} />
     </div>
   )
 }
@@ -443,6 +790,115 @@ function DayFilter({ value, onChange }: { value: string; onChange: (v: string) =
   )
 }
 
+// ── Card actions menu ────────────────────────────────────────────────────────
+// One kebab on every card, so Edit/Delete live in the same place no matter what you're
+// looking at. onPointerDown is stopped throughout — these cards are drag handles, and
+// without it opening the menu would start a drag instead.
+type CardMenuItem = { label: string; icon: typeof Layers; onClick: () => void; danger?: boolean }
+
+function CardMenu({ items }: { items: CardMenuItem[] }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
+        title="Actions"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 rounded"
+        style={{
+          display: "grid", placeItems: "center", width: 22, height: 22, borderRadius: 6,
+          border: "none", background: open ? "#F1F5F9" : "transparent", cursor: "pointer",
+          color: "#9CA3AF",
+        }}>
+        <MoreVertical size={13} />
+      </button>
+
+      {open && (
+        <>
+          {/* Click-away catcher. Fixed, so it also closes when you click elsewhere on the board. */}
+          <div
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); setOpen(false) }}
+            style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+
+          <div role="menu"
+            onPointerDown={e => e.stopPropagation()}
+            style={{
+              position: "absolute", right: 0, top: 24, zIndex: 41,
+              minWidth: 148, overflow: "hidden",
+              background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10,
+              boxShadow: "0 10px 28px rgba(16,24,40,0.14)",
+            }}>
+            {items.map(it => {
+              const Icon = it.icon
+              return (
+                <button key={it.label} role="menuitem"
+                  onClick={e => { e.stopPropagation(); setOpen(false); it.onClick() }}
+                  className="w-full hover:bg-slate-50"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "8px 12px", border: "none", background: "transparent",
+                    cursor: "pointer", textAlign: "left",
+                    fontSize: 11.5, fontWeight: 700,
+                    color: it.danger ? "#DE1A1A" : "#374151",
+                  }}>
+                  <Icon size={12} />
+                  {it.label}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Overview building blocks ─────────────────────────────────────────────────
+function OverviewStat({ label, value, accent, onClick }: {
+  label: string; value: number; accent: string; onClick: () => void
+}) {
+  return (
+    <button onClick={onClick}
+      className="text-left hover:opacity-90 transition-opacity"
+      style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16, padding: "14px 16px", cursor: "pointer" }}>
+      <p style={{ fontSize: 26, fontWeight: 900, color: accent, margin: 0, letterSpacing: "-0.02em" }}>{value}</p>
+      <p style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em", margin: "2px 0 0" }}>{label}</p>
+    </button>
+  )
+}
+
+function OverviewBlock({ title, accent, icon: Icon, rows }: {
+  title: string
+  accent: string
+  icon: typeof Layers
+  rows: { key: string; label: string; value: number; onClick: () => void }[]
+}) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
+        <Icon size={13} style={{ color: accent }} />
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{title}</span>
+      </div>
+      <div className="flex flex-col">
+        {rows.map(r => (
+          <button key={r.key} onClick={r.onClick}
+            className="flex items-center justify-between hover:bg-slate-50"
+            style={{ padding: "9px 16px", borderBottom: "1px solid #F9FAFB", border: "none", background: "transparent", cursor: "pointer" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{r.label}</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: r.value > 0 ? accent : "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>
+              {r.value}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function KanbanEmptyCell({ isOver, accent }: { isOver: boolean; accent: string }) {
   return (
     <div className="flex items-center justify-center py-8 rounded-xl transition-all" style={{ border: `2px dashed ${isOver ? accent : "#E5E7EB"}` }}>
@@ -451,10 +907,57 @@ function KanbanEmptyCell({ isOver, accent }: { isOver: boolean; accent: string }
   )
 }
 
+// A shoot can produce a lot of videos. Wrapping 8 of them as pills turns the card into
+// unreadable soup in a narrow kanban column, so: a count, then a scannable list capped at
+// three, with the rest a click away. Dots rather than numbers — the videos aren't a
+// sequence, and numbering would imply an order that doesn't exist.
+function ShootTitleList({ titles }: { titles: ShootTitleRef[] }) {
+  const [expanded, setExpanded] = useState(false)
+  const COLLAPSED = 3
+  const shown = expanded ? titles : titles.slice(0, COLLAPSED)
+  const hidden = titles.length - shown.length
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-lg"
+        style={{ background: "rgba(99,102,241,0.09)", color: "#6366F1" }}>
+        <Video size={10} /> {titles.length} video{titles.length === 1 ? "" : "s"}
+      </span>
+
+      <div className="flex flex-col" style={{ marginTop: 6 }}>
+        {shown.map(t => (
+          <div key={t.id} className="flex items-center gap-2"
+            style={{ padding: "5px 0", borderBottom: "1px solid #F3F4F6" }}>
+            <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#6366F1", flexShrink: 0 }} />
+            <span className="text-[11px] truncate" style={{ color: "#374151" }}>{t.title}</span>
+          </div>
+        ))}
+      </div>
+
+      {titles.length > COLLAPSED && (
+        <button onPointerDown={e => e.stopPropagation()} onClick={() => setExpanded(v => !v)}
+          className="text-[10px] font-bold"
+          style={{ marginTop: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: expanded ? "#9CA3AF" : "#6366F1" }}>
+          {expanded ? "Show less" : `+ ${hidden} more`}
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ── Shoot kanban card ────────────────────────────────────────────────────────
-function ShootCardInner({ shoot, isDragging, onStatus }: {
-  shoot: Shoot; isDragging?: boolean; onStatus: (id: string, status: ShootStatus) => void
+function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDelete }: {
+  shoot: Shoot; isDragging?: boolean
+  onStatus: (id: string, status: ShootStatus) => void
+  onEditCrew?: (shoot: Shoot) => void
+  onEdit?: (shoot: Shoot) => void
+  onDelete?: (shoot: Shoot) => void
 }) {
+  const menu: CardMenuItem[] = []
+  if (onEdit) menu.push({ label: "Edit shoot", icon: Pencil, onClick: () => onEdit(shoot) })
+  if (onEditCrew) menu.push({ label: "Who went", icon: Users, onClick: () => onEditCrew(shoot) })
+  if (onDelete) menu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(shoot), danger: true })
+
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 select-none"
       style={{
@@ -462,20 +965,45 @@ function ShootCardInner({ shoot, isDragging, onStatus }: {
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         opacity: isDragging ? 0.5 : 1,
       }}>
-      <p className="text-[12px] font-bold leading-snug" style={{ color: "#111827", margin: 0 }}>{shoot.legacyTitle}</p>
-      <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>
-        {shoot.client} · {fmtDate(shoot.start_time.split("T")[0])}
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <div style={{ minWidth: 0 }}>
+          <p className="text-[12px] font-bold leading-snug" style={{ color: "#111827", margin: 0 }}>{shoot.legacyTitle}</p>
+          <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>
+            {shoot.client} · {fmtDate(shoot.start_time.split("T")[0])}
+          </p>
+        </div>
+        {menu.length > 0 && <CardMenu items={menu} />}
+      </div>
 
       {/* Video titles only exist once the shoot is marked Done — that's when they're captured. */}
-      {shoot.titles.length > 0 && (
-        <div className="flex flex-wrap gap-1" style={{ marginTop: 8 }}>
-          {shoot.titles.map(t => (
-            <span key={t.id} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-              style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>
-              {t.title}
-            </span>
-          ))}
+      {shoot.titles.length > 0 && <ShootTitleList titles={shoot.titles} />}
+
+      {/* Who covered the shoot. Always shown — an empty crew is itself worth seeing, and it's
+          editable at any point so older shoots with nobody recorded can be filled in. */}
+      {onEditCrew && (
+        <div style={{ marginTop: 8 }}>
+          <span className="text-[9px] font-bold uppercase tracking-[0.06em]" style={{ color: "#9CA3AF" }}>Who went</span>
+          {shoot.goingByUsers.length === 0 ? (
+            <button onPointerDown={e => e.stopPropagation()} onClick={() => onEditCrew(shoot)}
+              className="block text-[10px] font-bold"
+              style={{ marginTop: 3, background: "none", border: "none", padding: 0, cursor: "pointer", color: "#3B82F6" }}>
+              + Add crew
+            </button>
+          ) : (
+            <div className="flex flex-wrap items-center gap-1" style={{ marginTop: 3 }}>
+              {shoot.goingByUsers.map(u => (
+                <span key={u.id} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  title={u.name}
+                  style={{ background: "rgba(59,130,246,0.1)", color: "#3B82F6" }}>
+                  <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
+                    style={{ background: "#3B82F6", color: "#fff" }}>
+                    {initials(u.name)}
+                  </span>
+                  {u.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -509,15 +1037,25 @@ function ShootCardInner({ shoot, isDragging, onStatus }: {
 }
 
 // ── Ad kanban card ───────────────────────────────────────────────────────────
-function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformance, onLogCorrection, onDelete }: {
+function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformance, onLogCorrection, onDelete, onEdit }: {
   ad: Ad; expanded?: boolean; isDragging?: boolean
   onToggleExpand: (id: string) => void
   onLogPerformance: (ad: Ad) => void
   onLogCorrection: (ad: Ad) => void
   onDelete: (id: string) => void
+  onEdit?: (ad: Ad) => void
 }) {
   const latest = latestEntry(ad.performanceEntries)
   const underperforming = isUnderperforming(ad.performanceEntries)
+
+  // The drag overlay passes no-op handlers, so the kebab is omitted there.
+  const cardMenu: CardMenuItem[] = []
+  if (onEdit) {
+    cardMenu.push({ label: "Edit ad", icon: Pencil, onClick: () => onEdit(ad) })
+    cardMenu.push({ label: "Log performance", icon: Target, onClick: () => onLogPerformance(ad) })
+    cardMenu.push({ label: "Log correction", icon: RotateCcw, onClick: () => onLogCorrection(ad) })
+    cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(ad.id), danger: true })
+  }
 
   return (
     <div className="rounded-2xl mb-2.5 select-none" style={{
@@ -525,12 +1063,16 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
       border: `1px solid ${underperforming ? "#FCA5A5" : "transparent"}`,
       boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
       opacity: isDragging ? 0.5 : 1,
-      overflow: "hidden",
+      // Not `hidden` — the kebab's dropdown escapes the card bounds and would be clipped.
+      overflow: "visible",
     }}>
       <div className="p-3.5 cursor-pointer" onClick={() => onToggleExpand(ad.id)}>
         <div className="flex items-start justify-between gap-2">
           <p className="text-[12px] font-bold leading-snug" style={{ color: "#111827", margin: 0 }}>{ad.ad_name}</p>
-          <ChevronDown size={13} className="flex-shrink-0" style={{ color: "#9CA3AF", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {cardMenu.length > 0 && <CardMenu items={cardMenu} />}
+            <ChevronDown size={13} style={{ color: "#9CA3AF", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+          </div>
         </div>
         <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>{ad.client_name} · {ad.platform}</p>
         <p className="text-[10px]" style={{ color: "#6B7280", margin: "4px 0 0" }}>
@@ -675,7 +1217,10 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
     if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
     onCreated({
       id: res.id, client_name: client, title: title.trim(), content_type: contentType,
-      status: alreadyPosted ? "posted" : "shot",
+      status: alreadyPosted ? "posted" : (contentType === "poster" ? "design" : "ready_to_edit"),
+      source: contentType === "poster" ? "poster" : "shoot",
+      ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
+      hook_count: null, use_for: [], priority: null, voiceover_date: null, reviewed_at: null,
       shot_date: shotDate, edited_date: alreadyPosted ? postedDate : null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({ id: `${res.id}-${i}`, content_item_id: res.id!, platform, posted_date: postedDate, post_link: null })) : [],
     })
@@ -735,6 +1280,167 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
   )
 }
 
+// ── New Ads Video modal — Scripting stage ────────────────────────────────────
+function NewAdsVideoModal({ clients, pastClients, onClose, onCreated }: {
+  clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  onClose: () => void; onCreated: (item: ContentItem) => void
+}) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const [client, setClient] = useState("")
+  const [title, setTitle] = useState("")
+  const [hookCount, setHookCount] = useState(1)
+  const [useFor, setUseFor] = useState<UseFor[]>([])
+  const [priority, setPriority] = useState<Priority>("medium")
+  const [notes, setNotes] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function toggleUseFor(u: UseFor) {
+    setUseFor(prev => prev.includes(u) ? prev.filter(x => x !== u) : [...prev, u])
+  }
+
+  async function submit() {
+    if (!client || !title.trim()) { setError("Client and title are required"); return }
+    if (useFor.length === 0) { setError("Pick at least one \"use for\""); return }
+    setSaving(true); setError(null)
+    const res = await createAdsVideoScript({ client_name: client, title: title.trim(), hook_count: hookCount, use_for: useFor, priority, notes: notes.trim() || undefined })
+    setSaving(false)
+    if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
+    onCreated({
+      id: res.id, client_name: client, title: title.trim(), content_type: "video", source: "ads_video",
+      status: "scripting", shot_date: null, edited_date: null, notes: notes.trim() || null, created_at: new Date().toISOString(),
+      ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
+      hook_count: hookCount, use_for: useFor, priority, voiceover_date: null, reviewed_at: null, posts: [],
+    })
+  }
+
+  return (
+    <Modal title="New Ads Video" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
+        <div>
+          <label style={LABEL}>Title *</label>
+          <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Diwali Offer Hook Set" />
+        </div>
+        <div>
+          <label style={LABEL}>How many hooks?</label>
+          <input type="number" min={0} style={FIELD} value={hookCount} onChange={e => setHookCount(Math.max(0, Number(e.target.value)))} />
+        </div>
+        <div>
+          <label style={LABEL}>Use For * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {(Object.keys(USE_FOR_CFG) as UseFor[]).map(u => {
+              const cfg = USE_FOR_CFG[u]
+              const Icon = cfg.icon
+              const on = useFor.includes(u)
+              return (
+                <button key={u} type="button" onClick={() => toggleUseFor(u)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  <Icon size={12} /> {cfg.label} {on && <Check size={10} />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Priority</label>
+          <select style={{ ...FIELD, cursor: "pointer" }} value={priority} onChange={e => setPriority(e.target.value as Priority)}>
+            {(Object.keys(PRIORITY_CFG) as Priority[]).map(p => <option key={p} value={p}>{PRIORITY_CFG[p].label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={LABEL}>Notes <span style={{ fontWeight: 600, textTransform: "none" }}>(the script brief)</span></label>
+          <textarea style={{ ...FIELD, minHeight: 60, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Add to Scripting"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Edit Ads Video modal — same field set as creation, pre-filled ───────────
+function EditAdsVideoModal({ item, clients, pastClients, onClose, onSaved }: {
+  item: ContentItem
+  clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  onClose: () => void
+  onSaved: (updates: { client_name: string; title: string; hook_count: number; use_for: UseFor[]; priority: Priority; notes: string }) => void
+}) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const [client, setClient] = useState(item.client_name)
+  const [title, setTitle] = useState(item.title)
+  const [hookCount, setHookCount] = useState(item.hook_count ?? 0)
+  const [useFor, setUseFor] = useState<UseFor[]>(item.use_for)
+  const [priority, setPriority] = useState<Priority>(item.priority ?? "medium")
+  const [notes, setNotes] = useState(item.notes || "")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function toggleUseFor(u: UseFor) {
+    setUseFor(prev => prev.includes(u) ? prev.filter(x => x !== u) : [...prev, u])
+  }
+
+  async function submit() {
+    if (!client || !title.trim()) { setError("Client and title are required"); return }
+    if (useFor.length === 0) { setError("Pick at least one \"use for\""); return }
+    setSaving(true); setError(null)
+    const res = await updateAdsVideoScript({ content_item_id: item.id, client_name: client, title: title.trim(), hook_count: hookCount, use_for: useFor, priority, notes: notes.trim() || undefined })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onSaved({ client_name: client, title: title.trim(), hook_count: hookCount, use_for: useFor, priority, notes: notes.trim() })
+  }
+
+  return (
+    <Modal title="Edit Ads Video" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
+        <div>
+          <label style={LABEL}>Title *</label>
+          <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
+        </div>
+        <div>
+          <label style={LABEL}>How many hooks?</label>
+          <input type="number" min={0} style={FIELD} value={hookCount} onChange={e => setHookCount(Math.max(0, Number(e.target.value)))} />
+        </div>
+        <div>
+          <label style={LABEL}>Use For * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {(Object.keys(USE_FOR_CFG) as UseFor[]).map(u => {
+              const cfg = USE_FOR_CFG[u]
+              const Icon = cfg.icon
+              const on = useFor.includes(u)
+              return (
+                <button key={u} type="button" onClick={() => toggleUseFor(u)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  <Icon size={12} /> {cfg.label} {on && <Check size={10} />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Priority</label>
+          <select style={{ ...FIELD, cursor: "pointer" }} value={priority} onChange={e => setPriority(e.target.value as Priority)}>
+            {(Object.keys(PRIORITY_CFG) as Priority[]).map(p => <option key={p} value={p}>{PRIORITY_CFG[p].label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={LABEL}>Notes</label>
+          <textarea style={{ ...FIELD, minHeight: 60, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
 // ── Edit Content modal ───────────────────────────────────────────────────────
 function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
   item: ContentItem
@@ -788,13 +1494,26 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
 }
 
 // ── Add Platform Post modal ──────────────────────────────────────────────────
-function AddPlatformModal({ item, onClose, onAdded }: { item: ContentItem; onClose: () => void; onAdded: (posts: ContentPost[]) => void }) {
-  const [platforms, setPlatforms] = useState<Platform[]>([])
-  const [postedDate, setPostedDate] = useState(new Date().toISOString().split("T")[0])
+function AddPlatformModal({ item, members, currentUserId, onClose, onAdded }: {
+  item: ContentItem; members: Member[]; currentUserId: string
+  onClose: () => void; onAdded: (posts: ContentPost[]) => void
+}) {
+  const already = useMemo(() => new Set(item.posts.map(p => p.platform)), [item.posts])
+  // Prefill from what was scheduled at "Ready to Post" — you already picked the platforms
+  // and date then, so don't make anyone pick them twice. Still editable in case it changed.
+  const [platforms, setPlatforms] = useState<Platform[]>(
+    () => (item.ready_platforms ?? []).filter(p => !already.has(p))
+  )
+  const [postedDate, setPostedDate] = useState(
+    item.scheduled_post_date || new Date().toISOString().split("T")[0]
+  )
   const [postLink, setPostLink] = useState("")
+  // Who's posting — defaults to whoever clicked, but can be assigned to someone else.
+  const [postedBy, setPostedBy] = useState(
+    members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const already = new Set(item.posts.map(p => p.platform))
 
   function toggle(p: Platform) {
     setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
@@ -804,19 +1523,24 @@ function AddPlatformModal({ item, onClose, onAdded }: { item: ContentItem; onClo
     if (platforms.length === 0) { setError("Pick at least one platform"); return }
     setSaving(true); setError(null)
 
-    // One post row per platform — the date and link are shared across the batch.
+    // One post row per platform — the date, link and poster are shared across the batch.
     const results = await Promise.all(platforms.map(platform =>
-      addContentPost({ content_item_id: item.id, platform, posted_date: postedDate, post_link: postLink.trim() || undefined })
-        .then(res => ({ res, platform }))
+      addContentPost({
+        content_item_id: item.id, platform, posted_date: postedDate,
+        post_link: postLink.trim() || undefined,
+        posted_by: postedBy || undefined,
+      }).then(res => ({ res, platform }))
     ))
     setSaving(false)
 
     const failed = results.find(r => !r.res.success || !r.res.id)
     if (failed) { setError(failed.res.error ?? "Failed to save"); return }
 
+    const poster = members.find(m => m.id === postedBy) ?? null
     onAdded(results.map(({ res, platform }) => ({
       id: res.id!, content_item_id: item.id, platform,
       posted_date: postedDate, post_link: postLink.trim() || null,
+      postedByUser: poster,
     })))
   }
 
@@ -845,6 +1569,16 @@ function AddPlatformModal({ item, onClose, onAdded }: { item: ContentItem; onClo
             </p>
           )}
         </div>
+        {members.length > 0 && (
+          <div>
+            <label style={LABEL}>Posted By *</label>
+            <select style={{ ...FIELD, cursor: "pointer" }} value={postedBy} onChange={e => setPostedBy(e.target.value)}>
+              {members.map(m => (
+                <option key={m.id} value={m.id}>{m.name}{m.id === currentUserId ? " (me)" : ""}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label style={LABEL}>Posted Date *</label>
           <input type="date" style={FIELD} value={postedDate} onChange={e => setPostedDate(e.target.value)} />
@@ -1096,6 +1830,7 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
       start_time: `${shotDate}T${shotTime || "09:00"}:00`,
       notes: notes.trim() || null,
       status: "scheduled",
+      goingByUsers: [],
       titles: [],
     })
   }
@@ -1133,14 +1868,293 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   )
 }
 
-// ── Complete Shoot modal — captures the video titles that came out of the shoot ──
-function CompleteShootModal({ shoot, onClose, onCompleted }: {
-  shoot: Shoot
+// ── "Needs correction" — sends an Edited item back to Editing with what to fix ──────
+function RequestCorrectionModal({ item, members, onClose, onRequested }: {
+  item: ContentItem
+  members: Member[]
   onClose: () => void
-  onCompleted: (created: CreatedShootItem[]) => void
+  onRequested: (correction: ContentCorrection) => void
+}) {
+  const [notes, setNotes] = useState("")
+  // Defaults to whoever last edited it — they're the one who'd fix it.
+  const [assignedTo, setAssignedTo] = useState(item.editedByUser?.id ?? "")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (!notes.trim()) { setError("Describe what needs fixing"); return }
+    setSaving(true); setError(null)
+    const res = await requestCorrection({
+      content_item_id: item.id,
+      notes: notes.trim(),
+      assigned_to: assignedTo || undefined,
+    })
+    setSaving(false)
+    if (!res.success || !res.correction) { setError(res.error ?? "Failed to save"); return }
+    onRequested(res.correction)
+  }
+
+  return (
+    <Modal title="Needs Correction" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          <strong style={{ color: "#111827" }}>{item.title}</strong> goes back to Editing. The round-trip
+          is logged, so you can see how many rounds it took.
+        </p>
+        <div>
+          <label style={LABEL}>What needs fixing? *</label>
+          <textarea style={{ ...FIELD, minHeight: 70, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)}
+            placeholder="e.g. Trim the intro, fix the logo placement at 0:12" />
+        </div>
+        {members.length > 0 && (
+          <div>
+            <label style={LABEL}>Back to</label>
+            <select style={{ ...FIELD, cursor: "pointer" }} value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
+              <option value="">— Keep current editor —</option>
+              {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </div>
+        )}
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Send Back for Correction"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── "Ready to Post" — schedules WHICH platforms and WHEN, before it actually goes out ──
+function ReadyToPostModal({ item, onClose, onScheduled }: {
+  item: ContentItem
+  onClose: () => void
+  onScheduled: (platforms: Platform[], date: string, time: string) => void
+}) {
+  const [platforms, setPlatforms] = useState<Platform[]>([])
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [time, setTime] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function toggle(p: Platform) {
+    setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+  }
+
+  async function submit() {
+    if (platforms.length === 0) { setError("Pick at least one platform"); return }
+    if (!date) { setError("Pick the posting date"); return }
+    setSaving(true); setError(null)
+    const res = await markReadyToPost({
+      content_item_id: item.id,
+      ready_platforms: platforms,
+      scheduled_post_date: date,
+      scheduled_post_time: time || undefined,
+    })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to schedule"); return }
+    onScheduled(platforms, date, time)
+  }
+
+  return (
+    <Modal title="Ready to Post" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          <strong style={{ color: "#111827" }}>{item.title}</strong> — where and when is this going out?
+          It&apos;ll queue up on the Posted tab until you mark it Posted.
+        </p>
+        <div>
+          <label style={LABEL}>Platforms * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
+              const cfg = PLATFORM_CFG[p]
+              const Icon = cfg.icon
+              const on = platforms.includes(p)
+              return (
+                <button key={p} onClick={() => toggle(p)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  <Icon size={12} /> {cfg.label} {on && <Check size={10} />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Posting Date *</label>
+            <input type="date" style={FIELD} value={date} onChange={e => setDate(e.target.value)} />
+          </div>
+          <div>
+            <label style={LABEL}>Time <span style={{ fontWeight: 600, textTransform: "none" }}>(optional)</span></label>
+            <input type="time" style={FIELD} value={time} onChange={e => setTime(e.target.value)} />
+          </div>
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Schedule Post"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── "Who's starting the edit?" — the accountability prompt when a video enters Editing ──
+function StartEditingModal({ item, members, currentUserId, onClose, onConfirm }: {
+  item: ContentItem
+  members: Member[]
+  currentUserId: string
+  onClose: () => void
+  onConfirm: (editorId: string, editorName: string) => void
+}) {
+  // Defaults to whoever clicked — the common case is "I'm starting this" — but a manager
+  // can reassign to anyone.
+  const [editorId, setEditorId] = useState(
+    members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
+  )
+  const [error, setError] = useState<string | null>(null)
+
+  function submit() {
+    const editor = members.find(m => m.id === editorId)
+    if (!editor) { setError("Pick who's starting this edit"); return }
+    onConfirm(editor.id, editor.name)
+  }
+
+  return (
+    <Modal title="Who's starting this edit?" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          <strong style={{ color: "#111827" }}>{item.title}</strong> is moving to Editing. Recording who
+          started it means the rest of the team can see it&apos;s being worked on.
+        </p>
+        <div>
+          <label style={LABEL}>Editor *</label>
+          <select style={{ ...FIELD, cursor: "pointer" }} value={editorId} onChange={e => setEditorId(e.target.value)}>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>{m.name}{m.id === currentUserId ? " (me)" : ""}</option>
+            ))}
+          </select>
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit}>Start Editing</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── "Who recorded this?" — the accountability prompt when a script enters Voice Over ──
+function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
+  item: ContentItem
+  freelancers: VoiceFreelancer[]
+  onClose: () => void
+  onConfirm: (voiceoverBy: VoiceFreelancer, date: string) => void
+}) {
+  const [voiceoverId, setVoiceoverId] = useState(freelancers[0]?.id ?? "")
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    const freelancer = freelancers.find(f => f.id === voiceoverId)
+    if (!freelancer) { setError("Pick who recorded the voice-over"); return }
+    setSaving(true); setError(null)
+    const res = await recordVoiceOver({ content_item_id: item.id, voiceover_by: freelancer.id, voiceover_date: date })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onConfirm(freelancer, date)
+  }
+
+  return (
+    <Modal title="Who recorded the voice-over?" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          <strong style={{ color: "#111827" }}>{item.title}</strong> is moving to Voice Over.
+        </p>
+        {freelancers.length === 0 ? (
+          <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>
+            No active Freelance RJ Voiceover artists found — add one under Freelancers first.
+          </p>
+        ) : (
+          <div>
+            <label style={LABEL}>Voice Artist *</label>
+            <select style={{ ...FIELD, cursor: "pointer" }} value={voiceoverId} onChange={e => setVoiceoverId(e.target.value)}>
+              {freelancers.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          </div>
+        )}
+        <div>
+          <label style={LABEL}>Date</label>
+          <input type="date" style={FIELD} value={date} onChange={e => setDate(e.target.value)} />
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving || freelancers.length === 0}>{saving ? "Saving…" : "Confirm Voice Over"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── "Who's going?" — the accountability prompt when a shoot is marked Going ──────
+function GoingCrewModal({ shoot, members, currentUserId, onClose, onConfirm }: {
+  shoot: Shoot
+  members: Member[]
+  currentUserId: string
+  onClose: () => void
+  onConfirm: (crew: Member[]) => void
+}) {
+  const [crew, setCrew] = useState<string[]>(
+    members.some(m => m.id === currentUserId) ? [currentUserId] : []
+  )
+  const [error, setError] = useState<string | null>(null)
+
+  function toggle(id: string) {
+    setCrew(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  function submit() {
+    if (crew.length === 0) { setError("Pick at least one person going"); return }
+    onConfirm(members.filter(m => crew.includes(m.id)))
+  }
+
+  return (
+    <Modal title="Who's going on this shoot?" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          <strong style={{ color: "#111827" }}>{shoot.legacyTitle}</strong> — pick everyone covering it.
+        </p>
+        <div>
+          <label style={LABEL}>Crew * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {members.map(m => {
+              const on = crew.includes(m.id)
+              return (
+                <button key={m.id} onClick={() => toggle(m.id)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {on && <Check size={11} />} {m.name}{m.id === currentUserId ? " (me)" : ""}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit}>
+          Mark Going{crew.length > 0 ? ` (${crew.length})` : ""}
+        </PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Complete Shoot modal — captures the video titles that came out of the shoot ──
+function CompleteShootModal({ shoot, members, currentUserId, onClose, onCompleted }: {
+  shoot: Shoot
+  members: Member[]
+  currentUserId: string
+  onClose: () => void
+  onCompleted: (created: CreatedShootItem[], crew: Member[]) => void
 }) {
   const [titleInput, setTitleInput] = useState("")
   const [titles, setTitles] = useState<string[]>([])
+  // Crew is asked here too, not just at Going — a shoot dragged straight to Completed would
+  // otherwise end up Done with no record of who went. Pre-filled with whoever was marked
+  // Going, so the common path is just "confirm".
+  const [crew, setCrew] = useState<string[]>(() => {
+    if (shoot.goingByUsers.length > 0) return shoot.goingByUsers.map(u => u.id)
+    return members.some(m => m.id === currentUserId) ? [currentUserId] : []
+  })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -1150,13 +2164,17 @@ function CompleteShootModal({ shoot, onClose, onCompleted }: {
     setTitleInput("")
   }
 
+  function toggleCrew(id: string) {
+    setCrew(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
   async function submit() {
     if (titles.length === 0) { setError("Add at least one video title"); return }
     setSaving(true); setError(null)
-    const res = await completeShootWithTitles(shoot.id, titles)
+    const res = await completeShootWithTitles(shoot.id, titles, crew)
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to complete shoot"); return }
-    onCompleted(res.createdItems ?? [])
+    onCompleted(res.createdItems ?? [], members.filter(m => crew.includes(m.id)))
   }
 
   return (
@@ -1188,6 +2206,24 @@ function CompleteShootModal({ shoot, onClose, onCompleted }: {
             </div>
           )}
         </div>
+
+        {members.length > 0 && (
+          <div>
+            <label style={LABEL}>Who went? <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {members.map(m => {
+                const on = crew.includes(m.id)
+                return (
+                  <button key={m.id} type="button" onClick={() => toggleCrew(m.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    {on && <Check size={11} />} {m.name}{m.id === currentUserId ? " (me)" : ""}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>
           {saving ? "Saving…" : `Mark Done${titles.length > 0 ? ` (${titles.length} video${titles.length > 1 ? "s" : ""})` : ""}`}
@@ -1197,17 +2233,229 @@ function CompleteShootModal({ shoot, onClose, onCompleted }: {
   )
 }
 
+// ── Set / correct who went — usable at any point, including after the shoot is Done, so an
+// older shoot with no crew recorded can be backfilled. ─────────────────────────
+function EditCrewModal({ shoot, members, currentUserId, onClose, onSaved }: {
+  shoot: Shoot
+  members: Member[]
+  currentUserId: string
+  onClose: () => void
+  onSaved: (crew: Member[]) => void
+}) {
+  const [crew, setCrew] = useState<string[]>(shoot.goingByUsers.map(u => u.id))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function toggle(id: string) {
+    setCrew(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  async function submit() {
+    setSaving(true); setError(null)
+    const res = await updateShootCrew(shoot.id, crew)
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onSaved(members.filter(m => crew.includes(m.id)))
+  }
+
+  return (
+    <Modal title={`Who went — ${shoot.legacyTitle}`} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          Set or correct who covered this shoot. Works even after it&apos;s Done.
+        </p>
+        <div>
+          <label style={LABEL}>Crew</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {members.map(m => {
+              const on = crew.includes(m.id)
+              return (
+                <button key={m.id} type="button" onClick={() => toggle(m.id)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {on && <Check size={11} />} {m.name}{m.id === currentUserId ? " (me)" : ""}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>
+          {saving ? "Saving…" : `Save Crew${crew.length > 0 ? ` (${crew.length})` : ""}`}
+        </PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Edit shoot details ───────────────────────────────────────────────────────
+function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
+  shoot: Shoot
+  clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  onClose: () => void
+  onSaved: (patch: { client: string; legacyTitle: string; start_time: string; notes: string | null }) => void
+}) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const [client, setClient] = useState(shoot.client)
+  const [title, setTitle] = useState(shoot.legacyTitle)
+  const [shotDate, setShotDate] = useState(shoot.start_time.split("T")[0])
+  const [shotTime, setShotTime] = useState(() => {
+    const t = shoot.start_time.split("T")[1]
+    return t ? t.slice(0, 5) : ""
+  })
+  const [notes, setNotes] = useState(shoot.notes ?? "")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (!client) { setError("Client is required"); return }
+    if (!title.trim()) { setError("Shoot title is required"); return }
+    setSaving(true); setError(null)
+    const res = await updateTrackerShoot(shoot.id, {
+      client, title: title.trim(), shot_date: shotDate,
+      shot_time: shotTime || undefined, notes: notes.trim() || undefined,
+    })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onSaved({
+      client,
+      legacyTitle: title.trim(),
+      start_time: `${shotDate}T${shotTime || "09:00"}:00`,
+      notes: notes.trim() || null,
+    })
+  }
+
+  return (
+    <Modal title="Edit Shoot" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
+        <div>
+          <label style={LABEL}>Shoot Title *</label>
+          <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Shot Date *</label>
+            <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+          </div>
+          <div>
+            <label style={LABEL}>Time</label>
+            <input type="time" style={FIELD} value={shotTime} onChange={e => setShotTime(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Notes</label>
+          <textarea style={{ ...FIELD, minHeight: 50, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} />
+        </div>
+        <p className="text-[10px]" style={{ color: "#9CA3AF", margin: 0 }}>
+          Crew and video titles are edited from their own actions — they aren&apos;t changed here.
+        </p>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Edit ad details ──────────────────────────────────────────────────────────
+function EditAdModal({ ad, clients, pastClients, onClose, onSaved }: {
+  ad: Ad
+  clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  onClose: () => void
+  onSaved: (patch: Pick<Ad, "client_name" | "ad_name" | "platform" | "launch_date" | "targeting_type" | "targeting_notes">) => void
+}) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const [client, setClient] = useState(ad.client_name)
+  const [adName, setAdName] = useState(ad.ad_name)
+  const [platform, setPlatform] = useState(ad.platform)
+  const [launchDate, setLaunchDate] = useState(ad.launch_date ?? "")
+  const [targeting, setTargeting] = useState<TargetingType | "">(ad.targeting_type ?? "")
+  const [notes, setNotes] = useState(ad.targeting_notes ?? "")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (!client) { setError("Client is required"); return }
+    if (!adName.trim()) { setError("Ad name is required"); return }
+    setSaving(true); setError(null)
+    const res = await updateAd({
+      ad_id: ad.id, client_name: client, ad_name: adName.trim(), platform,
+      launch_date: launchDate || undefined,
+      targeting_type: targeting || undefined,
+      targeting_notes: notes.trim() || undefined,
+    })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onSaved({
+      client_name: client, ad_name: adName.trim(), platform,
+      launch_date: launchDate || null,
+      targeting_type: targeting || null,
+      targeting_notes: notes.trim() || null,
+    })
+  }
+
+  return (
+    <Modal title="Edit Ad" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
+        <div>
+          <label style={LABEL}>Ad / Video Name *</label>
+          <input style={FIELD} value={adName} onChange={e => setAdName(e.target.value)} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Platform</label>
+            <input style={FIELD} value={platform} onChange={e => setPlatform(e.target.value)} />
+          </div>
+          <div>
+            <label style={LABEL}>Launch Date</label>
+            <input type="date" style={FIELD} value={launchDate} onChange={e => setLaunchDate(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Targeting Strategy</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {(Object.keys(TARGETING_CFG) as TargetingType[]).map(t => (
+              <button key={t} type="button" onClick={() => setTargeting(targeting === t ? "" : t)}
+                style={{ padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${targeting === t ? TARGETING_CFG[t].color : "#E5E7EB"}`, background: targeting === t ? `${TARGETING_CFG[t].color}14` : "#fff", color: targeting === t ? TARGETING_CFG[t].color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                {TARGETING_CFG[t].label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Strategy Notes</label>
+          <textarea style={{ ...FIELD, minHeight: 50, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} />
+        </div>
+        <p className="text-[10px]" style={{ color: "#9CA3AF", margin: 0 }}>
+          Status, hooks, performance and corrections have their own actions — they aren&apos;t changed here.
+        </p>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
-export default function ContentTrackerClient({ initialItems, initialAds, initialShoots, clients, pastClients }: Props) {
+export default function ContentTrackerClient({ initialItems, initialAds, initialShoots, members, currentUserId, clients, pastClients, voiceoverFreelancers }: Props) {
   const [items, setItems] = useState(initialItems)
   const [ads, setAds] = useState(initialAds)
   const [shoots, setShoots] = useState(initialShoots)
   // Top-level mode (Video / Poster / Ads) with sub-tabs beneath it. Posters aren't shot,
   // so the Shoots sub-tab only exists in Video mode.
-  const [mode, setMode] = useState<"video" | "poster" | "ads">("video")
-  const [subTab, setSubTab] = useState<"shoots" | "pipeline" | "log">("shoots")
+  const [mode, setMode] = useState<TrackerMode>("overview")
+  const [subTab, setSubTab] = useState<"shoots" | "adsvideo" | "pipeline" | "log">("shoots")
   // Derived rather than reset via an effect — avoids a cascading-render setState-in-effect.
-  const tab = mode === "poster" && subTab === "shoots" ? "pipeline" : subTab
+  // Posters have neither Shoots nor Ads Video, so both fall back to Pipeline.
+  const tab = mode === "poster" && (subTab === "shoots" || subTab === "adsvideo") ? "pipeline" : subTab
+  // Overview and Ads have no content type of their own; falling back to "video" keeps the
+  // Pipeline/Log memos below well-defined even while those boards aren't rendered.
   const contentTypeForMode: "video" | "poster" = mode === "poster" ? "poster" : "video"
   const [, startTransition] = useTransition()
 
@@ -1223,12 +2471,24 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [adsSearch, setAdsSearch] = useState("")
   const [showNewShoot, setShowNewShoot] = useState(false)
   const [completeShootFor, setCompleteShootFor] = useState<Shoot | null>(null)
+  const [startEditingItem, setStartEditingItem] = useState<ContentItem | null>(null)
+  const [voiceOverItem, setVoiceOverItem] = useState<ContentItem | null>(null)
+  const [readyToPostItem, setReadyToPostItem] = useState<ContentItem | null>(null)
+  const [correctionItem, setCorrectionItem] = useState<ContentItem | null>(null)
+  const [goingCrewFor, setGoingCrewFor] = useState<Shoot | null>(null)
+  const [editCrewFor, setEditCrewFor] = useState<Shoot | null>(null)
+  const [editShootFor, setEditShootFor] = useState<Shoot | null>(null)
+  const [editAdFor, setEditAdFor] = useState<Ad | null>(null)
   const [shootsClientFilter, setShootsClientFilter] = useState<string>("all")
   // Separate drag state per board — only one board is mounted at a time, but keeping
   // them distinct avoids any chance of a stale id leaking across boards.
   const [shootDragId, setShootDragId] = useState<string | null>(null)
   const [shootOverCol, setShootOverCol] = useState<string | null>(null)
   const [activeShootCol, setActiveShootCol] = useState<ShootStatus>("scheduled")
+  const [adsVideoDragId, setAdsVideoDragId] = useState<string | null>(null)
+  const [adsVideoOverCol, setAdsVideoOverCol] = useState<string | null>(null)
+  const [showNewAdsVideo, setShowNewAdsVideo] = useState(false)
+  const [editAdsVideoFor, setEditAdsVideoFor] = useState<ContentItem | null>(null)
   const [adDragId, setAdDragId] = useState<string | null>(null)
   const [adOverCol, setAdOverCol] = useState<string | null>(null)
   const [activeAdCol, setActiveAdCol] = useState<AdStatus>("active")
@@ -1245,7 +2505,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [adsDayFilter, setAdsDayFilter] = useState("")
   const [pipelineClientFilter, setPipelineClientFilter] = useState<string>("all")
   const [pipelineMonthFilter, setPipelineMonthFilter] = useState<string>("all")
-  const [activeMobileCol, setActiveMobileCol] = useState<ContentStatus>("shot")
+  const [activeMobileCol, setActiveMobileCol] = useState<ContentStatus>("ready_to_edit")
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
@@ -1299,12 +2559,63 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, pipelineClientFilter, pipelineMonthFilter, pipelineDayFilter, contentTypeForMode])
 
+  const pipelineOrder = contentTypeForMode === "poster" ? POSTER_PIPELINE_ORDER : VIDEO_PIPELINE_ORDER
+
   function colItems(status: ContentStatus) { return pipelineItems.filter(i => i.status === status) }
+
+  const adsVideoItems = useMemo(
+    () => items.filter(i => i.content_type === "video" && i.source === "ads_video" && ADS_VIDEO_ORDER.includes(i.status)),
+    [items]
+  )
+  function adsVideoColItems(status: ContentStatus) { return adsVideoItems.filter(i => i.status === status) }
 
   function advance(item: ContentItem, next: ContentStatus) {
     if (next === "posted") { setPlatformModalItem(item); return }
+    // Ready to Post asks where and when it's going out — used both for the normal forward
+    // path and for approving out of On Review.
+    if (next === "ready_to_post") { setReadyToPostItem(item); return }
+    // Entering Editing asks who's starting it — that's the accountability moment.
+    if (next === "editing" && members.length > 0) { setStartEditingItem(item); return }
+    // Entering Voice Over asks who recorded it.
+    if (next === "voiceover") { setVoiceOverItem(item); return }
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, ...(next === "edited" ? { edited_date: new Date().toISOString().split("T")[0] } : {}) } : i))
     startTransition(async () => { await updateContentItemStatus(item.id, next) })
+  }
+
+  function handleCorrectionRequested(correction: ContentCorrection) {
+    setItems(prev => prev.map(i => i.id === correction.content_item_id ? {
+      ...i,
+      status: "editing",
+      corrections: [correction, ...i.corrections],
+      // If it was reassigned, that person is now the editor.
+      editedByUser: correction.assignedToUser ?? i.editedByUser,
+    } : i))
+    setCorrectionItem(null)
+  }
+
+  function handleReadyToPost(item: ContentItem, platforms: Platform[], date: string, time: string) {
+    setItems(prev => prev.map(i => i.id === item.id ? {
+      ...i, status: "ready_to_post",
+      ready_platforms: platforms,
+      scheduled_post_date: date,
+      scheduled_post_time: time || null,
+    } : i))
+    setReadyToPostItem(null)
+  }
+
+  function handleStartEditing(item: ContentItem, editorId: string, editorName: string) {
+    setItems(prev => prev.map(i => i.id === item.id
+      ? { ...i, status: "editing", editedByUser: { id: editorId, name: editorName } }
+      : i))
+    setStartEditingItem(null)
+    startTransition(async () => { await updateContentItemStatus(item.id, "editing", editorId) })
+  }
+
+  function handleVoiceOverRecorded(item: ContentItem, voiceoverBy: VoiceFreelancer, date: string) {
+    setItems(prev => prev.map(i => i.id === item.id
+      ? { ...i, status: "voiceover", voiceoverBy, voiceover_date: date }
+      : i))
+    setVoiceOverItem(null)
   }
 
   function handleDeleteItem(id: string) {
@@ -1316,24 +2627,91 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   function handleDragOver(e: { over: { id: string } | null }) { setOverCol(e.over?.id ?? null) }
   function handleDragEnd(e: DragEndEvent) {
     const overId = e.over?.id as ContentStatus | undefined
-    if (overId && STATUS_ORDER.includes(overId)) {
+    if (overId) {
       const item = items.find(i => i.id === e.active.id)
-      if (item && item.status !== overId) advance(item, overId)
+      if (item && item.status !== overId && isValidPipelineTransition(item.status, overId)) advance(item, overId)
     }
     setDragId(null); setOverCol(null)
+  }
+
+  function handleAdsVideoDragOver(e: { over: { id: string } | null }) { setAdsVideoOverCol(e.over?.id ?? null) }
+  function handleAdsVideoDragEnd(e: DragEndEvent) {
+    const overId = e.over?.id as ContentStatus | undefined
+    if (overId) {
+      const item = items.find(i => i.id === e.active.id)
+      if (item && item.status !== overId && isValidPipelineTransition(item.status, overId)) advance(item, overId)
+    }
+    setAdsVideoDragId(null); setAdsVideoOverCol(null)
+  }
+  const draggedAdsVideo = items.find(i => i.id === adsVideoDragId)
+
+  // Overview numbers are navigation, not decoration — clicking one lands you on the board
+  // it came from, so you can act on it.
+  function goTo(target: AttentionItem["target"]) {
+    setMode(target.mode)
+    if (target.tab) setSubTab(target.tab)
   }
 
   const draggedItem = items.find(i => i.id === dragId)
 
   // Stats — global totals, always unfiltered (shown in the hero chips)
+  // Nav badges. Modes count live work (anything not yet posted / ads still running);
+  // sections count what you'd actually find on that board for the current mode.
+  // Overview's badge is the count of things actually needing action — it's the number you'd
+  // want to see without opening the tab.
+  const overview = useMemo(
+    () => computeOverview({
+      items, shoots, ads,
+      today: new Date().toISOString().split("T")[0],
+    }),
+    [items, shoots, ads]
+  )
+
+  const navCounts = useMemo(() => ({
+    overview: overview.attention.reduce((sum, a) => sum + a.count, 0),
+    video: items.filter(i => i.content_type === "video" && i.status !== "posted").length,
+    poster: items.filter(i => i.content_type === "poster" && i.status !== "posted").length,
+    ads: ads.filter(a => a.status === "active").length,
+  }), [items, ads, overview])
+
+  const navSections = useMemo(() => {
+    if (mode === "ads" || mode === "overview") return []
+    const ofMode = items.filter(i => i.content_type === contentTypeForMode)
+    const activeAdsVideo = items.filter(i => i.content_type === "video" && i.source === "ads_video" && (i.status === "scripting" || i.status === "voiceover"))
+    return [
+      ...(mode === "video"
+        ? [{ key: "shoots", label: "Shoots", icon: Camera, count: shoots.filter(s => s.status === "scheduled" || s.status === "going").length }]
+        : []),
+      ...(mode === "video"
+        ? [{ key: "adsvideo", label: "Ads Video", icon: Sparkles, count: activeAdsVideo.length }]
+        : []),
+      { key: "pipeline", label: "Ready to Edit", icon: Layers, count: ofMode.filter(i => pipelineOrder.includes(i.status)).length },
+      { key: "log", label: "Posted", icon: History, count: ofMode.filter(i => i.status === "posted").length },
+    ]
+  }, [mode, items, shoots, contentTypeForMode, pipelineOrder])
+
   const stats = useMemo(() => {
-    const shot = items.filter(i => i.status === "shot").length
+    const readyToEdit = items.filter(i => i.status === "ready_to_edit").length
     const editing = items.filter(i => i.status === "editing").length
     const edited = items.filter(i => i.status === "edited").length
+    const readyToPost = items.filter(i => i.status === "ready_to_post").length
     const posted = items.filter(i => i.status === "posted").length
     const totalPosts = items.reduce((s, i) => s + i.posts.length, 0)
-    return { shot, editing, edited, posted, totalPosts }
+    return { readyToEdit, editing, edited, readyToPost, posted, totalPosts }
   }, [items])
+
+  // The "what's due next" queue — items scheduled into Ready to Post, soonest first.
+  const readyQueue = useMemo(
+    () => items
+      .filter(i => i.status === "ready_to_post" && i.content_type === contentTypeForMode && i.scheduled_post_date)
+      .sort((a, b) => {
+        const byDate = (a.scheduled_post_date ?? "").localeCompare(b.scheduled_post_date ?? "")
+        if (byDate !== 0) return byDate
+        // No time set sorts last within the day — a specific slot is more urgent than "sometime".
+        return (a.scheduled_post_time ?? "99:99").localeCompare(b.scheduled_post_time ?? "99:99")
+      }),
+    [items, contentTypeForMode]
+  )
 
   // Posting log — one row per content item (not per platform); platforms shown as badges within the row
   const postedItems = useMemo(
@@ -1415,15 +2793,19 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     })
   }, [shoots, shootsClientFilter, shootsMonthFilter, shootsDayFilter])
 
-  // Completing a shoot needs its video titles, so it routes through a modal rather than
-  // firing the action directly. Going/Cancelled are immediate.
+  // Completing needs the video titles, and Going needs the crew — both route through a
+  // modal rather than firing the action directly. Cancelled is immediate.
   function handleShootStatus(shootId: string, status: ShootStatus) {
+    const shoot = shoots.find(s => s.id === shootId)
     if (status === "completed") {
-      const shoot = shoots.find(s => s.id === shootId)
       if (shoot) setCompleteShootFor(shoot)
       return
     }
-    const previous = shoots.find(s => s.id === shootId)?.status
+    if (status === "going" && members.length > 0) {
+      if (shoot) setGoingCrewFor(shoot)
+      return
+    }
+    const previous = shoot?.status
     setShoots(prev => prev.map(s => s.id === shootId ? { ...s, status } : s))
     startTransition(async () => {
       const res = await updateShootStatus(shootId, status)
@@ -1433,19 +2815,55 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     })
   }
 
-  function handleShootCompleted(shootId: string, created: CreatedShootItem[]) {
+  function handleGoingCrew(shootId: string, crew: Member[]) {
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, status: "going", goingByUsers: crew } : s))
+    setGoingCrewFor(null)
+    startTransition(async () => { await updateShootStatus(shootId, "going", crew.map(m => m.id)) })
+  }
+
+  function handleShootCompleted(shootId: string, created: CreatedShootItem[], crew: Member[]) {
     const newItems: ContentItem[] = created.map(ci => ({
-      id: ci.id, client_name: ci.client_name, title: ci.title, content_type: "video",
-      status: "shot", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
+      id: ci.id, client_name: ci.client_name, title: ci.title, content_type: "video", source: "shoot",
+      status: "ready_to_edit", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
+      ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
+      hook_count: null, use_for: [], priority: null, voiceover_date: null, reviewed_at: null,
       created_at: new Date().toISOString(), posts: [],
     }))
     setItems(prev => [...newItems, ...prev])
     setShoots(prev => prev.map(s => s.id === shootId ? {
       ...s,
       status: "completed",
+      goingByUsers: crew.length > 0 ? crew : s.goingByUsers,
       titles: created.map(ci => ({ id: ci.shoot_title_id, title: ci.title, content_item_id: ci.id })),
     } : s))
     setCompleteShootFor(null)
+  }
+
+  function handleCrewSaved(shootId: string, crew: Member[]) {
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, goingByUsers: crew } : s))
+    setEditCrewFor(null)
+  }
+
+  function handleDeleteShoot(shoot: Shoot) {
+    // Deleting a completed shoot cascades its shoot_titles away, but the content items it
+    // produced are their own records and survive — say so, rather than letting someone
+    // assume the videos vanish too.
+    const warning = shoot.titles.length > 0
+      ? `Delete "${shoot.legacyTitle}"?\n\nThe ${shoot.titles.length} video(s) it produced stay in the Pipeline — only the shoot record is removed.`
+      : `Delete "${shoot.legacyTitle}"?`
+    if (!confirm(warning)) return
+    setShoots(prev => prev.filter(s => s.id !== shoot.id))
+    startTransition(async () => { await deleteShoot(shoot.id) })
+  }
+
+  function handleShootSaved(shootId: string, patch: { client: string; legacyTitle: string; start_time: string; notes: string | null }) {
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, ...patch } : s))
+    setEditShootFor(null)
+  }
+
+  function handleAdSaved(adId: string, patch: Pick<Ad, "client_name" | "ad_name" | "platform" | "launch_date" | "targeting_type" | "targeting_notes">) {
+    setAds(prev => prev.map(a => a.id === adId ? { ...a, ...patch } : a))
+    setEditAdFor(null)
   }
 
   function handleAdStatus(adId: string, status: AdStatus) {
@@ -1499,7 +2917,9 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     setItems(prev => prev.map(i => {
       if (i.id !== contentItemId) return i
       const posts = i.posts.filter(p => p.id !== postId)
-      return { ...i, posts, status: posts.length === 0 ? "edited" : i.status }
+      // Mirrors the server: back to the queue if it still has a slot, else to Edited.
+      const fallback: ContentStatus = i.scheduled_post_date ? "ready_to_post" : "edited"
+      return { ...i, posts, status: posts.length === 0 ? fallback : i.status }
     }))
     startTransition(async () => { await deleteContentPost(postId, contentItemId) })
   }
@@ -1512,27 +2932,100 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         title="Content & Ads Tracker"
         subtitle="Every video and poster from shoot to post — plus a full ad hooks & targeting history."
         chips={[
-          { icon: <Video size={11} />, label: `${stats.shot + stats.editing + stats.edited} in pipeline` },
+          { icon: <Video size={11} />, label: `${stats.readyToEdit + stats.editing + stats.edited} in pipeline` },
+          { icon: <CalendarDays size={11} />, label: `${stats.readyToPost} ready to post` },
           { icon: <Check size={11} />, label: `${stats.posted} posted` },
           { icon: <Megaphone size={11} />, label: `${ads.filter(a => a.status === "active").length} active ads` },
         ]}
       />
 
-      <TabToggle active={mode} onChange={k => setMode(k as typeof mode)} tabs={[
-        { key: "video", label: "Video", icon: Video },
-        { key: "poster", label: "Poster", icon: ImageIcon },
-        { key: "ads", label: "Ads", icon: Megaphone },
-      ]} />
+      <TrackerNav
+        mode={mode}
+        onMode={setMode}
+        tab={tab}
+        onTab={k => setSubTab(k as typeof subTab)}
+        modeCounts={navCounts}
+        sections={navSections}
+      />
 
-      {mode !== "ads" && (
-        <TabToggle active={tab} onChange={k => setSubTab(k as typeof subTab)} tabs={[
-          ...(mode === "video" ? [{ key: "shoots", label: "Shoots", icon: Camera }] : []),
-          { key: "pipeline", label: "Pipeline", icon: Layers },
-          { key: "log", label: "Posting Log", icon: History },
-        ]} />
+      {mode === "overview" && (
+        <div className="flex flex-col gap-4">
+          {/* Needs attention — actionable problems first, or an all-clear. */}
+          <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
+              <AlertTriangle size={13} style={{ color: overview.attention.length > 0 ? "#D97706" : "#16A34A" }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Needs Attention
+              </span>
+            </div>
+            {overview.attention.length === 0 ? (
+              <p style={{ fontSize: 12, fontWeight: 600, color: "#16A34A", padding: "16px", margin: 0 }}>
+                All clear — nothing overdue or stalled.
+              </p>
+            ) : (
+              <div className="flex flex-col">
+                {overview.attention.map(a => (
+                  <button key={a.kind} onClick={() => goTo(a.target)}
+                    className="flex items-center justify-between text-left hover:bg-slate-50"
+                    style={{ padding: "10px 16px", borderBottom: "1px solid #F9FAFB", border: "none", background: "transparent", cursor: "pointer" }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{a.label}</span>
+                    <ArrowRight size={13} style={{ color: "#9CA3AF" }} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Posting — the time-sensitive block. */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <OverviewStat label="Due Today" value={overview.posting.dueToday} accent="#0EA5E9"
+              onClick={() => goTo({ mode: "video", tab: "log" })} />
+            <OverviewStat label="Due This Week" value={overview.posting.dueThisWeek} accent="#6366F1"
+              onClick={() => goTo({ mode: "video", tab: "log" })} />
+            <OverviewStat label="Overdue" value={overview.posting.overdue} accent="#EF4444"
+              onClick={() => goTo({ mode: "video", tab: "log" })} />
+          </div>
+
+          {/* Videos and Posters — stage counts. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <OverviewBlock title="Videos" accent={MODE_ACCENT.video.solid} icon={Video}
+              rows={[...ADS_VIDEO_ORDER, ...VIDEO_PIPELINE_ORDER, "posted" as ContentStatus].map(s => ({
+                key: s,
+                label: STATUS_CFG[s].label,
+                value: overview.videos[s],
+                onClick: () => goTo({ mode: "video", tab: s === "posted" ? "log" : (s === "scripting" || s === "voiceover") ? "adsvideo" : "pipeline" }),
+              }))} />
+            <OverviewBlock title="Posters" accent={MODE_ACCENT.poster.solid} icon={ImageIcon}
+              rows={[...POSTER_PIPELINE_ORDER, "posted" as ContentStatus].map(s => ({
+                key: s,
+                label: STATUS_CFG[s].label,
+                value: overview.posters[s],
+                onClick: () => goTo({ mode: "poster", tab: s === "posted" ? "log" : "pipeline" }),
+              }))} />
+          </div>
+
+          {/* Shoots and Ads. Ads is status-counts-only on purpose — the campaign/budget
+              restructure is owned separately, so this stays deliberately shallow. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <OverviewBlock title="Shoots" accent="#3B82F6" icon={Camera}
+              rows={SHOOT_STATUS_ORDER.map(s => ({
+                key: s,
+                label: SHOOT_STATUS_CFG[s].label,
+                value: overview.shoots[s],
+                onClick: () => goTo({ mode: "video", tab: "shoots" }),
+              }))} />
+            <OverviewBlock title="Ads" accent={MODE_ACCENT.ads.solid} icon={Megaphone}
+              rows={AD_STATUS_ORDER.map(s => ({
+                key: s,
+                label: AD_STATUS_CFG[s].label,
+                value: overview.ads[s],
+                onClick: () => goTo({ mode: "ads", tab: null }),
+              }))} />
+          </div>
+        </div>
       )}
 
-      {mode !== "ads" && tab === "pipeline" && (
+      {(mode === "video" || mode === "poster") && tab === "pipeline" && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex gap-2 flex-wrap">
@@ -1557,7 +3050,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
           {/* Mobile column switcher */}
           <div className="flex md:hidden gap-2 overflow-x-auto pb-1">
-            {STATUS_ORDER.map(s => (
+            {pipelineOrder.map(s => (
               <button key={s} onClick={() => setActiveMobileCol(s)}
                 style={{ flexShrink: 0, padding: "6px 14px", borderRadius: 10, border: `1.5px solid ${activeMobileCol === s ? STATUS_CFG[s].accent : "#E5E7EB"}`, background: activeMobileCol === s ? `${STATUS_CFG[s].accent}14` : "#fff", color: activeMobileCol === s ? STATUS_CFG[s].accent : "#6B7280", fontSize: 11, fontWeight: 700 }}>
                 {STATUS_CFG[s].label} ({colItems(s).length})
@@ -1568,14 +3061,14 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
             {colItems(activeMobileCol).length === 0 ? (
               <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No items</p>
             ) : colItems(activeMobileCol).map(item => (
-              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} />
+              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
             ))}
           </div>
 
           <div className="hidden md:block">
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver as never} onDragEnd={handleDragEnd}>
-              <div className="grid grid-cols-4 gap-4">
-                {STATUS_ORDER.map(status => {
+              <div className="grid grid-cols-5 gap-3">
+                {pipelineOrder.map(status => {
                   const list = colItems(status)
                   const cfg = STATUS_CFG[status]
                   return (
@@ -1592,7 +3085,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                             <p className="text-[11px]" style={{ color: overCol === status ? cfg.accent : "#374151", fontWeight: 600 }}>{overCol === status ? "Drop here" : "No items"}</p>
                           </div>
                         ) : list.map(item => (
-                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} />
+                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
                         ))}
                       </div>
                     </DroppableColumn>
@@ -1611,8 +3104,112 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         </div>
       )}
 
-      {mode !== "ads" && tab === "log" && (
+      {mode === "video" && tab === "adsvideo" && (
         <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+              Video that starts as a script, not a shoot — scripting and voice-over here, then it joins the shared production board at Ready to Edit.
+            </p>
+            <button onClick={() => setShowNewAdsVideo(true)}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+              <Plus size={14} /> New Ads Video
+            </button>
+          </div>
+
+          <div className="md:hidden flex flex-col gap-3">
+            {ADS_VIDEO_ORDER.map(status => (
+              <div key={status}>
+                <p className="text-[11px] font-black mb-2" style={{ color: "#111111" }}>{STATUS_CFG[status].label} ({adsVideoColItems(status).length})</p>
+                {adsVideoColItems(status).length === 0 ? (
+                  <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "16px 0" }}>No items</p>
+                ) : adsVideoColItems(status).map(item => (
+                  <AdsVideoCardInner key={item.id} item={item} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} />
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden md:block">
+            <DndContext sensors={sensors} onDragStart={e => setAdsVideoDragId(String(e.active.id))} onDragOver={handleAdsVideoDragOver as never} onDragEnd={handleAdsVideoDragEnd}>
+              <div className="grid grid-cols-2 gap-3">
+                {ADS_VIDEO_ORDER.map(status => {
+                  const list = adsVideoColItems(status)
+                  const cfg = STATUS_CFG[status]
+                  return (
+                    <KanbanColumn key={status} id={status} accent={cfg.accent} isOver={adsVideoOverCol === status}>
+                      <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.accent} />
+                      <div className="p-3 flex-1">
+                        {list.length === 0 ? (
+                          <KanbanEmptyCell isOver={adsVideoOverCol === status} accent={cfg.accent} />
+                        ) : list.map(item => (
+                          <KanbanCard key={item.id} id={item.id}>
+                            <AdsVideoCardInner item={item} isDragging={adsVideoDragId === item.id} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} />
+                          </KanbanCard>
+                        ))}
+                      </div>
+                    </KanbanColumn>
+                  )
+                })}
+              </div>
+              <DragOverlay>
+                {draggedAdsVideo ? (
+                  <div style={{ width: 260, opacity: 0.95, transform: "rotate(2deg)" }}>
+                    <AdsVideoCardInner item={draggedAdsVideo} onAdvance={() => {}} onEdit={() => {}} onDelete={() => {}} />
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </div>
+        </div>
+      )}
+
+      {(mode === "video" || mode === "poster") && tab === "log" && (
+        <div className="flex flex-col gap-4">
+          {/* Upcoming queue — what's scheduled but hasn't gone out yet, soonest first. */}
+          {readyQueue.length > 0 && (
+            <div style={{ background: "#fff", border: "1px solid #BAE6FD", borderRadius: 18, overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6", background: "rgba(14,165,233,0.05)" }}>
+                <CalendarDays size={13} style={{ color: "#0EA5E9" }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#0EA5E9", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Ready to Post — {readyQueue.length} queued
+                </span>
+              </div>
+              <div className="flex flex-col">
+                {readyQueue.map(item => (
+                  <div key={item.id} className="flex items-center justify-between flex-wrap gap-2"
+                    style={{ padding: "10px 16px", borderBottom: "1px solid #F9FAFB" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <p className="text-[12px] font-bold" style={{ color: "#111827", margin: 0 }}>{item.title}</p>
+                      <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>{item.client_name}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full"
+                        style={{ background: "rgba(14,165,233,0.1)", color: "#0EA5E9" }}>
+                        <CalendarDays size={10} />
+                        {fmtDate(item.scheduled_post_date)}{item.scheduled_post_time ? ` · ${fmtTime(item.scheduled_post_time)}` : ""}
+                      </span>
+                      {item.ready_platforms.map(p => {
+                        const cfg = PLATFORM_CFG[p]
+                        const Icon = cfg.icon
+                        return (
+                          <span key={p} className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full"
+                            style={{ background: `${cfg.color}14`, color: cfg.color }}>
+                            <Icon size={10} /> {cfg.label}
+                          </span>
+                        )
+                      })}
+                      <button onClick={() => setPlatformModalItem(item)}
+                        className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                        style={{ border: "none", background: "rgba(34,197,94,0.1)", color: "#16A34A", cursor: "pointer" }}>
+                        Mark Posted
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
@@ -1641,7 +3238,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                         <td style={{ padding: "9px 14px", fontWeight: 700, color: logClientFilter === row.client ? "#DE1A1A" : "#111827" }}>{row.client}</td>
                         <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
                         <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.edited.accent }}>{row.unposted}</td>
-                        <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.shot.accent }}>{row.unedited}</td>
+                        <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.ready_to_edit.accent }}>{row.unedited}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1691,14 +3288,14 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
-                    {["Video/Poster", "Client", "Type", "Platforms", "Posted Date"].map(h => (
+                    {["Video/Poster", "Client", "Type", "Platforms", "Posted By", "Posted Date"].map(h => (
                       <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {logRows.length === 0 ? (
-                    <tr><td colSpan={5} style={{ padding: "32px 14px", textAlign: "center", color: "#374151", fontWeight: 600, fontSize: 12 }}>No posts logged yet</td></tr>
+                    <tr><td colSpan={6} style={{ padding: "32px 14px", textAlign: "center", color: "#374151", fontWeight: 600, fontSize: 12 }}>No posts logged yet</td></tr>
                   ) : logRows.map(item => (
                     <tr key={item.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
                       <td style={{ padding: "10px 14px", fontWeight: 700, color: "#111827" }}>{item.title}</td>
@@ -1720,6 +3317,28 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                               </span>
                             )
                           })}
+                        </div>
+                      </td>
+                      <td style={{ padding: "10px 14px" }}>
+                        {/* One item can be posted to different platforms by different people. */}
+                        <div className="flex flex-wrap items-center gap-1">
+                          {Array.from(new Map(
+                            item.posts
+                              .filter(p => p.postedByUser)
+                              .map(p => [p.postedByUser!.id, p.postedByUser!])
+                          ).values()).map(u => (
+                            <span key={u.id} className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                              style={{ background: "rgba(34,197,94,0.1)", color: "#16A34A" }}>
+                              <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
+                                style={{ background: "#16A34A", color: "#fff" }}>
+                                {initials(u.name)}
+                              </span>
+                              {u.name}
+                            </span>
+                          ))}
+                          {item.posts.every(p => !p.postedByUser) && (
+                            <span className="text-[10px]" style={{ color: "#9CA3AF" }}>—</span>
+                          )}
                         </div>
                       </td>
                       <td style={{ padding: "10px 14px", color: "#374151" }}>{fmtDateRange(item.posts.map(p => p.posted_date))}</td>
@@ -1780,7 +3399,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               <AdCardInner key={ad.id} ad={ad} expanded={expandedAd === ad.id}
                 onToggleExpand={id => setExpandedAd(expandedAd === id ? null : id)}
                 onLogPerformance={setPerformanceModalAd} onLogCorrection={setRevisionModalAd}
-                onDelete={handleDeleteAd} />
+                onDelete={handleDeleteAd} onEdit={setEditAdFor} />
             ))}
           </div>
 
@@ -1805,7 +3424,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                             <AdCardInner ad={ad} expanded={expandedAd === ad.id} isDragging={adDragId === ad.id}
                               onToggleExpand={id => setExpandedAd(expandedAd === id ? null : id)}
                               onLogPerformance={setPerformanceModalAd} onLogCorrection={setRevisionModalAd}
-                              onDelete={handleDeleteAd} />
+                              onDelete={handleDeleteAd} onEdit={setEditAdFor} />
                           </KanbanCard>
                         ))}
                       </div>
@@ -1865,7 +3484,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
             {filteredShoots.filter(s => s.status === activeShootCol).length === 0 ? (
               <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No shoots</p>
             ) : filteredShoots.filter(s => s.status === activeShootCol).map(shoot => (
-              <ShootCardInner key={shoot.id} shoot={shoot} onStatus={handleShootStatus} />
+              <ShootCardInner key={shoot.id} shoot={shoot} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={setEditShootFor} onDelete={handleDeleteShoot} />
             ))}
           </div>
 
@@ -1887,7 +3506,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                           <KanbanEmptyCell isOver={shootOverCol === status} accent={cfg.color} />
                         ) : list.map(shoot => (
                           <KanbanCard key={shoot.id} id={shoot.id}>
-                            <ShootCardInner shoot={shoot} isDragging={shootDragId === shoot.id} onStatus={handleShootStatus} />
+                            <ShootCardInner shoot={shoot} isDragging={shootDragId === shoot.id} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={setEditShootFor} onDelete={handleDeleteShoot} />
                           </KanbanCard>
                         ))}
                       </div>
@@ -1912,7 +3531,8 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           onCreated={item => { setItems(prev => [item, ...prev]); setShowNewContent(false) }} />
       )}
       {platformModalItem && (
-        <AddPlatformModal item={platformModalItem} onClose={() => setPlatformModalItem(null)} onAdded={handlePostAdded} />
+        <AddPlatformModal item={platformModalItem} members={members} currentUserId={currentUserId}
+          onClose={() => setPlatformModalItem(null)} onAdded={handlePostAdded} />
       )}
       {editingItem && (
         <EditContentModal item={editingItem} clients={clients} pastClients={pastClients} onClose={() => setEditingItem(null)}
@@ -1948,8 +3568,66 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           onCreated={shoot => { setShoots(prev => [shoot, ...prev]); setShowNewShoot(false) }} />
       )}
       {completeShootFor && (
-        <CompleteShootModal shoot={completeShootFor} onClose={() => setCompleteShootFor(null)}
-          onCompleted={created => handleShootCompleted(completeShootFor.id, created)} />
+        <CompleteShootModal shoot={completeShootFor} members={members} currentUserId={currentUserId}
+          onClose={() => setCompleteShootFor(null)}
+          onCompleted={(created, crew) => handleShootCompleted(completeShootFor.id, created, crew)} />
+      )}
+      {editCrewFor && (
+        <EditCrewModal shoot={editCrewFor} members={members} currentUserId={currentUserId}
+          onClose={() => setEditCrewFor(null)}
+          onSaved={crew => handleCrewSaved(editCrewFor.id, crew)} />
+      )}
+      {editShootFor && (
+        <EditShootModal shoot={editShootFor} clients={clients} pastClients={pastClients}
+          onClose={() => setEditShootFor(null)}
+          onSaved={patch => handleShootSaved(editShootFor.id, patch)} />
+      )}
+      {editAdFor && (
+        <EditAdModal ad={editAdFor} clients={clients} pastClients={pastClients}
+          onClose={() => setEditAdFor(null)}
+          onSaved={patch => handleAdSaved(editAdFor.id, patch)} />
+      )}
+      {startEditingItem && (
+        <StartEditingModal item={startEditingItem} members={members} currentUserId={currentUserId}
+          onClose={() => setStartEditingItem(null)}
+          onConfirm={(editorId, editorName) => handleStartEditing(startEditingItem, editorId, editorName)} />
+      )}
+      {showNewAdsVideo && (
+        <NewAdsVideoModal
+          clients={clients} pastClients={pastClients}
+          onClose={() => setShowNewAdsVideo(false)}
+          onCreated={item => { setItems(prev => [item, ...prev]); setShowNewAdsVideo(false) }}
+        />
+      )}
+      {voiceOverItem && (
+        <VoiceOverModal
+          item={voiceOverItem} freelancers={voiceoverFreelancers}
+          onClose={() => setVoiceOverItem(null)}
+          onConfirm={(freelancer, date) => handleVoiceOverRecorded(voiceOverItem, freelancer, date)}
+        />
+      )}
+      {editAdsVideoFor && (
+        <EditAdsVideoModal
+          item={editAdsVideoFor} clients={clients} pastClients={pastClients}
+          onClose={() => setEditAdsVideoFor(null)}
+          onSaved={updates => {
+            setItems(prev => prev.map(i => i.id === editAdsVideoFor.id ? { ...i, ...updates, notes: updates.notes || null } : i))
+            setEditAdsVideoFor(null)
+          }}
+        />
+      )}
+      {readyToPostItem && (
+        <ReadyToPostModal item={readyToPostItem} onClose={() => setReadyToPostItem(null)}
+          onScheduled={(platforms, date, time) => handleReadyToPost(readyToPostItem, platforms, date, time)} />
+      )}
+      {correctionItem && (
+        <RequestCorrectionModal item={correctionItem} members={members}
+          onClose={() => setCorrectionItem(null)} onRequested={handleCorrectionRequested} />
+      )}
+      {goingCrewFor && (
+        <GoingCrewModal shoot={goingCrewFor} members={members} currentUserId={currentUserId}
+          onClose={() => setGoingCrewFor(null)}
+          onConfirm={crew => handleGoingCrew(goingCrewFor.id, crew)} />
       )}
     </div>
   )

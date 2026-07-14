@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertManyNotifications } from './notifications'
 import { calcNetWorkHours } from '@/lib/utils/work-hours'
+import { findUnresolvedLogoutDate, formatGateDate, hasFiledUpdate } from '@/lib/attendance-gate'
 
 // 9:30 AM IST = 04:00 UTC. Returns true if clock-in is after 9:30 AM IST.
 function isLateArrival(isoUtc: string): boolean {
@@ -91,6 +92,13 @@ export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ s
     .single()
 
   if (existing) return { success: false, error: 'Already logged attendance today' }
+
+  // Logout is mandatory — refuse to clock in while an earlier day's session is
+  // still open, even if the client-side gate was bypassed or never loaded.
+  const unresolvedDate = await findUnresolvedLogoutDate(admin, ctx.companyId, ctx.userId, today)
+  if (unresolvedDate) {
+    return { success: false, error: `You forgot to clock out on ${formatGateDate(unresolvedDate)}. Fix your logout time on the Attendance page before clocking in today.` }
+  }
 
   // Block clock-in if on approved full-day leave
   const { data: approvedLeave } = await admin
@@ -647,7 +655,7 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
         .select('clock_in, clock_out, status')
         .eq('user_id', ctx.userId).eq('company_id', ctx.companyId).eq('date', dateStr).maybeSingle(),
       admin.from('daily_updates')
-        .select('id')
+        .select('work_entries, learning_hours')
         .eq('user_id', ctx.userId).eq('company_id', ctx.companyId).eq('date', dateStr).maybeSingle(),
       admin.from('leaves')
         .select('id')
@@ -670,7 +678,9 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
     }
 
     if (!missingUpdateSettled) {
-      if (update) { missingUpdateSettled = true } // has a submitted update — stop checking further back
+      // A row existing isn't enough — it can survive with zero real entries (see
+      // hasFiledUpdate). Only a real update stops the walkback; an empty shell keeps it going.
+      if (hasFiledUpdate(update)) { missingUpdateSettled = true }
       else if (hadClockIn || !attLog) {
         missingUpdateDate = dateStr; missingUpdateHadClockIn = hadClockIn; missingUpdateSettled = true
       }
@@ -698,6 +708,9 @@ export async function getYesterdayGateStatus(): Promise<{
   const ctxResult = await getUserContext()
   const fallback = { forgotLogout: false, forgotLogoutDate: '', missingUpdate: false, missingUpdateDate: '' }
   if ('error' in ctxResult) return fallback
+  // Walks back past leave/blank days to the real last working day for BOTH checks (the
+  // Karkil incident fix), and — since findLastWorkingDayIssues now uses hasFiledUpdate
+  // internally — treats a zero-entry daily_updates row as unfiled too (the GF009 fix).
   return findLastWorkingDayIssues(ctxResult)
 }
 

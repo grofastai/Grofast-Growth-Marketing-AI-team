@@ -5,8 +5,10 @@ import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 
 // Clones every task whose recurring_next_run has arrived into a new "todo" task,
 // carrying the schedule forward, and retires the row that just spawned it.
-// Invoked by the recurring-tasks cron (scheduled ~00:00 IST) and available
-// for manual/testing invocation via the same route.
+// Invoked by the recurring-tasks cron (fires 3x/day — see route.ts for why) and
+// available for manual/testing invocation via the same route. Safe to call
+// repeatedly: only rows still recurring_active=true match, so a task already
+// cloned earlier that day is silently skipped on a later run.
 export async function runRecurringTasksJob(admin: SupabaseClient): Promise<{ created: number; due: number }> {
   const today = new Date().toISOString().slice(0, 10)
 

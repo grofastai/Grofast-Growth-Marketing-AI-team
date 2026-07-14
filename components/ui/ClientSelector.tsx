@@ -44,6 +44,23 @@ const LABEL: React.CSSProperties = {
 // That's why the past-clients view always renders an explicit
 // `<option value="">` first: it guarantees there's a real option matching
 // the empty value, so "← Back to Active Clients" always fires onChange.
+export type SelectorAction =
+  | { type: "browse_past" }
+  | { type: "back_to_active"; clear: boolean }
+  | { type: "select"; value: string }
+
+// What a pick in the dropdown means. Pulled out of the component so it can be tested —
+// the repo has no DOM test setup, and this is where the bug lived.
+export function selectorAction(picked: string, currentValue: string): SelectorAction {
+  if (picked === "__past__") return { type: "browse_past" }
+  // Only clear on the way back if a past client was actually showing. Multi-select
+  // callers sit at value="" the whole time, so for them this is a no-op.
+  if (picked === "__back__") return { type: "back_to_active", clear: currentValue !== "" }
+  // "" is the placeholder row — "All Clients" on filter screens. It is a real choice
+  // meaning "no client", not something to swallow.
+  return { type: "select", value: picked }
+}
+
 export default function ClientSelector({
   clientOptions, pastClientOptions = [], value, onValueChange,
   label = "Client / Project", required = false, fieldStyle,
@@ -59,18 +76,14 @@ export default function ClientSelector({
         <select
           value={value}
           onChange={e => {
-            const v = e.target.value
-            if (v === "__back__") {
-              setBrowsingPast(false)
-              // Only clear if there was a real (already-picked past-client) value showing —
-              // for multi-select callers `value` is always "" while browsing, so this is a no-op for them.
-              if (value !== "") onValueChange("")
+            const action = selectorAction(e.target.value, value)
+            if (action.type === "browse_past") { setBrowsingPast(true); return }
+            setBrowsingPast(false)
+            if (action.type === "back_to_active") {
+              if (action.clear) onValueChange("")
               return
             }
-            if (v === "__past__") { setBrowsingPast(true); return }
-            if (!v) return
-            setBrowsingPast(false)
-            onValueChange(v)
+            onValueChange(action.value)
           }}
           style={{ ...BASE, ...fieldStyle }}
         >

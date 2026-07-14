@@ -15,7 +15,7 @@ function adminSupabase() {
 export async function getContentTrackerData(companyId: string): Promise<{ items: ContentItem[]; ads: Ad[]; shoots: Shoot[]; members: { id: string; name: string }[] }> {
   const admin = adminSupabase()
 
-  const [itemsRes, postsRes, usersRes, adsRes, revisionsRes, performanceRes, shootsRes, shootTitlesRes] = await Promise.all([
+  const [itemsRes, postsRes, usersRes, adsRes, revisionsRes, performanceRes, shootsRes, shootTitlesRes, correctionsRes] = await Promise.all([
     admin.from('content_items').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
     admin.from('content_item_posts').select('*').eq('company_id', companyId).order('posted_date', { ascending: false }),
     admin.from('users').select('id, name').eq('company_id', companyId),
@@ -24,6 +24,7 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
     admin.from('ad_performance_entries').select('*').eq('company_id', companyId).order('entry_date', { ascending: false }),
     admin.from('shoots').select('id, title, client, start_time, notes, status, going_by').eq('company_id', companyId).order('start_time', { ascending: false }),
     admin.from('shoot_titles').select('id, shoot_id, title, content_item_id').eq('company_id', companyId),
+    admin.from('content_corrections').select('*').eq('company_id', companyId).order('correction_date', { ascending: false }),
   ])
 
   type ItemRow = { id: string; client_name: string; title: string; content_type: 'video' | 'poster'; status: 'shot' | 'editing' | 'edited' | 'ready' | 'posted'; shot_by: string | null; shot_date: string | null; edited_by: string | null; edited_date: string | null; notes: string | null; created_at: string; ready_platforms: string[] | null; scheduled_post_date: string | null; scheduled_post_time: string | null }
@@ -34,6 +35,7 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
   type PerformanceRow = { id: string; ad_id: string; entry_date: string; spend: number; impressions: number; reach: number; clicks: number; ctr: number; results: number; note: string | null }
   type ShootRow = { id: string; title: string; client: string; start_time: string; notes: string | null; status: 'scheduled' | 'going' | 'completed' | 'cancelled'; going_by: string[] | null }
   type ShootTitleRow = { id: string; shoot_id: string; title: string; content_item_id: string | null }
+  type CorrectionRow = { id: string; content_item_id: string; correction_date: string; notes: string; requested_by: string | null; assigned_to: string | null }
 
   const itemRows = (itemsRes.data ?? []) as ItemRow[]
   const postRows = (postsRes.data ?? []) as PostRow[]
@@ -43,6 +45,7 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
   const performanceRows = (performanceRes.data ?? []) as PerformanceRow[]
   const shootRows = (shootsRes.data ?? []) as ShootRow[]
   const shootTitleRows = (shootTitlesRes.data ?? []) as ShootTitleRow[]
+  const correctionRows = (correctionsRes.data ?? []) as CorrectionRow[]
 
   const userMap = new Map(userRows.map(u => [u.id, u]))
   const postsByItem = new Map<string, PostRow[]>()
@@ -59,6 +62,11 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
   for (const p of performanceRows) {
     if (!performanceByAd.has(p.ad_id)) performanceByAd.set(p.ad_id, [])
     performanceByAd.get(p.ad_id)!.push(p)
+  }
+  const correctionsByItem = new Map<string, CorrectionRow[]>()
+  for (const c of correctionRows) {
+    if (!correctionsByItem.has(c.content_item_id)) correctionsByItem.set(c.content_item_id, [])
+    correctionsByItem.get(c.content_item_id)!.push(c)
   }
   const titlesByShoot = new Map<string, ShootTitleRow[]>()
   for (const t of shootTitleRows) {
@@ -81,6 +89,14 @@ export async function getContentTrackerData(companyId: string): Promise<{ items:
     scheduled_post_time: row.scheduled_post_time,
     shotByUser: row.shot_by ? (userMap.get(row.shot_by) ?? null) : null,
     editedByUser: row.edited_by ? (userMap.get(row.edited_by) ?? null) : null,
+    corrections: (correctionsByItem.get(row.id) ?? []).map(c => ({
+      id: c.id,
+      content_item_id: c.content_item_id,
+      correction_date: c.correction_date,
+      notes: c.notes,
+      requestedByUser: c.requested_by ? (userMap.get(c.requested_by) ?? null) : null,
+      assignedToUser: c.assigned_to ? (userMap.get(c.assigned_to) ?? null) : null,
+    })),
     posts: (postsByItem.get(row.id) ?? []).map(p => ({
       id: p.id, content_item_id: p.content_item_id, platform: p.platform, posted_date: p.posted_date, post_link: p.post_link,
       postedByUser: p.posted_by ? (userMap.get(p.posted_by) ?? null) : null,

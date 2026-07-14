@@ -57,6 +57,14 @@ export const addAdRevisionSchema = z.object({
 })
 export type AddAdRevisionInput = z.infer<typeof addAdRevisionSchema>
 
+// Sending an edited item back for corrections — what needs fixing, and who's fixing it.
+export const requestCorrectionSchema = z.object({
+  content_item_id: z.string().uuid(),
+  notes:           z.string().min(1, 'Describe what needs fixing'),
+  assigned_to:     z.string().uuid().optional(),
+})
+export type RequestCorrectionInput = z.infer<typeof requestCorrectionSchema>
+
 // Moving an item to "Ready to Post" schedules it: which platforms, which day, what time.
 export const markReadyToPostSchema = z.object({
   content_item_id:     z.string().uuid(),

@@ -4,8 +4,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import {
-  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema,
-  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput,
+  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema,
+  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput,
 } from '@/lib/validations/content-tracker'
 
 function adminSupabase() {
@@ -91,6 +91,62 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
 
   revalidateTracker()
   return { success: true }
+}
+
+export type CreatedCorrection = {
+  id: string; content_item_id: string; correction_date: string; notes: string
+  requestedByUser: { id: string; name: string } | null
+  assignedToUser: { id: string; name: string } | null
+}
+
+// The correction loop: an Edited item that needs changes goes BACK to Editing with a
+// note about what to fix. The round-trip is logged (append-only) rather than overwritten,
+// so you can see a video went through N rounds instead of just its current state.
+export async function requestCorrection(
+  input: RequestCorrectionInput
+): Promise<{ success: boolean; error?: string; correction?: CreatedCorrection }> {
+  const parsed = requestCorrectionSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { data: row, error } = await ctx.admin.from('content_corrections').insert({
+    content_item_id: parsed.data.content_item_id,
+    company_id:      ctx.companyId,
+    notes:           parsed.data.notes,
+    requested_by:    ctx.id,
+    assigned_to:     parsed.data.assigned_to || null,
+  }).select('id, correction_date').single()
+  if (error) return { success: false, error: error.message }
+
+  // Back to Editing. If the correction was assigned to someone, they become the editor —
+  // otherwise whoever was already editing keeps it.
+  const updates: Record<string, unknown> = { status: 'editing', updated_at: new Date().toISOString() }
+  if (parsed.data.assigned_to) updates.edited_by = parsed.data.assigned_to
+
+  const { error: statusError } = await ctx.admin.from('content_items')
+    .update(updates)
+    .eq('id', parsed.data.content_item_id)
+    .eq('company_id', ctx.companyId)
+  if (statusError) return { success: false, error: statusError.message }
+
+  const names = await ctx.admin.from('users').select('id, name')
+    .in('id', [ctx.id, parsed.data.assigned_to].filter(Boolean) as string[])
+  const nameMap = new Map((names.data ?? []).map(u => [u.id, u as { id: string; name: string }]))
+
+  revalidateTracker()
+  return {
+    success: true,
+    correction: {
+      id: row.id,
+      content_item_id: parsed.data.content_item_id,
+      correction_date: row.correction_date,
+      notes: parsed.data.notes,
+      requestedByUser: nameMap.get(ctx.id) ?? null,
+      assignedToUser: parsed.data.assigned_to ? (nameMap.get(parsed.data.assigned_to) ?? null) : null,
+    },
+  }
 }
 
 // Scheduling an item into "Ready to Post" — captures which platforms it's going to and

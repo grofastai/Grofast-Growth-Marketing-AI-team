@@ -9,7 +9,7 @@ import {
 import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil,
-  Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays,
+  Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
@@ -18,7 +18,7 @@ import { latestEntry, isUnderperforming, cpc, cpm, frequency, costPerResult, typ
 import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
-  createAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, markReadyToPost,
+  createAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, markReadyToPost, requestCorrection,
 } from "@/lib/actions/content-tracker"
 import { createTrackerShoot, completeShootWithTitles, updateShootStatus, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
@@ -40,6 +40,15 @@ export type ContentPost = {
   postedByUser?: Person
 }
 
+export type ContentCorrection = {
+  id: string
+  content_item_id: string
+  correction_date: string
+  notes: string
+  requestedByUser: Person
+  assignedToUser: Person
+}
+
 export type ContentItem = {
   id: string
   client_name: string
@@ -56,6 +65,7 @@ export type ContentItem = {
   scheduled_post_time: string | null
   shotByUser?: Person
   editedByUser?: Person
+  corrections: ContentCorrection[]
   posts: ContentPost[]
 }
 
@@ -260,13 +270,14 @@ function TabToggle({ tabs, active, onChange }: { tabs: { key: string; label: str
 
 // ── Kanban card ──────────────────────────────────────────────────────────────
 function ContentCardInner({
-  item, isDraggable, isDragging, onAdvance, onDelete, onAddPlatform, onEdit,
+  item, isDraggable, isDragging, onAdvance, onDelete, onAddPlatform, onEdit, onRequestCorrection,
 }: {
   item: ContentItem
   isDraggable?: boolean
   isDragging?: boolean
   onAdvance: (item: ContentItem, next: ContentStatus) => void
   onDelete: (id: string) => void
+  onRequestCorrection?: (item: ContentItem) => void
   onAddPlatform: (item: ContentItem) => void
   onEdit?: (item: ContentItem) => void
 }) {
@@ -373,6 +384,20 @@ function ContentCardInner({
         </div>
       )}
 
+      {/* Correction round-trips — shows this went back N times, and what for. */}
+      {item.corrections.length > 0 && (
+        <div className="mb-2">
+          <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full w-fit"
+            title={item.corrections.map(c => c.notes).join(" · ")}
+            style={{ background: "rgba(245,158,11,0.12)", color: "#D97706" }}>
+            <RotateCcw size={9} /> {item.corrections.length} correction{item.corrections.length > 1 ? "s" : ""}
+          </span>
+          <p className="text-[9px] mt-1 line-clamp-2" style={{ color: "#6B7280" }}>
+            {item.corrections[0].notes}
+          </p>
+        </div>
+      )}
+
       {item.status !== "posted" && (
         <button
           onPointerDown={e => e.stopPropagation()}
@@ -380,6 +405,18 @@ function ContentCardInner({
           className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
           style={{ background: `${STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].accent}14`, color: STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].accent }}>
           {item.status === "ready" ? <>Mark Posted <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[STATUS_ORDER[STATUS_ORDER.indexOf(item.status) + 1]].label} <ArrowRight size={10} /></>}
+        </button>
+      )}
+
+      {/* The correction path — an Edited item can go forward to scheduling, or back to
+          Editing if the review turns up changes. */}
+      {item.status === "edited" && onRequestCorrection && (
+        <button
+          onPointerDown={e => e.stopPropagation()}
+          onClick={() => onRequestCorrection(item)}
+          className="w-full py-1.5 mt-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
+          style={{ background: "rgba(245,158,11,0.1)", color: "#D97706" }}>
+          <RotateCcw size={10} /> Needs Correction
         </button>
       )}
       {item.status === "posted" && (
@@ -408,7 +445,7 @@ function ContentCardInner({
   )
 }
 
-function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvance: (item: ContentItem, next: ContentStatus) => void; onDelete: (id: string) => void; onAddPlatform: (item: ContentItem) => void; onEdit: (item: ContentItem) => void }) {
+function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvance: (item: ContentItem, next: ContentStatus) => void; onDelete: (id: string) => void; onAddPlatform: (item: ContentItem) => void; onEdit: (item: ContentItem) => void; onRequestCorrection: (item: ContentItem) => void }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: props.item.id, data: { status: props.item.status } })
   const style = transform ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` } : undefined
   return (
@@ -418,7 +455,8 @@ function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvanc
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     <div ref={setNodeRef} style={{ ...style, touchAction: "none" }} {...(listeners as any)} {...(attributes as any)} className="cursor-grab active:cursor-grabbing">
       <ContentCardInner item={props.item} isDraggable isDragging={props.isDragging}
-        onAdvance={props.onAdvance} onDelete={props.onDelete} onAddPlatform={props.onAddPlatform} onEdit={props.onEdit} />
+        onAdvance={props.onAdvance} onDelete={props.onDelete} onAddPlatform={props.onAddPlatform} onEdit={props.onEdit}
+        onRequestCorrection={props.onRequestCorrection} />
     </div>
   )
 }
@@ -746,7 +784,7 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
     onCreated({
       id: res.id, client_name: client, title: title.trim(), content_type: contentType,
       status: alreadyPosted ? "posted" : "shot",
-      ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null,
+      ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       shot_date: shotDate, edited_date: alreadyPosted ? postedDate : null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({ id: `${res.id}-${i}`, content_item_id: res.id!, platform, posted_date: postedDate, post_link: null })) : [],
     })
@@ -1233,6 +1271,60 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   )
 }
 
+// ── "Needs correction" — sends an Edited item back to Editing with what to fix ──────
+function RequestCorrectionModal({ item, members, onClose, onRequested }: {
+  item: ContentItem
+  members: Member[]
+  onClose: () => void
+  onRequested: (correction: ContentCorrection) => void
+}) {
+  const [notes, setNotes] = useState("")
+  // Defaults to whoever last edited it — they're the one who'd fix it.
+  const [assignedTo, setAssignedTo] = useState(item.editedByUser?.id ?? "")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (!notes.trim()) { setError("Describe what needs fixing"); return }
+    setSaving(true); setError(null)
+    const res = await requestCorrection({
+      content_item_id: item.id,
+      notes: notes.trim(),
+      assigned_to: assignedTo || undefined,
+    })
+    setSaving(false)
+    if (!res.success || !res.correction) { setError(res.error ?? "Failed to save"); return }
+    onRequested(res.correction)
+  }
+
+  return (
+    <Modal title="Needs Correction" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          <strong style={{ color: "#111827" }}>{item.title}</strong> goes back to Editing. The round-trip
+          is logged, so you can see how many rounds it took.
+        </p>
+        <div>
+          <label style={LABEL}>What needs fixing? *</label>
+          <textarea style={{ ...FIELD, minHeight: 70, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)}
+            placeholder="e.g. Trim the intro, fix the logo placement at 0:12" />
+        </div>
+        {members.length > 0 && (
+          <div>
+            <label style={LABEL}>Back to</label>
+            <select style={{ ...FIELD, cursor: "pointer" }} value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
+              <option value="">— Keep current editor —</option>
+              {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </div>
+        )}
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Send Back for Correction"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
 // ── "Ready to Post" — schedules WHICH platforms and WHEN, before it actually goes out ──
 function ReadyToPostModal({ item, onClose, onScheduled }: {
   item: ContentItem
@@ -1490,6 +1582,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [completeShootFor, setCompleteShootFor] = useState<Shoot | null>(null)
   const [startEditingItem, setStartEditingItem] = useState<ContentItem | null>(null)
   const [readyToPostItem, setReadyToPostItem] = useState<ContentItem | null>(null)
+  const [correctionItem, setCorrectionItem] = useState<ContentItem | null>(null)
   const [goingCrewFor, setGoingCrewFor] = useState<Shoot | null>(null)
   const [shootsClientFilter, setShootsClientFilter] = useState<string>("all")
   // Separate drag state per board — only one board is mounted at a time, but keeping
@@ -1577,6 +1670,17 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     if (next === "editing" && members.length > 0) { setStartEditingItem(item); return }
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, ...(next === "edited" ? { edited_date: new Date().toISOString().split("T")[0] } : {}) } : i))
     startTransition(async () => { await updateContentItemStatus(item.id, next) })
+  }
+
+  function handleCorrectionRequested(correction: ContentCorrection) {
+    setItems(prev => prev.map(i => i.id === correction.content_item_id ? {
+      ...i,
+      status: "editing",
+      corrections: [correction, ...i.corrections],
+      // If it was reassigned, that person is now the editor.
+      editedByUser: correction.assignedToUser ?? i.editedByUser,
+    } : i))
+    setCorrectionItem(null)
   }
 
   function handleReadyToPost(item: ContentItem, platforms: Platform[], date: string, time: string) {
@@ -1751,7 +1855,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     const newItems: ContentItem[] = created.map(ci => ({
       id: ci.id, client_name: ci.client_name, title: ci.title, content_type: "video",
       status: "shot", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
-      ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null,
+      ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       created_at: new Date().toISOString(), posts: [],
     }))
     setItems(prev => [...newItems, ...prev])
@@ -1886,7 +1990,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
             {colItems(activeMobileCol).length === 0 ? (
               <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No items</p>
             ) : colItems(activeMobileCol).map(item => (
-              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} />
+              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
             ))}
           </div>
 
@@ -1910,7 +2014,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                             <p className="text-[11px]" style={{ color: overCol === status ? cfg.accent : "#374151", fontWeight: 600 }}>{overCol === status ? "Drop here" : "No items"}</p>
                           </div>
                         ) : list.map(item => (
-                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} />
+                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
                         ))}
                       </div>
                     </DroppableColumn>
@@ -2345,6 +2449,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       {readyToPostItem && (
         <ReadyToPostModal item={readyToPostItem} onClose={() => setReadyToPostItem(null)}
           onScheduled={(platforms, date, time) => handleReadyToPost(readyToPostItem, platforms, date, time)} />
+      )}
+      {correctionItem && (
+        <RequestCorrectionModal item={correctionItem} members={members}
+          onClose={() => setCorrectionItem(null)} onRequested={handleCorrectionRequested} />
       )}
       {goingCrewFor && (
         <GoingCrewModal shoot={goingCrewFor} members={members} currentUserId={currentUserId}

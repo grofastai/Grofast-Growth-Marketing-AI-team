@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertManyNotifications } from './notifications'
 import { calcNetWorkHours } from '@/lib/utils/work-hours'
+import { findUnresolvedLogoutDate, findUnfiledUpdateDate, formatGateDate, hasFiledUpdate } from '@/lib/attendance-gate'
 
 // 9:30 AM IST = 04:00 UTC. Returns true if clock-in is after 9:30 AM IST.
 function isLateArrival(isoUtc: string): boolean {
@@ -91,6 +92,13 @@ export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ s
     .single()
 
   if (existing) return { success: false, error: 'Already logged attendance today' }
+
+  // Logout is mandatory — refuse to clock in while an earlier day's session is
+  // still open, even if the client-side gate was bypassed or never loaded.
+  const unresolvedDate = await findUnresolvedLogoutDate(admin, ctx.companyId, ctx.userId, today)
+  if (unresolvedDate) {
+    return { success: false, error: `You forgot to clock out on ${formatGateDate(unresolvedDate)}. Fix your logout time on the Attendance page before clocking in today.` }
+  }
 
   // Block clock-in if on approved full-day leave
   const { data: approvedLeave } = await admin
@@ -593,12 +601,20 @@ export async function getYesterdayGateStatus(): Promise<{
   if ('error' in ctxResult) return fallback
 
   const ctx = ctxResult
+  const today = new Date().toISOString().split('T')[0]
   const yd = new Date()
   yd.setDate(yd.getDate() - 1)
   const yesterday = yd.toISOString().split('T')[0]
 
   const admin = adminSupabase()
-  const [{ data: attLog }, { data: update }, { data: leave }] = await Promise.all([
+
+  // Logout is mandatory: block on ANY unresolved clock-in before today, not just
+  // yesterday's row — the nightly auto-logout cron can miss a night, and once more
+  // than a day passes a yesterday-only check would stop seeing the stale record.
+  const unresolvedDate = await findUnresolvedLogoutDate(admin, ctx.companyId, ctx.userId, today)
+  const forgotLogout = !!unresolvedDate
+
+  const [{ data: attLog }, { data: update }, { data: leave }, unfiledDate] = await Promise.all([
     admin.from('attendance_logs')
       .select('clock_in, clock_out, status')
       .eq('user_id', ctx.userId)
@@ -606,7 +622,7 @@ export async function getYesterdayGateStatus(): Promise<{
       .eq('date', yesterday)
       .maybeSingle(),
     admin.from('daily_updates')
-      .select('id')
+      .select('work_entries, learning_hours')
       .eq('user_id', ctx.userId)
       .eq('company_id', ctx.companyId)
       .eq('date', yesterday)
@@ -619,18 +635,28 @@ export async function getYesterdayGateStatus(): Promise<{
       .lte('from_date', yesterday)
       .gte('to_date', yesterday)
       .maybeSingle(),
+    // Any earlier worked day that still has no real update — not just yesterday. A day
+    // emptied out later (entry deleted or moved away) has to re-lock the member, or it
+    // would be forgiven the moment it stopped being yesterday.
+    findUnfiledUpdateDate(admin, ctx.companyId, ctx.userId, today),
   ])
 
-  // Skip checks if on approved leave or marked on leave yesterday
-  if (leave) return fallback
-  if (attLog?.status === 'leave' || attLog?.status === 'absent') return fallback
-
   const hadClockIn = attLog?.status === 'present' && !!attLog?.clock_in
-  const forgotLogout = hadClockIn && !attLog?.clock_out
+  // Skip missing-update check if on approved leave or marked on leave yesterday
   // All days (including weekends) are working days — no weekday exemption
-  const missingUpdate = !update && (hadClockIn || !attLog)
+  // The scan above only sees days with a clock-in, so yesterday is still checked
+  // separately here to catch a no-show that filed neither an update nor a leave.
+  const missingYesterday = !leave && attLog?.status !== 'leave' && attLog?.status !== 'absent'
+    && !hasFiledUpdate(update) && (hadClockIn || !attLog)
+  const missingUpdate = missingYesterday || !!unfiledDate
 
-  return { forgotLogout, missingUpdate, yesterdayDate: yesterday }
+  const blockedDate = unfiledDate ?? yesterday
+
+  return {
+    forgotLogout,
+    missingUpdate,
+    yesterdayDate: unresolvedDate ?? blockedDate,
+  }
 }
 
 export async function getTodayCoverageReport(): Promise<{

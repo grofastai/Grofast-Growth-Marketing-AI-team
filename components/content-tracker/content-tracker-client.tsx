@@ -156,6 +156,12 @@ const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
   ready_to_post: { label: "Ready to Post", accent: "#0EA5E9" },
   posted:        { label: "Posted",        accent: "#22C55E" },
 }
+// Advance-button fill — same bright-to-dark two-stop language as MODE_ACCENT.grad and
+// OVERVIEW_TILE_GRADIENTS, just derived from each status's accent instead of a hardcoded pair.
+function statusButtonGradient(status: ContentStatus): string {
+  const accent = STATUS_CFG[status].accent
+  return `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 60%, #000))`
+}
 // The production board's column order — differs by content type only in its first column
 // (shoot/ads-video video enters at Ready to Edit; posters enter at Design).
 const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "editing", "edited", "on_review", "ready_to_post"]
@@ -602,7 +608,7 @@ function ContentCardInner({
             onPointerDown={e => e.stopPropagation()}
             onClick={() => onAdvance(item, "ready_to_post")}
             className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
-            style={{ background: `color-mix(in srgb, ${STATUS_CFG.ready_to_post.accent} 70%, #000)`, color: "#fff" }}>
+            style={{ background: statusButtonGradient("ready_to_post"), color: "#fff" }}>
             Approve <ArrowRight size={10} />
           </button>
           {onRequestCorrection && (
@@ -620,7 +626,7 @@ function ContentCardInner({
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, next)}
           className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
-          style={{ background: `color-mix(in srgb, ${STATUS_CFG[next].accent} 70%, #000)`, color: "#fff" }}>
+          style={{ background: statusButtonGradient(next), color: "#fff" }}>
           {item.status === "ready_to_post" ? <>Mark Posted <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
         </button>
       )}
@@ -715,7 +721,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, next)}
           className="w-full py-2 rounded-xl text-[10px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1.5"
-          style={{ background: `color-mix(in srgb, ${STATUS_CFG[next].accent} 70%, #000)`, color: "#fff", marginTop: item.voiceoverBy ? 0 : 4 }}>
+          style={{ background: statusButtonGradient(next), color: "#fff", marginTop: item.voiceoverBy ? 0 : 4 }}>
           {item.status === "voiceover" ? <>Send to Ready to Edit <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
         </button>
       )}

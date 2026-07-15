@@ -235,12 +235,12 @@ const FIELD: React.CSSProperties = {
   padding: "8px 10px", outline: "none",
 }
 // Toolbar filters (client/time/day) — distinct from FIELD, which stays neutral for
-// modal form inputs. Brand-red gradient tint so the filter row reads as an accent
-// control, not a plain form field.
+// modal form inputs. Bold bright-to-dark red gradient (same language as the advance
+// buttons/Overview tiles), white text — not a pale tint.
 const FILTER_FIELD: React.CSSProperties = {
-  width: "auto", fontSize: 12, fontWeight: 700, color: "#B91C1C",
-  background: "linear-gradient(135deg, rgba(222,26,26,0.07) 0%, rgba(222,26,26,0.18) 100%)",
-  border: "1.5px solid rgba(222,26,26,0.35)", borderRadius: 10,
+  width: "auto", fontSize: 12, fontWeight: 700, color: "#fff",
+  background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)",
+  border: "1.5px solid #6B0F0F", borderRadius: 10,
   padding: "8px 10px", outline: "none", cursor: "pointer",
 }
 
@@ -476,7 +476,7 @@ function ContentCardInner({
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
       style={{
-        background: isDragging ? "#F3F4F6" : `linear-gradient(150deg, #fff 0%, color-mix(in srgb, ${typeAccent} 7%, #fff) 45%, color-mix(in srgb, ${typeAccent} 25%, #fff) 100%)`,
+        background: isDragging ? "#F3F4F6" : "#fff",
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: stale ? "1px solid rgba(245,158,11,0.3)" : "1px solid transparent",
         borderLeft: `4px solid ${typeAccent}`,
@@ -674,7 +674,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
       style={{
-        background: isDragging ? "#F3F4F6" : `linear-gradient(150deg, #fff 0%, color-mix(in srgb, ${accent} 7%, #fff) 45%, color-mix(in srgb, ${accent} 25%, #fff) 100%)`,
+        background: isDragging ? "#F3F4F6" : "#fff",
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: "1px solid transparent",
         borderLeft: `4px solid ${accent}`,
@@ -829,15 +829,15 @@ function DayFilter({ value, onChange }: { value: string; onChange: (v: string) =
   return (
     <div className="flex items-center gap-1"
       style={{
-        background: value ? "rgba(222,26,26,0.16)" : "linear-gradient(135deg, rgba(222,26,26,0.07) 0%, rgba(222,26,26,0.18) 100%)",
-        border: `1.5px solid ${value ? "#DE1A1A" : "rgba(222,26,26,0.35)"}`, borderRadius: 10, padding: "0 6px",
+        background: value ? "linear-gradient(135deg, #FF4D4D 0%, #DE1A1A 100%)" : "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)",
+        border: `1.5px solid ${value ? "#DE1A1A" : "#6B0F0F"}`, borderRadius: 10, padding: "0 6px",
       }}>
-      <CalendarDays size={13} style={{ color: "#DE1A1A", flexShrink: 0 }} />
+      <CalendarDays size={13} style={{ color: "#fff", flexShrink: 0 }} />
       <input type="date" value={value} onChange={e => onChange(e.target.value)} aria-label="Filter by day"
-        style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 700, color: "#B91C1C", fontFamily: "inherit", cursor: "pointer", padding: "7px 2px" }} />
+        style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "inherit", cursor: "pointer", padding: "7px 2px", colorScheme: "dark" }} />
       {value && (
         <button onClick={() => onChange("")} title="Clear day"
-          style={{ padding: "2px 6px", borderRadius: 6, border: "none", background: "rgba(222,26,26,0.08)", color: "#DE1A1A", fontSize: 11, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
+          style={{ padding: "2px 6px", borderRadius: 6, border: "none", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 11, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
           ✕
         </button>
       )}
@@ -1052,7 +1052,7 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 select-none"
       style={{
-        background: isDragging ? "#F3F4F6" : `linear-gradient(150deg, #fff 0%, color-mix(in srgb, ${accent} 7%, #fff) 45%, color-mix(in srgb, ${accent} 25%, #fff) 100%)`,
+        background: isDragging ? "#F3F4F6" : "#fff",
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: "1px solid transparent",
         borderLeft: `4px solid ${accent}`,
@@ -1154,7 +1154,7 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
   const stripeColor = underperforming ? "#EF4444" : accent
   return (
     <div className="rounded-2xl mb-2.5 select-none" style={{
-      background: isDragging ? "#F3F4F6" : `linear-gradient(150deg, #fff 0%, color-mix(in srgb, ${accent} 7%, #fff) 45%, color-mix(in srgb, ${accent} 25%, #fff) 100%)`,
+      background: isDragging ? "#F3F4F6" : "#fff",
       border: `1px solid ${underperforming ? "#FCA5A5" : "transparent"}`,
       borderLeft: `4px solid ${stripeColor}`,
       boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",

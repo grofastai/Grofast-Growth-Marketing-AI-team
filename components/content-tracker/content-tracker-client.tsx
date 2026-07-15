@@ -10,7 +10,7 @@ import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil,
   Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw, LayoutDashboard,
-  MoreVertical, Users,
+  MoreVertical, Users, Clock,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
@@ -317,13 +317,18 @@ const MODE_ACCENT: Record<TrackerMode, { solid: string; grad: string; glow: stri
   ads: { solid: "#D97706", grad: "linear-gradient(135deg,#FBBF24,#D97706)", glow: "rgba(217,119,6,0.45)", soft: "rgba(217,119,6,0.10)" },
 }
 
-// Overview screen gradients — each stat/block gets its own hue so the grid reads as
-// distinct signals at a glance rather than one repeated accent.
-const OVERVIEW_GRADIENTS = {
-  dueToday: "linear-gradient(135deg,#38BDF8,#0EA5E9)",
-  dueThisWeek: "linear-gradient(135deg,#A5B4FC,#6366F1)",
-  overdue: "linear-gradient(135deg,#FB7185,#E11D48)",
-  shoots: "linear-gradient(135deg,#60A5FA,#3B82F6)",
+// Overview screen — full-saturation tile gradients, the same two-stop
+// bright-to-dark treatment the Expenses hero/stat cards already use. Reusing
+// that language (rather than inventing a new one) keeps Overview feeling
+// like part of the same product instead of a one-off skin.
+const OVERVIEW_TILE_GRADIENTS = {
+  dueToday: "linear-gradient(135deg,#0EA5E9,#075985)",
+  dueThisWeek: "linear-gradient(135deg,#6366F1,#3730A3)",
+  overdue: "linear-gradient(135deg,#E11D48,#831843)",
+  video: "linear-gradient(135deg,#DE1A1A,#8B1212)",
+  poster: "linear-gradient(135deg,#7C3AED,#5B21B6)",
+  shoots: "linear-gradient(135deg,#3B82F6,#1D4ED8)",
+  ads: "linear-gradient(135deg,#D97706,#92400E)",
 }
 
 const NAV_MODES: { key: TrackerMode; label: string; icon: typeof Layers }[] = [
@@ -869,53 +874,61 @@ function CardMenu({ items }: { items: CardMenuItem[] }) {
 }
 
 // ── Overview building blocks ─────────────────────────────────────────────────
-function OverviewStat({ label, value, accent, gradient, onClick }: {
-  label: string; value: number; accent: string; gradient: string; onClick: () => void
+// Full-saturation gradient tiles — the corner-blob + translucent-badge language
+// borrowed wholesale from the Expenses hero/stat cards, so the two dashboards
+// read as the same product rather than two different design eras.
+function TileBlobs() {
+  return (
+    <>
+      <div aria-hidden style={{ position: "absolute", top: -34, right: -26, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.08)", pointerEvents: "none" }} />
+      <div aria-hidden style={{ position: "absolute", bottom: -30, left: -18, width: 90, height: 90, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
+    </>
+  )
+}
+
+function OverviewStat({ label, value, gradient, icon: Icon, onClick }: {
+  label: string; value: number; gradient: string; icon: typeof Layers; onClick: () => void
 }) {
   return (
     <button onClick={onClick}
-      className="text-left hover:opacity-90 transition-opacity"
-      style={{ background: `linear-gradient(135deg, #fff 0%, ${accent}0D 100%)`, border: "1px solid #E5E7EB", borderRadius: 16, padding: "14px 16px", cursor: "pointer" }}>
-      <p style={{
-        fontSize: 26, fontWeight: 900, margin: 0, letterSpacing: "-0.02em",
-        backgroundImage: gradient, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", WebkitTextFillColor: "transparent",
-      }}>{value}</p>
-      <p style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em", margin: "2px 0 0" }}>{label}</p>
+      className="text-left transition-transform hover:-translate-y-0.5"
+      style={{ background: gradient, border: "none", borderRadius: 16, padding: "16px 18px", cursor: "pointer", position: "relative", overflow: "hidden", boxShadow: "0 10px 24px rgba(0,0,0,0.16)" }}>
+      <TileBlobs />
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,255,255,0.18)", color: "#fff", position: "relative" }}>
+        <Icon size={15} />
+      </div>
+      <p style={{ position: "relative", fontSize: 30, fontWeight: 900, color: "#fff", margin: "10px 0 0", letterSpacing: "-0.02em", fontFamily: "var(--font-jakarta)", fontVariantNumeric: "tabular-nums" }}>{value}</p>
+      <p style={{ position: "relative", fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.78)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "3px 0 0" }}>{label}</p>
     </button>
   )
 }
 
-function OverviewBlock({ title, accent, gradient, icon: Icon, rows }: {
+function OverviewBlock({ title, gradient, icon: Icon, rows }: {
   title: string
-  accent: string
   gradient: string
   icon: typeof Layers
   rows: { key: string; label: string; value: number; onClick: () => void }[]
 }) {
   const total = rows.reduce((sum, r) => sum + r.value, 0)
-  // Against the row's own max, not the block total — so one dominant stage doesn't
-  // squash every other bar down to a sliver.
-  const max = Math.max(...rows.map(r => r.value), 1)
   return (
-    <div style={{ background: `linear-gradient(160deg, #fff 0%, ${accent}0A 100%)`, border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <Icon size={13} style={{ color: accent }} />
-          <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{title}</span>
+    <div style={{ background: gradient, borderRadius: 18, overflow: "hidden", position: "relative", boxShadow: "0 10px 28px rgba(0,0,0,0.18)" }}>
+      <TileBlobs />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", position: "relative", background: "rgba(0,0,0,0.18)", borderBottom: "1px solid rgba(255,255,255,0.12)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,255,255,0.18)", color: "#fff" }}>
+            <Icon size={13} />
+          </div>
+          <span style={{ fontSize: 10.5, fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: "0.07em" }}>{title}</span>
         </div>
-        <span style={{
-          fontSize: 11, fontWeight: 800, fontVariantNumeric: "tabular-nums",
-          backgroundImage: gradient, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", WebkitTextFillColor: "transparent",
-        }}>{total}</span>
+        <span style={{ fontSize: 11, fontWeight: 800, color: "#fff", fontVariantNumeric: "tabular-nums", background: "rgba(255,255,255,0.18)", padding: "3px 10px", borderRadius: 999 }}>{total}</span>
       </div>
-      <div className="flex flex-col">
+      <div className="flex flex-col" style={{ position: "relative" }}>
         {rows.map(r => (
           <button key={r.key} onClick={r.onClick}
-            className="relative flex items-center justify-between hover:bg-slate-50 overflow-hidden"
-            style={{ padding: "9px 16px", borderBottom: "1px solid #F9FAFB", border: "none", background: "transparent", cursor: "pointer" }}>
-            <div aria-hidden style={{ position: "absolute", inset: 0, width: `${(r.value / max) * 100}%`, background: `${accent}0D`, transition: "width 0.3s ease" }} />
-            <span style={{ position: "relative", fontSize: 12, fontWeight: 600, color: "#374151" }}>{r.label}</span>
-            <span style={{ position: "relative", fontSize: 13, fontWeight: 800, color: r.value > 0 ? accent : "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>
+            className="flex items-center justify-between"
+            style={{ padding: "9px 16px", border: "none", background: "transparent", cursor: "pointer" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.88)" }}>{r.label}</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: r.value > 0 ? "#fff" : "rgba(255,255,255,0.4)", fontVariantNumeric: "tabular-nums" }}>
               {r.value}
             </span>
           </button>
@@ -3133,11 +3146,11 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
           {/* Posting — the time-sensitive block. */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <OverviewStat label="Due Today" value={overview.posting.dueToday} accent="#0EA5E9" gradient={OVERVIEW_GRADIENTS.dueToday}
+            <OverviewStat label="Due Today" value={overview.posting.dueToday} gradient={OVERVIEW_TILE_GRADIENTS.dueToday} icon={Clock}
               onClick={() => goTo({ mode: "video", tab: "log" })} />
-            <OverviewStat label="Due This Week" value={overview.posting.dueThisWeek} accent="#6366F1" gradient={OVERVIEW_GRADIENTS.dueThisWeek}
+            <OverviewStat label="Due This Week" value={overview.posting.dueThisWeek} gradient={OVERVIEW_TILE_GRADIENTS.dueThisWeek} icon={CalendarDays}
               onClick={() => goTo({ mode: "video", tab: "log" })} />
-            <OverviewStat label="Overdue" value={overview.posting.overdue} accent="#EF4444" gradient={OVERVIEW_GRADIENTS.overdue}
+            <OverviewStat label="Overdue" value={overview.posting.overdue} gradient={OVERVIEW_TILE_GRADIENTS.overdue} icon={AlertTriangle}
               onClick={() => goTo({ mode: "video", tab: "log" })} />
           </div>
 
@@ -3169,16 +3182,18 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
             )}
           </div>
 
-          {/* Videos and Posters — stage counts. */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <OverviewBlock title="Videos" accent={MODE_ACCENT.video.solid} gradient={MODE_ACCENT.video.grad} icon={Video}
+          {/* Videos and Posters — stage counts. items-start: Videos has 8 stages and
+              Posters only 6, so default grid stretch would pad Posters with dead
+              gradient space below its last row. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+            <OverviewBlock title="Videos" gradient={OVERVIEW_TILE_GRADIENTS.video} icon={Video}
               rows={[...ADS_VIDEO_ORDER, ...VIDEO_PIPELINE_ORDER, "posted" as ContentStatus].map(s => ({
                 key: s,
                 label: STATUS_CFG[s].label,
                 value: overview.videos[s],
                 onClick: () => goTo({ mode: "video", tab: s === "posted" ? "log" : (s === "scripting" || s === "voiceover") ? "adsvideo" : "pipeline" }),
               }))} />
-            <OverviewBlock title="Posters" accent={MODE_ACCENT.poster.solid} gradient={MODE_ACCENT.poster.grad} icon={ImageIcon}
+            <OverviewBlock title="Posters" gradient={OVERVIEW_TILE_GRADIENTS.poster} icon={ImageIcon}
               rows={[...POSTER_PIPELINE_ORDER, "posted" as ContentStatus].map(s => ({
                 key: s,
                 label: STATUS_CFG[s].label,
@@ -3189,15 +3204,15 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
           {/* Shoots and Ads. Ads is status-counts-only on purpose — the campaign/budget
               restructure is owned separately, so this stays deliberately shallow. */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <OverviewBlock title="Shoots" accent="#3B82F6" gradient={OVERVIEW_GRADIENTS.shoots} icon={Camera}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+            <OverviewBlock title="Shoots" gradient={OVERVIEW_TILE_GRADIENTS.shoots} icon={Camera}
               rows={SHOOT_STATUS_ORDER.map(s => ({
                 key: s,
                 label: SHOOT_STATUS_CFG[s].label,
                 value: overview.shoots[s],
                 onClick: () => goTo({ mode: "video", tab: "shoots" }),
               }))} />
-            <OverviewBlock title="Ads" accent={MODE_ACCENT.ads.solid} gradient={MODE_ACCENT.ads.grad} icon={Megaphone}
+            <OverviewBlock title="Ads" gradient={OVERVIEW_TILE_GRADIENTS.ads} icon={Megaphone}
               rows={AD_STATUS_ORDER.map(s => ({
                 key: s,
                 label: AD_STATUS_CFG[s].label,

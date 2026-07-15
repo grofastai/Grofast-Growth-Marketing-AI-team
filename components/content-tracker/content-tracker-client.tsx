@@ -3338,12 +3338,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                   const cfg = STATUS_CFG[status]
                   return (
                     <DroppableColumn key={status} status={status} isOver={overCol === status}>
-                      <div className="flex items-center justify-between px-4 py-3 rounded-t-2xl" style={{ background: "#FFFFFF", borderBottom: "1px solid #E8E9EF" }}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[13px] font-black" style={{ color: "#111111" }}>{cfg.label}</span>
-                          <span className="w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center" style={{ background: `${cfg.accent}20`, color: cfg.accent }}>{list.length}</span>
-                        </div>
-                      </div>
+                      <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.accent} />
                       <div className="p-3 flex-1">
                         {list.length === 0 ? (
                           <div className="flex items-center justify-center py-8 rounded-xl transition-all" style={{ border: `2px dashed ${overCol === status ? cfg.accent : "#E5E7EB"}` }}>

@@ -755,7 +755,9 @@ function DroppableColumn({ status, isOver, children }: { status: ContentStatus; 
     <div ref={setNodeRef} className="rounded-2xl transition-all flex flex-col"
       style={{
         border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF",
-        background: isOver ? `linear-gradient(165deg, ${accent}30 0%, ${accent}70 100%)` : `linear-gradient(165deg, ${accent}18 0%, ${accent}50 100%)`,
+        background: isOver
+          ? `linear-gradient(165deg, ${accent} 0%, color-mix(in srgb, ${accent} 40%, #000) 100%)`
+          : `linear-gradient(165deg, ${accent} 0%, color-mix(in srgb, ${accent} 55%, #000) 100%)`,
         minHeight: 200,
       }}>
       {children}
@@ -782,7 +784,9 @@ function KanbanColumn({ id, accent, isOver, children }: { id: string; accent: st
     <div ref={setNodeRef} className="rounded-2xl transition-all flex flex-col"
       style={{
         border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF",
-        background: isOver ? `linear-gradient(165deg, ${accent}30 0%, ${accent}70 100%)` : `linear-gradient(165deg, ${accent}18 0%, ${accent}50 100%)`,
+        background: isOver
+          ? `linear-gradient(165deg, ${accent} 0%, color-mix(in srgb, ${accent} 40%, #000) 100%)`
+          : `linear-gradient(165deg, ${accent} 0%, color-mix(in srgb, ${accent} 55%, #000) 100%)`,
         minHeight: 200,
       }}>
       {children}
@@ -973,10 +977,10 @@ function HeroGlassStat({ label, value, sub }: { label: string; value: number | s
   )
 }
 
-function KanbanEmptyCell({ isOver, accent }: { isOver: boolean; accent: string }) {
+function KanbanEmptyCell({ isOver }: { isOver: boolean }) {
   return (
-    <div className="flex items-center justify-center py-8 rounded-xl transition-all" style={{ border: `2px dashed ${isOver ? accent : "#E5E7EB"}` }}>
-      <p className="text-[11px] font-semibold" style={{ color: isOver ? accent : "#9CA3AF" }}>{isOver ? "Drop here" : "Empty"}</p>
+    <div className="flex items-center justify-center py-8 rounded-xl transition-all" style={{ border: `2px dashed ${isOver ? "#fff" : "rgba(255,255,255,0.45)"}` }}>
+      <p className="text-[11px] font-semibold" style={{ color: isOver ? "#fff" : "rgba(255,255,255,0.75)" }}>{isOver ? "Drop here" : "Empty"}</p>
     </div>
   )
 }
@@ -3352,9 +3356,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                       <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.accent} />
                       <div className="p-3 flex-1">
                         {list.length === 0 ? (
-                          <div className="flex items-center justify-center py-8 rounded-xl transition-all" style={{ border: `2px dashed ${overCol === status ? cfg.accent : "#E5E7EB"}` }}>
-                            <p className="text-[11px]" style={{ color: overCol === status ? cfg.accent : "#374151", fontWeight: 600 }}>{overCol === status ? "Drop here" : "No items"}</p>
-                          </div>
+                          <KanbanEmptyCell isOver={overCol === status} />
                         ) : list.map(item => (
                           <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
                         ))}
@@ -3411,7 +3413,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                       <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.accent} />
                       <div className="p-3 flex-1">
                         {list.length === 0 ? (
-                          <KanbanEmptyCell isOver={adsVideoOverCol === status} accent={cfg.accent} />
+                          <KanbanEmptyCell isOver={adsVideoOverCol === status} />
                         ) : list.map(item => (
                           <KanbanCard key={item.id} id={item.id}>
                             <AdsVideoCardInner item={item} isDragging={adsVideoDragId === item.id} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} />
@@ -3689,7 +3691,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                       <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.color} />
                       <div className="p-3 flex-1">
                         {list.length === 0 ? (
-                          <KanbanEmptyCell isOver={adOverCol === status} accent={cfg.color} />
+                          <KanbanEmptyCell isOver={adOverCol === status} />
                         ) : list.map(ad => (
                           <KanbanCard key={ad.id} id={ad.id}>
                             <AdCardInner ad={ad} expanded={expandedAd === ad.id} isDragging={adDragId === ad.id}
@@ -3774,7 +3776,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                       <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.color} />
                       <div className="p-3 flex-1">
                         {list.length === 0 ? (
-                          <KanbanEmptyCell isOver={shootOverCol === status} accent={cfg.color} />
+                          <KanbanEmptyCell isOver={shootOverCol === status} />
                         ) : list.map(shoot => (
                           <KanbanCard key={shoot.id} id={shoot.id}>
                             <ShootCardInner shoot={shoot} isDragging={shootDragId === shoot.id} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={setEditShootFor} onDelete={handleDeleteShoot} />

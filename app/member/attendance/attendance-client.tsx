@@ -379,7 +379,22 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     .filter(s => s.label === 'Permission')
     .reduce((sum, s) => sum + (Number(s.duration_mins) || 0), 0)
   const actualBreakMins = Math.max(0, breakTotalMins - permBreakMins)
-  const cappedBreakMins = Math.min(actualBreakMins, spanMinsToday)
+  // A half-day leave only covers part of the day — if the member is clocked in before/after
+  // it (or straight through it, since nothing forces a clock-out), the overlap between the
+  // clocked-in span and the leave's own time window must not count as worked time, same as
+  // a break. Only the leave's own window is excluded, so both directions of the earlier fix
+  // hold: they can still work before/after it, but not silently rack up hours during it.
+  const halfDayLeaveOverlapMins = (() => {
+    if (todayApprovedLeave?.leave_type !== "half_day" || !todayApprovedLeave.half_day_from_time || !todayApprovedLeave.half_day_to_time || !todayLog?.clock_in) return 0
+    const nowDateStr = new Date().toLocaleString("en-CA", { timeZone: "Asia/Kolkata" }).split(",")[0]
+    const leaveStart = new Date(`${nowDateStr}T${todayApprovedLeave.half_day_from_time}`).getTime()
+    const leaveEnd   = new Date(`${nowDateStr}T${todayApprovedLeave.half_day_to_time}`).getTime()
+    const spanStart  = new Date(todayLog.clock_in).getTime()
+    const spanEnd    = todayLog.clock_out ? new Date(todayLog.clock_out).getTime() : Date.now()
+    const overlapMs  = Math.min(spanEnd, leaveEnd) - Math.max(spanStart, leaveStart)
+    return overlapMs > 0 ? overlapMs / 60000 : 0
+  })()
+  const cappedBreakMins = Math.min(actualBreakMins + halfDayLeaveOverlapMins, spanMinsToday)
   const hoursWorked    = todayLog?.clock_in
     ? Math.max(0, calcHoursNet(todayLog.clock_in, todayLog.clock_out, cappedBreakMins, null, todayLog.paused_seconds))
     : 0
@@ -891,7 +906,9 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               {/* Time breakdown */}
               {todayLog?.clock_in && (() => {
                 const spanH      = Math.max(0, calcHours(todayLog.clock_in, todayLog.clock_out))
-                const totalBreakMins = breakTotalMins
+                // Include the half-day-leave overlap here too so it's a visible part of the
+                // equation, not another silently-vanishing number (see paused_seconds above).
+                const totalBreakMins = breakTotalMins + halfDayLeaveOverlapMins
                 const breakH     = totalBreakMins / 60
                 return (
                   <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12, marginTop: 4 }}>
@@ -921,6 +938,11 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                         </div>
                       </div>
                     </div>
+                    {halfDayLeaveOverlapMins > 0 && (
+                      <p style={{ fontSize: 10, color: "#D97706", margin: "-4px 0 8px", fontWeight: 600 }}>
+                        Includes {fmtHoursShort(halfDayLeaveOverlapMins / 60)} during your approved Half Day Leave — not counted as worked
+                      </p>
+                    )}
                     {/* Target bar */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "nowrap", gap: 4 }}>
                       <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap" }}>Target: {fmtHoursShort(SHIFT_HOURS)}</span>

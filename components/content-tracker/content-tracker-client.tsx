@@ -464,7 +464,7 @@ function ContentCardInner({
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
       style={{
-        background: isDragging ? "#F3F4F6" : `linear-gradient(160deg, #fff 0%, ${typeAccent}0A 100%)`,
+        background: isDragging ? "#F3F4F6" : `linear-gradient(150deg, #fff 0%, ${typeAccent}12 45%, ${typeAccent}40 100%)`,
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: stale ? "1px solid rgba(245,158,11,0.3)" : "1px solid transparent",
         borderLeft: `4px solid ${typeAccent}`,
@@ -662,7 +662,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
       style={{
-        background: isDragging ? "#F3F4F6" : `linear-gradient(160deg, #fff 0%, ${accent}0A 100%)`,
+        background: isDragging ? "#F3F4F6" : `linear-gradient(150deg, #fff 0%, ${accent}12 45%, ${accent}40 100%)`,
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: "1px solid transparent",
         borderLeft: `4px solid ${accent}`,
@@ -1025,7 +1025,7 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 select-none"
       style={{
-        background: isDragging ? "#F3F4F6" : `linear-gradient(160deg, #fff 0%, ${accent}0A 100%)`,
+        background: isDragging ? "#F3F4F6" : `linear-gradient(150deg, #fff 0%, ${accent}12 45%, ${accent}40 100%)`,
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: "1px solid transparent",
         borderLeft: `4px solid ${accent}`,
@@ -1127,7 +1127,7 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
   const stripeColor = underperforming ? "#EF4444" : accent
   return (
     <div className="rounded-2xl mb-2.5 select-none" style={{
-      background: isDragging ? "#F3F4F6" : `linear-gradient(160deg, #fff 0%, ${accent}0A 100%)`,
+      background: isDragging ? "#F3F4F6" : `linear-gradient(150deg, #fff 0%, ${accent}12 45%, ${accent}40 100%)`,
       border: `1px solid ${underperforming ? "#FCA5A5" : "transparent"}`,
       borderLeft: `4px solid ${stripeColor}`,
       boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",

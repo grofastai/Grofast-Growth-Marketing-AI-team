@@ -151,10 +151,19 @@ const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
   design:        { label: "Design",        accent: "#F59E0B" },
   ready_to_edit: { label: "Ready to Edit", accent: "#0D9488" },
   editing:       { label: "Editing",       accent: "#6366F1" },
-  edited:        { label: "Edited",        accent: "#9B6BFF" },
-  on_review:     { label: "On Review",     accent: "#EC4899" },
+  // Was #9B6BFF (purple) — sat right next to Editing's indigo and read as nearly the
+  // same color once darkened for the badge fill. Fuchsia is a clean break from it.
+  edited:        { label: "Edited",        accent: "#D946EF" },
+  // Was #EC4899 (pink) — too close to Edited's new fuchsia. Rose leans warmer/redder.
+  on_review:     { label: "On Review",     accent: "#F43F5E" },
   ready_to_post: { label: "Ready to Post", accent: "#0EA5E9" },
   posted:        { label: "Posted",        accent: "#22C55E" },
+}
+// Advance-button fill — same bright-to-dark two-stop language as MODE_ACCENT.grad and
+// OVERVIEW_TILE_GRADIENTS, just derived from each status's accent instead of a hardcoded pair.
+function statusButtonGradient(status: ContentStatus): string {
+  const accent = STATUS_CFG[status].accent
+  return `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 60%, #000))`
 }
 // The production board's column order — differs by content type only in its first column
 // (shoot/ads-video video enters at Ready to Edit; posters enter at Design).
@@ -224,6 +233,15 @@ const FIELD: React.CSSProperties = {
   width: "100%", fontSize: 12, fontWeight: 600, color: "#374151",
   background: "#fff", border: "1.5px solid #EBEDF2", borderRadius: 10,
   padding: "8px 10px", outline: "none",
+}
+// Toolbar filters (client/time/day) — distinct from FIELD, which stays neutral for
+// modal form inputs. Bold bright-to-dark red gradient (same language as the advance
+// buttons/Overview tiles), white text — not a pale tint.
+const FILTER_FIELD: React.CSSProperties = {
+  width: "auto", fontSize: 12, fontWeight: 700, color: "#fff",
+  background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)",
+  border: "1.5px solid #6B0F0F", borderRadius: 10,
+  padding: "8px 10px", outline: "none", cursor: "pointer",
 }
 
 function initials(name?: string | null) {
@@ -458,7 +476,7 @@ function ContentCardInner({
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
       style={{
-        background: isDragging ? "#F3F4F6" : `linear-gradient(160deg, #fff 0%, ${typeAccent}0A 100%)`,
+        background: isDragging ? "#F3F4F6" : "#fff",
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: stale ? "1px solid rgba(245,158,11,0.3)" : "1px solid transparent",
         borderLeft: `4px solid ${typeAccent}`,
@@ -602,7 +620,7 @@ function ContentCardInner({
             onPointerDown={e => e.stopPropagation()}
             onClick={() => onAdvance(item, "ready_to_post")}
             className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
-            style={{ background: `color-mix(in srgb, ${STATUS_CFG.ready_to_post.accent} 70%, #000)`, color: "#fff" }}>
+            style={{ background: statusButtonGradient("ready_to_post"), color: "#fff" }}>
             Approve <ArrowRight size={10} />
           </button>
           {onRequestCorrection && (
@@ -620,7 +638,7 @@ function ContentCardInner({
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, next)}
           className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
-          style={{ background: `color-mix(in srgb, ${STATUS_CFG[next].accent} 70%, #000)`, color: "#fff" }}>
+          style={{ background: statusButtonGradient(next), color: "#fff" }}>
           {item.status === "ready_to_post" ? <>Mark Posted <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
         </button>
       )}
@@ -656,7 +674,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
       style={{
-        background: isDragging ? "#F3F4F6" : `linear-gradient(160deg, #fff 0%, ${accent}0A 100%)`,
+        background: isDragging ? "#F3F4F6" : "#fff",
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: "1px solid transparent",
         borderLeft: `4px solid ${accent}`,
@@ -715,7 +733,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, next)}
           className="w-full py-2 rounded-xl text-[10px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1.5"
-          style={{ background: `color-mix(in srgb, ${STATUS_CFG[next].accent} 70%, #000)`, color: "#fff", marginTop: item.voiceoverBy ? 0 : 4 }}>
+          style={{ background: statusButtonGradient(next), color: "#fff", marginTop: item.voiceoverBy ? 0 : 4 }}>
           {item.status === "voiceover" ? <>Send to Ready to Edit <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
         </button>
       )}
@@ -744,7 +762,13 @@ function DroppableColumn({ status, isOver, children }: { status: ContentStatus; 
   const accent = STATUS_CFG[status].accent
   return (
     <div ref={setNodeRef} className="rounded-2xl transition-all flex flex-col"
-      style={{ border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF", background: isOver ? `${accent}08` : "#F9FAFB", minHeight: 200 }}>
+      style={{
+        border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF",
+        background: isOver
+          ? `linear-gradient(165deg, ${accent} 0%, color-mix(in srgb, ${accent} 40%, #000) 100%)`
+          : `linear-gradient(165deg, ${accent} 0%, color-mix(in srgb, ${accent} 55%, #000) 100%)`,
+        minHeight: 200,
+      }}>
       {children}
     </div>
   )
@@ -767,7 +791,13 @@ function KanbanColumn({ id, accent, isOver, children }: { id: string; accent: st
   const { setNodeRef } = useDroppable({ id })
   return (
     <div ref={setNodeRef} className="rounded-2xl transition-all flex flex-col"
-      style={{ border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF", background: isOver ? `${accent}08` : "#F9FAFB", minHeight: 200 }}>
+      style={{
+        border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF",
+        background: isOver
+          ? `linear-gradient(165deg, ${accent} 0%, color-mix(in srgb, ${accent} 40%, #000) 100%)`
+          : `linear-gradient(165deg, ${accent} 0%, color-mix(in srgb, ${accent} 55%, #000) 100%)`,
+        minHeight: 200,
+      }}>
       {children}
     </div>
   )
@@ -778,7 +808,7 @@ function KanbanColumnHeader({ label, count, accent }: { label: string; count: nu
     <div className="flex items-center justify-between px-4 py-3 rounded-t-2xl" style={{ background: "#FFFFFF", borderBottom: "1px solid #E8E9EF" }}>
       <div className="flex items-center gap-2">
         <span className="text-[13px] font-black" style={{ color: "#111111" }}>{label}</span>
-        <span className="w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center" style={{ background: `${accent}20`, color: accent }}>{count}</span>
+        <span className="w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center" style={{ background: `color-mix(in srgb, ${accent} 80%, #000)`, color: "#fff" }}>{count}</span>
       </div>
     </div>
   )
@@ -788,7 +818,7 @@ function KanbanColumnHeader({ label, count, accent }: { label: string; count: nu
 function MonthSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
   return (
     <select value={value} onChange={e => onChange(e.target.value)}
-      style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+      style={FILTER_FIELD}>
       <option value="all">All Time</option>
       {options.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
     </select>
@@ -798,13 +828,16 @@ function MonthSelect({ value, onChange, options }: { value: string; onChange: (v
 function DayFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center gap-1"
-      style={{ background: "#fff", border: `1.5px solid ${value ? "#DE1A1A" : "#EBEDF2"}`, borderRadius: 10, padding: "0 6px" }}>
-      <CalendarDays size={13} style={{ color: value ? "#DE1A1A" : "#9CA3AF", flexShrink: 0 }} />
+      style={{
+        background: value ? "linear-gradient(135deg, #FF4D4D 0%, #DE1A1A 100%)" : "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)",
+        border: `1.5px solid ${value ? "#DE1A1A" : "#6B0F0F"}`, borderRadius: 10, padding: "0 6px",
+      }}>
+      <CalendarDays size={13} style={{ color: "#fff", flexShrink: 0 }} />
       <input type="date" value={value} onChange={e => onChange(e.target.value)} aria-label="Filter by day"
-        style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 600, color: value ? "#DE1A1A" : "#6B7280", fontFamily: "inherit", cursor: "pointer", padding: "7px 2px" }} />
+        style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "inherit", cursor: "pointer", padding: "7px 2px", colorScheme: "dark" }} />
       {value && (
         <button onClick={() => onChange("")} title="Clear day"
-          style={{ padding: "2px 6px", borderRadius: 6, border: "none", background: "rgba(222,26,26,0.08)", color: "#DE1A1A", fontSize: 11, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
+          style={{ padding: "2px 6px", borderRadius: 6, border: "none", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 11, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
           ✕
         </button>
       )}
@@ -956,10 +989,10 @@ function HeroGlassStat({ label, value, sub }: { label: string; value: number | s
   )
 }
 
-function KanbanEmptyCell({ isOver, accent }: { isOver: boolean; accent: string }) {
+function KanbanEmptyCell({ isOver }: { isOver: boolean }) {
   return (
-    <div className="flex items-center justify-center py-8 rounded-xl transition-all" style={{ border: `2px dashed ${isOver ? accent : "#E5E7EB"}` }}>
-      <p className="text-[11px] font-semibold" style={{ color: isOver ? accent : "#9CA3AF" }}>{isOver ? "Drop here" : "Empty"}</p>
+    <div className="flex items-center justify-center py-8 rounded-xl transition-all" style={{ border: `2px dashed ${isOver ? "#fff" : "rgba(255,255,255,0.45)"}` }}>
+      <p className="text-[11px] font-semibold" style={{ color: isOver ? "#fff" : "rgba(255,255,255,0.75)" }}>{isOver ? "Drop here" : "Empty"}</p>
     </div>
   )
 }
@@ -1019,7 +1052,7 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 select-none"
       style={{
-        background: isDragging ? "#F3F4F6" : `linear-gradient(160deg, #fff 0%, ${accent}0A 100%)`,
+        background: isDragging ? "#F3F4F6" : "#fff",
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: "1px solid transparent",
         borderLeft: `4px solid ${accent}`,
@@ -1121,7 +1154,7 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
   const stripeColor = underperforming ? "#EF4444" : accent
   return (
     <div className="rounded-2xl mb-2.5 select-none" style={{
-      background: isDragging ? "#F3F4F6" : `linear-gradient(160deg, #fff 0%, ${accent}0A 100%)`,
+      background: isDragging ? "#F3F4F6" : "#fff",
       border: `1px solid ${underperforming ? "#FCA5A5" : "transparent"}`,
       borderLeft: `4px solid ${stripeColor}`,
       boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
@@ -1513,7 +1546,11 @@ function EditAdsVideoModal({ item, clients, pastClients, onClose, onSaved }: {
 function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
   item: ContentItem
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
-  onClose: () => void; onSaved: (updates: { client_name: string; title: string; content_type: "video" | "poster"; shot_date: string; notes: string }) => void
+  onClose: () => void
+  onSaved: (updates: {
+    client_name: string; title: string; content_type: "video" | "poster"; shot_date: string; notes: string
+    ready_platforms: Platform[]; scheduled_post_date: string; scheduled_post_time: string
+  }) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
@@ -1526,16 +1563,31 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
   const contentType = item.content_type
   const [shotDate, setShotDate] = useState(item.shot_date || new Date().toISOString().split("T")[0])
   const [notes, setNotes] = useState(item.notes || "")
+  // Schedule/intent fields — editable regardless of stage, but saving them here never
+  // changes item.status. That transition stays owned by the Ready to Post flow.
+  const [platforms, setPlatforms] = useState<Platform[]>(item.ready_platforms ?? [])
+  const [scheduledDate, setScheduledDate] = useState(item.scheduled_post_date || "")
+  const [scheduledTime, setScheduledTime] = useState(item.scheduled_post_time || "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function togglePlatform(p: Platform) {
+    setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+  }
 
   async function submit() {
     if (!client || !title.trim()) { setError("Client and title are required"); return }
     setSaving(true); setError(null)
-    const res = await updateContentItem(item.id, { client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() || undefined })
+    const res = await updateContentItem(item.id, {
+      client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() || undefined,
+      ready_platforms: platforms, scheduled_post_date: scheduledDate || undefined, scheduled_post_time: scheduledTime || undefined,
+    })
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to save"); return }
-    onSaved({ client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() })
+    onSaved({
+      client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim(),
+      ready_platforms: platforms, scheduled_post_date: scheduledDate, scheduled_post_time: scheduledTime,
+    })
   }
 
   return (
@@ -1549,6 +1601,31 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
         <div>
           <label style={LABEL}>Shot Date</label>
           <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+        </div>
+        <div>
+          <label style={LABEL}>Platforms <span style={{ fontWeight: 600, textTransform: "none" }}>(where this is going out)</span></label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
+              const cfg = PLATFORM_CFG[p]
+              const on = platforms.includes(p)
+              return (
+                <button key={p} type="button" onClick={() => togglePlatform(p)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  <cfg.icon size={12} /> {cfg.label} {on && <Check size={10} />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Scheduled Post Date</label>
+            <input type="date" style={FIELD} value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} />
+          </div>
+          <div>
+            <label style={LABEL}>Scheduled Post Time</label>
+            <input type="time" style={FIELD} value={scheduledTime} onChange={e => setScheduledTime(e.target.value)} />
+          </div>
         </div>
         <div>
           <label style={LABEL}>Notes</label>
@@ -3245,7 +3322,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex gap-2 flex-wrap">
               <select value={pipelineClientFilter} onChange={e => setPipelineClientFilter(e.target.value)}
-                style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+                style={FILTER_FIELD}>
                 <option value="all">All Clients</option>
                 {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
                 {pastClientOptions.length > 0 && (
@@ -3288,17 +3365,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                   const cfg = STATUS_CFG[status]
                   return (
                     <DroppableColumn key={status} status={status} isOver={overCol === status}>
-                      <div className="flex items-center justify-between px-4 py-3 rounded-t-2xl" style={{ background: "#FFFFFF", borderBottom: "1px solid #E8E9EF" }}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[13px] font-black" style={{ color: "#111111" }}>{cfg.label}</span>
-                          <span className="w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center" style={{ background: `${cfg.accent}20`, color: cfg.accent }}>{list.length}</span>
-                        </div>
-                      </div>
+                      <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.accent} />
                       <div className="p-3 flex-1">
                         {list.length === 0 ? (
-                          <div className="flex items-center justify-center py-8 rounded-xl transition-all" style={{ border: `2px dashed ${overCol === status ? cfg.accent : "#E5E7EB"}` }}>
-                            <p className="text-[11px]" style={{ color: overCol === status ? cfg.accent : "#374151", fontWeight: 600 }}>{overCol === status ? "Drop here" : "No items"}</p>
-                          </div>
+                          <KanbanEmptyCell isOver={overCol === status} />
                         ) : list.map(item => (
                           <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
                         ))}
@@ -3355,7 +3425,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                       <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.accent} />
                       <div className="p-3 flex-1">
                         {list.length === 0 ? (
-                          <KanbanEmptyCell isOver={adsVideoOverCol === status} accent={cfg.accent} />
+                          <KanbanEmptyCell isOver={adsVideoOverCol === status} />
                         ) : list.map(item => (
                           <KanbanCard key={item.id} id={item.id}>
                             <AdsVideoCardInner item={item} isDragging={adsVideoDragId === item.id} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} />
@@ -3469,7 +3539,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                 style={{ ...FIELD, paddingLeft: 30 }} />
             </div>
             <select value={logClientFilter} onChange={e => setLogClientFilter(e.target.value)}
-              style={{ ...FIELD, width: "auto", cursor: "pointer", flex: "0 0 auto" }}>
+              style={{ ...FILTER_FIELD, flex: "0 0 auto" }}>
               <option value="all">All Clients</option>
               {logClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
               {pastClientOptions.length > 0 && (
@@ -3576,7 +3646,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                   style={{ ...FIELD, paddingLeft: 30 }} />
               </div>
               <select value={adsClientFilter} onChange={e => setAdsClientFilter(e.target.value)}
-                style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+                style={FILTER_FIELD}>
                 <option value="all">All Clients</option>
                 {activeClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
                 {pastClientOptions.length > 0 && (
@@ -3633,7 +3703,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                       <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.color} />
                       <div className="p-3 flex-1">
                         {list.length === 0 ? (
-                          <KanbanEmptyCell isOver={adOverCol === status} accent={cfg.color} />
+                          <KanbanEmptyCell isOver={adOverCol === status} />
                         ) : list.map(ad => (
                           <KanbanCard key={ad.id} id={ad.id}>
                             <AdCardInner ad={ad} expanded={expandedAd === ad.id} isDragging={adDragId === ad.id}
@@ -3664,7 +3734,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <select value={shootsClientFilter} onChange={e => setShootsClientFilter(e.target.value)}
-                style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+                style={FILTER_FIELD}>
                 <option value="all">All Clients</option>
                 {activeClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
                 {pastClientOptions.length > 0 && (
@@ -3718,7 +3788,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                       <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.color} />
                       <div className="p-3 flex-1">
                         {list.length === 0 ? (
-                          <KanbanEmptyCell isOver={shootOverCol === status} accent={cfg.color} />
+                          <KanbanEmptyCell isOver={shootOverCol === status} />
                         ) : list.map(shoot => (
                           <KanbanCard key={shoot.id} id={shoot.id}>
                             <ShootCardInner shoot={shoot} isDragging={shootDragId === shoot.id} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={setEditShootFor} onDelete={handleDeleteShoot} />
@@ -3752,7 +3822,12 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       {editingItem && (
         <EditContentModal item={editingItem} clients={clients} pastClients={pastClients} onClose={() => setEditingItem(null)}
           onSaved={updates => {
-            setItems(prev => prev.map(i => i.id === editingItem.id ? { ...i, ...updates, notes: updates.notes || null } : i))
+            setItems(prev => prev.map(i => i.id === editingItem.id ? {
+              ...i, ...updates,
+              notes: updates.notes || null,
+              scheduled_post_date: updates.scheduled_post_date || null,
+              scheduled_post_time: updates.scheduled_post_time || null,
+            } : i))
             setEditingItem(null)
           }} />
       )}

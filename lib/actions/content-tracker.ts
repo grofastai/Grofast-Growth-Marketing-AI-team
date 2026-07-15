@@ -92,6 +92,9 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
     content_type: parsed.data.content_type,
     shot_date:    parsed.data.shot_date || null,
     notes:        parsed.data.notes || null,
+    ready_platforms:     parsed.data.ready_platforms ?? [],
+    scheduled_post_date: parsed.data.scheduled_post_date || null,
+    scheduled_post_time: parsed.data.scheduled_post_time || null,
     updated_at:   new Date().toISOString(),
   }).eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }

@@ -3319,7 +3319,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
       {(mode === "video" || mode === "poster") && tab === "pipeline" && (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center flex-wrap gap-2">
+          <div className="flex items-center justify-end flex-wrap gap-2">
             <select value={pipelineClientFilter} onChange={e => setPipelineClientFilter(e.target.value)}
               style={FILTER_FIELD}>
               <option value="all">All Clients</option>
@@ -3729,7 +3729,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
       {mode === "video" && tab === "shoots" && (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center flex-wrap gap-2">
+          <div className="flex items-center justify-end flex-wrap gap-2">
             <select value={shootsClientFilter} onChange={e => setShootsClientFilter(e.target.value)}
               style={FILTER_FIELD}>
               <option value="all">All Clients</option>

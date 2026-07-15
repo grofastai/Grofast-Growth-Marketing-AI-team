@@ -437,6 +437,9 @@ function ContentCardInner({
   onEdit?: (item: ContentItem) => void
 }) {
   const TypeIcon = item.content_type === "video" ? Video : ImageIcon
+  // Video/poster brand accent — ties every card to the same red/violet identity used
+  // on the Overview tiles, instead of a fixed indigo regardless of content type.
+  const typeAccent = item.content_type === "video" ? MODE_ACCENT.video.solid : MODE_ACCENT.poster.solid
   const age = (item.status === "ready_to_edit" || item.status === "design") ? daysAgo(originDate(item))
     : item.status === "edited" ? daysAgo(item.edited_date) : null
   const stale = age !== null && age >= 3
@@ -455,9 +458,10 @@ function ContentCardInner({
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
       style={{
-        background: isDragging ? "#F3F4F6" : "#FFFFFF",
+        background: isDragging ? "#F3F4F6" : `linear-gradient(160deg, #fff 0%, ${typeAccent}0A 100%)`,
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: stale ? "1px solid rgba(245,158,11,0.3)" : "1px solid transparent",
+        borderLeft: `4px solid ${typeAccent}`,
         opacity: isDragging ? 0.5 : 1,
       }}>
       <div className="flex items-start gap-2 mb-2">
@@ -466,8 +470,8 @@ function ContentCardInner({
             <GripVertical size={13} style={{ color: "#6B7280" }} />
           </span>
         )}
-        <div style={{ width: 22, height: 22, borderRadius: 7, background: "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <TypeIcon size={12} style={{ color: "#6366F1" }} />
+        <div style={{ width: 22, height: 22, borderRadius: 7, background: `${typeAccent}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <TypeIcon size={12} style={{ color: typeAccent }} />
         </div>
         <p className="text-[12px] font-semibold leading-snug line-clamp-2 flex-1" style={{ color: "#111111" }}>{item.title}</p>
         {cardMenu.length > 0 && <CardMenu items={cardMenu} />}
@@ -475,7 +479,7 @@ function ContentCardInner({
 
       <div className="flex flex-wrap items-center gap-1 mb-2.5">
         <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full truncate max-w-[110px]"
-          style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>{item.client_name}</span>
+          style={{ background: `${typeAccent}14`, color: typeAccent }}>{item.client_name}</span>
         {item.source === "ads_video" && (
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(217,119,6,0.1)", color: "#D97706" }}>
             🎙️ Ads Video
@@ -597,16 +601,16 @@ function ContentCardInner({
           <button
             onPointerDown={e => e.stopPropagation()}
             onClick={() => onAdvance(item, "ready_to_post")}
-            className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
-            style={{ background: `${STATUS_CFG.ready_to_post.accent}14`, color: STATUS_CFG.ready_to_post.accent }}>
+            className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
+            style={{ background: STATUS_CFG.ready_to_post.accent, color: "#fff", boxShadow: `0 3px 10px ${STATUS_CFG.ready_to_post.accent}4D` }}>
             Approve <ArrowRight size={10} />
           </button>
           {onRequestCorrection && (
             <button
               onPointerDown={e => e.stopPropagation()}
               onClick={() => onRequestCorrection(item)}
-              className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
-              style={{ background: "rgba(245,158,11,0.1)", color: "#D97706" }}>
+              className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
+              style={{ background: "#D97706", color: "#fff", boxShadow: "0 3px 10px rgba(217,119,6,0.3)" }}>
               <RotateCcw size={10} /> Needs Correction
             </button>
           )}
@@ -615,8 +619,8 @@ function ContentCardInner({
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, next)}
-          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
-          style={{ background: `${STATUS_CFG[next].accent}14`, color: STATUS_CFG[next].accent }}>
+          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
+          style={{ background: STATUS_CFG[next].accent, color: "#fff", boxShadow: `0 3px 10px ${STATUS_CFG[next].accent}4D` }}>
           {item.status === "ready_to_post" ? <>Mark Posted <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
         </button>
       )}

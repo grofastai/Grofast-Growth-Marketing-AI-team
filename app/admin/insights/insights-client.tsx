@@ -96,22 +96,38 @@ function orderedTypeKeys(keys: string[]) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-// KPI stat card — same shape used on the Attendance page: white card, a
-// colored accent border/glow, a soft decorative circle, big Bebas numeral.
+// KPI stat card — the whole tile is a gradient fill, one distinct gradient
+// per metric, with white text on top (matches the hero banner's red-gradient
+// treatment). Keyed to the exact accent hex values the callers pass in.
+const ROSE = '#E11D48'
+const TEAL = '#0D9488'
+const STAT_GRADIENTS: Record<string, string> = {
+  [SEMANTIC.info]:    'linear-gradient(135deg, #3B82F6, #1D4ED8)', // Tracked Hours — blue
+  [RED]:               'linear-gradient(135deg, #EF4444, #B91C1C)', // Salary Spent — red
+  [SEMANTIC.warning]: 'linear-gradient(135deg, #F59E0B, #B45309)', // Productivity Gap — amber
+  [SEMANTIC.success]: 'linear-gradient(135deg, #22C55E, #15803D)', // Avg Efficiency (good) — green
+  [ROSE]:              'linear-gradient(135deg, #F43F5E, #9F1239)', // Avg Efficiency (low) — rose, not amber, so it never matches Productivity Gap
+  '#7C3AED':           'linear-gradient(135deg, #8B5CF6, #6D28D9)', // Clients Served — purple
+  [TEAL]:              'linear-gradient(135deg, #14B8A6, #0F766E)', // Gap Hours — teal, not orange, so it never matches Productivity Gap either
+}
+function statGradient(accent: string) {
+  return STAT_GRADIENTS[accent] ?? `linear-gradient(135deg, ${accent}, ${accent})`
+}
+
 function StatCard({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
     <div style={{
-      background: CARD, borderRadius: 18, border: `1px solid ${accent}22`,
-      boxShadow: `0 4px 16px ${accent}18`, padding: '16px 18px', position: 'relative', overflow: 'hidden',
+      background: statGradient(accent), borderRadius: 18,
+      boxShadow: `0 6px 20px ${accent}40`, padding: '16px 18px', position: 'relative', overflow: 'hidden',
     }}>
-      <div style={{ position: 'absolute', top: -16, right: -16, width: 64, height: 64, borderRadius: '50%', background: `${accent}14`, pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: -16, right: -16, width: 64, height: 64, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', pointerEvents: 'none' }} />
       <p style={{
         fontFamily: BEBAS, fontSize: 'clamp(22px,2.6vw,28px)', fontWeight: 900, margin: 0,
-        color: accent, lineHeight: 1, letterSpacing: '0.01em', position: 'relative',
+        color: '#FFFFFF', lineHeight: 1, letterSpacing: '0.01em', position: 'relative',
       }}>
         {value}
       </p>
-      <p style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 0', position: 'relative' }}>
+      <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '6px 0 0', position: 'relative' }}>
         {label}
       </p>
     </div>
@@ -291,9 +307,9 @@ export default function InsightsClient({
         <StatCard label="Tracked Hours"     value={fmtH(kpis.totalTrackedHours)}   accent={SEMANTIC.info} />
         <StatCard label="Salary Spent"       value={fmtRupee(kpis.totalCost)}       accent={RED} />
         <StatCard label="Productivity Gap"   value={fmtRupee(kpis.totalWastedCost)} accent={SEMANTIC.warning} />
-        <StatCard label="Avg Efficiency"     value={`${kpis.avgEfficiency}%`}       accent={kpis.avgEfficiency >= 80 ? SEMANTIC.success : SEMANTIC.warning} />
+        <StatCard label="Avg Efficiency"     value={`${kpis.avgEfficiency}%`}       accent={kpis.avgEfficiency >= 80 ? SEMANTIC.success : ROSE} />
         <StatCard label="Clients Served"     value={String(kpis.clientsServedCount)} accent="#7C3AED" />
-        <StatCard label="Gap Hours"          value={fmtH(kpis.totalUntrackedHours)} accent="#EA580C" />
+        <StatCard label="Gap Hours"          value={fmtH(kpis.totalUntrackedHours)} accent={TEAL} />
       </div>
 
       {/* ── Charts row: Spend donut + Efficiency ranking ─────────────────── */}

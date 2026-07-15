@@ -17,7 +17,19 @@ interface Leave {
   leave_type?: string | null
   permission_hours?: number | null
   permission_time?: string | null
+  permission_end_time?: string | null
+  half_day_period?: string | null
+  half_day_from_time?: string | null
+  half_day_to_time?: string | null
   users: { id: string; name: string; employee_id: string; phone: string | null; gender?: string } | null
+}
+
+function fmtTimeStr(t?: string | null) {
+  if (!t) return null
+  const [h, m] = t.split(":").map(Number)
+  const period = h >= 12 ? "PM" : "AM"
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`
 }
 
 interface CompanyLeave {
@@ -193,7 +205,11 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
           {LEAVE_EMOJIS[leaveType] ?? "📋"} {leaveType}
         </span>
         <span style={{ fontSize: 11, fontWeight: 700, color: "#37474F", background: "#F9FAFB", padding: "3px 10px", borderRadius: 8 }}>
-          {isPerm ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : isHalfDay ? "Half Day" : `${days} day${days !== 1 ? "s" : ""}`}
+          {isPerm
+            ? `${leave.permission_hours ?? 1}h${leave.permission_time && leave.permission_end_time ? ` · ${fmtTimeStr(leave.permission_time)}–${fmtTimeStr(leave.permission_end_time)}` : leave.permission_time ? ` · ${fmtTimeStr(leave.permission_time)}` : ""}`
+            : isHalfDay
+            ? `Half Day${leave.half_day_period ? ` (${leave.half_day_period})` : ""}${leave.half_day_from_time && leave.half_day_to_time ? ` · ${fmtTimeStr(leave.half_day_from_time)}–${fmtTimeStr(leave.half_day_to_time)}` : ""}`
+            : `${days} day${days !== 1 ? "s" : ""}`}
         </span>
       </div>
 

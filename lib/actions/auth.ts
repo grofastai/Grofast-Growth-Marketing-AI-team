@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { headers, cookies } from 'next/headers'
 import { loginSchema, changePasswordSchema } from '@/lib/validations/auth'
 import { loginLimiter } from '@/lib/ratelimit'
+import { findUnresolvedLogoutDate } from '@/lib/attendance-gate'
 
 function adminSupabase() {
   return createClient(
@@ -53,7 +54,7 @@ export async function loginAction(
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users')
-    .select('role, must_change_password')
+    .select('role, must_change_password, company_id')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -84,6 +85,14 @@ export async function loginAction(
 
   if (profile?.must_change_password) {
     redirect('/change-password')
+  }
+
+  // Logout is mandatory: send members straight to the Attendance page to fix a
+  // stale open session instead of the dashboard — don't let login itself in
+  // past this until yesterday's (or any earlier day's) clock-out is resolved.
+  if (profile?.role === 'MEMBER' && profile.company_id) {
+    const unresolvedDate = await findUnresolvedLogoutDate(admin, profile.company_id, user.id, today)
+    if (unresolvedDate) redirect('/member/attendance')
   }
 
   redirect(

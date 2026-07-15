@@ -147,9 +147,9 @@ type Props = {
 // ── Design tokens ────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
   scripting:     { label: "Scripting",     accent: "#F97316" },
-  voiceover:     { label: "Voice Over",    accent: "#EAB308" },
+  voiceover:     { label: "Voice Over",    accent: "#1E3A8A" },
   design:        { label: "Design",        accent: "#F59E0B" },
-  ready_to_edit: { label: "Ready to Edit", accent: "#F59E0B" },
+  ready_to_edit: { label: "Ready to Edit", accent: "#0D9488" },
   editing:       { label: "Editing",       accent: "#6366F1" },
   edited:        { label: "Edited",        accent: "#9B6BFF" },
   on_review:     { label: "On Review",     accent: "#EC4899" },
@@ -602,7 +602,7 @@ function ContentCardInner({
             onPointerDown={e => e.stopPropagation()}
             onClick={() => onAdvance(item, "ready_to_post")}
             className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
-            style={{ background: STATUS_CFG.ready_to_post.accent, color: "#fff", boxShadow: `0 3px 10px ${STATUS_CFG.ready_to_post.accent}4D` }}>
+            style={{ background: `color-mix(in srgb, ${STATUS_CFG.ready_to_post.accent} 70%, #000)`, color: "#fff" }}>
             Approve <ArrowRight size={10} />
           </button>
           {onRequestCorrection && (
@@ -610,7 +610,7 @@ function ContentCardInner({
               onPointerDown={e => e.stopPropagation()}
               onClick={() => onRequestCorrection(item)}
               className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
-              style={{ background: "#D97706", color: "#fff", boxShadow: "0 3px 10px rgba(217,119,6,0.3)" }}>
+              style={{ background: "#92400E", color: "#fff" }}>
               <RotateCcw size={10} /> Needs Correction
             </button>
           )}
@@ -620,7 +620,7 @@ function ContentCardInner({
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, next)}
           className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
-          style={{ background: STATUS_CFG[next].accent, color: "#fff", boxShadow: `0 3px 10px ${STATUS_CFG[next].accent}4D` }}>
+          style={{ background: `color-mix(in srgb, ${STATUS_CFG[next].accent} 70%, #000)`, color: "#fff" }}>
           {item.status === "ready_to_post" ? <>Mark Posted <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
         </button>
       )}
@@ -673,19 +673,19 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
         <CardMenu items={cardMenu} />
       </div>
 
-      <div className="flex flex-wrap items-center gap-1 mb-2.5">
-        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full truncate max-w-[110px]"
-          style={{ background: `${accent}14`, color: accent }}>{item.client_name}</span>
+      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+        <span className="text-[9px] font-medium px-2 py-1 rounded-full truncate max-w-[110px]"
+          style={{ background: `${accent}14`, color: accent, lineHeight: 1 }}>{item.client_name}</span>
         {item.priority && (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${PRIORITY_CFG[item.priority].color}18`, color: PRIORITY_CFG[item.priority].color }}>
+          <span className="text-[9px] font-bold px-2 py-1 rounded-full" style={{ background: `${PRIORITY_CFG[item.priority].color}18`, color: PRIORITY_CFG[item.priority].color, lineHeight: 1 }}>
             {PRIORITY_CFG[item.priority].label}
           </span>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-1 mb-2.5">
+      <div className="flex flex-wrap items-center gap-1.5 mb-2">
         {item.hook_count !== null && (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#F3F4F6", color: "#374151" }}>
+          <span className="text-[9px] font-bold px-2 py-1 rounded-full" style={{ background: "#F3F4F6", color: "#374151", lineHeight: 1 }}>
             {item.hook_count} hook{item.hook_count === 1 ? "" : "s"}
           </span>
         )}
@@ -693,8 +693,8 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
           const cfg = USE_FOR_CFG[u]
           const Icon = cfg.icon
           return (
-            <span key={u} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-              style={{ background: `${cfg.color}18`, color: cfg.color }}>
+            <span key={u} className="flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-full"
+              style={{ background: `${cfg.color}18`, color: cfg.color, lineHeight: 1 }}>
               <Icon size={9} /> {cfg.label}
             </span>
           )
@@ -702,7 +702,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
       </div>
 
       {item.voiceoverBy && (
-        <div className="flex items-center gap-1 mb-2" title={`Voiced by ${item.voiceoverBy.name}`}>
+        <div className="flex items-center gap-1.5 mb-3" title={`Voiced by ${item.voiceoverBy.name}`}>
           <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#EAB308", color: "#fff" }}>
             {initials(item.voiceoverBy.name)}
           </div>
@@ -714,8 +714,8 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, next)}
-          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
-          style={{ background: STATUS_CFG[next].accent, color: "#fff", boxShadow: `0 3px 10px ${STATUS_CFG[next].accent}4D` }}>
+          className="w-full py-2 rounded-xl text-[10px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1.5"
+          style={{ background: `color-mix(in srgb, ${STATUS_CFG[next].accent} 70%, #000)`, color: "#fff", marginTop: item.voiceoverBy ? 0 : 4 }}>
           {item.status === "voiceover" ? <>Send to Ready to Edit <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
         </button>
       )}
@@ -1073,21 +1073,21 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
         <div className="flex flex-wrap gap-1.5" style={{ marginTop: 10 }}>
           {shoot.status === "scheduled" && (
             <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "going")}
-              className="text-[9px] font-bold px-2.5 py-1 rounded-lg"
-              style={{ border: "none", background: "#3B82F6", color: "#fff", cursor: "pointer", boxShadow: "0 3px 10px rgba(59,130,246,0.3)" }}>
+              className="text-[9px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
+              style={{ border: "none", background: "#1D4ED8", color: "#fff", cursor: "pointer" }}>
               Mark Going
             </button>
           )}
           {shoot.status === "going" && (
             <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "completed")}
-              className="text-[9px] font-bold px-2.5 py-1 rounded-lg"
-              style={{ border: "none", background: "#22C55E", color: "#fff", cursor: "pointer", boxShadow: "0 3px 10px rgba(34,197,94,0.3)" }}>
+              className="text-[9px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
+              style={{ border: "none", background: "#15803D", color: "#fff", cursor: "pointer" }}>
               Mark Done
             </button>
           )}
           <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "cancelled")}
-            className="text-[9px] font-bold px-2.5 py-1 rounded-lg"
-            style={{ border: "none", background: "#EF4444", color: "#fff", cursor: "pointer", boxShadow: "0 3px 10px rgba(239,68,68,0.3)" }}>
+            className="text-[9px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
+            style={{ border: "none", background: "#B91C1C", color: "#fff", cursor: "pointer" }}>
             Cancel
           </button>
         </div>

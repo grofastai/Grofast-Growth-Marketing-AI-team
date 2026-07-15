@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertManyNotifications } from './notifications'
 import { calcNetWorkHours } from '@/lib/utils/work-hours'
-import { findUnresolvedLogoutDate, findUnfiledUpdateDate, formatGateDate, hasFiledUpdate } from '@/lib/attendance-gate'
+import { findUnresolvedLogoutDate, formatGateDate, hasFiledUpdate } from '@/lib/attendance-gate'
 
 // 9:30 AM IST = 04:00 UTC. Returns true if clock-in is after 9:30 AM IST.
 function isLateArrival(isoUtc: string): boolean {
@@ -85,13 +85,21 @@ export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ s
 
   const { data: existing } = await admin
     .from('attendance_logs')
-    .select('id')
+    .select('id, clock_in, status')
     .eq('company_id', ctx.companyId)
     .eq('user_id', ctx.userId)
     .eq('date', today)
-    .single()
+    .maybeSingle()
 
-  if (existing) return { success: false, error: 'Already logged attendance today' }
+  // Approving a leave auto-inserts a placeholder attendance_logs row (see
+  // lib/actions/leaves.ts) so the day shows correctly on Attendance/History.
+  // For half_day that placeholder only covers the leave's own hours — once
+  // that window has passed the member can still clock in for the rest of the
+  // day, so we upgrade the placeholder in place instead of blocking. Any other
+  // existing row (a real clock-in, or a full_day/absent placeholder) still
+  // blocks a second clock-in for today.
+  const halfDayPlaceholder = existing?.status === 'half_day' && !existing.clock_in ? existing : null
+  if (existing && !halfDayPlaceholder) return { success: false, error: 'Already logged attendance today' }
 
   // Logout is mandatory — refuse to clock in while an earlier day's session is
   // still open, even if the client-side gate was bypassed or never loaded.
@@ -116,16 +124,35 @@ export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ s
     return { success: false, error: 'You are on approved leave today. Clock-in is not allowed.' }
   }
 
+  // Block clock-in if the last real working day still has an open (unfinished) session,
+  // or is missing its Daily Update — regardless of how many days back that day is, and
+  // regardless of any leave/blank days sitting in between (see findLastWorkingDayIssues).
+  const issues = await findLastWorkingDayIssues(ctx)
+  if (issues.forgotLogout) {
+    return { success: false, error: `You never logged out on ${issues.forgotLogoutDate} — fix that day's logout time on the Attendance page before logging in again.` }
+  }
+  if (issues.missingUpdate) {
+    return { success: false, error: `You haven't submitted your Daily Update for ${issues.missingUpdateDate} — submit it before logging in again.` }
+  }
+
   const clockInTime = new Date().toISOString()
 
-  const { error } = await admin.from('attendance_logs').insert({
-    company_id: ctx.companyId,
-    user_id: ctx.userId,
-    date: today,
-    clock_in: clockInTime,
-    work_type: workType,
-    status: 'present',
-  })
+  // A same-day unique constraint exists on (company_id, user_id, date), so a half-day
+  // placeholder row must be updated in place rather than inserted alongside.
+  const { error } = halfDayPlaceholder
+    ? await admin.from('attendance_logs').update({
+        clock_in: clockInTime,
+        work_type: workType,
+        status: 'present',
+      }).eq('id', halfDayPlaceholder.id)
+    : await admin.from('attendance_logs').insert({
+        company_id: ctx.companyId,
+        user_id: ctx.userId,
+        date: today,
+        clock_in: clockInTime,
+        work_type: workType,
+        status: 'present',
+      })
 
   if (error) return { success: false, error: error.message }
 
@@ -269,7 +296,7 @@ export async function clockOut(): Promise<{ success: boolean; error?: string }> 
 
   const { data: log } = await admin
     .from('attendance_logs')
-    .select('id')
+    .select('id, clock_in')
     .eq('company_id', ctx.companyId)
     .eq('user_id', ctx.userId)
     .eq('date', today)
@@ -278,6 +305,15 @@ export async function clockOut(): Promise<{ success: boolean; error?: string }> 
     .maybeSingle()
 
   if (!log) return { success: false, error: 'No active attendance record found for today.' }
+
+  // Past 18 hours is treated as a definite forgotten logout, not a real work span —
+  // refuse the live logout and require a manual time correction instead.
+  if (log.clock_in) {
+    const gapHours = (Date.now() - new Date(log.clock_in).getTime()) / 3600000
+    if (gapHours > 18) {
+      return { success: false, error: `It's been over ${Math.round(gapHours)} hours since you logged in — that's too long for a live logout. Please use "Fix My Time" to enter your real logout time instead.` }
+    }
+  }
 
   const { error } = await admin
     .from('attendance_logs')
@@ -399,6 +435,11 @@ export async function manualClockOut(date: string, time: string): Promise<{ succ
 
   if (new Date(clockOutISO) <= new Date(log.clock_in)) {
     return { success: false, error: 'Logout time must be after your login time.' }
+  }
+
+  const fixGapHours = (new Date(clockOutISO).getTime() - new Date(log.clock_in).getTime()) / 3600000
+  if (fixGapHours > 18) {
+    return { success: false, error: `That's a ${Math.round(fixGapHours)}-hour gap — no real work day runs that long. Please double-check the time, or ask your admin to correct this if it genuinely spans more than one day.` }
   }
 
   const { error } = await admin
@@ -591,72 +632,102 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
   return { success: true, logs, leaveDates, holidayDates }
 }
 
-export async function getYesterdayGateStatus(): Promise<{
+// Walks backward from yesterday looking for the actual most recent working day with
+// an issue — not just literally "yesterday". A day covered by an approved leave (of
+// ANY type) or marked leave/absent is excused and skipped for BOTH checks, so a leave
+// day sitting between today and an old broken day can no longer hide that broken day
+// (e.g. forgot to log out Friday, approved leave Saturday, opens app Sunday — this
+// must still catch Friday, not stop at Saturday and call it clean).
+// Bounded by MAX_LOOKBACK_DAYS and the user's own join date, so a brand-new hire's
+// pre-employment history is never scanned or flagged.
+const MAX_LOOKBACK_DAYS = 14
+
+export async function findLastWorkingDayIssues(ctx: { userId: string; companyId: string }): Promise<{
   forgotLogout: boolean
+  forgotLogoutDate: string
   missingUpdate: boolean
-  yesterdayDate: string
+  missingUpdateDate: string
+  missingUpdateHadClockIn: boolean
 }> {
-  const ctxResult = await getUserContext()
-  const fallback = { forgotLogout: false, missingUpdate: false, yesterdayDate: '' }
-  if ('error' in ctxResult) return fallback
-
-  const ctx = ctxResult
-  const today = new Date().toISOString().split('T')[0]
-  const yd = new Date()
-  yd.setDate(yd.getDate() - 1)
-  const yesterday = yd.toISOString().split('T')[0]
-
   const admin = adminSupabase()
 
-  // Logout is mandatory: block on ANY unresolved clock-in before today, not just
-  // yesterday's row — the nightly auto-logout cron can miss a night, and once more
-  // than a day passes a yesterday-only check would stop seeing the stale record.
-  const unresolvedDate = await findUnresolvedLogoutDate(admin, ctx.companyId, ctx.userId, today)
-  const forgotLogout = !!unresolvedDate
+  const { data: profile } = await admin.from('users').select('joined_at').eq('id', ctx.userId).single()
+  const joinedAt = (profile as { joined_at?: string | null } | null)?.joined_at ?? ''
 
-  const [{ data: attLog }, { data: update }, { data: leave }, unfiledDate] = await Promise.all([
-    admin.from('attendance_logs')
-      .select('clock_in, clock_out, status')
-      .eq('user_id', ctx.userId)
-      .eq('company_id', ctx.companyId)
-      .eq('date', yesterday)
-      .maybeSingle(),
-    admin.from('daily_updates')
-      .select('work_entries, learning_hours')
-      .eq('user_id', ctx.userId)
-      .eq('company_id', ctx.companyId)
-      .eq('date', yesterday)
-      .maybeSingle(),
-    admin.from('leaves')
-      .select('id')
-      .eq('user_id', ctx.userId)
-      .eq('company_id', ctx.companyId)
-      .eq('status', 'approved')
-      .lte('from_date', yesterday)
-      .gte('to_date', yesterday)
-      .maybeSingle(),
-    // Any earlier worked day that still has no real update — not just yesterday. A day
-    // emptied out later (entry deleted or moved away) has to re-lock the member, or it
-    // would be forgiven the moment it stopped being yesterday.
-    findUnfiledUpdateDate(admin, ctx.companyId, ctx.userId, today),
-  ])
+  let forgotLogoutDate = ''
+  let missingUpdateDate = ''
+  let missingUpdateHadClockIn = false
+  let forgotLogoutSettled = false
+  let missingUpdateSettled = false
 
-  const hadClockIn = attLog?.status === 'present' && !!attLog?.clock_in
-  // Skip missing-update check if on approved leave or marked on leave yesterday
-  // All days (including weekends) are working days — no weekday exemption
-  // The scan above only sees days with a clock-in, so yesterday is still checked
-  // separately here to catch a no-show that filed neither an update nor a leave.
-  const missingYesterday = !leave && attLog?.status !== 'leave' && attLog?.status !== 'absent'
-    && !hasFiledUpdate(update) && (hadClockIn || !attLog)
-  const missingUpdate = missingYesterday || !!unfiledDate
+  const cursor = new Date()
+  for (let i = 0; i < MAX_LOOKBACK_DAYS; i++) {
+    cursor.setDate(cursor.getDate() - 1)
+    const dateStr = cursor.toISOString().split('T')[0]
+    if (joinedAt && dateStr < joinedAt) break // don't scan before they joined
 
-  const blockedDate = unfiledDate ?? yesterday
+    const [{ data: attLog }, { data: update }, { data: leave }, { data: holiday }] = await Promise.all([
+      admin.from('attendance_logs')
+        .select('clock_in, clock_out, status')
+        .eq('user_id', ctx.userId).eq('company_id', ctx.companyId).eq('date', dateStr).maybeSingle(),
+      admin.from('daily_updates')
+        .select('work_entries, learning_hours')
+        .eq('user_id', ctx.userId).eq('company_id', ctx.companyId).eq('date', dateStr).maybeSingle(),
+      admin.from('leaves')
+        .select('id')
+        .eq('user_id', ctx.userId).eq('company_id', ctx.companyId).eq('status', 'approved')
+        .lte('from_date', dateStr).gte('to_date', dateStr).maybeSingle(),
+      admin.from('company_leaves')
+        .select('id')
+        .eq('company_id', ctx.companyId).eq('date', dateStr).maybeSingle(),
+    ])
+
+    const excused = !!leave || !!holiday || attLog?.status === 'leave' || attLog?.status === 'absent'
+    if (excused) continue // leave/holiday day — skip entirely, keep walking back for BOTH checks
+
+    const hadClockIn = attLog?.status === 'present' && !!attLog?.clock_in
+
+    if (!forgotLogoutSettled) {
+      if (hadClockIn && !attLog?.clock_out) { forgotLogoutDate = dateStr; forgotLogoutSettled = true }
+      else if (hadClockIn && attLog?.clock_out) { forgotLogoutSettled = true } // properly closed — stop checking further back
+      // no clock-in at all: nothing to check on this day, keep walking back
+    }
+
+    if (!missingUpdateSettled) {
+      // A row existing isn't enough — it can survive with zero real entries (see
+      // hasFiledUpdate). Only a real update stops the walkback; an empty shell keeps it going.
+      if (hasFiledUpdate(update)) { missingUpdateSettled = true }
+      else if (hadClockIn || !attLog) {
+        missingUpdateDate = dateStr; missingUpdateHadClockIn = hadClockIn; missingUpdateSettled = true
+      }
+      // attLog exists but isn't present/no-clock-in (shouldn't happen here since excused days are skipped above)
+    }
+
+    if (forgotLogoutSettled && missingUpdateSettled) break
+  }
 
   return {
-    forgotLogout,
-    missingUpdate,
-    yesterdayDate: unresolvedDate ?? blockedDate,
+    forgotLogout: !!forgotLogoutDate,
+    forgotLogoutDate,
+    missingUpdate: !!missingUpdateDate,
+    missingUpdateDate,
+    missingUpdateHadClockIn,
   }
+}
+
+export async function getYesterdayGateStatus(): Promise<{
+  forgotLogout: boolean
+  forgotLogoutDate: string
+  missingUpdate: boolean
+  missingUpdateDate: string
+}> {
+  const ctxResult = await getUserContext()
+  const fallback = { forgotLogout: false, forgotLogoutDate: '', missingUpdate: false, missingUpdateDate: '' }
+  if ('error' in ctxResult) return fallback
+  // Walks back past leave/blank days to the real last working day for BOTH checks (the
+  // Karkil incident fix), and — since findLastWorkingDayIssues now uses hasFiledUpdate
+  // internally — treats a zero-entry daily_updates row as unfiled too (the GF009 fix).
+  return findLastWorkingDayIssues(ctxResult)
 }
 
 export async function getTodayCoverageReport(): Promise<{
@@ -750,6 +821,13 @@ export async function editAttendanceTimes(
 
   if (clockOutISO && new Date(clockOutISO) <= new Date(clockInISO)) {
     return { success: false, error: 'Logout time must be after login time.' }
+  }
+
+  if (clockOutISO) {
+    const editGapHours = (new Date(clockOutISO).getTime() - new Date(clockInISO).getTime()) / 3600000
+    if (editGapHours > 18) {
+      return { success: false, error: `That's a ${Math.round(editGapHours)}-hour gap — no real work day runs that long. Please double-check the times, or ask your admin to correct this if it genuinely spans more than one day.` }
+    }
   }
 
   const updates: Record<string, string | null | number> = { clock_in: clockInISO }

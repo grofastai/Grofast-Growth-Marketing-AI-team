@@ -199,8 +199,9 @@ export async function submitDailyUpdate(
     }
   }
 
-  // Block submission if on approved full-day leave (today only)
-  if (!isPastDate) {
+  // Block submission if the target date (today OR a past date) has an approved
+  // full-day leave — a leave day should never end up with real work entries logged.
+  {
     const { data: leaveBlock } = await admin
       .from('leaves')
       .select('id')
@@ -212,7 +213,12 @@ export async function submitDailyUpdate(
       .gte('to_date', today)
       .maybeSingle()
     if (leaveBlock) {
-      return { success: false, error: 'You are on approved leave today. Daily update submission is not allowed.' }
+      return {
+        success: false,
+        error: isPastDate
+          ? `You were on approved leave on ${today}. Daily update submission is not allowed for that date.`
+          : 'You are on approved leave today. Daily update submission is not allowed.',
+      }
     }
   }
 

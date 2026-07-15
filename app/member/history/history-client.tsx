@@ -342,7 +342,7 @@ type CollaborationConfirmation = {
 }
 
 export default function HistoryClient({
-  updates, userName, userId = "", team = "", workLayout, clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [], companyLeaves = [], defaultDate = "", collaborationConfirmations = [],
+  updates, userName, userId = "", team = "", workLayout, clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], missingSubmissionDates = [], approvedLeaves = [], companyLeaves = [], defaultDate = "", collaborationConfirmations = [],
 }: {
   updates: UpdateRow[]
   userName: string
@@ -354,6 +354,7 @@ export default function HistoryClient({
   participatedUpdates?: ParticipatedUpdate[]
   members?: MemberInfo[]
   attendanceDates?: string[]
+  missingSubmissionDates?: string[]
   approvedLeaves?: ApprovedLeave[]
   companyLeaves?: CompanyHoliday[]
   defaultDate?: string
@@ -930,6 +931,7 @@ export default function HistoryClient({
     | { type: "collab"; date: string; pus: ParticipatedUpdate[] }
     | { type: "leave"; date: string; leave: ApprovedLeave }
     | { type: "company_holiday"; date: string; holiday: CompanyHoliday }
+    | { type: "missing_submission"; date: string }
   const mergedList = useMemo((): MergedItem[] => {
     // Show today, past, and tomorrow only (so member can see if tmr is a holiday/leave)
     const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000)
@@ -983,10 +985,26 @@ export default function HistoryClient({
       holidayItems.push({ type: "company_holiday", date: holiday.date, holiday })
     }
 
+    // Clocked in, no daily update ever submitted, no approved leave on file —
+    // genuinely fell through the cracks. Must be visible, not silently skipped,
+    // so the member (and anyone reviewing their history) can see it and fix it.
+    const holidayDates = new Set(holidayItems.map(h => h.date))
+    const missingItems: MergedItem[] = []
+    for (const date of missingSubmissionDates) {
+      if (date > todayIST) continue
+      if (ownDates.has(date)) continue
+      if (collabDates.has(date)) continue
+      if (leaveDates.has(date)) continue
+      if (holidayDates.has(date)) continue
+      if (dateActive && date !== selectedDate) continue
+      if (monthPrefix && !date.startsWith(monthPrefix)) continue
+      missingItems.push({ type: "missing_submission", date })
+    }
+
     const ownItems: MergedItem[]    = filtered.map(u => ({ type: "own", date: u.date, u }))
     const collabItems: MergedItem[] = orphans.map(o => ({ type: "collab", date: o.date, pus: o.pus }))
-    return [...ownItems, ...collabItems, ...leaveItems, ...holidayItems].sort((a, b) => b.date.localeCompare(a.date))
-  }, [filtered, participatedByDate, selectedMonth, monthFiltered, approvedLeaves, companyLeaves, dateActive, selectedDate])
+    return [...ownItems, ...collabItems, ...leaveItems, ...holidayItems, ...missingItems].sort((a, b) => b.date.localeCompare(a.date))
+  }, [filtered, participatedByDate, selectedMonth, monthFiltered, approvedLeaves, companyLeaves, missingSubmissionDates, dateActive, selectedDate])
 
   useEffect(() => {
     if (!scrollToConfirmId) return
@@ -1717,6 +1735,36 @@ export default function HistoryClient({
                       <div>
                         <p style={{ fontSize:14, fontWeight:900, color:"#1E40AF", margin:"0 0 3px" }}>{item.holiday.name}</p>
                         <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>Company Holiday · No work required</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
+              if (item.type === "missing_submission") {
+                const md = new Date(item.date + "T12:00:00")
+                const mdLabel = md.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
+                const mdMon   = md.toLocaleDateString("en-US", { month:"short" })
+                return (
+                  <div key={`missing-${item.date}`} style={{ background:"#FFFFFF", borderRadius:20, border:"1.5px solid rgba(222,26,26,0.35)", overflow:"hidden", boxShadow:"0 2px 10px rgba(222,26,26,0.08)" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid rgba(222,26,26,0.12)", background:"rgba(222,26,26,0.03)" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:38, height:38, borderRadius:10, background:"rgba(222,26,26,0.1)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <span style={{ fontSize:14, fontWeight:900, color:"#de1a1a", lineHeight:1 }}>{md.getDate()}</span>
+                          <span style={{ fontSize:8, fontWeight:700, color:"#de1a1a", textTransform:"uppercase" }}>{mdMon}</span>
+                        </div>
+                        <div>
+                          <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{mdLabel}</p>
+                          <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Attendance recorded, no daily update filed</p>
+                        </div>
+                      </div>
+                      <span style={{ fontSize:11, fontWeight:700, color:"#de1a1a", background:"rgba(222,26,26,0.12)", padding:"3px 10px", borderRadius:99 }}>⚠ Not Submitted</span>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 18px", background:"linear-gradient(135deg,rgba(222,26,26,0.05) 0%,rgba(222,26,26,0.01) 100%)" }}>
+                      <div style={{ fontSize:36, lineHeight:1 }}>⚠️</div>
+                      <div>
+                        <p style={{ fontSize:14, fontWeight:900, color:"#de1a1a", margin:"0 0 3px" }}>You clocked in this day but never submitted a Daily Update</p>
+                        <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>No leave was applied for this date either — go to Daily Update and log it for this date if you can still recall the work.</p>
                       </div>
                     </div>
                   </div>
@@ -3365,7 +3413,9 @@ export default function HistoryClient({
                   { label:"Working Hours",    value: fmtH(stats.mediaWorkH),              dot:"#22C55E" },
                   { label:"Avg Working Hrs",  value: fmtH(stats.avgH),                    dot: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", isAvg: true },
                   { label:"Total Shoots",     value: String(stats.shootCount),             dot:"#EF4444" },
+                  { label:"Shooting Hrs",     value: fmtH(stats.shootH),                  dot:"#EF4444" },
                   { label:"Videos Edited",    value: String(stats.editCount),              dot:"#6366F1" },
+                  { label:"Editing Hrs",      value: fmtH(stats.editH),                   dot:"#6366F1" },
                   { label:"Learning Hours",   value: fmtH(stats.totalLearning),           dot:"#A78BFA" },
                   { label:"Travel Hours",     value: fmtH(stats.travelH),                 dot:"#F59E0B" },
                   { label:"Days Submitted",   value: String(stats.daysSubmitted),          dot:"#059669" },
@@ -3373,22 +3423,23 @@ export default function HistoryClient({
                   { label:"Working Hours",    value: fmtH(stats.mediaWorkH),              dot:"#22C55E" },
                   { label:"Avg Working Hrs",  value: fmtH(stats.avgH),                    dot: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", isAvg: true },
                   { label:"Total Shoots",     value: String(stats.shootCount),             dot:"#EF4444" },
+                  { label:"Shooting Hrs",     value: fmtH(stats.shootH),                  dot:"#EF4444" },
                   { label:"Videos Edited",    value: String(stats.editCount),              dot:"#6366F1" },
                   { label:"Learning Hours",   value: fmtH(stats.totalLearning),           dot:"#A78BFA" },
                   { label:"Travel Hours",     value: fmtH(stats.travelH),                 dot:"#F59E0B" },
+                  { label:"Other Hrs",        value: fmtH(stats.otherActivityH),          dot:"#6B7280" },
                   { label:"Break Hours",      value: fmtH(stats.totalBreak),              dot:"#78716C" },
                   { label:"Present Days",     value: String(stats.presentDays),            dot:"#059669" },
                   { label:"Leave Days",       value: String(stats.leaveDays),              dot:"#F97316" },
                   { label:"Office Holidays",  value: String(stats.holidayDays),            dot:"#9CA3AF" },
                   { label:"Overtime",         value: fmtH(stats.totalOT),                 dot:"#FACC15" },
-                  ...(everTypes.has("other_activity") ? [{ label:"Other", value: fmtH(stats.otherActivityH), dot:"#6B7280" }] : []),
                 ] : [
                   { label:"Working Hours",    value: fmtH(stats.nonMediaWorkH),                        dot:"#22C55E" },
                   { label:"Avg Working Hrs",  value: fmtH(stats.avgH),                                 dot: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", isAvg: true },
                   ...(everTypes.has("other") ? [{ label:"Technical", value: fmtH(stats.otherH), dot:"#3B82F6" }] : []),
                   ...(everTypes.has("poster") ? [{ label:"Posters", value: String(stats.posterCount), dot:"#EC4899" }] : []),
                   ...(everTypes.has("voiceover") ? [{ label:"Voiceovers", value: String(stats.voiceoverCount), dot:"#8B5CF6" }] : []),
-                  ...(everTypes.has("edit") ? [{ label:"Editing", value: String(stats.editCount), dot:"#0D9488" }] : []),
+                  ...(everTypes.has("edit") ? [{ label:"Videos Edited", value: String(stats.editCount), dot:"#0D9488" }] : []),
                   ...(everTypes.has("scripting") ? [{ label:"Scripting", value: fmtH(stats.scriptingH), dot:"#EAB308" }] : []),
                   ...(everTypes.has("development") ? [{ label:"Development", value: fmtH(stats.developmentH), dot:"#6366F1" }] : []),
                   { label:"Learning Hours",   value: fmtH(stats.totalLearning),                         dot:"#6366F1" },

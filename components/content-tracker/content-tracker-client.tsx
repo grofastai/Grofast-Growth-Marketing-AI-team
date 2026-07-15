@@ -29,8 +29,10 @@ import { isValidPipelineTransition } from "@/lib/content-tracker/pipeline-transi
 import { computeOverview, type AttentionItem } from "@/lib/content-tracker/overview"
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb"
-type UseFor = Platform | "ads"
+// "ads" is a real posting destination — an Ads Video can be scheduled/posted straight
+// to Ads with no organic platform attached, so it lives in Platform, not just UseFor.
+type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb" | "ads"
+type UseFor = Platform
 type Priority = "low" | "medium" | "high" | "urgent"
 type ContentSource = "shoot" | "ads_video" | "poster"
 type ContentStatus =
@@ -122,6 +124,7 @@ export type Shoot = {
   client: string
   legacyTitle: string
   start_time: string
+  created_at: string
   notes: string | null
   status: ShootStatus
   goingByUsers: { id: string; name: string }[]
@@ -178,12 +181,10 @@ const PLATFORM_CFG: Record<Platform, { label: string; color: string; icon: typeo
   facebook:  { label: "Facebook",  color: "#1877F2", icon: ThumbsUp },
   linkedin:  { label: "LinkedIn",  color: "#0A66C2", icon: Building2 },
   gmb:       { label: "GMB",       color: "#1E8E3E", icon: Store },
+  ads:       { label: "Ads",       color: "#D97706", icon: Megaphone },
 }
 
-const USE_FOR_CFG: Record<UseFor, { label: string; color: string; icon: typeof Camera }> = {
-  ...PLATFORM_CFG,
-  ads: { label: "Ads", color: "#D97706", icon: Megaphone },
-}
+const USE_FOR_CFG: Record<UseFor, { label: string; color: string; icon: typeof Camera }> = PLATFORM_CFG
 
 const PRIORITY_CFG: Record<Priority, { label: string; color: string }> = {
   low:    { label: "Low",    color: "#6B7280" },
@@ -878,24 +879,44 @@ function OverviewBlock({ title, accent, icon: Icon, rows }: {
   icon: typeof Layers
   rows: { key: string; label: string; value: number; onClick: () => void }[]
 }) {
+  const total = rows.reduce((sum, r) => sum + r.value, 0)
+  // Against the row's own max, not the block total — so one dominant stage doesn't
+  // squash every other bar down to a sliver.
+  const max = Math.max(...rows.map(r => r.value), 1)
   return (
     <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
-        <Icon size={13} style={{ color: accent }} />
-        <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{title}</span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Icon size={13} style={{ color: accent }} />
+          <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{title}</span>
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 800, color: accent, fontVariantNumeric: "tabular-nums" }}>{total}</span>
       </div>
       <div className="flex flex-col">
         {rows.map(r => (
           <button key={r.key} onClick={r.onClick}
-            className="flex items-center justify-between hover:bg-slate-50"
+            className="relative flex items-center justify-between hover:bg-slate-50 overflow-hidden"
             style={{ padding: "9px 16px", borderBottom: "1px solid #F9FAFB", border: "none", background: "transparent", cursor: "pointer" }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{r.label}</span>
-            <span style={{ fontSize: 13, fontWeight: 800, color: r.value > 0 ? accent : "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>
+            <div aria-hidden style={{ position: "absolute", inset: 0, width: `${(r.value / max) * 100}%`, background: `${accent}0D`, transition: "width 0.3s ease" }} />
+            <span style={{ position: "relative", fontSize: 12, fontWeight: 600, color: "#374151" }}>{r.label}</span>
+            <span style={{ position: "relative", fontSize: 13, fontWeight: 800, color: r.value > 0 ? accent : "#9CA3AF", fontVariantNumeric: "tabular-nums" }}>
               {r.value}
             </span>
           </button>
         ))}
       </div>
+    </div>
+  )
+}
+
+// Frosted-glass stat card for the hero's rightSlot — same treatment the old Content
+// Calendar used for its date/total/uploaded trio next to the character illustration.
+function HeroGlassStat({ label, value, sub }: { label: string; value: number | string; sub: string }) {
+  return (
+    <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 14, padding: "clamp(8px,2vw,12px) clamp(10px,2.5vw,16px)", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 72, flexShrink: 0 }}>
+      <p style={{ fontSize: 9, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>{label}</p>
+      <p style={{ fontSize: "clamp(22px,5.5vw,30px)", fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{value}</p>
+      <p style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>{sub}</p>
     </div>
   )
 }
@@ -1829,6 +1850,7 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
       client,
       legacyTitle: title.trim(),
       start_time: `${shotDate}T${shotTime || "09:00"}:00`,
+      created_at: new Date().toISOString(),
       notes: notes.trim() || null,
       status: "scheduled",
       goingByUsers: [],
@@ -1942,6 +1964,7 @@ function ReadyToPostModal({ item, onClose, onScheduled }: {
   async function submit() {
     if (platforms.length === 0) { setError("Pick at least one platform"); return }
     if (!date) { setError("Pick the posting date"); return }
+    if (!time) { setError("Pick a posting time"); return }
     setSaving(true); setError(null)
     const res = await markReadyToPost({
       content_item_id: item.id,
@@ -1983,7 +2006,7 @@ function ReadyToPostModal({ item, onClose, onScheduled }: {
             <input type="date" style={FIELD} value={date} onChange={e => setDate(e.target.value)} />
           </div>
           <div>
-            <label style={LABEL}>Time <span style={{ fontWeight: 600, textTransform: "none" }}>(optional)</span></label>
+            <label style={LABEL}>Time *</label>
             <input type="time" style={FIELD} value={time} onChange={e => setTime(e.target.value)} />
           </div>
         </div>
@@ -2534,6 +2557,12 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [pipelineClientFilter, setPipelineClientFilter] = useState<string>("all")
   const [pipelineMonthFilter, setPipelineMonthFilter] = useState<string>("all")
   const [activeMobileCol, setActiveMobileCol] = useState<ContentStatus>("ready_to_edit")
+  // Scopes the Overview's stage-count blocks by creation date. "all" leaves them live —
+  // Needs Attention and the posting tiles never look at this, on purpose (see overview.ts).
+  const [overviewRangeMode, setOverviewRangeMode] = useState<"all" | "week" | "month" | "custom">("all")
+  const [overviewMonth, setOverviewMonth] = useState<string>("all")
+  const [overviewCustomFrom, setOverviewCustomFrom] = useState("")
+  const [overviewCustomTo, setOverviewCustomTo] = useState("")
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
@@ -2558,6 +2587,11 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       if (i.shot_date) months.add(i.shot_date.slice(0, 7))
       if (i.edited_date) months.add(i.edited_date.slice(0, 7))
       for (const p of i.posts) months.add(p.posted_date.slice(0, 7))
+      // Ads Video items never get a shot_date — without this they'd have no month
+      // bucket at all and would vanish from every day/month-filtered view.
+      if (i.source === "ads_video" && !i.shot_date) {
+        months.add((i.voiceover_date ?? i.created_at).slice(0, 7))
+      }
     }
     return Array.from(months).sort().reverse()
   }, [items])
@@ -2570,7 +2604,9 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       return dates.length ? dates[dates.length - 1] : null
     }
     if (item.status === "edited") return item.edited_date
-    return item.shot_date
+    // Ads Video items have no shot_date — fall back to when voice-over was recorded,
+    // or creation date, so a day/month filter doesn't silently hide them.
+    return item.shot_date ?? item.voiceover_date ?? item.created_at.slice(0, 10)
   }
   function itemMonthBucket(item: ContentItem): string | null {
     return itemStageDate(item)?.slice(0, 7) ?? null
@@ -2606,8 +2642,15 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     if (next === "editing" && members.length > 0) { setStartEditingItem(item); return }
     // Entering Voice Over asks who recorded it.
     if (next === "voiceover") { setVoiceOverItem(item); return }
+    const previous = item.status
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, ...(next === "edited" ? { edited_date: new Date().toISOString().split("T")[0] } : {}) } : i))
-    startTransition(async () => { await updateContentItemStatus(item.id, next) })
+    startTransition(async () => {
+      const res = await updateContentItemStatus(item.id, next)
+      if (!res.success) {
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: previous } : i))
+        alert(res.error ?? `Failed to move to ${STATUS_CFG[next].label}`)
+      }
+    })
   }
 
   function handleCorrectionRequested(correction: ContentCorrection) {
@@ -2682,6 +2725,42 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
   const draggedItem = items.find(i => i.id === dragId)
 
+  const today = new Date().toISOString().split("T")[0]
+
+  // Distinct creation months across everything Overview counts — independent of
+  // allMonthOptions above, which keys off shot/edited/posted dates, not created_at.
+  const overviewMonthOptions = useMemo(() => {
+    const months = new Set<string>()
+    for (const i of items) months.add(i.created_at.slice(0, 7))
+    for (const s of shoots) months.add(s.created_at.slice(0, 7))
+    for (const a of ads) months.add(a.created_at.slice(0, 7))
+    return Array.from(months).sort().reverse()
+  }, [items, shoots, ads])
+
+  // "This Week" is the calendar week (Mon-Sun) containing today, not a rolling 7 days —
+  // reads more naturally for a "what came in this week" reporting filter.
+  const overviewRange = useMemo((): { from: string; to: string } | null => {
+    if (overviewRangeMode === "all") return null
+    if (overviewRangeMode === "week") {
+      const d = new Date(today + "T00:00:00Z")
+      const dow = d.getUTCDay() // 0=Sun..6=Sat
+      const mondayOffset = dow === 0 ? -6 : 1 - dow
+      const monday = new Date(d)
+      monday.setUTCDate(d.getUTCDate() + mondayOffset)
+      const sunday = new Date(monday)
+      sunday.setUTCDate(monday.getUTCDate() + 6)
+      return { from: monday.toISOString().split("T")[0], to: sunday.toISOString().split("T")[0] }
+    }
+    if (overviewRangeMode === "month") {
+      if (overviewMonth === "all") return null
+      const [y, m] = overviewMonth.split("-").map(Number)
+      const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate()
+      return { from: `${overviewMonth}-01`, to: `${overviewMonth}-${String(lastDay).padStart(2, "0")}` }
+    }
+    if (overviewCustomFrom && overviewCustomTo) return { from: overviewCustomFrom, to: overviewCustomTo }
+    return null
+  }, [overviewRangeMode, overviewMonth, overviewCustomFrom, overviewCustomTo, today])
+
   // Stats — global totals, always unfiltered (shown in the hero chips)
   // Nav badges. Modes count live work (anything not yet posted / ads still running);
   // sections count what you'd actually find on that board for the current mode.
@@ -2690,9 +2769,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const overview = useMemo(
     () => computeOverview({
       items, shoots, ads,
-      today: new Date().toISOString().split("T")[0],
+      today,
+      range: overviewRange,
     }),
-    [items, shoots, ads]
+    [items, shoots, ads, today, overviewRange]
   )
 
   const navCounts = useMemo(() => ({
@@ -2829,7 +2909,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       if (shoot) setCompleteShootFor(shoot)
       return
     }
-    if (status === "going" && members.length > 0) {
+    if (status === "going" && members.length > 0 && !shoot?.goingByUsers.length) {
       if (shoot) setGoingCrewFor(shoot)
       return
     }
@@ -2979,6 +3059,23 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           { icon: <Check size={11} />, label: `${stats.posted} posted` },
           { icon: <Megaphone size={11} />, label: `${ads.filter(a => a.status === "active").length} active ads` },
         ]}
+        rightSlot={
+          // Reused from the retired Content Calendar hero — same character and the same
+          // frosted-glass date/total/posted trio, one scrollable row on mobile.
+          <div className="flex flex-nowrap overflow-x-auto md:flex-wrap md:overflow-visible" style={{ alignItems: "center", gap: 12, scrollbarWidth: "none", maxWidth: "100%" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/content-cal-hero-girl.png" alt=""
+              style={{ height: "clamp(64px,16vw,110px)", width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
+            <div className="flex gap-2" style={{ flexShrink: 0 }}>
+              <HeroGlassStat
+                label={`${new Date().toLocaleDateString("en-US", { month: "short" }).toUpperCase()} ${new Date().getFullYear()}`}
+                value={new Date().getDate()}
+                sub={new Date().toLocaleDateString("en-US", { weekday: "long" })} />
+              <HeroGlassStat label="Total" value={items.length} sub="Content" />
+              <HeroGlassStat label="Posted" value={stats.posted} sub="Done ✓" />
+            </div>
+          </div>
+        }
       />
 
       <TrackerNav
@@ -3026,6 +3123,34 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               onClick={() => goTo({ mode: "video", tab: "log" })} />
             <OverviewStat label="Overdue" value={overview.posting.overdue} accent="#EF4444"
               onClick={() => goTo({ mode: "video", tab: "log" })} />
+          </div>
+
+          {/* Scopes only the four stage-count blocks below by creation date — Needs
+              Attention and the posting tiles above are always live. */}
+          <div className="flex items-center flex-wrap gap-2">
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Stage Counts
+            </span>
+            <div className="flex gap-1 flex-wrap">
+              {(["all", "week", "month", "custom"] as const).map(m => (
+                <button key={m} onClick={() => setOverviewRangeMode(m)}
+                  style={{ padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${overviewRangeMode === m ? "#0EA5E9" : "#E5E7EB"}`, background: overviewRangeMode === m ? "rgba(14,165,233,0.08)" : "#fff", color: overviewRangeMode === m ? "#0EA5E9" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {m === "all" ? "All Time" : m === "week" ? "This Week" : m === "month" ? "This Month" : "Custom"}
+                </button>
+              ))}
+            </div>
+            {overviewRangeMode === "month" && (
+              <MonthSelect value={overviewMonth} onChange={setOverviewMonth} options={overviewMonthOptions} />
+            )}
+            {overviewRangeMode === "custom" && (
+              <div className="flex items-center gap-2">
+                <input type="date" value={overviewCustomFrom} onChange={e => setOverviewCustomFrom(e.target.value)}
+                  style={{ ...FIELD, width: "auto" }} aria-label="From date" />
+                <span style={{ color: "#9CA3AF", fontSize: 11, fontWeight: 600 }}>to</span>
+                <input type="date" value={overviewCustomTo} onChange={e => setOverviewCustomTo(e.target.value)}
+                  style={{ ...FIELD, width: "auto" }} aria-label="To date" />
+              </div>
+            )}
           </div>
 
           {/* Videos and Posters — stage counts. */}

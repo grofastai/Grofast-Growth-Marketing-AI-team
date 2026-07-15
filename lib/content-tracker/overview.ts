@@ -21,14 +21,20 @@ export type OverviewItem = {
   scheduled_post_date: string | null
   corrections: { correction_date: string }[]
 }
-export type OverviewShoot = { id: string; status: OverviewShootStatus; start_time: string }
-export type OverviewAd = { id: string; status: OverviewAdStatus }
+export type OverviewShoot = { id: string; status: OverviewShootStatus; start_time: string; created_at: string }
+export type OverviewAd = { id: string; status: OverviewAdStatus; created_at: string }
+
+export type OverviewDateRange = { from: string; to: string } // YYYY-MM-DD, inclusive
 
 export type OverviewInput = {
   items: OverviewItem[]
   shoots: OverviewShoot[]
   ads: OverviewAd[]
   today: string // YYYY-MM-DD
+  // Scopes the stage-count blocks (videos/posters/shoots/ads) to items created in this
+  // window. Posting and attention stay unfiltered — those are about right-now urgency,
+  // not a reporting window, so a past date range shouldn't hide an overdue post.
+  range?: OverviewDateRange | null
 }
 
 export type StageCounts = Record<OverviewStatus, number>
@@ -98,7 +104,13 @@ function editingSince(item: OverviewItem): string | null {
   return dates.sort()[dates.length - 1]
 }
 
-export function computeOverview({ items, shoots, ads, today }: OverviewInput): Overview {
+function inRange(createdAt: string, range: OverviewDateRange | null | undefined): boolean {
+  if (!range) return true
+  const d = createdAt.slice(0, 10)
+  return d >= range.from && d <= range.to
+}
+
+export function computeOverview({ items, shoots, ads, today, range }: OverviewInput): Overview {
   const weekEnd = addDays(today, 6)
 
   const readyWithDate = items.filter(
@@ -116,11 +128,17 @@ export function computeOverview({ items, shoots, ads, today }: OverviewInput): O
     ).length,
   }
 
+  // Stage-count blocks only — scoped to the selected creation-date window, unlike
+  // posting/attention below which always reflect the live, unfiltered board.
+  const itemsInRange = items.filter(i => inRange(i.created_at, range))
+  const shootsInRange = shoots.filter(s => inRange(s.created_at, range))
+  const adsInRange = ads.filter(a => inRange(a.created_at, range))
+
   const shootCounts: ShootCounts = { scheduled: 0, going: 0, completed: 0, cancelled: 0 }
-  for (const s of shoots) shootCounts[s.status]++
+  for (const s of shootsInRange) shootCounts[s.status]++
 
   const adCounts: AdCounts = { active: 0, testing: 0, paused: 0, stopped: 0 }
-  for (const a of ads) adCounts[a.status]++
+  for (const a of adsInRange) adCounts[a.status]++
 
   const stuckEditing = items.filter(i => {
     if (i.status !== 'editing') return false
@@ -181,8 +199,8 @@ export function computeOverview({ items, shoots, ads, today }: OverviewInput): O
   ]
 
   return {
-    videos: countStages(items, 'video'),
-    posters: countStages(items, 'poster'),
+    videos: countStages(itemsInRange, 'video'),
+    posters: countStages(itemsInRange, 'poster'),
     shoots: shootCounts,
     ads: adCounts,
     posting,

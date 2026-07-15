@@ -151,8 +151,11 @@ const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
   design:        { label: "Design",        accent: "#F59E0B" },
   ready_to_edit: { label: "Ready to Edit", accent: "#0D9488" },
   editing:       { label: "Editing",       accent: "#6366F1" },
-  edited:        { label: "Edited",        accent: "#9B6BFF" },
-  on_review:     { label: "On Review",     accent: "#EC4899" },
+  // Was #9B6BFF (purple) — sat right next to Editing's indigo and read as nearly the
+  // same color once darkened for the badge fill. Fuchsia is a clean break from it.
+  edited:        { label: "Edited",        accent: "#D946EF" },
+  // Was #EC4899 (pink) — too close to Edited's new fuchsia. Rose leans warmer/redder.
+  on_review:     { label: "On Review",     accent: "#F43F5E" },
   ready_to_post: { label: "Ready to Post", accent: "#0EA5E9" },
   posted:        { label: "Posted",        accent: "#22C55E" },
 }

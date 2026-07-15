@@ -679,8 +679,10 @@ export async function updateLeaveStatus(
     // Only auto-clock-in when the leave was SUBMITTED on the same day (attendance-page button flow).
     // Pre-planned leaves applied in advance have created_at from a different date — skip auto clock-in
     // so the employee can manually clock in at the actual start time.
+    // to_date is intentionally not required to equal today — a same-day request can
+    // span multiple days (e.g. "WFH today through Friday"); only day 1 needs auto clock-in.
     const createdIst = new Date(leave.created_at).toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
-    if (leave.from_date === todayIst && leave.to_date === todayIst && createdIst === leave.from_date) {
+    if (leave.from_date === todayIst && createdIst === leave.from_date) {
       const { data: existing } = await admin
         .from('attendance_logs')
         .select('id, clock_in')

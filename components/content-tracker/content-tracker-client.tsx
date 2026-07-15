@@ -652,20 +652,22 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
   ]
   const next = NEXT_STATUS[item.status]
 
+  const accent = MODE_ACCENT.video.solid
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
       style={{
-        background: isDragging ? "#F3F4F6" : "#FFFFFF",
+        background: isDragging ? "#F3F4F6" : `linear-gradient(160deg, #fff 0%, ${accent}0A 100%)`,
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: "1px solid transparent",
+        borderLeft: `4px solid ${accent}`,
         opacity: isDragging ? 0.5 : 1,
       }}>
       <div className="flex items-start gap-2 mb-2">
         <span className="flex-shrink-0 mt-0.5 opacity-30 group-hover:opacity-70 transition-opacity" title="Drag anywhere on the card to move it">
           <GripVertical size={13} style={{ color: "#6B7280" }} />
         </span>
-        <div style={{ width: 22, height: 22, borderRadius: 7, background: "rgba(217,119,6,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Video size={12} style={{ color: "#D97706" }} />
+        <div style={{ width: 22, height: 22, borderRadius: 7, background: `${accent}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Video size={12} style={{ color: accent }} />
         </div>
         <p className="text-[12px] font-semibold leading-snug line-clamp-2 flex-1" style={{ color: "#111111" }}>{item.title}</p>
         <CardMenu items={cardMenu} />
@@ -673,7 +675,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
 
       <div className="flex flex-wrap items-center gap-1 mb-2.5">
         <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full truncate max-w-[110px]"
-          style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>{item.client_name}</span>
+          style={{ background: `${accent}14`, color: accent }}>{item.client_name}</span>
         {item.priority && (
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${PRIORITY_CFG[item.priority].color}18`, color: PRIORITY_CFG[item.priority].color }}>
             {PRIORITY_CFG[item.priority].label}
@@ -712,8 +714,8 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, next)}
-          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
-          style={{ background: `${STATUS_CFG[next].accent}14`, color: STATUS_CFG[next].accent }}>
+          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
+          style={{ background: STATUS_CFG[next].accent, color: "#fff", boxShadow: `0 3px 10px ${STATUS_CFG[next].accent}4D` }}>
           {item.status === "voiceover" ? <>Send to Ready to Edit <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
         </button>
       )}
@@ -975,7 +977,7 @@ function ShootTitleList({ titles }: { titles: ShootTitleRef[] }) {
   return (
     <div style={{ marginTop: 8 }}>
       <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-lg"
-        style={{ background: "rgba(99,102,241,0.09)", color: "#6366F1" }}>
+        style={{ background: "rgba(59,130,246,0.09)", color: "#3B82F6" }}>
         <Video size={10} /> {titles.length} video{titles.length === 1 ? "" : "s"}
       </span>
 
@@ -983,7 +985,7 @@ function ShootTitleList({ titles }: { titles: ShootTitleRef[] }) {
         {shown.map(t => (
           <div key={t.id} className="flex items-center gap-2"
             style={{ padding: "5px 0", borderBottom: "1px solid #F3F4F6" }}>
-            <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#6366F1", flexShrink: 0 }} />
+            <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#3B82F6", flexShrink: 0 }} />
             <span className="text-[11px] truncate" style={{ color: "#374151" }}>{t.title}</span>
           </div>
         ))}
@@ -992,7 +994,7 @@ function ShootTitleList({ titles }: { titles: ShootTitleRef[] }) {
       {titles.length > COLLAPSED && (
         <button onPointerDown={e => e.stopPropagation()} onClick={() => setExpanded(v => !v)}
           className="text-[10px] font-bold"
-          style={{ marginTop: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: expanded ? "#9CA3AF" : "#6366F1" }}>
+          style={{ marginTop: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: expanded ? "#9CA3AF" : "#3B82F6" }}>
           {expanded ? "Show less" : `+ ${hidden} more`}
         </button>
       )}
@@ -1013,11 +1015,14 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
   if (onEditCrew) menu.push({ label: "Who went", icon: Users, onClick: () => onEditCrew(shoot) })
   if (onDelete) menu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(shoot), danger: true })
 
+  const accent = "#3B82F6"
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 select-none"
       style={{
-        background: isDragging ? "#F3F4F6" : "#FFFFFF",
+        background: isDragging ? "#F3F4F6" : `linear-gradient(160deg, #fff 0%, ${accent}0A 100%)`,
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
+        border: "1px solid transparent",
+        borderLeft: `4px solid ${accent}`,
         opacity: isDragging ? 0.5 : 1,
       }}>
       <div className="flex items-start justify-between gap-2">
@@ -1069,20 +1074,20 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
           {shoot.status === "scheduled" && (
             <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "going")}
               className="text-[9px] font-bold px-2.5 py-1 rounded-lg"
-              style={{ border: "none", background: "rgba(59,130,246,0.1)", color: "#3B82F6", cursor: "pointer" }}>
+              style={{ border: "none", background: "#3B82F6", color: "#fff", cursor: "pointer", boxShadow: "0 3px 10px rgba(59,130,246,0.3)" }}>
               Mark Going
             </button>
           )}
           {shoot.status === "going" && (
             <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "completed")}
               className="text-[9px] font-bold px-2.5 py-1 rounded-lg"
-              style={{ border: "none", background: "rgba(34,197,94,0.1)", color: "#16A34A", cursor: "pointer" }}>
+              style={{ border: "none", background: "#22C55E", color: "#fff", cursor: "pointer", boxShadow: "0 3px 10px rgba(34,197,94,0.3)" }}>
               Mark Done
             </button>
           )}
           <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "cancelled")}
             className="text-[9px] font-bold px-2.5 py-1 rounded-lg"
-            style={{ border: "none", background: "rgba(239,68,68,0.08)", color: "#EF4444", cursor: "pointer" }}>
+            style={{ border: "none", background: "#EF4444", color: "#fff", cursor: "pointer", boxShadow: "0 3px 10px rgba(239,68,68,0.3)" }}>
             Cancel
           </button>
         </div>
@@ -1112,10 +1117,13 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
     cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(ad.id), danger: true })
   }
 
+  const accent = MODE_ACCENT.ads.solid
+  const stripeColor = underperforming ? "#EF4444" : accent
   return (
     <div className="rounded-2xl mb-2.5 select-none" style={{
-      background: isDragging ? "#F3F4F6" : "#FFFFFF",
+      background: isDragging ? "#F3F4F6" : `linear-gradient(160deg, #fff 0%, ${accent}0A 100%)`,
       border: `1px solid ${underperforming ? "#FCA5A5" : "transparent"}`,
+      borderLeft: `4px solid ${stripeColor}`,
       boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
       opacity: isDragging ? 0.5 : 1,
       // Not `hidden` — the kebab's dropdown escapes the card bounds and would be clipped.
@@ -1123,7 +1131,12 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
     }}>
       <div className="p-3.5 cursor-pointer" onClick={() => onToggleExpand(ad.id)}>
         <div className="flex items-start justify-between gap-2">
-          <p className="text-[12px] font-bold leading-snug" style={{ color: "#111827", margin: 0 }}>{ad.ad_name}</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <div style={{ width: 22, height: 22, borderRadius: 7, background: `${accent}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Megaphone size={12} style={{ color: accent }} />
+            </div>
+            <p className="text-[12px] font-bold leading-snug truncate" style={{ color: "#111827", margin: 0 }}>{ad.ad_name}</p>
+          </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             {cardMenu.length > 0 && <CardMenu items={cardMenu} />}
             <ChevronDown size={13} style={{ color: "#9CA3AF", transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />

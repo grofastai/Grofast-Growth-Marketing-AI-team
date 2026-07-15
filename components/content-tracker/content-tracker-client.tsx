@@ -753,7 +753,11 @@ function DroppableColumn({ status, isOver, children }: { status: ContentStatus; 
   const accent = STATUS_CFG[status].accent
   return (
     <div ref={setNodeRef} className="rounded-2xl transition-all flex flex-col"
-      style={{ border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF", background: isOver ? `${accent}08` : "#F9FAFB", minHeight: 200 }}>
+      style={{
+        border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF",
+        background: isOver ? `linear-gradient(165deg, ${accent}18 0%, ${accent}45 100%)` : `linear-gradient(165deg, #F9FAFB 0%, ${accent}20 100%)`,
+        minHeight: 200,
+      }}>
       {children}
     </div>
   )
@@ -776,7 +780,11 @@ function KanbanColumn({ id, accent, isOver, children }: { id: string; accent: st
   const { setNodeRef } = useDroppable({ id })
   return (
     <div ref={setNodeRef} className="rounded-2xl transition-all flex flex-col"
-      style={{ border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF", background: isOver ? `${accent}08` : "#F9FAFB", minHeight: 200 }}>
+      style={{
+        border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF",
+        background: isOver ? `linear-gradient(165deg, ${accent}18 0%, ${accent}45 100%)` : `linear-gradient(165deg, #F9FAFB 0%, ${accent}20 100%)`,
+        minHeight: 200,
+      }}>
       {children}
     </div>
   )

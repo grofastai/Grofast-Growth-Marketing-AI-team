@@ -784,7 +784,7 @@ function KanbanColumnHeader({ label, count, accent }: { label: string; count: nu
     <div className="flex items-center justify-between px-4 py-3 rounded-t-2xl" style={{ background: "#FFFFFF", borderBottom: "1px solid #E8E9EF" }}>
       <div className="flex items-center gap-2">
         <span className="text-[13px] font-black" style={{ color: "#111111" }}>{label}</span>
-        <span className="w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center" style={{ background: `${accent}20`, color: accent }}>{count}</span>
+        <span className="w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center" style={{ background: `color-mix(in srgb, ${accent} 80%, #000)`, color: "#fff" }}>{count}</span>
       </div>
     </div>
   )

@@ -317,6 +317,15 @@ const MODE_ACCENT: Record<TrackerMode, { solid: string; grad: string; glow: stri
   ads: { solid: "#D97706", grad: "linear-gradient(135deg,#FBBF24,#D97706)", glow: "rgba(217,119,6,0.45)", soft: "rgba(217,119,6,0.10)" },
 }
 
+// Overview screen gradients — each stat/block gets its own hue so the grid reads as
+// distinct signals at a glance rather than one repeated accent.
+const OVERVIEW_GRADIENTS = {
+  dueToday: "linear-gradient(135deg,#38BDF8,#0EA5E9)",
+  dueThisWeek: "linear-gradient(135deg,#A5B4FC,#6366F1)",
+  overdue: "linear-gradient(135deg,#FB7185,#E11D48)",
+  shoots: "linear-gradient(135deg,#60A5FA,#3B82F6)",
+}
+
 const NAV_MODES: { key: TrackerMode; label: string; icon: typeof Layers }[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "video", label: "Video", icon: Video },
@@ -860,22 +869,26 @@ function CardMenu({ items }: { items: CardMenuItem[] }) {
 }
 
 // ── Overview building blocks ─────────────────────────────────────────────────
-function OverviewStat({ label, value, accent, onClick }: {
-  label: string; value: number; accent: string; onClick: () => void
+function OverviewStat({ label, value, accent, gradient, onClick }: {
+  label: string; value: number; accent: string; gradient: string; onClick: () => void
 }) {
   return (
     <button onClick={onClick}
       className="text-left hover:opacity-90 transition-opacity"
-      style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16, padding: "14px 16px", cursor: "pointer" }}>
-      <p style={{ fontSize: 26, fontWeight: 900, color: accent, margin: 0, letterSpacing: "-0.02em" }}>{value}</p>
+      style={{ background: `linear-gradient(135deg, #fff 0%, ${accent}0D 100%)`, border: "1px solid #E5E7EB", borderRadius: 16, padding: "14px 16px", cursor: "pointer" }}>
+      <p style={{
+        fontSize: 26, fontWeight: 900, margin: 0, letterSpacing: "-0.02em",
+        backgroundImage: gradient, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", WebkitTextFillColor: "transparent",
+      }}>{value}</p>
       <p style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em", margin: "2px 0 0" }}>{label}</p>
     </button>
   )
 }
 
-function OverviewBlock({ title, accent, icon: Icon, rows }: {
+function OverviewBlock({ title, accent, gradient, icon: Icon, rows }: {
   title: string
   accent: string
+  gradient: string
   icon: typeof Layers
   rows: { key: string; label: string; value: number; onClick: () => void }[]
 }) {
@@ -884,13 +897,16 @@ function OverviewBlock({ title, accent, icon: Icon, rows }: {
   // squash every other bar down to a sliver.
   const max = Math.max(...rows.map(r => r.value), 1)
   return (
-    <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
+    <div style={{ background: `linear-gradient(160deg, #fff 0%, ${accent}0A 100%)`, border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <Icon size={13} style={{ color: accent }} />
           <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{title}</span>
         </div>
-        <span style={{ fontSize: 11, fontWeight: 800, color: accent, fontVariantNumeric: "tabular-nums" }}>{total}</span>
+        <span style={{
+          fontSize: 11, fontWeight: 800, fontVariantNumeric: "tabular-nums",
+          backgroundImage: gradient, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", WebkitTextFillColor: "transparent",
+        }}>{total}</span>
       </div>
       <div className="flex flex-col">
         {rows.map(r => (
@@ -3117,11 +3133,11 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
           {/* Posting — the time-sensitive block. */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <OverviewStat label="Due Today" value={overview.posting.dueToday} accent="#0EA5E9"
+            <OverviewStat label="Due Today" value={overview.posting.dueToday} accent="#0EA5E9" gradient={OVERVIEW_GRADIENTS.dueToday}
               onClick={() => goTo({ mode: "video", tab: "log" })} />
-            <OverviewStat label="Due This Week" value={overview.posting.dueThisWeek} accent="#6366F1"
+            <OverviewStat label="Due This Week" value={overview.posting.dueThisWeek} accent="#6366F1" gradient={OVERVIEW_GRADIENTS.dueThisWeek}
               onClick={() => goTo({ mode: "video", tab: "log" })} />
-            <OverviewStat label="Overdue" value={overview.posting.overdue} accent="#EF4444"
+            <OverviewStat label="Overdue" value={overview.posting.overdue} accent="#EF4444" gradient={OVERVIEW_GRADIENTS.overdue}
               onClick={() => goTo({ mode: "video", tab: "log" })} />
           </div>
 
@@ -3155,14 +3171,14 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
           {/* Videos and Posters — stage counts. */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <OverviewBlock title="Videos" accent={MODE_ACCENT.video.solid} icon={Video}
+            <OverviewBlock title="Videos" accent={MODE_ACCENT.video.solid} gradient={MODE_ACCENT.video.grad} icon={Video}
               rows={[...ADS_VIDEO_ORDER, ...VIDEO_PIPELINE_ORDER, "posted" as ContentStatus].map(s => ({
                 key: s,
                 label: STATUS_CFG[s].label,
                 value: overview.videos[s],
                 onClick: () => goTo({ mode: "video", tab: s === "posted" ? "log" : (s === "scripting" || s === "voiceover") ? "adsvideo" : "pipeline" }),
               }))} />
-            <OverviewBlock title="Posters" accent={MODE_ACCENT.poster.solid} icon={ImageIcon}
+            <OverviewBlock title="Posters" accent={MODE_ACCENT.poster.solid} gradient={MODE_ACCENT.poster.grad} icon={ImageIcon}
               rows={[...POSTER_PIPELINE_ORDER, "posted" as ContentStatus].map(s => ({
                 key: s,
                 label: STATUS_CFG[s].label,
@@ -3174,14 +3190,14 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           {/* Shoots and Ads. Ads is status-counts-only on purpose — the campaign/budget
               restructure is owned separately, so this stays deliberately shallow. */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <OverviewBlock title="Shoots" accent="#3B82F6" icon={Camera}
+            <OverviewBlock title="Shoots" accent="#3B82F6" gradient={OVERVIEW_GRADIENTS.shoots} icon={Camera}
               rows={SHOOT_STATUS_ORDER.map(s => ({
                 key: s,
                 label: SHOOT_STATUS_CFG[s].label,
                 value: overview.shoots[s],
                 onClick: () => goTo({ mode: "video", tab: "shoots" }),
               }))} />
-            <OverviewBlock title="Ads" accent={MODE_ACCENT.ads.solid} icon={Megaphone}
+            <OverviewBlock title="Ads" accent={MODE_ACCENT.ads.solid} gradient={MODE_ACCENT.ads.grad} icon={Megaphone}
               rows={AD_STATUS_ORDER.map(s => ({
                 key: s,
                 label: AD_STATUS_CFG[s].label,

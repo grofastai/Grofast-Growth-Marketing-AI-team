@@ -13,7 +13,7 @@ import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest, withdrawWfh
 
 interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
-  created_at: string; leave_type?: string; permission_hours?: number | null; permission_time?: string | null; half_day_period?: string | null; half_day_from_time?: string | null
+  created_at: string; leave_type?: string; permission_hours?: number | null; permission_time?: string | null; permission_end_time?: string | null; half_day_period?: string | null; half_day_from_time?: string | null; half_day_to_time?: string | null
 }
 type LeaveType = "full_day" | "half_day" | "permission" | "wfh" | "shoot_day"
 
@@ -83,6 +83,13 @@ function fmtShort(d: string) {
 }
 function fmtFull(d: string) {
   return new Date(d).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", weekday: "short" })
+}
+function fmtTimeStr(t?: string | null) {
+  if (!t) return null
+  const [h, m] = t.split(":").map(Number)
+  const period = h >= 12 ? "PM" : "AM"
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`
 }
 
 // ── Mini Sparkline ─────────────────────────────────────────────────────────────
@@ -569,7 +576,9 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     const wd      = dateObj.toLocaleDateString("en-US", { weekday: "short" })
                     const StatusIcon = sc.icon
                     const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : type === "permission" ? "Permission" : type === "absent" ? "On Leave" : type === "wfh" ? "Work From Home" : type === "shoot_day" ? "Shoot Day" : "Full Day Leave"
-                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}` : type === "permission" ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : type === "absent" ? "Leave" : type === "wfh" ? "WFH" : type === "shoot_day" ? "Shoot Day" : "Full Day"
+                    const halfTimeRange = leave.half_day_from_time && leave.half_day_to_time ? `${fmtTimeStr(leave.half_day_from_time)}–${fmtTimeStr(leave.half_day_to_time)}` : null
+                    const permTimeRange = leave.permission_time && leave.permission_end_time ? `${fmtTimeStr(leave.permission_time)}–${fmtTimeStr(leave.permission_end_time)}` : leave.permission_time ? fmtTimeStr(leave.permission_time) : null
+                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}${halfTimeRange ? ` · ${halfTimeRange}` : ""}` : type === "permission" ? `${leave.permission_hours ?? 1}h${permTimeRange ? ` · ${permTimeRange}` : ""}` : type === "absent" ? "Leave" : type === "wfh" ? "WFH" : type === "shoot_day" ? "Shoot Day" : "Full Day"
                     const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : type === "absent" ? "rgba(107,114,128,0.12)" : type === "wfh" ? "rgba(99,102,241,0.12)" : type === "shoot_day" ? "rgba(245,158,11,0.12)" : "rgba(245,158,11,0.12)"
                     const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : type === "absent" ? "#6B7280" : type === "wfh" ? "#6366F1" : type === "shoot_day" ? "#F59E0B" : "#F59E0B"
                     const duration  = isPerm ? `${leave.permission_hours}h session` : isHalf ? "1 Session" : `${days} Day${days && days > 1 ? "s" : ""}`

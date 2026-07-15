@@ -21,7 +21,9 @@ export async function getContentTrackerData(companyId: string): Promise<{
   const [itemsRes, postsRes, usersRes, adsRes, revisionsRes, performanceRes, shootsRes, shootTitlesRes, correctionsRes, freelancersRes] = await Promise.all([
     admin.from('content_items').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
     admin.from('content_item_posts').select('*').eq('company_id', companyId).order('posted_date', { ascending: false }),
-    admin.from('users').select('id, name').eq('company_id', companyId),
+    // Freelancers have their own separate work-logging flow (app/admin/freelancers) — they
+    // shouldn't show up as a pickable "who shot/edited/posted this" crew member here.
+    admin.from('users').select('id, name').eq('company_id', companyId).in('role', ['ADMIN', 'MEMBER']),
     admin.from('ads_tracker').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
     admin.from('ad_revisions').select('*').eq('company_id', companyId).order('revision_date', { ascending: false }),
     admin.from('ad_performance_entries').select('*').eq('company_id', companyId).order('entry_date', { ascending: false }),

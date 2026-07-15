@@ -33,6 +33,11 @@ export const updateContentItemSchema = z.object({
   content_type: z.enum(CONTENT_TYPES),
   shot_date:    z.string().optional(),
   notes:        z.string().optional(),
+  // Schedule/intent fields — editable here independent of stage. Saving these does NOT
+  // move the item to "ready_to_post"; that transition stays owned by markReadyToPost.
+  ready_platforms:     z.array(z.enum(PLATFORMS)).optional(),
+  scheduled_post_date: z.string().optional(),
+  scheduled_post_time: z.string().optional(),
 })
 export type UpdateContentItemInput = z.infer<typeof updateContentItemSchema>
 

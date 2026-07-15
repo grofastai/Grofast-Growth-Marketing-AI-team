@@ -1513,7 +1513,11 @@ function EditAdsVideoModal({ item, clients, pastClients, onClose, onSaved }: {
 function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
   item: ContentItem
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
-  onClose: () => void; onSaved: (updates: { client_name: string; title: string; content_type: "video" | "poster"; shot_date: string; notes: string }) => void
+  onClose: () => void
+  onSaved: (updates: {
+    client_name: string; title: string; content_type: "video" | "poster"; shot_date: string; notes: string
+    ready_platforms: Platform[]; scheduled_post_date: string; scheduled_post_time: string
+  }) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
@@ -1526,16 +1530,31 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
   const contentType = item.content_type
   const [shotDate, setShotDate] = useState(item.shot_date || new Date().toISOString().split("T")[0])
   const [notes, setNotes] = useState(item.notes || "")
+  // Schedule/intent fields — editable regardless of stage, but saving them here never
+  // changes item.status. That transition stays owned by the Ready to Post flow.
+  const [platforms, setPlatforms] = useState<Platform[]>(item.ready_platforms ?? [])
+  const [scheduledDate, setScheduledDate] = useState(item.scheduled_post_date || "")
+  const [scheduledTime, setScheduledTime] = useState(item.scheduled_post_time || "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function togglePlatform(p: Platform) {
+    setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+  }
 
   async function submit() {
     if (!client || !title.trim()) { setError("Client and title are required"); return }
     setSaving(true); setError(null)
-    const res = await updateContentItem(item.id, { client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() || undefined })
+    const res = await updateContentItem(item.id, {
+      client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() || undefined,
+      ready_platforms: platforms, scheduled_post_date: scheduledDate || undefined, scheduled_post_time: scheduledTime || undefined,
+    })
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to save"); return }
-    onSaved({ client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() })
+    onSaved({
+      client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim(),
+      ready_platforms: platforms, scheduled_post_date: scheduledDate, scheduled_post_time: scheduledTime,
+    })
   }
 
   return (
@@ -1549,6 +1568,31 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
         <div>
           <label style={LABEL}>Shot Date</label>
           <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+        </div>
+        <div>
+          <label style={LABEL}>Platforms <span style={{ fontWeight: 600, textTransform: "none" }}>(where this is going out)</span></label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
+              const cfg = PLATFORM_CFG[p]
+              const on = platforms.includes(p)
+              return (
+                <button key={p} type="button" onClick={() => togglePlatform(p)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  <cfg.icon size={12} /> {cfg.label} {on && <Check size={10} />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Scheduled Post Date</label>
+            <input type="date" style={FIELD} value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} />
+          </div>
+          <div>
+            <label style={LABEL}>Scheduled Post Time</label>
+            <input type="time" style={FIELD} value={scheduledTime} onChange={e => setScheduledTime(e.target.value)} />
+          </div>
         </div>
         <div>
           <label style={LABEL}>Notes</label>
@@ -3752,7 +3796,12 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       {editingItem && (
         <EditContentModal item={editingItem} clients={clients} pastClients={pastClients} onClose={() => setEditingItem(null)}
           onSaved={updates => {
-            setItems(prev => prev.map(i => i.id === editingItem.id ? { ...i, ...updates, notes: updates.notes || null } : i))
+            setItems(prev => prev.map(i => i.id === editingItem.id ? {
+              ...i, ...updates,
+              notes: updates.notes || null,
+              scheduled_post_date: updates.scheduled_post_date || null,
+              scheduled_post_time: updates.scheduled_post_time || null,
+            } : i))
             setEditingItem(null)
           }} />
       )}

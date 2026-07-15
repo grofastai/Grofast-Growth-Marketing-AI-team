@@ -234,6 +234,15 @@ const FIELD: React.CSSProperties = {
   background: "#fff", border: "1.5px solid #EBEDF2", borderRadius: 10,
   padding: "8px 10px", outline: "none",
 }
+// Toolbar filters (client/time/day) — distinct from FIELD, which stays neutral for
+// modal form inputs. Brand-red gradient tint so the filter row reads as an accent
+// control, not a plain form field.
+const FILTER_FIELD: React.CSSProperties = {
+  width: "auto", fontSize: 12, fontWeight: 700, color: "#B91C1C",
+  background: "linear-gradient(135deg, rgba(222,26,26,0.07) 0%, rgba(222,26,26,0.18) 100%)",
+  border: "1.5px solid rgba(222,26,26,0.35)", borderRadius: 10,
+  padding: "8px 10px", outline: "none", cursor: "pointer",
+}
 
 function initials(name?: string | null) {
   if (!name) return "?"
@@ -809,7 +818,7 @@ function KanbanColumnHeader({ label, count, accent }: { label: string; count: nu
 function MonthSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
   return (
     <select value={value} onChange={e => onChange(e.target.value)}
-      style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+      style={FILTER_FIELD}>
       <option value="all">All Time</option>
       {options.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
     </select>
@@ -819,10 +828,13 @@ function MonthSelect({ value, onChange, options }: { value: string; onChange: (v
 function DayFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center gap-1"
-      style={{ background: "#fff", border: `1.5px solid ${value ? "#DE1A1A" : "#EBEDF2"}`, borderRadius: 10, padding: "0 6px" }}>
-      <CalendarDays size={13} style={{ color: value ? "#DE1A1A" : "#9CA3AF", flexShrink: 0 }} />
+      style={{
+        background: value ? "rgba(222,26,26,0.16)" : "linear-gradient(135deg, rgba(222,26,26,0.07) 0%, rgba(222,26,26,0.18) 100%)",
+        border: `1.5px solid ${value ? "#DE1A1A" : "rgba(222,26,26,0.35)"}`, borderRadius: 10, padding: "0 6px",
+      }}>
+      <CalendarDays size={13} style={{ color: "#DE1A1A", flexShrink: 0 }} />
       <input type="date" value={value} onChange={e => onChange(e.target.value)} aria-label="Filter by day"
-        style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 600, color: value ? "#DE1A1A" : "#6B7280", fontFamily: "inherit", cursor: "pointer", padding: "7px 2px" }} />
+        style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 700, color: "#B91C1C", fontFamily: "inherit", cursor: "pointer", padding: "7px 2px" }} />
       {value && (
         <button onClick={() => onChange("")} title="Clear day"
           style={{ padding: "2px 6px", borderRadius: 6, border: "none", background: "rgba(222,26,26,0.08)", color: "#DE1A1A", fontSize: 11, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
@@ -3310,7 +3322,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex gap-2 flex-wrap">
               <select value={pipelineClientFilter} onChange={e => setPipelineClientFilter(e.target.value)}
-                style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+                style={FILTER_FIELD}>
                 <option value="all">All Clients</option>
                 {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
                 {pastClientOptions.length > 0 && (
@@ -3527,7 +3539,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                 style={{ ...FIELD, paddingLeft: 30 }} />
             </div>
             <select value={logClientFilter} onChange={e => setLogClientFilter(e.target.value)}
-              style={{ ...FIELD, width: "auto", cursor: "pointer", flex: "0 0 auto" }}>
+              style={{ ...FILTER_FIELD, flex: "0 0 auto" }}>
               <option value="all">All Clients</option>
               {logClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
               {pastClientOptions.length > 0 && (
@@ -3634,7 +3646,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                   style={{ ...FIELD, paddingLeft: 30 }} />
               </div>
               <select value={adsClientFilter} onChange={e => setAdsClientFilter(e.target.value)}
-                style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+                style={FILTER_FIELD}>
                 <option value="all">All Clients</option>
                 {activeClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
                 {pastClientOptions.length > 0 && (
@@ -3722,7 +3734,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <select value={shootsClientFilter} onChange={e => setShootsClientFilter(e.target.value)}
-                style={{ ...FIELD, width: "auto", cursor: "pointer" }}>
+                style={FILTER_FIELD}>
                 <option value="all">All Clients</option>
                 {activeClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
                 {pastClientOptions.length > 0 && (

@@ -870,20 +870,30 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
               {/* ON LEAVE */}
               {isAbsent && (
-                <div className="flex items-center gap-4">
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.16), rgba(217,119,6,0.10))" }}>
-                    <Palmtree size={22} style={{ color: "#D97706" }} />
+                <div className="flex items-center gap-4 rounded-2xl p-4" style={{
+                  background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
+                  border: "1px solid rgba(217,119,6,0.18)",
+                  boxShadow: "0 1px 0 rgba(255,255,255,0.8) inset, 0 10px 24px -12px rgba(217,119,6,0.35)",
+                }}>
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 relative"
+                    style={{
+                      background: "linear-gradient(155deg, #FBBF24 0%, #D97706 100%)",
+                      boxShadow: "0 1px 0 rgba(255,255,255,0.5) inset, 0 -3px 6px rgba(0,0,0,0.18) inset, 0 8px 16px -4px rgba(217,119,6,0.6)",
+                    }}>
+                    <Palmtree size={26} strokeWidth={2.25} style={{ color: "#fff", filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.2))" }} />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="text-[14px] font-bold" style={{ color: "#111111" }}>On Leave Today</p>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide"
-                        style={{ background: "rgba(245,158,11,0.15)", color: "#D97706", border: "1px solid rgba(245,158,11,0.35)" }}>
-                        Approved
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className="text-[15px] font-black" style={{ color: "#111111" }}>On Leave Today</p>
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide" style={{
+                        background: "linear-gradient(135deg, #34D399, #059669)",
+                        color: "#fff",
+                        boxShadow: "0 1px 0 rgba(255,255,255,0.3) inset, 0 3px 8px -2px rgba(5,150,105,0.6)",
+                      }}>
+                        ✓ Approved
                       </span>
                     </div>
-                    <p className="text-[12px]" style={{ color: "#9CA3AF" }}>Enjoy your day off — no clock-in needed.</p>
+                    <p className="text-[12.5px] font-medium" style={{ color: "#92400E" }}>Enjoy your day off — no clock-in needed.</p>
                   </div>
                 </div>
               )}

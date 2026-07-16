@@ -101,12 +101,10 @@ async function syncCollaborationConfirmations(
           newlyTagged.push({ collaboratorId, title: e.title })
         } else {
           // Not a fresh tag — a confirmation row already existed for this task+person.
-          // If it's still pending (nobody has confirmed or rejected it yet), keep its
-          // shown details in sync with the entry as the submitter keeps editing it —
-          // otherwise the collaborator is stuck deciding on a stale name/client/time
-          // from the moment they were first tagged, not what the task actually is now.
-          // Once confirmed/edited_confirmed/rejected, this update is a no-op — that's
-          // a locked-in decision and must not silently change underneath them.
+          // While it's still pending (nobody has decided yet), keep everything —
+          // including the time — in sync with the entry as the submitter edits it, so
+          // the collaborator is never deciding on stale info from the moment they were
+          // first tagged.
           await admin.from('collaboration_confirmations')
             .update({
               original_start_time:     (e.start_time as string) || null,
@@ -122,6 +120,26 @@ async function syncCollaborationConfirmations(
             .eq('entry_id', entryId)
             .eq('collaborator_id', collaboratorId)
             .eq('status', 'pending')
+
+          // Once confirmed/edited_confirmed, the hours are a locked-in agreement and
+          // must never silently change — but the task's name/client/type are just
+          // descriptive facts, not something the collaborator agreed to as a number.
+          // Keep those in sync too, so a submitter renaming a placeholder "Shoot /
+          // Internal" entry to its real name and client doesn't leave the confirmed
+          // record permanently showing the wrong client (which is also what the
+          // Clients/Expenses cost pages key off of).
+          await admin.from('collaboration_confirmations')
+            .update({
+              entry_snapshot: {
+                title:       e.title,
+                task_type:   e.task_type,
+                client_name: e.client_name,
+              },
+            })
+            .eq('daily_update_id', recordId)
+            .eq('entry_id', entryId)
+            .eq('collaborator_id', collaboratorId)
+            .in('status', ['confirmed', 'edited_confirmed'])
         }
       }
     }

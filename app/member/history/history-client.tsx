@@ -370,19 +370,25 @@ export default function HistoryClient({
   // rejects that non-standard string where Chrome accepts it, so every chip read
   // "Invalid Date" on iPhone. Never round-trip a display label back through Date().
   const months = useMemo(() => {
+    // Pull dates from both own submissions AND collaboration-only days — someone who
+    // mostly gets tagged as a collaborator (rarely files their own update) would
+    // otherwise only ever see one or two month pills, even though "All" correctly
+    // shows months of real data. The pill list must cover everywhere they appear.
+    const allDates = [...updates.map(u => u.date), ...participatedUpdates.map(u => u.date)]
     const seen = new Set<string>()
-    const result: { label: string; short: string }[] = []
-    for (const u of updates) {
-      const label = monthLabel(u.date)
+    const result: { label: string; short: string; date: string }[] = []
+    for (const date of allDates) {
+      const label = monthLabel(date)
       if (seen.has(label)) continue
       seen.add(label)
       result.push({
         label,
-        short: new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
+        short: new Date(date + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
+        date,
       })
     }
-    return result
-  }, [updates])
+    return result.sort((a, b) => b.date.localeCompare(a.date))
+  }, [updates, participatedUpdates])
 
   // Active clients for edit dropdown: INTERNAL_BRANDS first, then sheet clients (deduped)
   const activeClientsForEdit = useMemo(() => {
@@ -942,7 +948,13 @@ export default function HistoryClient({
     const todayIST = nowIST.toISOString().split("T")[0]
 
     const ownDates = new Set(filtered.map(u => u.date))
-    const monthPrefix = selectedMonth && monthFiltered[0]?.date ? monthFiltered[0].date.slice(0, 7) : null
+    // Derived from the months pill list (which covers both own AND collaboration-only
+    // dates) rather than from monthFiltered[0] — that only looks at own updates, so
+    // selecting a month where someone has zero own submissions (just collaborations)
+    // used to silently resolve to no prefix at all and show every month's data instead.
+    const monthPrefix = selectedMonth
+      ? months.find(m => m.label === selectedMonth)?.date.slice(0, 7) ?? null
+      : null
 
     // Collab orphans — only past/today
     const orphans: { date: string; pus: ParticipatedUpdate[] }[] = []
@@ -1008,7 +1020,7 @@ export default function HistoryClient({
     const ownItems: MergedItem[]    = filtered.map(u => ({ type: "own", date: u.date, u }))
     const collabItems: MergedItem[] = orphans.map(o => ({ type: "collab", date: o.date, pus: o.pus }))
     return [...ownItems, ...collabItems, ...leaveItems, ...holidayItems, ...missingItems].sort((a, b) => b.date.localeCompare(a.date))
-  }, [filtered, participatedByDate, selectedMonth, monthFiltered, approvedLeaves, companyLeaves, missingSubmissionDates, dateActive, selectedDate])
+  }, [filtered, participatedByDate, selectedMonth, months, approvedLeaves, companyLeaves, missingSubmissionDates, dateActive, selectedDate])
 
   useEffect(() => {
     if (!scrollToConfirmId) return

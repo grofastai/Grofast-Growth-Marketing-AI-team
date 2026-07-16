@@ -97,7 +97,32 @@ async function syncCollaborationConfirmations(
           onConflict:       'daily_update_id,entry_id,collaborator_id',
           ignoreDuplicates: true, // preserve existing confirmed/rejected status
         }).select('id')
-        if (upserted?.length) newlyTagged.push({ collaboratorId, title: e.title })
+        if (upserted?.length) {
+          newlyTagged.push({ collaboratorId, title: e.title })
+        } else {
+          // Not a fresh tag — a confirmation row already existed for this task+person.
+          // If it's still pending (nobody has confirmed or rejected it yet), keep its
+          // shown details in sync with the entry as the submitter keeps editing it —
+          // otherwise the collaborator is stuck deciding on a stale name/client/time
+          // from the moment they were first tagged, not what the task actually is now.
+          // Once confirmed/edited_confirmed/rejected, this update is a no-op — that's
+          // a locked-in decision and must not silently change underneath them.
+          await admin.from('collaboration_confirmations')
+            .update({
+              original_start_time:     (e.start_time as string) || null,
+              original_end_time:       (e.end_time as string) || null,
+              original_duration_hours: (e.duration_hours as number) || null,
+              entry_snapshot: {
+                title:       e.title,
+                task_type:   e.task_type,
+                client_name: e.client_name,
+              },
+            })
+            .eq('daily_update_id', recordId)
+            .eq('entry_id', entryId)
+            .eq('collaborator_id', collaboratorId)
+            .eq('status', 'pending')
+        }
       }
     }
     if (newlyTagged.length) {

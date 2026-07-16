@@ -477,6 +477,16 @@ export async function deleteDailyUpdate(id: string): Promise<{ success: boolean;
     .eq('user_id', userId)
     .single()
 
+  // Deleting the whole day means every entry in it is gone — any collaboration tied to
+  // this daily_update_id must go with it, or it's left behind as a ghost: still fully
+  // visible and actionable (Confirm/Edit/Reject) on the collaborator's side, pointing at
+  // an entry that no longer exists anywhere. Fetch first so a confirmed one can still
+  // notify the collaborator before its row disappears.
+  const { data: orphanedConfirms } = await admin
+    .from('collaboration_confirmations')
+    .select('collaborator_id, status, entry_snapshot')
+    .eq('daily_update_id', id)
+
   const { error } = await admin
     .from('daily_updates')
     .delete()
@@ -484,6 +494,24 @@ export async function deleteDailyUpdate(id: string): Promise<{ success: boolean;
     .eq('user_id', userId)
 
   if (error) return { success: false, error: error.message }
+
+  await admin.from('collaboration_confirmations').delete().eq('daily_update_id', id)
+
+  const wasConfirmed = (orphanedConfirms ?? []).filter(c => c.status === 'confirmed' || c.status === 'edited_confirmed')
+  if (wasConfirmed.length) {
+    const { data: submitter } = await admin.from('users').select('name').eq('id', userId).single()
+    await insertManyNotifications(wasConfirmed.map(c => {
+      const snap = c.entry_snapshot as { title?: string } | null
+      return {
+        companyId: record?.company_id ?? '',
+        userId: c.collaborator_id,
+        type: 'collab_removed',
+        title: `${submitter?.name ?? 'A teammate'} deleted a day you'd confirmed a collaboration on`,
+        body: `${record?.date ?? ''}${snap?.title ? ` — "${snap.title}"` : ''}. Those hours no longer count toward your total.`,
+        link: '/member/history',
+      }
+    }))
+  }
 
   // Clear break from attendance when entire day's update is deleted
   if (record?.date) {

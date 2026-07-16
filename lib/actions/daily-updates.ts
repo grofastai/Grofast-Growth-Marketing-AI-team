@@ -110,6 +110,44 @@ async function syncCollaborationConfirmations(
         link: '/member/history',
       })))
     }
+
+    // Untag cleanup: a collaborator removed from an entry during an edit (not a full
+    // entry delete, which deleteCollaborationsByEntry already handles) must have their
+    // confirmation row deleted here too — otherwise it's left behind with a stale
+    // pending/confirmed/rejected status nobody asked for. If they'd already confirmed,
+    // tell them — their credited hours for that task just disappeared.
+    const currentPairs = new Set(tagged.flatMap(e => {
+      const entryId = (e.id as string) || ''
+      if (!entryId) return []
+      return ((e.participant_ids as string[]) || [])
+        .filter(pid => pid !== submitterId)
+        .map(pid => `${entryId}:${pid}`)
+    }))
+    const { data: existingConfirms } = await admin
+      .from('collaboration_confirmations')
+      .select('id, entry_id, collaborator_id, status, entry_snapshot')
+      .eq('daily_update_id', recordId)
+    const toRemove = (existingConfirms ?? []).filter(
+      c => !currentPairs.has(`${c.entry_id}:${c.collaborator_id}`)
+    )
+    if (toRemove.length) {
+      await admin.from('collaboration_confirmations').delete().in('id', toRemove.map(c => c.id))
+      const wasConfirmed = toRemove.filter(c => c.status === 'confirmed' || c.status === 'edited_confirmed')
+      if (wasConfirmed.length) {
+        const { data: submitter } = await admin.from('users').select('name').eq('id', submitterId).single()
+        await insertManyNotifications(wasConfirmed.map(c => {
+          const snap = c.entry_snapshot as { title?: string } | null
+          return {
+            companyId,
+            userId: c.collaborator_id,
+            type: 'collab_removed',
+            title: `${submitter?.name ?? 'A teammate'} removed you from a confirmed collaboration`,
+            body: `${date}${snap?.title ? ` — "${snap.title}"` : ''}. Those hours no longer count toward your total.`,
+            link: '/member/history',
+          }
+        }))
+      }
+    }
   } catch { /* non-blocking */ }
 }
 

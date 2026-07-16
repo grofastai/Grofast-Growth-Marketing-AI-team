@@ -1503,6 +1503,7 @@ export default function HistoryClient({
                             const showStart = entryConf?.confirmed_start_time ?? pe.start_time
                             const showEnd   = entryConf?.confirmed_end_time   ?? pe.end_time
                             const dur = entryConf?.confirmed_hours ?? (calcDurationFromTimes(showStart, showEnd) ?? (pe.duration_hours ?? 0))
+                            const loading = entryConf ? collabLoading === entryConf.id : false
                             return (
                               <div key={pi} style={{ display:"flex", gap:10, padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none", alignItems:"flex-start" }}>
                                 <div style={{ width:30, height:30, borderRadius:8, background:cfg.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -1522,6 +1523,20 @@ export default function HistoryClient({
                                     {tH > 0 && <span style={{ fontSize:10, color:"#F59E0B", fontWeight:700 }}>🚗 {fmtTravel(tH)}</span>}
                                   </div>
                                 </div>
+                                {entryConf && (
+                                  <button title="Remove yourself from this collaboration" disabled={loading}
+                                    onClick={async () => {
+                                      if (!(await confirm("Remove yourself from this confirmed collaboration? The submitter will be notified, and these hours will no longer count toward your total."))) return
+                                      setCollabLoading(entryConf.id)
+                                      const r = await rejectCollaboration(entryConf.id, "Removed after confirming — please recheck")
+                                      if (r.success) setCollabConfirms(prev => prev.filter(c => c.id !== entryConf.id))
+                                      else showToast(r.error ?? "Failed to remove. Try again.")
+                                      setCollabLoading(null)
+                                    }}
+                                    style={{ width: 26, height: 26, borderRadius: 7, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1, flexShrink: 0 }}>
+                                    <Trash2 size={11} style={{ color: "#EF4444" }}/>
+                                  </button>
+                                )}
                               </div>
                             )
                           })}
@@ -2266,11 +2281,25 @@ export default function HistoryClient({
                                   </div>
                                 </div>
                                 {entryConf && (
-                                  <button title="Edit your collaboration time"
-                                    onClick={() => { if (isEditingConf) { setCollabEditId(null) } else { setCollabEditId(entryConf.id); setCollabEditStart(entryConf.confirmed_start_time ?? entryConf.original_start_time ?? ""); setCollabEditEnd(entryConf.confirmed_end_time ?? entryConf.original_end_time ?? "") } }}
-                                    style={{ width: 26, height: 26, borderRadius: 7, background: isEditingConf ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-                                    <Pencil size={11} style={{ color: "#6366F1" }}/>
-                                  </button>
+                                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                                    <button title="Edit your collaboration time"
+                                      onClick={() => { if (isEditingConf) { setCollabEditId(null) } else { setCollabEditId(entryConf.id); setCollabEditStart(entryConf.confirmed_start_time ?? entryConf.original_start_time ?? ""); setCollabEditEnd(entryConf.confirmed_end_time ?? entryConf.original_end_time ?? "") } }}
+                                      style={{ width: 26, height: 26, borderRadius: 7, background: isEditingConf ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                                      <Pencil size={11} style={{ color: "#6366F1" }}/>
+                                    </button>
+                                    <button title="Remove yourself from this collaboration" disabled={loading}
+                                      onClick={async () => {
+                                        if (!(await confirm("Remove yourself from this confirmed collaboration? The submitter will be notified, and these hours will no longer count toward your total."))) return
+                                        setCollabLoading(entryConf.id)
+                                        const r = await rejectCollaboration(entryConf.id, "Removed after confirming — please recheck")
+                                        if (r.success) setCollabConfirms(prev => prev.filter(c => c.id !== entryConf.id))
+                                        else showToast(r.error ?? "Failed to remove. Try again.")
+                                        setCollabLoading(null)
+                                      }}
+                                      style={{ width: 26, height: 26, borderRadius: 7, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
+                                      <Trash2 size={11} style={{ color: "#EF4444" }}/>
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                               {isEditingConf && entryConf && (

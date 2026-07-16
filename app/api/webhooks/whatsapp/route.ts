@@ -280,7 +280,7 @@ async function handleAttendanceButtonReply(
   const last10 = from.replace(/\D/g, '').slice(-10)
   const { data: user, error: lookupErr } = await supabase
     .from('users')
-    .select('id, company_id, name')
+    .select('id, company_id, name, is_management')
     .like('phone', `%${last10}`)
     .eq('role', 'MEMBER')
     .maybeSingle()
@@ -303,10 +303,14 @@ async function handleAttendanceButtonReply(
     return
   }
 
-  const unresolvedDate = await findUnresolvedLogoutDate(supabase, user.company_id, user.id, today)
-  if (unresolvedDate) {
-    await sendWhatsAppReply(from, `You forgot to clock out on ${formatGateDate(unresolvedDate)}. Please open the GroFast app → Attendance page and fix your logout time before marking attendance today.`)
-    return
+  // Management is exempt from every "forgot to do X" gate, same as the web app
+  // (app/member/layout.tsx MemberGate, lib/actions/attendance.ts clockIn).
+  if (user.is_management !== true) {
+    const unresolvedDate = await findUnresolvedLogoutDate(supabase, user.company_id, user.id, today)
+    if (unresolvedDate) {
+      await sendWhatsAppReply(from, `You forgot to clock out on ${formatGateDate(unresolvedDate)}. Please open the GroFast app → Attendance page and fix your logout time before marking attendance today.`)
+      return
+    }
   }
 
   if (buttonId === 'attendance_leave') {
@@ -386,7 +390,7 @@ async function handleAttendanceTextReply(from: string, text: string) {
   const last10 = from.replace(/\D/g, '').slice(-10)
   const { data: user } = await supabase
     .from('users')
-    .select('id, company_id, name')
+    .select('id, company_id, name, is_management')
     .like('phone', `%${last10}`)
     .eq('role', 'MEMBER')
     .maybeSingle()
@@ -406,10 +410,14 @@ async function handleAttendanceTextReply(from: string, text: string) {
     return
   }
 
-  const unresolvedDate = await findUnresolvedLogoutDate(supabase, user.company_id, user.id, today)
-  if (unresolvedDate) {
-    await sendWhatsAppReply(from, `You forgot to clock out on ${formatGateDate(unresolvedDate)}. Please open the GroFast app → Attendance page and fix your logout time before marking attendance today.`)
-    return
+  // Management is exempt from every "forgot to do X" gate, same as the web app
+  // (app/member/layout.tsx MemberGate, lib/actions/attendance.ts clockIn).
+  if (user.is_management !== true) {
+    const unresolvedDate = await findUnresolvedLogoutDate(supabase, user.company_id, user.id, today)
+    if (unresolvedDate) {
+      await sendWhatsAppReply(from, `You forgot to clock out on ${formatGateDate(unresolvedDate)}. Please open the GroFast app → Attendance page and fix your logout time before marking attendance today.`)
+      return
+    }
   }
 
   const interpreted = await interpretAttendanceText(text)

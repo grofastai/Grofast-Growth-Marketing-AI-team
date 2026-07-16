@@ -101,11 +101,22 @@ export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ s
   const halfDayPlaceholder = existing?.status === 'half_day' && !existing.clock_in ? existing : null
   if (existing && !halfDayPlaceholder) return { success: false, error: 'Already logged attendance today' }
 
-  // Logout is mandatory — refuse to clock in while an earlier day's session is
-  // still open, even if the client-side gate was bypassed or never loaded.
-  const unresolvedDate = await findUnresolvedLogoutDate(admin, ctx.companyId, ctx.userId, today)
-  if (unresolvedDate) {
-    return { success: false, error: `You forgot to clock out on ${formatGateDate(unresolvedDate)}. Fix your logout time on the Attendance page before clocking in today.` }
+  // Management team members are exempt from every "you forgot to do X yesterday"
+  // gate — the same exemption app/member/layout.tsx already applies to hide the
+  // MemberGate full-screen lock for them. Without this, a management user hits
+  // the same hard block here with no explanatory screen at all (since the UI
+  // that would normally show why is hidden for them) — silently stuck instead
+  // of just being let through.
+  const { data: mgmtProfile } = await admin.from('users').select('is_management').eq('id', ctx.userId).single()
+  const isManagement = (mgmtProfile as { is_management?: boolean | null } | null)?.is_management === true
+
+  if (!isManagement) {
+    // Logout is mandatory — refuse to clock in while an earlier day's session is
+    // still open, even if the client-side gate was bypassed or never loaded.
+    const unresolvedDate = await findUnresolvedLogoutDate(admin, ctx.companyId, ctx.userId, today)
+    if (unresolvedDate) {
+      return { success: false, error: `You forgot to clock out on ${formatGateDate(unresolvedDate)}. Fix your logout time on the Attendance page before clocking in today.` }
+    }
   }
 
   // Block clock-in if on approved full-day leave
@@ -127,19 +138,22 @@ export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ s
   // Block clock-in if the last real working day still has an open (unfinished) session,
   // or is missing its Daily Update — regardless of how many days back that day is, and
   // regardless of any leave/blank days sitting in between (see findLastWorkingDayIssues).
-  const issues = await findLastWorkingDayIssues(ctx)
-  if (issues.forgotLogout) {
-    return { success: false, error: `You never logged out on ${issues.forgotLogoutDate} — fix that day's logout time on the Attendance page before logging in again.` }
-  }
-  // Distinct from missingUpdate: nothing at all on file for that day — no attendance,
-  // no approved leave, not even a pending leave request. There's no self-service fix
-  // for this (unlike a missed logout or an unfiled update), so it goes straight to
-  // "contact admin" instead of pointing at a page they can't actually resolve it on.
-  if (issues.noLeave) {
-    return { success: false, error: `You did not log in on ${issues.noLeaveDate} and have no approved (or pending) leave on file for that day. Contact your admin — you cannot log in again until this is resolved.` }
-  }
-  if (issues.missingUpdate) {
-    return { success: false, error: `You haven't submitted your Daily Update for ${issues.missingUpdateDate} — submit it before logging in again.` }
+  // Management is exempt from this too (see the isManagement check above).
+  if (!isManagement) {
+    const issues = await findLastWorkingDayIssues(ctx)
+    if (issues.forgotLogout) {
+      return { success: false, error: `You never logged out on ${issues.forgotLogoutDate} — fix that day's logout time on the Attendance page before logging in again.` }
+    }
+    // Distinct from missingUpdate: nothing at all on file for that day — no attendance,
+    // no approved leave, not even a pending leave request. There's no self-service fix
+    // for this (unlike a missed logout or an unfiled update), so it goes straight to
+    // "contact admin" instead of pointing at a page they can't actually resolve it on.
+    if (issues.noLeave) {
+      return { success: false, error: `You did not log in on ${issues.noLeaveDate} and have no approved (or pending) leave on file for that day. Contact your admin — you cannot log in again until this is resolved.` }
+    }
+    if (issues.missingUpdate) {
+      return { success: false, error: `You haven't submitted your Daily Update for ${issues.missingUpdateDate} — submit it before logging in again.` }
+    }
   }
 
   const clockInTime = new Date().toISOString()

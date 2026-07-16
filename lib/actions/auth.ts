@@ -54,7 +54,7 @@ export async function loginAction(
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users')
-    .select('role, must_change_password, company_id')
+    .select('role, must_change_password, company_id, is_management')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -90,7 +90,10 @@ export async function loginAction(
   // Logout is mandatory: send members straight to the Attendance page to fix a
   // stale open session instead of the dashboard — don't let login itself in
   // past this until yesterday's (or any earlier day's) clock-out is resolved.
-  if (profile?.role === 'MEMBER' && profile.company_id) {
+  // Management is exempt — same as the MemberGate exemption in app/member/layout.tsx —
+  // otherwise they'd get redirected away from the dashboard with no explanation, since
+  // the gate UI that would normally justify it is hidden for them.
+  if (profile?.role === 'MEMBER' && profile.company_id && profile.is_management !== true) {
     const unresolvedDate = await findUnresolvedLogoutDate(admin, profile.company_id, user.id, today)
     if (unresolvedDate) redirect('/member/attendance')
   }

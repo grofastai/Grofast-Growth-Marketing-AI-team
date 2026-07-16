@@ -165,6 +165,19 @@ export async function createMember(input: {
     finalEmployeeId = `${prefix}${String(maxN + 1).padStart(3, '0')}`
   }
 
+  // Block duplicate Employee IDs within the company — checked here, not left to the DB's
+  // unique constraint alone, so a typed-over ID gets a clear error *before* an auth account
+  // is created, and two people can never end up sharing (or silently colliding on) one ID.
+  if (finalEmployeeId) {
+    const { data: idRows } = await admin
+      .from('users').select('name, employee_id')
+      .eq('company_id', company_id)
+    const idDup = (idRows ?? []).find(
+      (u: { employee_id: string }) => u.employee_id.toLowerCase() === finalEmployeeId!.toLowerCase()
+    )
+    if (idDup) return { success: false, error: `Employee ID "${finalEmployeeId}" is already used by "${idDup.name}". Choose a different one.` }
+  }
+
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email: input.email,
     password: input.password,

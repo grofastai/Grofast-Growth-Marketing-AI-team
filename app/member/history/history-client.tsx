@@ -962,6 +962,7 @@ export default function HistoryClient({
       while (cur <= end) {
         const ds = cur.toISOString().split("T")[0]
         if (ds > todayIST) { cur.setDate(cur.getDate() + 1); continue }
+        if (dateActive && ds !== selectedDate) { cur.setDate(cur.getDate() + 1); continue }
         if (!ownDates.has(ds) && !collabDates.has(ds)) {
           if (!monthPrefix || ds.startsWith(monthPrefix)) {
             leaveItems.push({ type: "leave", date: ds, leave })

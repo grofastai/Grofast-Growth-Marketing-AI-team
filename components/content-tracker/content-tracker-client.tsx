@@ -3319,21 +3319,19 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
       {(mode === "video" || mode === "poster") && tab === "pipeline" && (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex gap-2 flex-wrap">
-              <select value={pipelineClientFilter} onChange={e => setPipelineClientFilter(e.target.value)}
-                style={FILTER_FIELD}>
-                <option value="all">All Clients</option>
-                {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                {pastClientOptions.length > 0 && (
-                  <optgroup label="📁 Past Clients">
-                    {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                  </optgroup>
-                )}
-              </select>
-              <MonthSelect value={pipelineMonthFilter} onChange={setPipelineMonthFilter} options={allMonthOptions} />
-              <DayFilter value={pipelineDayFilter} onChange={setPipelineDayFilter} />
-            </div>
+          <div className="flex items-center justify-end flex-wrap gap-2">
+            <select value={pipelineClientFilter} onChange={e => setPipelineClientFilter(e.target.value)}
+              style={FILTER_FIELD}>
+              <option value="all">All Clients</option>
+              {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+              {pastClientOptions.length > 0 && (
+                <optgroup label="📁 Past Clients">
+                  {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                </optgroup>
+              )}
+            </select>
+            <MonthSelect value={pipelineMonthFilter} onChange={setPipelineMonthFilter} options={allMonthOptions} />
+            <DayFilter value={pipelineDayFilter} onChange={setPipelineDayFilter} />
             <button onClick={() => setShowNewContent(true)}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               <Plus size={14} /> New Content
@@ -3731,21 +3729,19 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
       {mode === "video" && tab === "shoots" && (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <select value={shootsClientFilter} onChange={e => setShootsClientFilter(e.target.value)}
-                style={FILTER_FIELD}>
-                <option value="all">All Clients</option>
-                {activeClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                {pastClientOptions.length > 0 && (
-                  <optgroup label="📁 Past Clients">
-                    {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                  </optgroup>
-                )}
-              </select>
-              <MonthSelect value={shootsMonthFilter} onChange={setShootsMonthFilter} options={shootsMonthOptions} />
-              <DayFilter value={shootsDayFilter} onChange={setShootsDayFilter} />
-            </div>
+          <div className="flex items-center justify-end flex-wrap gap-2">
+            <select value={shootsClientFilter} onChange={e => setShootsClientFilter(e.target.value)}
+              style={FILTER_FIELD}>
+              <option value="all">All Clients</option>
+              {activeClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+              {pastClientOptions.length > 0 && (
+                <optgroup label="📁 Past Clients">
+                  {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                </optgroup>
+              )}
+            </select>
+            <MonthSelect value={shootsMonthFilter} onChange={setShootsMonthFilter} options={shootsMonthOptions} />
+            <DayFilter value={shootsDayFilter} onChange={setShootsDayFilter} />
             <button onClick={() => setShowNewShoot(true)}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               <Plus size={14} /> New Shoot

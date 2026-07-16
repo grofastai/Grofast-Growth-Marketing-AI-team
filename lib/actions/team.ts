@@ -432,6 +432,20 @@ export async function updateMember(input: {
 
   if (error) return { success: false, error: error.message }
 
+  // Keep the real login account in sync — this table's `email` column is only a display
+  // field. Without this, changing someone's email here silently updates nothing about how
+  // they actually sign in, and they get locked out with no visible error (see GF004 incident).
+  if (input.email) {
+    const { data: authUser } = await admin.auth.admin.getUserById(input.id)
+    if (authUser?.user && authUser.user.email?.toLowerCase() !== input.email.toLowerCase()) {
+      const { error: authEmailError } = await admin.auth.admin.updateUserById(input.id, {
+        email: input.email,
+        email_confirm: true,
+      })
+      if (authEmailError) return { success: false, error: `Profile saved, but the login email could not be updated: ${authEmailError.message}` }
+    }
+  }
+
   revalidatePath('/admin/team')
   revalidatePath('/admin/expenses')
   revalidatePath('/admin/payroll')

@@ -8,6 +8,7 @@ import { dailyUpdateSchema, type DailyUpdateInput } from '@/lib/validations/dail
 import { sendNotification } from '@/lib/notifications/send'
 import { insertManyNotifications } from './notifications'
 import { calcNetWorkHours } from '@/lib/utils/work-hours'
+import { todayIST } from '@/lib/utils/ist-date'
 
 function adminSupabase() {
   return createClient(
@@ -172,7 +173,7 @@ export async function submitDailyUpdate(
 
   if (!profile?.company_id) return { success: false, error: 'Profile not found — re-login required' }
 
-  const todayStr = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
+  const todayStr = todayIST()
   const d = parsed.data
   const today = d.date ?? todayStr
   const isPastDate = today !== todayStr
@@ -802,7 +803,7 @@ export async function getTodayUpdate() {
   const { userId } = ctx
 
   const admin = adminSupabase()
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const { data } = await admin
     .from('daily_updates')
     .select('*')

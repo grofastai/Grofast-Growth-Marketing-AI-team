@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { todayIST } from '@/lib/utils/ist-date'
 
 export interface AlertSummary {
   notUpdatedCount: number
@@ -18,7 +19,7 @@ function adminSupabase() {
 
 export async function getAlerts(companyId: string): Promise<AlertSummary> {
   const admin = adminSupabase()
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
 
   const [
     { data: members },

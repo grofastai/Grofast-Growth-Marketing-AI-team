@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import ActivitiesClient from "./activities-client"
+import { todayIST } from "@/lib/utils/ist-date"
 
 function adminSupabase() {
   return createClient(
@@ -24,7 +25,7 @@ export default async function ActivitiesPage({
   if (!user) redirect("/login")
 
   const admin = adminSupabase()
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayIST()
 
   const from = params.from ?? params.date ?? today
   const to   = params.to   ?? params.from ?? params.date ?? today

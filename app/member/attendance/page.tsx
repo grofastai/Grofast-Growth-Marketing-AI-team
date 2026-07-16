@@ -6,6 +6,7 @@ import AttendanceClient from "./attendance-client"
 import { calcNetWorkHours } from "@/lib/utils/work-hours"
 import { blockFreelancerMedia } from "@/lib/utils/freelancer-guard"
 import { findLastWorkingDayIssues } from "@/lib/actions/attendance"
+import { todayIST, nowISTShifted } from "@/lib/utils/ist-date"
 
 function adminSupabase() {
   return createClient(
@@ -25,20 +26,23 @@ export default async function AttendancePage() {
   const impersonateId = cookieStore.get("gf_impersonate")?.value
   const effectiveUserId = impersonateId ?? user.id
 
-  const now   = new Date()
-  const today = now.toISOString().split("T")[0]
+  // nowISTShifted() reads as IST wall-clock time via its UTC getters — plain new Date()
+  // reads the server's own clock (UTC on Vercel), which is wrong for "today"/"this week"/
+  // "this month" during the 00:00-05:30 IST window every day.
+  const now   = nowISTShifted()
+  const today = todayIST()
 
-  // Week range: Monday → Sunday of current week
-  const dow    = now.getDay()
+  // Week range: Monday → Sunday of current week (IST)
+  const dow    = now.getUTCDay()
   const monday = new Date(now)
-  monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1))
+  monday.setUTCDate(now.getUTCDate() - (dow === 0 ? 6 : dow - 1))
   const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
+  sunday.setUTCDate(monday.getUTCDate() + 6)
   const weekStart = monday.toISOString().split("T")[0]
   const weekEnd   = sunday.toISOString().split("T")[0]
 
-  // Month range
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+  // Month range (IST)
+  const monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`
 
   type BreakSession = { in: string; out: string | null; mins: number | null }
   type AttLog = {

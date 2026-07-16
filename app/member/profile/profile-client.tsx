@@ -13,6 +13,7 @@ import {
 import { updateOwnProfile } from "@/lib/actions/team"
 import { updatePersonalDetails, updateKYC, deleteKYCDocument, type KYCDocField } from "@/lib/actions/profile"
 import { logoutAction } from "@/lib/actions/auth"
+import { todayIST, toISTDateString } from "@/lib/utils/ist-date"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
 
@@ -72,10 +73,9 @@ const INDIAN_BANKS = [
 ]
 
 function relativeDate(d: string) {
-  const t = new Date().toISOString().split("T")[0]
+  const t = todayIST()
   if (d === t) return "Today"
-  const y = new Date(); y.setDate(y.getDate() - 1)
-  if (d === y.toISOString().split("T")[0]) return "Yesterday"
+  if (d === toISTDateString(Date.now() - 86400000)) return "Yesterday"
   return new Date(d + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
 }
 
@@ -98,7 +98,7 @@ function completionScore(p: ProfileData | null, k: KYCData | null) {
 // ── Week Bar Chart ──────────────────────────────────────────────────────────
 function WeekChart({ data }: { data: ChartDay[] }) {
   const maxH  = Math.max(...data.map(d => d.hours), 1)
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayIST()
   return (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 70 }}>
       {data.map(day => {

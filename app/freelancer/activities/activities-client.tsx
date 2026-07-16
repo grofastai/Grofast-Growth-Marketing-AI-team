@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import { Camera, Scissors, Mic, CheckCircle, Clock, IndianRupee, Calendar, AlertTriangle } from "lucide-react"
 import { markAsPaid } from "@/lib/actions/freelancer-updates"
+import { todayIST } from "@/lib/utils/ist-date"
 
 interface Update {
   id: string
@@ -84,7 +85,7 @@ export default function ActivitiesClient({ updates: initial }: Props) {
   const [updates, setUpdates] = useState(initial)
 
   function handlePaid(id: string) {
-    const today = new Date().toISOString().split("T")[0]
+    const today = todayIST()
     setUpdates(prev => prev.map(u => u.id === id ? { ...u, payment_status: "paid", paid_date: today } : u))
   }
 

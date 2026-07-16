@@ -4,6 +4,7 @@ export const revalidate = 0
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
+import { todayIST } from '@/lib/utils/ist-date'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -50,11 +51,12 @@ export async function GET(request: NextRequest) {
   }
 
   const admin = adminSupabase()
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const dateLabel = new Date().toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    timeZone: 'Asia/Kolkata',
   })
 
   const [{ data: members }, { data: todayUpdates }, { data: todayLeaves }, { data: todayAbsent }] = await Promise.all([

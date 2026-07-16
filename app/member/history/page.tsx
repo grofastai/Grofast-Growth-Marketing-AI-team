@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import HistoryClient from "./history-client"
+import { todayIST } from "@/lib/utils/ist-date"
 
 type WorkEntry = {
   id?: string
@@ -97,7 +98,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   const companyId = profileResult.data?.company_id ?? ""
 
   // Full year — one entry/day max, so ~170 rows at most; matches annual leave cycle
-  const fromDateStr = `${new Date().getFullYear()}-01-01`
+  const fromDateStr = `${todayIST().slice(0, 4)}-01-01`
 
   const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult, leavesResult, companyLeavesResult, confirmationsResult, rejectedEntriesResult] = await Promise.all([
     db

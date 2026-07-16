@@ -4,17 +4,20 @@ import type { NotificationRow } from './notification-item'
 import { Bell, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { toISTDateString } from '@/lib/utils/ist-date'
 
 function groupNotifications(rows: NotificationRow[]) {
   const now = new Date()
-  const todayStr = now.toDateString()
+  // toDateString() reads the server's own clock (UTC on Vercel) — wrong bucket for
+  // "today" during the 00:00-05:30 IST window. Compare IST calendar dates instead.
+  const todayStr = toISTDateString(now)
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
   const today: NotificationRow[] = []
   const thisWeek: NotificationRow[] = []
   const earlier: NotificationRow[] = []
   for (const r of rows) {
     const d = new Date(r.created_at)
-    if (d.toDateString() === todayStr) today.push(r)
+    if (toISTDateString(d) === todayStr) today.push(r)
     else if (d >= weekAgo) thisWeek.push(r)
     else earlier.push(r)
   }

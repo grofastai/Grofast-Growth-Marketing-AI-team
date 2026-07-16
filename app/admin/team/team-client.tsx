@@ -13,6 +13,7 @@ import {
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
 import { setSupportHandler } from "@/lib/actions/support"
+import { todayIST } from "@/lib/utils/ist-date"
 import { createFreelancer, updateFreelancer, toggleFreelancerStatus, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
 import { addManagerToAllFreelancers, removeManagerFromAllFreelancers } from "@/lib/actions/freelancer-manager"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
@@ -263,7 +264,7 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
     hourly_rate: member?.hourly_rate?.toString() ?? "",
     paid_leave_days: member?.paid_leave_days?.toString() ?? "5",
     date_of_birth: member?.date_of_birth ?? "",
-    joined_at: member?.joined_at ?? new Date().toISOString().split("T")[0],
+    joined_at: member?.joined_at ?? todayIST(),
     gender: (member?.gender ?? "male") as "male" | "female",
     work_layout: (member?.work_layout ?? "non_media") as "media" | "non_media" | "freelance_media",
     is_management: member?.is_management ?? false,
@@ -726,7 +727,7 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                     )}
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#5C3D1F" }}>Work Start Date</label>
-                      <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }} value={form.joined_at} onChange={set("joined_at")} max={new Date().toISOString().split("T")[0]} />
+                      <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }} value={form.joined_at} onChange={set("joined_at")} max={todayIST()} />
                     </div>
                   </div>
 
@@ -919,7 +920,7 @@ function AssignTaskModal({ member, onClose }: AssignTaskModalProps) {
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: "#5C3D1F" }}>Due Date <span style={{ color: "#5C3D1F", fontWeight: 600 }}>(optional)</span></label>
-                <input type="date" min={new Date().toISOString().split("T")[0]} max="2099-12-31" value={dueDate} onChange={e => setDueDate(e.target.value)}
+                <input type="date" min={todayIST()} max="2099-12-31" value={dueDate} onChange={e => setDueDate(e.target.value)}
                   className="w-full rounded-xl px-4 py-2.5 text-[13px] outline-none"
                   style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111", colorScheme: "light", fontFamily: "inherit" }} />
               </div>

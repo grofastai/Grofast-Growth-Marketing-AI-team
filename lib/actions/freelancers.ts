@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { revalidatePath } from "next/cache"
 import { logFreelancerActivity } from "./freelancer-activity"
 import { normalizePhone } from "@/lib/utils/phone"
+import { todayIST } from "@/lib/utils/ist-date"
 
 function adminClient() {
   return createClient(
@@ -313,7 +314,7 @@ export async function createWorkEntry(input: WorkEntryInput): Promise<{ success:
     entry_type: input.entry_type,
     client_name: input.client_name || null,
     title: input.title || null,
-    date: input.date || new Date().toISOString().split("T")[0],
+    date: input.date || todayIST(),
     status: input.status || "pending",
     payment_status: input.payment_status || "unpaid",
     paid_at: input.payment_status === "paid" ? new Date().toISOString() : null,

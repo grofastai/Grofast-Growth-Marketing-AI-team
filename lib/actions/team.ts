@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { getOrCreateMemberFolder } from '@/lib/google/drive'
 import { normalizePhone } from '@/lib/utils/phone'
+import { todayIST } from '@/lib/utils/ist-date'
 
 function adminSupabase() {
   return createClient(
@@ -396,7 +397,7 @@ export async function updateMember(input: {
       .from('users').select('monthly_salary').eq('id', input.id).single()
     const oldSalary = (currentUser as { monthly_salary?: number | null } | null)?.monthly_salary
     if (oldSalary != null && oldSalary !== input.monthly_salary) {
-      const effectiveFrom = input.salaryEffectiveFrom ?? new Date().toISOString().split('T')[0]
+      const effectiveFrom = input.salaryEffectiveFrom ?? todayIST()
       // If a history row already exists for this same effective date, update it
       // instead of inserting a duplicate (e.g. admin edits salary twice in one month).
       const { data: existing } = await admin

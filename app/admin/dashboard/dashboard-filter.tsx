@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from "next/navigation"
 import { useState } from "react"
 import { Calendar } from "lucide-react"
+import { todayIST } from "@/lib/utils/ist-date"
 
 type FilterType = "today" | "yesterday" | "custom"
 
@@ -54,11 +55,11 @@ export default function DashboardFilterBar({
 
       {showCustom && (
         <div className="flex items-center gap-2 w-full mt-2">
-          <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
+          <input type="date" min="2025-01-01" max={todayIST()} value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
             className="px-3 py-2 rounded-lg text-[12px]"
             style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#FFFFFF", colorScheme: "dark" }} />
           <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>to</span>
-          <input type="date" min={customFrom || "2025-01-01"} max={new Date().toISOString().split("T")[0]} value={customTo} onChange={(e) => setCustomTo(e.target.value)}
+          <input type="date" min={customFrom || "2025-01-01"} max={todayIST()} value={customTo} onChange={(e) => setCustomTo(e.target.value)}
             className="px-3 py-2 rounded-lg text-[12px]"
             style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#FFFFFF", colorScheme: "dark" }} />
           <button type="button"

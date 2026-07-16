@@ -16,6 +16,7 @@ import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
 import { buildClientOptions } from "@/lib/utils/client-options"
+import { todayIST } from "@/lib/utils/ist-date"
 import { latestEntry, isUnderperforming, cpc, cpm, frequency, costPerResult, type AdPerformanceEntry } from "@/lib/ads-tracker/performance-metrics"
 import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
@@ -1293,11 +1294,11 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
   // Fixed by the tab you're in (Video vs Poster) — no picker, so you can't create a video
   // from Poster mode and have it immediately vanish from the board.
   const contentType = defaultContentType
-  const [shotDate, setShotDate] = useState(new Date().toISOString().split("T")[0])
+  const [shotDate, setShotDate] = useState(todayIST())
   const [notes, setNotes] = useState("")
   const [alreadyPosted, setAlreadyPosted] = useState(false)
   const [postedPlatforms, setPostedPlatforms] = useState<Platform[]>([])
-  const [postedDate, setPostedDate] = useState(new Date().toISOString().split("T")[0])
+  const [postedDate, setPostedDate] = useState(todayIST())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -1561,7 +1562,7 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
   // Not editable — changing a poster into a video (or vice versa) would move it to the
   // other tab and make it look like it disappeared.
   const contentType = item.content_type
-  const [shotDate, setShotDate] = useState(item.shot_date || new Date().toISOString().split("T")[0])
+  const [shotDate, setShotDate] = useState(item.shot_date || todayIST())
   const [notes, setNotes] = useState(item.notes || "")
   // Schedule/intent fields — editable regardless of stage, but saving them here never
   // changes item.status. That transition stays owned by the Ready to Post flow.
@@ -1650,7 +1651,7 @@ function AddPlatformModal({ item, members, currentUserId, onClose, onAdded }: {
     () => (item.ready_platforms ?? []).filter(p => !already.has(p))
   )
   const [postedDate, setPostedDate] = useState(
-    item.scheduled_post_date || new Date().toISOString().split("T")[0]
+    item.scheduled_post_date || todayIST()
   )
   const [postLink, setPostLink] = useState("")
   // Who's posting — defaults to whoever clicked, but can be assigned to someone else.
@@ -1753,7 +1754,7 @@ function NewAdModal({ clients, pastClients, onClose, onCreated }: {
   const [client, setClient] = useState("")
   const [adName, setAdName] = useState("")
   const [platform, setPlatform] = useState("Meta Ads")
-  const [launchDate, setLaunchDate] = useState(new Date().toISOString().split("T")[0])
+  const [launchDate, setLaunchDate] = useState(todayIST())
   const [hookCount, setHookCount] = useState(1)
   const [targeting, setTargeting] = useState<TargetingType | "">("")
   const [notes, setNotes] = useState("")
@@ -1831,7 +1832,7 @@ function AdRevisionModal({ ad, onClose, onAdded }: { ad: Ad; onClose: () => void
     const res = await addAdRevision({ ad_id: ad.id, notes: notes.trim(), hook_count_after: hookCount === "" ? undefined : hookCount, targeting_type_after: targeting || undefined })
     setSaving(false)
     if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
-    onAdded({ id: res.id, ad_id: ad.id, revision_date: new Date().toISOString().split("T")[0], notes: notes.trim(), hook_count_after: hookCount === "" ? null : hookCount, targeting_type_after: targeting || null })
+    onAdded({ id: res.id, ad_id: ad.id, revision_date: todayIST(), notes: notes.trim(), hook_count_after: hookCount === "" ? null : hookCount, targeting_type_after: targeting || null })
   }
 
   return (
@@ -1863,7 +1864,7 @@ function AdRevisionModal({ ad, onClose, onAdded }: { ad: Ad; onClose: () => void
 
 // ── Log Performance modal ────────────────────────────────────────────────────
 function AdPerformanceModal({ ad, onClose, onAdded }: { ad: Ad; onClose: () => void; onAdded: (entry: AdPerformanceEntry) => void }) {
-  const [entryDate, setEntryDate] = useState(new Date().toISOString().split("T")[0])
+  const [entryDate, setEntryDate] = useState(todayIST())
   const [spend, setSpend] = useState<number | "">("")
   const [impressions, setImpressions] = useState<number | "">("")
   const [reach, setReach] = useState<number | "">("")
@@ -1953,7 +1954,7 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   )
   const [client, setClient] = useState("")
   const [title, setTitle] = useState("")
-  const [shotDate, setShotDate] = useState(new Date().toISOString().split("T")[0])
+  const [shotDate, setShotDate] = useState(todayIST())
   const [shotTime, setShotTime] = useState("")
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
@@ -2075,7 +2076,7 @@ function ReadyToPostModal({ item, onClose, onScheduled }: {
   onScheduled: (platforms: Platform[], date: string, time: string) => void
 }) {
   const [platforms, setPlatforms] = useState<Platform[]>([])
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [date, setDate] = useState(todayIST())
   const [time, setTime] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -2191,7 +2192,7 @@ function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
   onConfirm: (voiceoverBy: VoiceFreelancer, date: string) => void
 }) {
   const [voiceoverId, setVoiceoverId] = useState(freelancers[0]?.id ?? "")
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [date, setDate] = useState(todayIST())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -2766,7 +2767,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     // Entering Voice Over asks who recorded it.
     if (next === "voiceover") { setVoiceOverItem(item); return }
     const previous = item.status
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, ...(next === "edited" ? { edited_date: new Date().toISOString().split("T")[0] } : {}) } : i))
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, ...(next === "edited" ? { edited_date: todayIST() } : {}) } : i))
     startTransition(async () => {
       const res = await updateContentItemStatus(item.id, next)
       if (!res.success) {
@@ -2848,7 +2849,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
   const draggedItem = items.find(i => i.id === dragId)
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayIST()
 
   // Distinct creation months across everything Overview counts — independent of
   // allMonthOptions above, which keys off shot/edited/posted dates, not created_at.

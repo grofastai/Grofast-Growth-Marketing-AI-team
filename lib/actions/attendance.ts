@@ -8,6 +8,7 @@ import { sendNotification } from '@/lib/notifications/send'
 import { insertManyNotifications } from './notifications'
 import { calcNetWorkHours } from '@/lib/utils/work-hours'
 import { findUnresolvedLogoutDate, formatGateDate, hasFiledUpdate } from '@/lib/attendance-gate'
+import { todayIST, nowISTShifted } from '@/lib/utils/ist-date'
 
 // 9:30 AM IST = 04:00 UTC. Returns true if clock-in is after 9:30 AM IST.
 function isLateArrival(isoUtc: string): boolean {
@@ -80,7 +81,7 @@ export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ s
   if ('error' in ctxResult) return { success: false, error: ctxResult.error }
   const ctx = ctxResult
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const admin = adminSupabase()
 
   const { data: existing } = await admin
@@ -248,7 +249,7 @@ export async function markAbsent(): Promise<{ success: boolean; error?: string }
   if ('error' in ctxResult) return { success: false, error: ctxResult.error }
   const ctx = ctxResult
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const admin = adminSupabase()
 
   const { data: existing } = await admin
@@ -280,7 +281,7 @@ export async function markPastAbsent(date: string): Promise<{ success: boolean; 
   if ('error' in ctxResult) return { success: false, error: ctxResult.error }
   const ctx = ctxResult
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   if (date > today) return { success: false, error: 'Cannot mark future dates as on leave' }
 
   const admin = adminSupabase()
@@ -312,7 +313,7 @@ export async function clockOut(): Promise<{ success: boolean; error?: string }> 
   if ('error' in ctxResult) return { success: false, error: ctxResult.error }
   const ctx = ctxResult
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const admin = adminSupabase()
 
   const { data: log } = await admin
@@ -353,7 +354,7 @@ export async function breakIn(): Promise<{ success: boolean; error?: string }> {
   if ('error' in ctxResult) return { success: false, error: ctxResult.error }
   const ctx = ctxResult
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const admin = adminSupabase()
 
   const { data: log } = await admin
@@ -388,7 +389,7 @@ export async function breakOut(): Promise<{ success: boolean; error?: string }> 
   if ('error' in ctxResult) return { success: false, error: ctxResult.error }
   const ctx = ctxResult
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const admin = adminSupabase()
 
   const { data: log } = await admin
@@ -514,7 +515,7 @@ export async function resumeAttendance(date: string): Promise<{ success: boolean
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, error: 'Invalid date.' }
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   if (date !== today) return { success: false, error: 'Can only resume attendance for today.' }
 
   const admin = adminSupabase()
@@ -712,9 +713,12 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
   let noLeaveDate = ''
   let forgotLogoutSettled = false
 
-  const cursor = new Date()
+  // nowISTShifted() gives a Date whose UTC getters read as IST wall-clock time — use the
+  // UTC setters/getters here too, so each step back walks one real IST calendar day
+  // instead of drifting via the server's own (UTC) timezone.
+  const cursor = nowISTShifted()
   for (let i = 0; i < MAX_LOOKBACK_DAYS; i++) {
-    cursor.setDate(cursor.getDate() - 1)
+    cursor.setUTCDate(cursor.getUTCDate() - 1)
     const dateStr = cursor.toISOString().split('T')[0]
     if (joinedAt && dateStr < joinedAt) break // don't scan before they joined
 
@@ -812,7 +816,7 @@ export async function getTodayCoverageReport(): Promise<{
   if ('error' in ctxResult) return empty
 
   const ctx = ctxResult
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const admin = adminSupabase()
 
   const [{ data: log }, { data: update }] = await Promise.all([

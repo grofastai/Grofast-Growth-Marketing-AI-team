@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 import { autoInsertLeaveHistory } from '@/lib/leave-approval-effects'
 import { findUnresolvedLogoutDate, formatGateDate } from '@/lib/attendance-gate'
+import { todayIST } from '@/lib/utils/ist-date'
 
 // GET — Meta webhook verification handshake
 export async function GET(req: NextRequest) {
@@ -173,7 +174,7 @@ async function handleLeaveAction(leaveId: string, action: 'approve' | 'reject') 
   // WFH / Shoot Day → mark PRESENT with the right work_type (never absent).
   // Auto clock-in only for same-day single-day requests (from the attendance button).
   if (status === 'approved' && (leave.leave_type === 'wfh' || leave.leave_type === 'shoot_day')) {
-    const todayIst = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
+    const todayIst = todayIST()
     if (leave.from_date === todayIst && leave.to_date === todayIst) {
       const { data: existing } = await supabase
         .from('attendance_logs')
@@ -290,7 +291,7 @@ async function handleAttendanceButtonReply(
     return
   }
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const { data: existingRows } = await supabase
     .from('attendance_logs')
     .select('id')
@@ -397,7 +398,7 @@ async function handleAttendanceTextReply(from: string, text: string) {
 
   if (!user) return
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const { data: existingRows } = await supabase
     .from('attendance_logs')
     .select('id')

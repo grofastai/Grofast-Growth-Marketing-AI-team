@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import LeavesClient from "./leaves-client"
+import { todayIST, toISTDateString } from "@/lib/utils/ist-date"
 
 function adminClient() {
   return createClient(
@@ -28,8 +29,8 @@ export default async function LeavesPage({
   const mode = params.mode ?? "pending"
   const LEAVE_TYPES = ["full_day", "half_day", "permission"]   // "Leaves" bucket
   const PERMISSION_TYPES = ["wfh", "shoot_day"]                 // "Permission" bucket
-  const today = new Date().toISOString().split("T")[0]
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0]
+  const today = todayIST()
+  const tomorrow = toISTDateString(Date.now() + 86400000)
 
   const admin = adminClient()
 

@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Camera, Scissors, Mic, CheckCircle, ChevronDown, IndianRupee, Calendar, CreditCard } from "lucide-react"
 import { submitFreelancerUpdate } from "@/lib/actions/freelancer-updates"
 import { useToast } from "@/components/ui/useToast"
+import { todayIST } from "@/lib/utils/ist-date"
 
 type WorkType = "shooting" | "editing" | "voice_over"
 
@@ -89,7 +90,7 @@ function TextArea({ value, onChange, placeholder, rows = 3 }: {
 }
 
 export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayIST()
   const { toastEl, showToast } = useToast()
 
   const [workType, setWorkType] = useState<WorkType>("shooting")

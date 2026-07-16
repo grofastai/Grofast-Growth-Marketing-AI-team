@@ -7,6 +7,7 @@ import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import DailyUpdateForm, { type ActiveLeave, type CollabWindow } from "./daily-update-form"
 import { hasFiledUpdate, findUnfiledUpdateDate } from "@/lib/attendance-gate"
+import { todayIST } from "@/lib/utils/ist-date"
 import { Loader2 } from "lucide-react"
 
 function adminSupabase() {
@@ -26,7 +27,7 @@ export default async function UpdatePage() {
   const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminSupabase()
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayIST()
 
   const { data: profile } = await admin
     .from("users")

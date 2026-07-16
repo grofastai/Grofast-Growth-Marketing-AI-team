@@ -12,6 +12,7 @@ import {
 import AttendanceDateNav from "./attendance-date-nav"
 import { AttendanceDonut, WeeklyTrendChart } from "./attendance-charts"
 import ClearAttendanceBtn from "./clear-attendance-btn"
+import { todayIST } from "@/lib/utils/ist-date"
 
 function adminSupabase() {
   return createClient(
@@ -42,7 +43,7 @@ export default async function AttendancePage({
   searchParams: Promise<{ date?: string }>
 }) {
   const params       = await searchParams
-  const today        = new Date().toISOString().split("T")[0]
+  const today        = todayIST()
   const selectedDate = params.date ?? today
   const isToday      = selectedDate === today
 

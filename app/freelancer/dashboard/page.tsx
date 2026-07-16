@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import Link from "next/link"
 import { Users, ClipboardList, Camera, Scissors, Mic } from "lucide-react"
+import { todayIST } from "@/lib/utils/ist-date"
 
 function adminSupabase() {
   return createClient(
@@ -40,7 +41,7 @@ export default async function FreelancerDashboardPage() {
 
   if (!profile?.company_id) redirect("/login")
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayIST()
 
   const [
     { count: totalFreelancers },

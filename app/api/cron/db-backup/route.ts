@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { uploadFileToBackupFolder } from '@/lib/google/drive'
+import { todayIST } from '@/lib/utils/ist-date'
 
 function adminSupabase() {
   return createClient(
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
   }
 
   const admin = adminSupabase()
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const year = today.slice(0, 4)
 
   const [

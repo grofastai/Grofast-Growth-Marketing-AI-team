@@ -6,6 +6,7 @@ import { useState, useTransition } from "react"
 import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, UserCheck, Home, XOctagon, Paperclip, Plus, Trash2, Pencil, X, AlertTriangle, ChevronLeft, ChevronRight, ChevronDown, ListFilter } from "lucide-react"
 import { updateLeaveStatus } from "@/lib/actions/leaves"
 import { addCompanyLeave, updateCompanyLeave, deleteCompanyLeave } from "@/lib/actions/company-leaves"
+import { todayIST } from "@/lib/utils/ist-date"
 
 interface Leave {
   id: string
@@ -276,7 +277,7 @@ export default function LeavesClient({
   // Client-side date filter (default All Time so the approval queue never hides
   // pending requests from other months). Month picker + custom range available.
   const [dateMode, setDateMode]     = useState<"all" | "month" | "custom">("all")
-  const [filterMonth, setFilterMonth] = useState(() => new Date().toISOString().slice(0, 7))
+  const [filterMonth, setFilterMonth] = useState(() => todayIST().slice(0, 7))
   const [rangeFrom, setRangeFrom]   = useState("")
   const [rangeTo, setRangeTo]       = useState("")
   const shiftMonth = (ym: string, delta: number) => {

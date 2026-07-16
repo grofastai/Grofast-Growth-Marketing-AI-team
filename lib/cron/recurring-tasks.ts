@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { computeNextRun, isRecurringInterval } from '@/lib/recurring'
 import { insertNotification } from '@/lib/actions/notifications'
 import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
+import { todayIST } from '@/lib/utils/ist-date'
 
 // Clones every task whose recurring_next_run has arrived into a new "todo" task,
 // carrying the schedule forward, and retires the row that just spawned it.
@@ -10,7 +11,7 @@ import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 // repeatedly: only rows still recurring_active=true match, so a task already
 // cloned earlier that day is silently skipped on a later run.
 export async function runRecurringTasksJob(admin: SupabaseClient): Promise<{ created: number; due: number }> {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayIST()
 
   const { data: dueTasks, error: fetchError } = await admin
     .from('tasks')

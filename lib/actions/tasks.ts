@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { insertNotification, insertManyNotifications } from './notifications'
 import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 import { computeNextRun, isRecurringInterval, resolveRecurringSchedule } from '@/lib/recurring'
+import { todayIST } from '@/lib/utils/ist-date'
 
 function adminSupabase() {
   return createClient(
@@ -57,7 +58,7 @@ export async function createTask(
   let recurringDueDate: string | null = parsed.data.due_date || null
   let recurringUntil: string | null = null
   if (!isCustomDates && recurringTask !== 'none') {
-    const todayStr = new Date().toISOString().slice(0, 10)
+    const todayStr = todayIST()
     const schedule = resolveRecurringSchedule(
       recurringTask, parsed.data.due_date || null,
       (formData.get('recurring_until') as string) || null,
@@ -208,7 +209,7 @@ export async function createMemberTask(
   let recurringDueDate: string | null = parsed.data.due_date || null
   let recurringUntil: string | null = null
   if (!isCustomDates && recurringTask !== 'none') {
-    const todayStr = new Date().toISOString().slice(0, 10)
+    const todayStr = todayIST()
     const schedule = resolveRecurringSchedule(
       recurringTask, parsed.data.due_date || null,
       (formData.get('recurring_until') as string) || null,

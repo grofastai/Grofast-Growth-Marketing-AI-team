@@ -21,6 +21,7 @@ import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject, upd
 import { getTaskComments, addTaskComment, type TaskComment } from "@/lib/actions/comments"
 import { createBrowserClient } from "@/lib/supabase/client"
 import ClientSelector from "@/components/ui/ClientSelector"
+import { todayIST } from "@/lib/utils/ist-date"
 
 type TaskAttachment = { type: 'link' | 'file'; url: string; name?: string } | string
 
@@ -676,7 +677,7 @@ export default function MemberTasksClient({
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   )
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayIST()
 
   // Productivity stats count only tasks assigned TO me (not tasks I assigned to others)
   const myTasks     = tasks.filter(t => t.assigned_to === currentUserId)

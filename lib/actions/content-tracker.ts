@@ -8,6 +8,7 @@ import {
   type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput,
 } from '@/lib/validations/content-tracker'
 import { isValidPipelineTransition, type ContentPipelineStatus } from '@/lib/content-tracker/pipeline-transitions'
+import { todayIST } from '@/lib/utils/ist-date'
 
 function adminSupabase() {
   return createClient(
@@ -42,7 +43,7 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
   if (!ctx) return { success: false, error: 'Not authenticated' }
 
   const isBackfillPosted = !!(parsed.data.posted_platforms && parsed.data.posted_platforms.length > 0)
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const shotDate = parsed.data.shot_date || today
 
   // Manual entry has no shoot/script behind it — video defaults to the shoot origin
@@ -217,7 +218,7 @@ export async function updateContentItemStatus(
   }
 
   if (status === 'edited') {
-    updates.edited_date = new Date().toISOString().split('T')[0]
+    updates.edited_date = todayIST()
     // Don't clobber the editor picked when it entered Editing. Only fall back to the
     // current user if it somehow skipped that step and has no editor recorded.
     if (!current.edited_by) updates.edited_by = ctx.id

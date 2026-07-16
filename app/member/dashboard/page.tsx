@@ -10,6 +10,7 @@ import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
 import MonthFilterTabs from "@/components/member/MonthFilterTabs"
 import { calcNetWorkHours } from "@/lib/utils/work-hours"
+import { todayIST, nowISTShifted } from "@/lib/utils/ist-date"
 
 function adminClient() {
   return createClient(
@@ -38,8 +39,11 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const params = await searchParams
   const monthParam = params.month ?? ""
 
-  const now   = new Date()
-  const today = now.toISOString().split("T")[0]
+  // nowISTShifted() reads as IST wall-clock time via its UTC getters — plain new Date()
+  // reads the server's own clock (UTC on Vercel), wrong for "today"/"this month" during
+  // the 00:00-05:30 IST window every day.
+  const now   = nowISTShifted()
+  const today = todayIST()
 
   // Month range based on filter
   let monthStart: string, monthEnd: string, monthName: string
@@ -47,12 +51,12 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
   if (monthParam === "last") {
     monthMode = "last"
-    const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
-    const m = now.getMonth() === 0 ? 12 : now.getMonth()
+    const y = now.getUTCMonth() === 0 ? now.getUTCFullYear() - 1 : now.getUTCFullYear()
+    const m = now.getUTCMonth() === 0 ? 12 : now.getUTCMonth()
     monthStart = `${y}-${String(m).padStart(2, "0")}-01`
-    const lastDay = new Date(now.getFullYear(), now.getMonth(), 0)
+    const lastDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0))
     monthEnd  = lastDay.toISOString().split("T")[0]
-    monthName = new Date(y, m - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" })
+    monthName = new Date(Date.UTC(y, m - 1, 1)).toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })
   } else if (monthParam === "all") {
     monthMode  = "all"
     monthStart = "2020-01-01"
@@ -62,13 +66,13 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     monthMode = "custom"
     const [yr, mo] = monthParam.split("-").map(Number)
     monthStart = `${yr}-${String(mo).padStart(2, "0")}-01`
-    monthEnd   = new Date(yr, mo, 0).toISOString().split("T")[0]
-    monthName  = new Date(yr, mo - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" })
+    monthEnd   = new Date(Date.UTC(yr, mo, 0)).toISOString().split("T")[0]
+    monthName  = new Date(Date.UTC(yr, mo - 1, 1)).toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })
   } else {
     monthMode  = "this"
-    monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+    monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`
     monthEnd   = today
-    monthName  = now.toLocaleString("en-US", { month: "long", year: "numeric" })
+    monthName  = now.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })
   }
 
   type ProfileRow    = { name: string; employee_id: string; phone: string | null; photo_url: string | null; blood_group: string | null; emergency_contact_name: string | null; team: string | null }
@@ -316,18 +320,18 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   }
   const NM_TYPE_ORDER = ["other", "poster", "voiceover", "edit", "scripting", "development"]
 
-  const hour      = now.getHours()
+  const hour      = now.getUTCHours()
   const greeting  = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
-  const dateStr   = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
+  const dateStr   = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })
   const firstName = profile?.name?.split(" ")[0] ?? "there"
 
   // Next salary date: 5th of current month if today < 5, else 5th of next month
-  const todayDay = now.getDate()
+  const todayDay = now.getUTCDate()
   const nextSalaryDate = todayDay < 5
-    ? new Date(now.getFullYear(), now.getMonth(), 5)
-    : new Date(now.getFullYear(), now.getMonth() + 1, 5)
-  const nextSalaryDaysLeft = Math.max(0, Math.ceil((nextSalaryDate.getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86400000))
-  const nextSalaryLabel = nextSalaryDate.toLocaleDateString("en-IN", { day: "numeric", month: "long" })
+    ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 5))
+    : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 5))
+  const nextSalaryDaysLeft = Math.max(0, Math.ceil((nextSalaryDate.getTime() - new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).getTime()) / 86400000))
+  const nextSalaryLabel = nextSalaryDate.toLocaleDateString("en-IN", { day: "numeric", month: "long", timeZone: "UTC" })
 
   let productivitySignal: { icon: "zap" | "warn"; text: string; color: string } | null = null
   if (clockLog?.clock_in) {

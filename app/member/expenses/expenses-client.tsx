@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { submitExpense } from "@/lib/actions/expenses"
 import { Receipt, Plus, CheckCircle2, Clock, XCircle, Loader2, X, IndianRupee, AlertTriangle } from "lucide-react"
+import { todayIST } from "@/lib/utils/ist-date"
 
 const CATEGORIES = ["Travel", "Food", "Equipment", "Software", "Office Supplies", "Other"]
 
@@ -39,7 +40,7 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
   const [showForm, setShowForm]  = useState(false)
   const [form, setForm]          = useState({
     amount: "", category: "", description: "",
-    date: new Date().toISOString().split("T")[0], notes: "",
+    date: todayIST(), notes: "",
   })
   const [error, setError]        = useState("")
   const [isPending, start]       = useTransition()
@@ -58,7 +59,7 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
       })
       if (res.success) {
         setShowForm(false)
-        setForm({ amount: "", category: "", description: "", date: new Date().toISOString().split("T")[0], notes: "" })
+        setForm({ amount: "", category: "", description: "", date: todayIST(), notes: "" })
         router.refresh()
       } else {
         setError(res.error ?? "Failed to submit")
@@ -182,7 +183,7 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#6B7280" }}>Date *</label>
-                    <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} style={{ ...FIELD, colorScheme: "light" }}
+                    <input type="date" min="2025-01-01" max={todayIST()} style={{ ...FIELD, colorScheme: "light" }}
                       value={form.date} onChange={set("date")} />
                   </div>
                 </div>

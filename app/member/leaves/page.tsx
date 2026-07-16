@@ -6,6 +6,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import MemberLeavesClient from "./leaves-client"
 import { blockFreelancerMedia } from "@/lib/utils/freelancer-guard"
+import { todayIST } from "@/lib/utils/ist-date"
 
 function adminSupabase() {
   return createClient(
@@ -30,7 +31,7 @@ export default async function MemberLeavesPage() {
   // client instead, scoped to effectiveUserId.
   const db = impersonateId ? admin : supabase
 
-  const yearStart = `${new Date().getFullYear()}-01-01`
+  const yearStart = `${todayIST().slice(0, 4)}-01-01`
 
   const { data: profileData } = await admin
     .from("users")

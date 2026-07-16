@@ -7,6 +7,7 @@ import { headers, cookies } from 'next/headers'
 import { loginSchema, changePasswordSchema } from '@/lib/validations/auth'
 import { loginLimiter } from '@/lib/ratelimit'
 import { findUnresolvedLogoutDate } from '@/lib/attendance-gate'
+import { todayIST } from '@/lib/utils/ist-date'
 
 function adminSupabase() {
   return createClient(
@@ -59,7 +60,7 @@ export async function loginAction(
     .maybeSingle()
 
   // Resume timer: accumulate offline seconds into paused_seconds
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const { data: pausedLog } = await admin
     .from('attendance_logs')
     .select('id, paused_seconds, session_paused_at')
@@ -152,7 +153,7 @@ export async function logoutAction(): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (user) {
     const admin = adminSupabase()
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayIST()
     await admin
       .from('attendance_logs')
       .update({ session_paused_at: new Date().toISOString() })

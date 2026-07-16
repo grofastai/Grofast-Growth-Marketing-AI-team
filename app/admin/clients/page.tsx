@@ -15,6 +15,7 @@ import {
   type CollabConfirmationRow,
 } from '@/lib/clients-deliverables'
 import ClientsUnifiedClient from './clients-unified-client'
+import { todayIST } from '@/lib/utils/ist-date'
 
 function adminClient() {
   return createClient(
@@ -46,7 +47,7 @@ export default async function ClientsUnifiedPage({
 }) {
   const { client: selectedClient, mode: rawMode, period: rawPeriod, from: rawFrom, to: rawTo } = await searchParams
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = todayIST()
   const mode: 'month' | 'all' | 'custom' =
     rawMode === 'all' ? 'all' : rawMode === 'custom' ? 'custom' : 'month'
 

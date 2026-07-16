@@ -6,6 +6,7 @@ import { Search, X, Sparkles, Building2, Users, TrendingUp } from 'lucide-react'
 import type { ClientRow } from './page'
 import type { DeliverableResult } from '@/lib/clients-deliverables'
 import { fmtRupee, fmtDate } from '@/lib/clients-deliverables'
+import { todayIST } from '@/lib/utils/ist-date'
 
 // ── Work type display config ──────────────────────────────────────────────────
 
@@ -238,10 +239,12 @@ export default function ClientsUnifiedClient({
   const filteredActive   = useMemo(() => filterList(regularActive),   [regularActive,   search]) // eslint-disable-line react-hooks/exhaustive-deps
   const filteredPast     = useMemo(() => filterList(pastClients),     [pastClients,     search]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function thisMonthStr() { return new Date().toISOString().slice(0, 7) }
+  function thisMonthStr() { return todayIST().slice(0, 7) }
   function prevMonthStr() {
-    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1)
-    return d.toISOString().slice(0, 7)
+    const [y, m] = todayIST().split('-').map(Number)
+    const py = m === 1 ? y - 1 : y
+    const pm = m === 1 ? 12 : m - 1
+    return `${py}-${String(pm).padStart(2, '0')}`
   }
 
   function selectClient(name: string) {

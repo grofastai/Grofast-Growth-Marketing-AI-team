@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/useToast"
 import ClientSelector from "@/components/ui/ClientSelector"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
 import { confirmCollaboration, editCollaborationTime, rejectCollaboration, deleteCollaborationsByEntry } from "@/lib/actions/collaboration"
+import { toISTDateString, todayIST } from "@/lib/utils/ist-date"
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 import Image from "next/image"
@@ -889,23 +890,25 @@ export default function HistoryClient({
     return set
   }, [updates])
 
-  // Streak calculation
+  // Streak calculation. Uses IST-explicit date keys (not toISOString, which is always
+  // UTC) and pure epoch-ms stepping (not local getDate/setDate) so it's correct
+  // regardless of the viewer's own device timezone — this app's "day" is always IST.
   const { streak, last7 } = useMemo(() => {
     const submitted = new Set(updates.map(u => u.date))
     let count = 0
-    const d = new Date()
+    let t = Date.now()
     // Today not submitted yet doesn't break the streak — the day isn't over.
     // Start counting from yesterday instead of zeroing out a real run.
-    if (!submitted.has(d.toISOString().split("T")[0])) d.setDate(d.getDate() - 1)
+    if (!submitted.has(toISTDateString(t))) t -= 86400000
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const ds = d.toISOString().split("T")[0]
-      if (submitted.has(ds)) { count++; d.setDate(d.getDate() - 1) } else break
+      const ds = toISTDateString(t)
+      if (submitted.has(ds)) { count++; t -= 86400000 } else break
     }
     const days = ["S","M","T","W","T","F","S"]
     const last7 = Array.from({ length:7 }, (_, i) => {
-      const dt = new Date(); dt.setDate(dt.getDate() - 6 + i)
-      return { lbl: days[dt.getDay()], done: submitted.has(dt.toISOString().split("T")[0]) }
+      const ds = toISTDateString(Date.now() - (6 - i) * 86400000)
+      return { lbl: days[new Date(ds + "T12:00:00").getDay()], done: submitted.has(ds) }
     })
     return { streak: count, last7 }
   }, [updates])
@@ -1095,7 +1098,7 @@ export default function HistoryClient({
             <input
               type="date"
               min="2025-01-01"
-              max={new Date().toISOString().split("T")[0]}
+              max={todayIST()}
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
               style={{ border:"none", outline:"none", fontSize:12, fontWeight:600, color: dateActive ? "#DE1A1A" : "#374151", background:"transparent", cursor:"pointer" }}
@@ -2427,7 +2430,7 @@ export default function HistoryClient({
                                     <p style={{ fontSize:11, fontWeight:700, color:"#D97706", margin:"0 0 2px" }}>✏️ Edit Break</p>
                                     <div>
                                       <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Date</label>
-                                      <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border: editDraftDate!==editOrigDate?"1.5px solid #6366F1":"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} />
+                                      <input type="date" min="2025-01-01" max={todayIST()} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border: editDraftDate!==editOrigDate?"1.5px solid #6366F1":"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
                                     <div style={{ background:"#FFFBEB", borderRadius:12, border:"1.5px solid rgba(245,158,11,0.3)", padding:"10px 14px", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
@@ -2464,7 +2467,7 @@ export default function HistoryClient({
                                     <p style={{ fontSize:11, fontWeight:800, color:"#EF4444", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Shoot</p>
                                     <div>
                                       <label style={HL}>Entry Date</label>
-                                      <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
+                                      <input type="date" min="2025-01-01" max={todayIST()} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
@@ -2590,12 +2593,12 @@ export default function HistoryClient({
                                     </div>
                                     <div>
                                       <label style={HL}>Entry Date</label>
-                                      <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
+                                      <input type="date" min="2025-01-01" max={todayIST()} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                                      <div><label style={HL}>Date Given <span style={{ color:"#EF4444" }}>*</span></label><input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={editDraft.date_given??""} onChange={ev=>setEditDraft(d=>({...d,date_given:clampDate(ev.target.value)}))} style={{ ...HF, colorScheme:"light", borderColor: !editDraft.date_given ? "#EF4444" : "#EBEDF2" }} /></div>
-                                      <div><label style={HL}>Date Finished <span style={{ color:"#EF4444" }}>*</span></label><input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={editDraft.date_finished??""} onChange={ev=>setEditDraft(d=>({...d,date_finished:clampDate(ev.target.value)}))} style={{ ...HF, colorScheme:"light", borderColor: !editDraft.date_finished ? "#EF4444" : "#EBEDF2" }} /></div>
+                                      <div><label style={HL}>Date Given <span style={{ color:"#EF4444" }}>*</span></label><input type="date" min="2025-01-01" max={todayIST()} value={editDraft.date_given??""} onChange={ev=>setEditDraft(d=>({...d,date_given:clampDate(ev.target.value)}))} style={{ ...HF, colorScheme:"light", borderColor: !editDraft.date_given ? "#EF4444" : "#EBEDF2" }} /></div>
+                                      <div><label style={HL}>Date Finished <span style={{ color:"#EF4444" }}>*</span></label><input type="date" min="2025-01-01" max={todayIST()} value={editDraft.date_finished??""} onChange={ev=>setEditDraft(d=>({...d,date_finished:clampDate(ev.target.value)}))} style={{ ...HF, colorScheme:"light", borderColor: !editDraft.date_finished ? "#EF4444" : "#EBEDF2" }} /></div>
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                                       <div>
@@ -2663,7 +2666,7 @@ export default function HistoryClient({
                                     <p style={{ fontSize:11, fontWeight:700, color:"#6366F1", margin:"0 0 2px" }}>Edit Entry</p>
                                     <div>
                                       <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Date</label>
-                                      <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:editDraftDate!==editOrigDate?"1.5px solid #6366F1":"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} />
+                                      <input type="date" min="2025-01-01" max={todayIST()} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:editDraftDate!==editOrigDate?"1.5px solid #6366F1":"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
                                     {editDraft.task_type==="learning" ? (
@@ -2820,7 +2823,7 @@ export default function HistoryClient({
                                     </div>
                                     <div>
                                       <label style={HL}>Entry Date</label>
-                                      <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
+                                      <input type="date" min="2025-01-01" max={todayIST()} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
@@ -2887,7 +2890,7 @@ export default function HistoryClient({
                                     </div>
                                     <div>
                                       <label style={HL}>Entry Date</label>
-                                      <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
+                                      <input type="date" min="2025-01-01" max={todayIST()} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
@@ -2980,7 +2983,7 @@ export default function HistoryClient({
                                     </div>
                                     <div>
                                       <label style={HL}>Entry Date</label>
-                                      <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
+                                      <input type="date" min="2025-01-01" max={todayIST()} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
@@ -3050,7 +3053,7 @@ export default function HistoryClient({
                                     <p style={{ fontSize:11, fontWeight:800, color:"#4338CA", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Development</p>
                                     <div>
                                       <label style={HL}>Entry Date</label>
-                                      <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
+                                      <input type="date" min="2025-01-01" max={todayIST()} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
@@ -3123,7 +3126,7 @@ export default function HistoryClient({
                                     <p style={{ fontSize:11, fontWeight:800, color:"#374151", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Other</p>
                                     <div>
                                       <label style={HL}>Entry Date</label>
-                                      <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
+                                      <input type="date" min="2025-01-01" max={todayIST()} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
@@ -3222,7 +3225,7 @@ export default function HistoryClient({
                                     </div>
                                     <div>
                                       <label style={HL}>Entry Date</label>
-                                      <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
+                                      <input type="date" min="2025-01-01" max={todayIST()} value={editDraftDate} onChange={ev=>setEditDraftDate(clampDate(ev.target.value))} style={{ ...HF, colorScheme:"light" }} />
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>

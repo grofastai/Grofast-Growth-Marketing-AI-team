@@ -10,6 +10,7 @@ import {
   Bell, Clock, SlidersHorizontal, Trash2, Pencil, AlertTriangle,
 } from "lucide-react"
 import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest, withdrawWfhForDate } from "@/lib/actions/leaves"
+import { todayIST } from "@/lib/utils/ist-date"
 
 interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
@@ -210,7 +211,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [halfTo, setHalfTo]             = useState("")
   const [filterMode, setFilterMode] = useState<"all" | "leaves" | "permission" | "approved" | "rejected">("all")
   const [dateMode, setDateMode]     = useState<"month" | "all" | "custom">("month")
-  const [filterMonth, setFilterMonth] = useState(() => new Date().toISOString().slice(0, 7))
+  const [filterMonth, setFilterMonth] = useState(() => todayIST().slice(0, 7))
   const [rangeFrom, setRangeFrom]   = useState("")
   const [rangeTo, setRangeTo]       = useState("")
   const [showMore, setShowMore]     = useState(false)
@@ -289,7 +290,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     }
   }
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayIST()
 
   function isExpired(leave: Leave) {
     return leave.status === "pending" && leave.to_date < today

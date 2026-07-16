@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { todayIST } from '@/lib/utils/ist-date'
 
 function adminSupabase() {
   return createClient(
@@ -173,7 +174,7 @@ export async function markAsPaid(updateId: string): Promise<{ success: boolean; 
     return { success: false, error: 'Not authorized' }
   }
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayIST()
   const { error } = await admin
     .from('freelancer_updates')
     .update({ payment_status: 'paid', paid_date: today })

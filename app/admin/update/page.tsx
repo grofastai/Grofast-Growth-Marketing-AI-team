@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import DailyUpdateForm from "@/app/member/update/daily-update-form"
 import { Loader2 } from "lucide-react"
+import { todayIST } from "@/lib/utils/ist-date"
 
 function adminSupabase() {
   return createClient(
@@ -23,7 +24,7 @@ export default async function AdminUpdatePage() {
   type Project = { id: string; business_name: string }
 
   const admin = adminSupabase()
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayIST()
 
   const { data: profile } = await admin
     .from("users")

@@ -14,6 +14,7 @@ import ClientSelector from "@/components/ui/ClientSelector"
 import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
 import { useToast } from "@/components/ui/useToast"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
+import { todayIST } from "@/lib/utils/ist-date"
 
 interface Project { id: string; business_name: string }
 interface TeamMember { id: string; name: string; employee_id: string; role: string; team?: string | null }
@@ -385,8 +386,8 @@ function parseExistingEdits(existingUpdate: Record<string, unknown>): EditEntry[
       videoDuration: e.video_duration ?? "",
       startTime: e.start_time ?? "",
       endTime: e.end_time ?? "",
-      dateGiven: e.date_given ?? new Date().toISOString().split("T")[0],
-      dateFinished: e.date_finished ?? new Date().toISOString().split("T")[0],
+      dateGiven: e.date_given ?? todayIST(),
+      dateFinished: e.date_finished ?? todayIST(),
       timeTaken: e.duration_hours ?? 0,
       driveUpdated: e.drive_updated ?? false,
       revisions: e.revisions ?? 0,
@@ -572,7 +573,7 @@ export default function DailyUpdateForm({
   // Per-person non-media block checklist — null/unset means everything enabled (back-compat default).
   const blockEnabled = (key: string) => !enabledBlocks || enabledBlocks.includes(key)
 
-  const todayStr = new Date().toISOString().split("T")[0]
+  const todayStr = todayIST()
 
   // ── Date selector ────────────────────────────────────────────────────────
   const [selectedDate, setSelectedDate] = useState(defaultDate ?? todayStr)

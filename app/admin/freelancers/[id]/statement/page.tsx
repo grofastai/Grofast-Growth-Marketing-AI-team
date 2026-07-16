@@ -3,6 +3,7 @@ export const revalidate = 0
 import { createClient } from "@supabase/supabase-js"
 import { createServerClient } from "@/lib/supabase/server"
 import { redirect, notFound } from "next/navigation"
+import { todayIST } from "@/lib/utils/ist-date"
 
 function adminSupabase() {
   return createClient(
@@ -40,8 +41,9 @@ export default async function StatementPage({
 }) {
   const { id } = await params
   const sp     = await searchParams
-  const year   = parseInt(sp.year  ?? String(new Date().getFullYear()))
-  const month  = parseInt(sp.month ?? String(new Date().getMonth() + 1))
+  const [nowYear, nowMonth] = todayIST().split('-')
+  const year   = parseInt(sp.year  ?? nowYear)
+  const month  = parseInt(sp.month ?? nowMonth)
 
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()

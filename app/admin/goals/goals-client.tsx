@@ -11,6 +11,7 @@ import {
 import { createTask, updateTaskStatus, deleteTask } from "@/lib/actions/tasks"
 import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
 import { createBrowserClient } from "@/lib/supabase/client"
+import { todayIST } from "@/lib/utils/ist-date"
 
 interface TaskAttachment { type: 'link' | 'file'; url: string; name?: string }
 
@@ -829,7 +830,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
               {recurringTask === "none" && (
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Due Date</label>
-                  <input name="due_date" type="date" min={new Date().toISOString().split("T")[0]} max="2099-12-31" className="ti" style={{ colorScheme: "light" }} />
+                  <input name="due_date" type="date" min={todayIST()} max="2099-12-31" className="ti" style={{ colorScheme: "light" }} />
                 </div>
               )}
 
@@ -838,11 +839,11 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
                     <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>From Date <span style={{ color: "#DE1A1A" }}>*</span></label>
-                    <input name="due_date" type="date" min={new Date().toISOString().split("T")[0]} max="2099-12-31" required className="ti" style={{ colorScheme: "light" }} />
+                    <input name="due_date" type="date" min={todayIST()} max="2099-12-31" required className="ti" style={{ colorScheme: "light" }} />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Due Date <span style={{ color: "#DE1A1A" }}>*</span></label>
-                    <input name="recurring_until" type="date" min={new Date().toISOString().split("T")[0]} max="2099-12-31" required value={recurringUntil} onChange={e => setRecurringUntil(e.target.value)}
+                    <input name="recurring_until" type="date" min={todayIST()} max="2099-12-31" required value={recurringUntil} onChange={e => setRecurringUntil(e.target.value)}
                       className="ti" style={{ colorScheme: "light" }} />
                   </div>
                   <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0, gridColumn: "1 / -1" }}>Creates a fresh task every day from From Date through Due Date</p>
@@ -870,7 +871,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Until <span style={{ color: "#DE1A1A" }}>*</span></label>
-                    <input name="recurring_until" type="date" min={new Date().toISOString().split("T")[0]} max="2099-12-31" required value={recurringUntil} onChange={e => setRecurringUntil(e.target.value)}
+                    <input name="recurring_until" type="date" min={todayIST()} max="2099-12-31" required value={recurringUntil} onChange={e => setRecurringUntil(e.target.value)}
                       className="ti" style={{ colorScheme: "light" }} />
                   </div>
                 </div>
@@ -881,11 +882,11 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
                     <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Date <span style={{ color: "#DE1A1A" }}>*</span></label>
-                    <input name="due_date" type="date" min={new Date().toISOString().split("T")[0]} max="2099-12-31" required className="ti" style={{ colorScheme: "light" }} />
+                    <input name="due_date" type="date" min={todayIST()} max="2099-12-31" required className="ti" style={{ colorScheme: "light" }} />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Until <span style={{ color: "#DE1A1A" }}>*</span></label>
-                    <input name="recurring_until" type="date" min={new Date().toISOString().split("T")[0]} max="2099-12-31" required value={recurringUntil} onChange={e => setRecurringUntil(e.target.value)}
+                    <input name="recurring_until" type="date" min={todayIST()} max="2099-12-31" required value={recurringUntil} onChange={e => setRecurringUntil(e.target.value)}
                       className="ti" style={{ colorScheme: "light" }} />
                   </div>
                 </div>
@@ -899,7 +900,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   </label>
                   {customDates.map(d => <input key={d} type="hidden" name="custom_due_dates" value={d} />)}
                   <div style={{ display: "flex", gap: 8 }}>
-                    <input type="date" min={new Date().toISOString().split("T")[0]} max="2099-12-31" value={newCustomDate} onChange={e => setNewCustomDate(e.target.value)}
+                    <input type="date" min={todayIST()} max="2099-12-31" value={newCustomDate} onChange={e => setNewCustomDate(e.target.value)}
                       className="ti" style={{ colorScheme: "light" }} />
                     <button type="button"
                       onClick={() => {

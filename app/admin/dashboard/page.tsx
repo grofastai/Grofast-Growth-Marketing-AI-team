@@ -14,6 +14,7 @@ import PendingApprovalsCard from "./pending-approvals"
 import TaskSummaryChart from "./task-summary-chart"
 import MiniCalendar from "./mini-calendar"
 import DashboardSearch from "@/components/admin/DashboardSearch"
+import { todayIST, toISTDateString, nowISTShifted } from "@/lib/utils/ist-date"
 
 function adminSupabase() {
   return createClient(
@@ -57,11 +58,14 @@ export default async function DashboardPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const now        = new Date()
-  const today      = now.toISOString().split("T")[0]
-  const yesterday  = new Date(now.getTime() - 86400000).toISOString().split("T")[0]
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
-  const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0]
+  // nowISTShifted() reads as IST wall-clock time via its UTC getters — plain new Date()
+  // reads the server's own clock (UTC on Vercel), wrong for "today"/"this month" during
+  // the 00:00-05:30 IST window every day.
+  const now        = nowISTShifted()
+  const today      = todayIST()
+  const yesterday  = toISTDateString(Date.now() - 86400000)
+  const monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`
+  const monthEnd   = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).toISOString().split("T")[0]
 
   const admin = adminSupabase()
   const { data: profile } = await admin
@@ -212,9 +216,12 @@ export default async function DashboardPage() {
     users: Array.isArray(l.users) ? (l.users[0] ?? null) : l.users,
   }))
 
-  const hour     = now.getHours()
+  // now is IST-shifted — read it with getUTC*/timeZone:'UTC' only, never the local
+  // getters/omitted-timeZone formatters, which would apply the server's own timezone
+  // on top of the shift and depend on Vercel happening to run in UTC.
+  const hour     = now.getUTCHours()
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
-  const dateStr  = now.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+  const dateStr  = now.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
 
   const adminName = profile?.name ?? "Admin"
   const firstName = adminName.split(" ")[0]
@@ -376,8 +383,8 @@ export default async function DashboardPage() {
           <MiniCalendar
             leaveMap={leaveCalMap}
             today={today}
-            initYear={now.getFullYear()}
-            initMonth={now.getMonth()}
+            initYear={now.getUTCFullYear()}
+            initMonth={now.getUTCMonth()}
           />
         </div>
       </div>

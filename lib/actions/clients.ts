@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { createServerClient } from '@/lib/supabase/server'
+import { todayIST } from '@/lib/utils/ist-date'
 
 function adminSupabase() {
   return createClient(
@@ -64,7 +65,7 @@ export async function updateClientStatus(id: string, status: 'active' | 'past'):
   const { data: currentClient } = await admin.from('clients').select('status').eq('id', id).single()
   const oldStatus = (currentClient as { status?: string } | null)?.status
   if (oldStatus != null && oldStatus !== status) {
-    const effectiveFrom = new Date().toISOString().split('T')[0]
+    const effectiveFrom = todayIST()
     const { data: existing } = await admin
       .from('client_status_history')
       .select('id')

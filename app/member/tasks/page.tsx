@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import MemberTasksClient from "./tasks-client"
+import { todayIST } from "@/lib/utils/ist-date"
 
 function adminSupabase() {
   return createClient(
@@ -22,7 +23,7 @@ export default async function MemberTasksPage() {
   const impersonateId = cookieStore.get("gf_impersonate")?.value
   const effectiveUserId = impersonateId ?? user.id
 
-  const today = new Date().toISOString().split("T")[0]
+  const today = todayIST()
 
   type AttLog  = { clock_in: string | null; clock_out: string | null }
   type DayUpd  = { working_hours: number | null }

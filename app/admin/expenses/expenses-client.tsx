@@ -20,6 +20,7 @@ import {
   upsertCommonExpense,
   deleteCommonExpense,
 } from "@/lib/actions/client-expenses"
+import { todayIST } from "@/lib/utils/ist-date"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -188,7 +189,7 @@ function ClientExpenseModalBody({ clients, selectedMonth, editing, onClose }: {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6B1D3A" }}>Date</label>
-            <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={date} onChange={e => setDate(e.target.value)}
+            <input type="date" min="2025-01-01" max={todayIST()} value={date} onChange={e => setDate(e.target.value)}
               className="mt-1 w-full rounded-xl px-3 py-2.5 text-[13px] outline-none"
               style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }} />
           </div>

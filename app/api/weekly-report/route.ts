@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 import { calcNetWorkHours } from '@/lib/utils/work-hours'
+import { todayIST, toISTDateString } from '@/lib/utils/ist-date'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -57,8 +58,8 @@ export async function GET(request: NextRequest) {
   }
 
   const admin = adminSupabase()
-  const today = new Date().toISOString().split('T')[0]
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  const today = todayIST()
+  const weekAgo = toISTDateString(Date.now() - 7 * 24 * 60 * 60 * 1000)
 
   const [
     { data: updatesRaw },

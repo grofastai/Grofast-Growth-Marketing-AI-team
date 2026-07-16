@@ -287,7 +287,7 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
         {/* Date */}
         <div>
           <label style={LABEL}>📅 Date *</label>
-          <input type="date" min="2025-01-01" max={new Date().toISOString().split("T")[0]} value={entry.date_given} onChange={e => onChange("date_given", clampDate(e.target.value))} style={{ ...FIELD, colorScheme: "light" }} />
+          <input type="date" min="2025-01-01" max={todayIST()} value={entry.date_given} onChange={e => onChange("date_given", clampDate(e.target.value))} style={{ ...FIELD, colorScheme: "light" }} />
         </div>
 
         {/* Client Name */}

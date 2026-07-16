@@ -175,9 +175,10 @@ export default async function UpdatePage() {
     }
   }
 
-  // 4A: requires today clock-in (skip for management and freelancer and when impersonating)
+  // 4A: requires today clock-in (skip for management, freelancer, when impersonating,
+  // and on an approved leave day — there's nothing to clock in for if you're off today)
   const todayClockedIn = !!(todayClockLog as { clock_in: string | null } | null)?.clock_in
-  const requiresClockIn = !isManagement && !isFreelancer && !impersonateId
+  const requiresClockIn = !isManagement && !isFreelancer && !impersonateId && !approvedLeaveDates.includes(today)
 
   // 4B: open the form on the day the gate is blocking, so "Submit This Day's Update" lands
   // on the right date. That's the oldest worked day with no entries — which may be older

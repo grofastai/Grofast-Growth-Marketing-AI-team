@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition, useCallback, Fragment } from "react"
 import Image from "next/image"
-import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch, RotateCcw } from "lucide-react"
+import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch, RotateCcw, Palmtree } from "lucide-react"
 import { clockIn, clockOut, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes } from "@/lib/actions/attendance"
 import { submitWfhAttendanceRequest } from "@/lib/actions/leaves"
 import { useRouter } from "next/navigation"
@@ -870,14 +870,20 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
               {/* ON LEAVE */}
               {isAbsent && (
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(239,68,68,0.08)" }}>
-                    <span className="text-[20px]">✗</span>
+                <div className="flex items-center gap-4">
+                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.16), rgba(217,119,6,0.10))" }}>
+                    <Palmtree size={22} style={{ color: "#D97706" }} />
                   </div>
                   <div>
-                    <p className="text-[15px] font-bold" style={{ color: "#111111" }}>On Leave Today</p>
-                    <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>An approved leave is recorded for today.</p>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-[14px] font-bold" style={{ color: "#111111" }}>On Leave Today</p>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide"
+                        style={{ background: "rgba(245,158,11,0.15)", color: "#D97706", border: "1px solid rgba(245,158,11,0.35)" }}>
+                        Approved
+                      </span>
+                    </div>
+                    <p className="text-[12px]" style={{ color: "#9CA3AF" }}>Enjoy your day off — no clock-in needed.</p>
                   </div>
                 </div>
               )}

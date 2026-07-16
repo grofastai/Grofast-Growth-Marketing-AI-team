@@ -1,9 +1,9 @@
 'use server'
 
-import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { insertNotification } from './notifications'
+import { getEffectiveUserId } from './impersonate'
 
 function adminSupabase() {
   return createClient(
@@ -103,9 +103,11 @@ async function checkCollabOverlapsWork(
 export async function confirmCollaboration(
   id: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  // getEffectiveUserId resolves to the impersonated member's ID when an admin is
+  // viewing as them — without this, confirming/editing/rejecting while impersonating
+  // always failed with "Not found" because it checked the admin's own real ID instead.
+  const effectiveUserId = await getEffectiveUserId()
+  if (!effectiveUserId) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
 
@@ -113,13 +115,13 @@ export async function confirmCollaboration(
     .from('collaboration_confirmations')
     .select('date, original_start_time, original_end_time, original_duration_hours')
     .eq('id', id)
-    .eq('collaborator_id', user.id)
+    .eq('collaborator_id', effectiveUserId)
     .single()
 
   if (!conf) return { success: false, error: 'Not found' }
 
   const overlapErr = await checkCollabOverlapsWork(
-    admin, user.id,
+    admin, effectiveUserId,
     (conf as { date: string }).date,
     (conf as { original_start_time: string }).original_start_time,
     (conf as { original_end_time: string }).original_end_time
@@ -136,7 +138,7 @@ export async function confirmCollaboration(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-    .eq('collaborator_id', user.id)
+    .eq('collaborator_id', effectiveUserId)
 
   if (error) return { success: false, error: error.message }
 
@@ -150,9 +152,8 @@ export async function editCollaborationTime(
   startTime: string,
   endTime: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  const effectiveUserId = await getEffectiveUserId()
+  if (!effectiveUserId) return { success: false, error: 'Not authenticated' }
 
   const hours = calcHours(startTime, endTime)
   if (hours <= 0) return { success: false, error: 'End time must be after start time.' }
@@ -163,13 +164,13 @@ export async function editCollaborationTime(
     .from('collaboration_confirmations')
     .select('date')
     .eq('id', id)
-    .eq('collaborator_id', user.id)
+    .eq('collaborator_id', effectiveUserId)
     .single()
 
   if (!conf) return { success: false, error: 'Not found' }
 
   const overlapErr = await checkCollabOverlapsWork(
-    admin, user.id,
+    admin, effectiveUserId,
     (conf as { date: string }).date,
     startTime, endTime,
     id  // exclude this collab from the "other collabs" check (editing in place)
@@ -186,7 +187,7 @@ export async function editCollaborationTime(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-    .eq('collaborator_id', user.id)
+    .eq('collaborator_id', effectiveUserId)
 
   if (error) return { success: false, error: error.message }
 
@@ -199,9 +200,8 @@ export async function rejectCollaboration(
   id: string,
   reason: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  const effectiveUserId = await getEffectiveUserId()
+  if (!effectiveUserId) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
 
@@ -209,7 +209,7 @@ export async function rejectCollaboration(
     .from('collaboration_confirmations')
     .select('daily_update_id, entry_id, submitter_id, company_id, date, entry_snapshot')
     .eq('id', id)
-    .eq('collaborator_id', user.id)
+    .eq('collaborator_id', effectiveUserId)
     .single()
 
   const { error } = await admin
@@ -220,7 +220,7 @@ export async function rejectCollaboration(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-    .eq('collaborator_id', user.id)
+    .eq('collaborator_id', effectiveUserId)
 
   if (error) return { success: false, error: error.message }
 
@@ -234,7 +234,7 @@ export async function rejectCollaboration(
     // Tell the submitter their tag was rejected and why — otherwise a rejection
     // (even one that lands days later) silently vanishes into the DB and the
     // submitter never learns their entry needs fixing.
-    const { data: rejecter } = await admin.from('users').select('name').eq('id', user.id).single()
+    const { data: rejecter } = await admin.from('users').select('name').eq('id', effectiveUserId).single()
     await insertNotification({
       companyId: c.company_id,
       userId: c.submitter_id,
@@ -260,16 +260,16 @@ export async function rejectCollaboration(
         : []) as Record<string, unknown>[]
       const updatedEntries = workEntries.map(e =>
         e.id === entryId
-          ? { ...e, participant_ids: ((e.participant_ids as string[]) || []).filter(pid => pid !== user.id) }
+          ? { ...e, participant_ids: ((e.participant_ids as string[]) || []).filter(pid => pid !== effectiveUserId) }
           : e
       )
       const stillTagged = updatedEntries.some(e =>
-        Array.isArray(e.participant_ids) && (e.participant_ids as string[]).includes(user.id)
+        Array.isArray(e.participant_ids) && (e.participant_ids as string[]).includes(effectiveUserId)
       )
       const existingParticipants = ((record as { participant_ids?: string[] }).participant_ids || [])
       const updatedParticipants = stillTagged
         ? existingParticipants
-        : existingParticipants.filter(pid => pid !== user.id)
+        : existingParticipants.filter(pid => pid !== effectiveUserId)
       await admin
         .from('daily_updates')
         .update({ work_entries: updatedEntries, participant_ids: updatedParticipants })
@@ -283,9 +283,8 @@ export async function rejectCollaboration(
 }
 
 export async function deleteCollaborationsByEntry(updateId: string, entryId?: string) {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false }
+  const effectiveUserId = await getEffectiveUserId()
+  if (!effectiveUserId) return { success: false }
 
   const admin = adminSupabase()
   let q = admin.from('collaboration_confirmations').delete().eq('daily_update_id', updateId)
@@ -295,14 +294,14 @@ export async function deleteCollaborationsByEntry(updateId: string, entryId?: st
 }
 
 export async function getPendingCollaborationCount(): Promise<number> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return 0
+  const effectiveUserId = await getEffectiveUserId()
+  if (!effectiveUserId) return 0
 
-  const { count } = await supabase
+  const admin = adminSupabase()
+  const { count } = await admin
     .from('collaboration_confirmations')
     .select('id', { count: 'exact', head: true })
-    .eq('collaborator_id', user.id)
+    .eq('collaborator_id', effectiveUserId)
     .eq('status', 'pending')
 
   return count ?? 0

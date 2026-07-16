@@ -125,6 +125,8 @@ export default async function MemberLayout({ children }: { children: React.React
           forgotLogoutDate={gate.forgotLogoutDate}
           missingUpdate={gate.missingUpdate}
           missingUpdateDate={gate.missingUpdateDate}
+          noLeave={gate.noLeave}
+          noLeaveDate={gate.noLeaveDate}
         />
       )}
       <MemberSidebar

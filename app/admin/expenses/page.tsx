@@ -10,6 +10,7 @@ import {
   type MemberUser,
   type PricingRate,
   type FreelancerWorkEntry,
+  type CollabConfirmationRow,
 } from "@/lib/clients-deliverables"
 
 function adminClient() {
@@ -66,6 +67,7 @@ export default async function AdminExpensesPage({
     { data: pricingRaw },
     { data: freelancerRaw },
     { data: salaryHistoryRaw },
+    { data: collabRaw },
   ] = await Promise.all([
     admin
       .from("daily_updates")
@@ -112,6 +114,15 @@ export default async function AdminExpensesPage({
       .from("salary_history")
       .select("user_id, monthly_salary, effective_from")
       .eq("company_id", cid),
+    // Confirmed collaboration credits — see lib/clients-deliverables.ts for why
+    // these must be added on top of the submitter's own entry.
+    admin
+      .from("collaboration_confirmations")
+      .select("collaborator_id, date, confirmed_hours, entry_snapshot")
+      .eq("company_id", cid)
+      .in("status", ["confirmed", "edited_confirmed"])
+      .gte("date", monthStart)
+      .lte("date", monthEnd),
   ])
 
   const freelancerEntries: FreelancerWorkEntry[] = (freelancerRaw ?? []).map((r: Record<string, unknown>) => ({
@@ -143,6 +154,7 @@ export default async function AdminExpensesPage({
       monthEnd,
       freelancerEntries,
       salaryHistoryRaw ?? [],
+      (collabRaw ?? []) as CollabConfirmationRow[],
     )
     employeeCostByClient[clientName] = result.totalCost
   }

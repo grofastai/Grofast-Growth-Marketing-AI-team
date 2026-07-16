@@ -933,9 +933,9 @@ export default function HistoryClient({
     | { type: "company_holiday"; date: string; holiday: CompanyHoliday }
     | { type: "missing_submission"; date: string }
   const mergedList = useMemo((): MergedItem[] => {
-    // Show today, past, and tomorrow only (so member can see if tmr is a holiday/leave)
+    // Show today and past only — a future-dated WFH/leave/holiday hasn't happened yet,
+    // so it has no place in a history list. It'll appear on its own once that day arrives.
     const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000)
-    nowIST.setDate(nowIST.getDate() + 1)
     const todayIST = nowIST.toISOString().split("T")[0]
 
     const ownDates = new Set(filtered.map(u => u.date))
@@ -2076,12 +2076,13 @@ export default function HistoryClient({
                         </div>
                       )
                     }
-                    // half_day/permission/wfh/shoot_day now render via the unconditional
-                    // leaveBanner at the top of the card (see leaveOnDay above), so they're
-                    // intentionally not duplicated here.
+                    // half_day/permission/wfh/shoot_day still owe a real day's work — they
+                    // render via the leaveBanner at the top of the card (see leaveOnDay above)
+                    // for context, but none of them excuse an empty day, so this always reads
+                    // as "nothing filed" rather than misreporting it as a day off.
                     return (
                       <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>
-                        {leaveForDay ? "You were on leave this day." : "No work entries logged"}
+                        No work entries logged — please add this day&apos;s update
                       </p>
                     )
                   })() : (

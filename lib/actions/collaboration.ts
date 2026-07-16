@@ -3,6 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { insertNotification } from './notifications'
 
 function adminSupabase() {
   return createClient(
@@ -46,12 +47,12 @@ async function checkCollabOverlapsWork(
       .select('id, confirmed_start_time, confirmed_end_time')
       .eq('collaborator_id', userId).eq('date', date)
       .in('status', ['confirmed', 'edited_confirmed']),
-    // Permission + half-day leave windows
+    // Full-day + permission + half-day leave windows
     admin.from('leaves')
       .select('leave_type, half_day_from_time, half_day_to_time, permission_time, permission_hours')
       .eq('user_id', userId)
       .in('status', ['approved', 'pending'])
-      .in('leave_type', ['half_day', 'permission'])
+      .in('leave_type', ['full_day', 'half_day', 'permission'])
       .lte('from_date', date).gte('to_date', date),
   ])
 
@@ -77,10 +78,12 @@ async function checkCollabOverlapsWork(
     }
   }
 
-  // Check leave windows (permission + half-day)
+  // Check leave windows (full-day + permission + half-day)
   const leaves = (leavesResult.data ?? []) as { leave_type: string; half_day_from_time?: string | null; half_day_to_time?: string | null; permission_time?: string | null; permission_hours?: number | null }[]
   for (const l of leaves) {
-    if (l.leave_type === 'half_day' && l.half_day_from_time && l.half_day_to_time) {
+    if (l.leave_type === 'full_day') {
+      return `You are on approved Full Day Leave on ${date}. No collaboration allowed on a leave day — reject this tag instead.`
+    } else if (l.leave_type === 'half_day' && l.half_day_from_time && l.half_day_to_time) {
       if (timesOverlapCollab(startTime, endTime, l.half_day_from_time, l.half_day_to_time))
         return `Collab time ${startTime}–${endTime} falls within your Half Day Leave (${l.half_day_from_time}–${l.half_day_to_time}). No collaboration allowed during leave time.`
     } else if (l.leave_type === 'permission' && l.permission_time && l.permission_hours) {
@@ -201,6 +204,14 @@ export async function rejectCollaboration(
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
+
+  const { data: conf } = await admin
+    .from('collaboration_confirmations')
+    .select('daily_update_id, entry_id, submitter_id, company_id, date, entry_snapshot')
+    .eq('id', id)
+    .eq('collaborator_id', user.id)
+    .single()
+
   const { error } = await admin
     .from('collaboration_confirmations')
     .update({
@@ -212,6 +223,59 @@ export async function rejectCollaboration(
     .eq('collaborator_id', user.id)
 
   if (error) return { success: false, error: error.message }
+
+  if (conf) {
+    const c = conf as {
+      daily_update_id: string; entry_id: string; submitter_id: string
+      company_id: string; date: string; entry_snapshot: { title?: string } | null
+    }
+    const { daily_update_id: dailyUpdateId, entry_id: entryId } = c
+
+    // Tell the submitter their tag was rejected and why — otherwise a rejection
+    // (even one that lands days later) silently vanishes into the DB and the
+    // submitter never learns their entry needs fixing.
+    const { data: rejecter } = await admin.from('users').select('name').eq('id', user.id).single()
+    await insertNotification({
+      companyId: c.company_id,
+      userId: c.submitter_id,
+      type: 'collab_rejected',
+      title: `${rejecter?.name ?? 'A teammate'} rejected your collaboration tag`,
+      body: `On ${c.date}${c.entry_snapshot?.title ? ` — "${c.entry_snapshot.title}"` : ''}: ${reason || 'Not involved'}`,
+      link: '/member/history',
+    })
+
+    // A rejected tag must stop showing up as "Collaborated" in the rejecter's
+    // History — strip them out of the entry-level and record-level participant_ids
+    // on the submitter's daily_update. Without this the History page (which reads
+    // participant_ids directly, not confirmation status) keeps showing the tag
+    // forever, and a collab day wrongly takes priority over a real leave day.
+    const { data: record } = await admin
+      .from('daily_updates')
+      .select('participant_ids, work_entries')
+      .eq('id', dailyUpdateId)
+      .single()
+    if (record) {
+      const workEntries = (Array.isArray((record as { work_entries?: unknown }).work_entries)
+        ? (record as { work_entries: Record<string, unknown>[] }).work_entries
+        : []) as Record<string, unknown>[]
+      const updatedEntries = workEntries.map(e =>
+        e.id === entryId
+          ? { ...e, participant_ids: ((e.participant_ids as string[]) || []).filter(pid => pid !== user.id) }
+          : e
+      )
+      const stillTagged = updatedEntries.some(e =>
+        Array.isArray(e.participant_ids) && (e.participant_ids as string[]).includes(user.id)
+      )
+      const existingParticipants = ((record as { participant_ids?: string[] }).participant_ids || [])
+      const updatedParticipants = stillTagged
+        ? existingParticipants
+        : existingParticipants.filter(pid => pid !== user.id)
+      await admin
+        .from('daily_updates')
+        .update({ work_entries: updatedEntries, participant_ids: updatedParticipants })
+        .eq('id', dailyUpdateId)
+    }
+  }
 
   revalidatePath('/member/history')
   revalidatePath('/member/dashboard')

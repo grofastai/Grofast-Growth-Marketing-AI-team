@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { dailyUpdateSchema, type DailyUpdateInput } from '@/lib/validations/daily-update'
 import { sendNotification } from '@/lib/notifications/send'
+import { insertManyNotifications } from './notifications'
 import { calcNetWorkHours } from '@/lib/utils/work-hours'
 
 function adminSupabase() {
@@ -66,12 +67,16 @@ async function syncCollaborationConfirmations(
       const pids = e.participant_ids as string[] | undefined
       return Array.isArray(pids) && pids.some(pid => pid !== submitterId)
     })
+    const newlyTagged: { collaboratorId: string; title: unknown }[] = []
     for (const e of tagged) {
       const entryId = (e.id as string) || ''
       if (!entryId) continue
       const collaborators = ((e.participant_ids as string[]) || []).filter(pid => pid !== submitterId)
       for (const collaboratorId of collaborators) {
-        await admin.from('collaboration_confirmations').upsert({
+        // ignoreDuplicates + select('id') means an empty return = this pairing already
+        // existed (preserve its confirmed/rejected status) rather than a fresh tag —
+        // only genuinely new taggings should notify the collaborator.
+        const { data: upserted } = await admin.from('collaboration_confirmations').upsert({
           company_id:               companyId,
           daily_update_id:          recordId,
           entry_id:                 entryId,
@@ -90,8 +95,20 @@ async function syncCollaborationConfirmations(
         }, {
           onConflict:       'daily_update_id,entry_id,collaborator_id',
           ignoreDuplicates: true, // preserve existing confirmed/rejected status
-        })
+        }).select('id')
+        if (upserted?.length) newlyTagged.push({ collaboratorId, title: e.title })
       }
+    }
+    if (newlyTagged.length) {
+      const { data: submitter } = await admin.from('users').select('name').eq('id', submitterId).single()
+      await insertManyNotifications(newlyTagged.map(t => ({
+        companyId,
+        userId: t.collaboratorId,
+        type: 'collab_tagged',
+        title: `${submitter?.name ?? 'A teammate'} tagged you as a collaborator`,
+        body: `${date}${t.title ? ` — "${t.title}"` : ''}. Confirm or reject on your History page.`,
+        link: '/member/history',
+      })))
     }
   } catch { /* non-blocking */ }
 }

@@ -131,6 +131,13 @@ export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ s
   if (issues.forgotLogout) {
     return { success: false, error: `You never logged out on ${issues.forgotLogoutDate} — fix that day's logout time on the Attendance page before logging in again.` }
   }
+  // Distinct from missingUpdate: nothing at all on file for that day — no attendance,
+  // no approved leave, not even a pending leave request. There's no self-service fix
+  // for this (unlike a missed logout or an unfiled update), so it goes straight to
+  // "contact admin" instead of pointing at a page they can't actually resolve it on.
+  if (issues.noLeave) {
+    return { success: false, error: `You did not log in on ${issues.noLeaveDate} and have no approved (or pending) leave on file for that day. Contact your admin — you cannot log in again until this is resolved.` }
+  }
   if (issues.missingUpdate) {
     return { success: false, error: `You haven't submitted your Daily Update for ${issues.missingUpdateDate} — submit it before logging in again.` }
   }
@@ -405,7 +412,9 @@ export async function breakOut(): Promise<{ success: boolean; error?: string }> 
   return { success: true }
 }
 
-export async function manualClockOut(date: string, time: string): Promise<{ success: boolean; error?: string }> {
+export async function manualClockOut(
+  date: string, time: string, confirmed = false
+): Promise<{ success: boolean; error?: string; needsConfirm?: boolean }> {
   const ctxResult = await getUserContext()
   if ('error' in ctxResult) return { success: false, error: ctxResult.error }
   const ctx = ctxResult
@@ -440,6 +449,15 @@ export async function manualClockOut(date: string, time: string): Promise<{ succ
   const fixGapHours = (new Date(clockOutISO).getTime() - new Date(log.clock_in).getTime()) / 3600000
   if (fixGapHours > 18) {
     return { success: false, error: `That's a ${Math.round(fixGapHours)}-hour gap — no real work day runs that long. Please double-check the time, or ask your admin to correct this if it genuinely spans more than one day.` }
+  }
+  // 13-18h: not impossible, but unusual enough to double-check before saving — ask once
+  // rather than silently accepting a likely typo. Under 13h needs no friction at all.
+  if (fixGapHours > 13 && !confirmed) {
+    return {
+      success: false,
+      needsConfirm: true,
+      error: `That's over ${Math.round(fixGapHours)} hours — are you sure that's correct, or did you enter the time wrong?`,
+    }
   }
 
   const { error } = await admin
@@ -648,17 +666,37 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
   missingUpdate: boolean
   missingUpdateDate: string
   missingUpdateHadClockIn: boolean
+  noLeave: boolean
+  noLeaveDate: string
 }> {
   const admin = adminSupabase()
 
-  const { data: profile } = await admin.from('users').select('joined_at').eq('id', ctx.userId).single()
+  const [{ data: profile }, { data: pendingLeaves }] = await Promise.all([
+    admin.from('users').select('joined_at').eq('id', ctx.userId).single(),
+    // A leave still awaiting admin approval must not be treated as "no leave at
+    // all" — it only becomes an attendance_logs placeholder once approved (see
+    // clockIn's approvedLeave check / lib/actions/leaves.ts), so a pending leave
+    // otherwise looks identical to never having applied for one.
+    admin.from('leaves').select('from_date, to_date')
+      .eq('user_id', ctx.userId).eq('company_id', ctx.companyId).eq('status', 'pending'),
+  ])
   const joinedAt = (profile as { joined_at?: string | null } | null)?.joined_at ?? ''
+
+  const pendingLeaveDates = new Set<string>()
+  for (const lv of (pendingLeaves ?? []) as { from_date: string; to_date: string }[]) {
+    const cur = new Date(lv.from_date + 'T12:00:00')
+    const end = new Date(lv.to_date + 'T12:00:00')
+    while (cur <= end) {
+      pendingLeaveDates.add(cur.toISOString().split('T')[0])
+      cur.setDate(cur.getDate() + 1)
+    }
+  }
 
   let forgotLogoutDate = ''
   let missingUpdateDate = ''
   let missingUpdateHadClockIn = false
+  let noLeaveDate = ''
   let forgotLogoutSettled = false
-  let missingUpdateSettled = false
 
   const cursor = new Date()
   for (let i = 0; i < MAX_LOOKBACK_DAYS; i++) {
@@ -666,26 +704,35 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
     const dateStr = cursor.toISOString().split('T')[0]
     if (joinedAt && dateStr < joinedAt) break // don't scan before they joined
 
-    const [{ data: attLog }, { data: update }, { data: leave }, { data: holiday }] = await Promise.all([
+    const [{ data: attLog }, { data: update }, { data: holiday }] = await Promise.all([
       admin.from('attendance_logs')
         .select('clock_in, clock_out, status')
         .eq('user_id', ctx.userId).eq('company_id', ctx.companyId).eq('date', dateStr).maybeSingle(),
       admin.from('daily_updates')
         .select('work_entries, learning_hours')
         .eq('user_id', ctx.userId).eq('company_id', ctx.companyId).eq('date', dateStr).maybeSingle(),
-      admin.from('leaves')
-        .select('id')
-        .eq('user_id', ctx.userId).eq('company_id', ctx.companyId).eq('status', 'approved')
-        .lte('from_date', dateStr).gte('to_date', dateStr).maybeSingle(),
       admin.from('company_leaves')
         .select('id')
         .eq('company_id', ctx.companyId).eq('date', dateStr).maybeSingle(),
     ])
 
-    const excused = !!leave || !!holiday || attLog?.status === 'leave' || attLog?.status === 'absent'
-    if (excused) continue // leave/holiday day — skip entirely, keep walking back for BOTH checks
+    // A full day off (status 'leave', from an approved full-day leave) or a marked
+    // absence is genuinely nothing to check. A pending (not yet approved) leave with
+    // no attendance row is also excused — the member is waiting on admin, not AWOL.
+    // A half-day leave is NOT in this list — it only excuses its own slot, not the
+    // rest of the day the member still owes.
+    const excused = !!holiday || attLog?.status === 'leave' || attLog?.status === 'absent'
+      || (!attLog && pendingLeaveDates.has(dateStr))
+    if (excused) continue // full day off/holiday/pending-leave — skip entirely, keep walking back for BOTH checks
 
     const hadClockIn = attLog?.status === 'present' && !!attLog?.clock_in
+    // A half-day leave placeholder that was never upgraded to 'present' means the member
+    // didn't come in for the half they still owed — same as not showing up at all.
+    const halfDayUnclaimed = attLog?.status === 'half_day'
+    // No attendance row at all AND no pending leave (already excused above) AND no
+    // approved leave (that would show as status 'leave', also excused above) — this
+    // is a day with truly nothing on file, not a "forgot to file an update" day.
+    const noAttendanceAtAll = !attLog
 
     if (!forgotLogoutSettled) {
       if (hadClockIn && !attLog?.clock_out) { forgotLogoutDate = dateStr; forgotLogoutSettled = true }
@@ -693,17 +740,17 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
       // no clock-in at all: nothing to check on this day, keep walking back
     }
 
-    if (!missingUpdateSettled) {
-      // A row existing isn't enough — it can survive with zero real entries (see
-      // hasFiledUpdate). Only a real update stops the walkback; an empty shell keeps it going.
-      if (hasFiledUpdate(update)) { missingUpdateSettled = true }
-      else if (hadClockIn || !attLog) {
-        missingUpdateDate = dateStr; missingUpdateHadClockIn = hadClockIn; missingUpdateSettled = true
-      }
-      // attLog exists but isn't present/no-clock-in (shouldn't happen here since excused days are skipped above)
+    // Every unfiled day in the window blocks — filing today does NOT forgive an older
+    // gap (e.g. a break-only July 6 must still be fixed even if July 7 onward is fine).
+    // We're walking newest → oldest and never stop early here, so whichever unfiled day
+    // we see LAST ends up being the OLDEST one — that's what gets reported, so the
+    // member fixes days in the order they happened rather than jumping around.
+    if (noAttendanceAtAll) {
+      noLeaveDate = dateStr
+    } else if ((hadClockIn || halfDayUnclaimed) && !hasFiledUpdate(update)) {
+      missingUpdateDate = dateStr
+      missingUpdateHadClockIn = hadClockIn
     }
-
-    if (forgotLogoutSettled && missingUpdateSettled) break
   }
 
   return {
@@ -712,6 +759,8 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
     missingUpdate: !!missingUpdateDate,
     missingUpdateDate,
     missingUpdateHadClockIn,
+    noLeave: !!noLeaveDate,
+    noLeaveDate,
   }
 }
 
@@ -720,9 +769,15 @@ export async function getYesterdayGateStatus(): Promise<{
   forgotLogoutDate: string
   missingUpdate: boolean
   missingUpdateDate: string
+  noLeave: boolean
+  noLeaveDate: string
 }> {
   const ctxResult = await getUserContext()
-  const fallback = { forgotLogout: false, forgotLogoutDate: '', missingUpdate: false, missingUpdateDate: '' }
+  const fallback = {
+    forgotLogout: false, forgotLogoutDate: '',
+    missingUpdate: false, missingUpdateDate: '',
+    noLeave: false, noLeaveDate: '',
+  }
   if ('error' in ctxResult) return fallback
   // Walks back past leave/blank days to the real last working day for BOTH checks (the
   // Karkil incident fix), and — since findLastWorkingDayIssues now uses hasFiledUpdate
@@ -787,8 +842,8 @@ export async function getTodayCoverageReport(): Promise<{
 
 export async function editAttendanceTimes(
   date: string, clockIn: string, clockOut: string,
-  breakIn?: string, breakOut?: string
-): Promise<{ success: boolean; error?: string }> {
+  breakIn?: string, breakOut?: string, confirmed = false
+): Promise<{ success: boolean; error?: string; needsConfirm?: boolean }> {
   const ctxResult = await getUserContext()
   if ('error' in ctxResult) return { success: false, error: ctxResult.error }
   const ctx = ctxResult
@@ -827,6 +882,14 @@ export async function editAttendanceTimes(
     const editGapHours = (new Date(clockOutISO).getTime() - new Date(clockInISO).getTime()) / 3600000
     if (editGapHours > 18) {
       return { success: false, error: `That's a ${Math.round(editGapHours)}-hour gap — no real work day runs that long. Please double-check the times, or ask your admin to correct this if it genuinely spans more than one day.` }
+    }
+    // 13-18h: ask once before saving rather than accepting a likely typo silently.
+    if (editGapHours > 13 && !confirmed) {
+      return {
+        success: false,
+        needsConfirm: true,
+        error: `That's over ${Math.round(editGapHours)} hours — are you sure that's correct, or did you enter the time wrong?`,
+      }
     }
   }
 

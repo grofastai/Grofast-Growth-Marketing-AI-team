@@ -17,6 +17,17 @@ export type FreelancerWorkEntry = {
   freelancer_name: string
 }
 
+// A confirmed (or edited-then-confirmed) collaboration credit — hours the
+// collaborator actually worked on someone else's logged task. This lives in
+// collaboration_confirmations, not in the collaborator's own work_entries,
+// so it must be added on top of the submitter's entry, not instead of it.
+export type CollabConfirmationRow = {
+  collaborator_id: string
+  date: string
+  confirmed_hours: number | null
+  entry_snapshot: { title?: string; task_type?: string; client_name?: string } | null
+}
+
 export type EditingVideo = {
   id?: string
   video_name?: string
@@ -224,6 +235,7 @@ export function computeDeliverables(
   dateTo: string,
   freelancerEntries: FreelancerWorkEntry[] = [],
   salaryHistory: SalaryHistoryRow[] = [],
+  collabConfirmations: CollabConfirmationRow[] = [],
 ): DeliverableResult {
   const userMap  = new Map(users.map(u => [u.id, u]))
   const rateMap: Record<string, number> = {}
@@ -484,6 +496,82 @@ export function computeDeliverables(
       otherWork.push(te); technicalWork.push(te)
       nonMediaWorkHours += hrs
       dayMap[date].push({ date, memberName: name, taskType: 'other', itemCount: 0, hours: hrs, cost, label: title })
+    }
+  }
+
+  // ── Confirmed collaboration credits ──────────────────────────────────────────
+  // A collaborator's confirmed hours never appear in their own work_entries — they
+  // live only in collaboration_confirmations, snapshotted off the submitter's entry.
+  // Without this, the submitter's cost/hours are counted but the collaborator's own
+  // time on the same task is invisible here (though it IS correctly added to their
+  // personal totals in Payroll/Insights/Activities) — silently understating this
+  // client's true labor cost whenever two people worked together.
+  for (const c of collabConfirmations) {
+    if (c.date < dateFrom || c.date > dateTo) continue
+    const snap = c.entry_snapshot
+    const rawClientName = snap?.client_name?.trim()
+    if (!rawClientName) continue
+    if (clientNameSet !== null && !clientNameSet.has(normalizeClient(rawClientName))) continue
+
+    const user = userMap.get(c.collaborator_id)
+    if (!user) continue
+
+    const hrs = c.confirmed_hours ?? 0
+    if (hrs <= 0) continue
+    const hourly  = hourlyRateOnDate(user, c.date, salaryHistory)
+    const isMedia = isMediaTeam(user.team)
+    const cost    = hourly * hrs
+    const tt      = snap?.task_type ?? 'other'
+    const title   = stripBracketPrefix(snap?.title ?? 'Collaboration')
+
+    if (!teamMap[user.id]) {
+      teamMap[user.id] = {
+        userId: user.id, name: user.name, employeeId: user.employee_id,
+        videoCount: 0, shootHours: 0, otherHours: 0, totalHours: 0, cost: 0,
+      }
+    }
+    const tm = teamMap[user.id]
+    tm.totalHours += hrs
+
+    if (!isMedia && tt === 'other') nonMediaWorkHours += hrs
+    if (!dayMap[c.date]) dayMap[c.date] = []
+
+    if (tt === 'shoot') {
+      shoots.push({ date: c.date, clientName: rawClientName, memberName: user.name, title, hours: hrs, cost })
+      tm.shootHours += hrs
+      tm.cost       += cost
+      if (isMedia) { mediaShootCount++; mediaShootHours += hrs }
+      dayMap[c.date].push({ date: c.date, memberName: user.name, taskType: 'shoot', itemCount: 1, hours: hrs, cost, label: title })
+
+    } else if (tt === 'edit') {
+      const vType    = inferVideoType(title)
+      const typeRate = rateMap[vType.toLowerCase()] ?? 0
+      const editCost = typeRate + cost
+      tm.cost += editCost
+      tm.videoCount++
+      mediaEditCount++; mediaEditHours += hrs
+      if (!videoMap[vType]) videoMap[vType] = { videoType: vType, count: 0, totalTimeTaken: 0, totalCost: 0, videos: [] }
+      videoMap[vType].count++
+      videoMap[vType].totalTimeTaken += hrs
+      videoMap[vType].totalCost      += editCost
+      videoMap[vType].videos.push({
+        date: c.date, clientName: rawClientName, memberName: user.name,
+        videoName: title, videoType: vType, timeTaken: hrs, revisions: 0, cost: editCost,
+      })
+      dayMap[c.date].push({ date: c.date, memberName: user.name, taskType: 'edit', itemCount: 1, hours: hrs, cost: editCost, label: 'Editing' })
+
+    } else {
+      const oe = { date: c.date, clientName: rawClientName, memberName: user.name, title, hours: hrs, cost }
+      otherWork.push(oe)
+      tm.otherHours += hrs
+      tm.cost       += cost
+      if (tt === 'voiceover')      { voiceoverCountAcc++; voiceoverHoursAcc += hrs; voiceoverWork.push(oe) }
+      else if (tt === 'poster')    { posterCountAcc++; posterHoursAcc += hrs; posterWork.push(oe) }
+      else if (tt === 'scripting') { scriptingCountAcc++; scriptingHoursAcc += hrs; scriptingWork.push(oe) }
+      else if (tt === 'development') { developmentHoursAcc += hrs; developmentWork.push(oe) }
+      else if (tt === 'other_activity') { otherActivityHoursAcc += hrs; otherActivityWork.push(oe) }
+      else technicalWork.push(oe)
+      dayMap[c.date].push({ date: c.date, memberName: user.name, taskType: tt, itemCount: 1, hours: hrs, cost, label: title })
     }
   }
 

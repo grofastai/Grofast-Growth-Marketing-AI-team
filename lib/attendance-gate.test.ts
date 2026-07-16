@@ -72,6 +72,17 @@ describe('hasFiledUpdate', () => {
     expect(hasFiledUpdate({ work_entries: [], learning_hours: 0 })).toBe(false)
   })
 
+  it('does not count a break-only day as filed (GF009 recurring pattern: logging only "Lunch Break")', () => {
+    expect(hasFiledUpdate({ work_entries: [{ task_type: 'break', title: 'Lunch Break' }] })).toBe(false)
+    expect(hasFiledUpdate({ work_entries: [{ task_type: 'break' }, { task_type: 'break' }] })).toBe(false)
+  })
+
+  it('counts real work alongside a break entry as filed', () => {
+    expect(hasFiledUpdate({
+      work_entries: [{ task_type: 'break', title: 'Lunch Break' }, { task_type: 'edit', title: 'Reel cut' }],
+    })).toBe(true)
+  })
+
   it('tolerates a malformed work_entries value', () => {
     expect(hasFiledUpdate({ work_entries: null })).toBe(false)
     expect(hasFiledUpdate({})).toBe(false)

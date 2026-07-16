@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 
 function adminSupabase() {
   return createClient(
@@ -25,8 +24,18 @@ function getCompanyId(req: NextRequest): string | null {
 }
 
 // Fires at 10 PM IST (16:30 UTC).
-// Finds members who clocked in today but never clocked out.
-// Sets clock_out = now, sends WhatsApp to member + admin summary.
+//
+// This used to force clock_out = now on anyone still open, which quietly manufactured
+// a fake logout time nobody confirmed. That made every forgotten logout look "properly
+// closed" to the login gate (findUnresolvedLogoutDate / findLastWorkingDayIssues),
+// so the "you forgot to clock out — fix it before logging in again" block
+// (lib/actions/auth.ts loginAction, lib/actions/attendance.ts clockIn) never actually
+// fired for anyone — the cron always beat them to it.
+//
+// Now it does nothing to the row. An open session stays open overnight; the member
+// hits the real block the next time they try to log in and has to enter their actual
+// logout time via "Fix My Time" before they can get back in. This just reports who's
+// still open so it's visible without a DB query.
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -45,8 +54,6 @@ export async function GET(req: NextRequest) {
   const today = `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`
 
   // Find attendance records: clocked in today but no clock_out
-  // attendance_logs.user_id has no FK constraint to users.id in this schema, so an
-  // embedded users(...) join can't be resolved — fetch users separately and merge.
   const { data: unclosed } = await admin
     .from('attendance_logs')
     .select('id, user_id, clock_in')
@@ -56,67 +63,23 @@ export async function GET(req: NextRequest) {
     .is('clock_out', null)
 
   if (!unclosed?.length) {
-    return NextResponse.json({ autoLoggedOut: 0, message: 'All members clocked out' })
+    return NextResponse.json({ stillOpen: 0, message: 'All members clocked out' })
   }
 
+  // attendance_logs.user_id has no FK constraint to users.id in this schema, so an
+  // embedded users(...) join can't be resolved — fetch users separately and merge.
   const { data: users } = await admin
     .from('users')
-    .select('id, name, phone')
+    .select('id, name')
     .in('id', unclosed.map(rec => rec.user_id))
   const userById = new Map((users ?? []).map(u => [u.id, u]))
 
-  const clockOutTime = now.toISOString()
-  let autoLoggedOut = 0
-  let notified = 0
-
-  await Promise.all(
-    unclosed.map(async (rec) => {
-      const { error } = await admin
-        .from('attendance_logs')
-        .update({ clock_out: clockOutTime })
-        .eq('id', rec.id)
-
-      if (!error) autoLoggedOut++
-
-      const user = userById.get(rec.user_id)
-      if (user?.phone) {
-        const firstName = (user.name as string).split(' ')[0]
-        const ok = await sendWhatsAppTemplate(
-          formatPhone(user.phone),
-          'grofast_auto_logout',
-          [firstName, '10:00 PM']
-        ).catch(() => false)
-        if (ok) notified++
-      }
-    })
-  )
-
-  // Admin summary notification
-  const { data: adminUser } = await admin
-    .from('users')
-    .select('phone')
-    .eq('company_id', companyId)
-    .eq('role', 'ADMIN')
-    .limit(1)
-    .single()
-
-  if (adminUser?.phone && unclosed.length > 0) {
-    const names = unclosed
-      .map(r => userById.get(r.user_id)?.name ?? 'Unknown')
-      .slice(0, 5)
-      .join(', ')
-    const display = unclosed.length > 5 ? `${names} and ${unclosed.length - 5} more` : names
-    await sendWhatsAppTemplate(
-      formatPhone(adminUser.phone),
-      'grofast_admin_auto_logout_summary',
-      [String(unclosed.length), display]
-    ).catch(() => {/* non-fatal */})
-  }
-
   return NextResponse.json({
     date: today,
-    autoLoggedOut,
-    notified,
-    clockOutTime,
+    stillOpen: unclosed.length,
+    members: unclosed.map(rec => ({
+      name: userById.get(rec.user_id)?.name ?? 'Unknown',
+      clockIn: rec.clock_in,
+    })),
   })
 }

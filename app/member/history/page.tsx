@@ -16,6 +16,7 @@ type WorkEntry = {
   start_time?: string | null
   end_time?: string | null
   screenshot_url?: string | null
+  participant_ids?: string[]
 }
 
 type UpdateRow = {
@@ -98,7 +99,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   // Full year — one entry/day max, so ~170 rows at most; matches annual leave cycle
   const fromDateStr = `${new Date().getFullYear()}-01-01`
 
-  const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult, leavesResult, companyLeavesResult, confirmationsResult] = await Promise.all([
+  const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult, leavesResult, companyLeavesResult, confirmationsResult, rejectedEntriesResult] = await Promise.all([
     db
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, learning_start_time, learning_end_time, shoot_count, editing_count, work_entries, created_at")
@@ -158,6 +159,17 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
           .gte("date", fromDateStr)
           .order("date", { ascending: false })
       : Promise.resolve({ data: [] as CollaborationConfirmation[] }),
+    // Entry ids this member already rejected — a rejected tag must never surface
+    // as "Collaborated" again, even if the submitter's participant_ids array
+    // still (incorrectly) lists this member.
+    companyId
+      ? admin
+          .from("collaboration_confirmations")
+          .select("entry_id")
+          .eq("collaborator_id", effectiveUserId)
+          .eq("company_id", companyId)
+          .eq("status", "rejected")
+      : Promise.resolve({ data: [] as { entry_id: string }[] }),
   ])
 
   // Build a set of dates where the member actually clocked in
@@ -195,7 +207,22 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   const workLayout = (profileResult.data as { work_layout?: string } | null)?.work_layout as 'media' | 'non_media' | 'freelance_media' | undefined
   const clients = ((clientsResult.data ?? []) as { name: string }[]).map(c => c.name)
   const pastClients = ((pastClientsResult.data ?? []) as { name: string }[]).map(c => c.name)
-  const participatedUpdates = (participatedResult.data ?? []) as unknown as ParticipatedUpdate[]
+  const rejectedEntryIds = new Set(
+    ((rejectedEntriesResult.data ?? []) as { entry_id: string }[]).map(r => r.entry_id)
+  )
+  // Drop any entry this member already rejected, and drop the whole participated
+  // row if nothing tagging this member survives — otherwise a rejected collab tag
+  // keeps showing as "Collaborated" and wrongly wins priority over a real leave day.
+  const participatedUpdates = ((participatedResult.data ?? []) as unknown as ParticipatedUpdate[])
+    .map(pu => ({
+      ...pu,
+      work_entries: (Array.isArray(pu.work_entries) ? pu.work_entries : []).filter(
+        e => !e.id || !rejectedEntryIds.has(e.id)
+      ),
+    }))
+    .filter(pu =>
+      pu.work_entries.some(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(effectiveUserId))
+    )
   const members = (membersResult.data ?? []) as MemberInfo[]
   const attendanceDates = Array.from(clockedInDates)
 

@@ -45,12 +45,19 @@ export async function findUnresolvedLogoutDate(
 // existence-only check read that empty shell as "submitted" and waved the member
 // through the next morning (GF009, 2026-07-13). Auto-inserted leave markers
 // (_is_leave) aren't work the member reported, so they don't satisfy it either.
+// Neither is a break entry on its own — logging a single "Lunch Break" and nothing
+// else is a real, repeated pattern (GF009: 2026-07-02, -07, -14) for dodging this
+// check without reporting any actual work.
 export function hasFiledUpdate(
   update: { work_entries?: unknown; learning_hours?: number | string | null } | null | undefined
 ): boolean {
   if (!update) return false
   const entries = Array.isArray(update.work_entries) ? update.work_entries : []
-  if (entries.some(e => e && (e as { _is_leave?: boolean })._is_leave !== true)) return true
+  if (entries.some(e => {
+    if (!e) return false
+    const row = e as { _is_leave?: boolean; task_type?: string }
+    return row._is_leave !== true && row.task_type !== 'break'
+  })) return true
   return Number(update.learning_hours ?? 0) > 0
 }
 
@@ -80,6 +87,13 @@ export function pickUnfiledDate(
 // submitted and then emptied out by an edit/delete/move on the History page. Scanning
 // back (rather than only checking yesterday) means emptying an older day re-locks the
 // member until they refill it, instead of that day being silently forgiven.
+//
+// Approved leave does NOT exempt a date here. A half-day leave only excuses its own
+// slot — if attendance still shows the member present (they worked the rest of the
+// day) or shows an unclaimed half_day placeholder (they never came back in for the
+// half they still owed), both still need a real entry. Only a day marked 'leave'
+// (full day off) or 'absent' is genuinely nothing to file, and those are excluded by
+// the status filter below rather than by checking the leaves table.
 export async function findUnfiledUpdateDate(
   admin: SupabaseClient<any>,
   companyId: string,
@@ -95,8 +109,7 @@ export async function findUnfiledUpdateDate(
     .select('date')
     .eq('company_id', companyId)
     .eq('user_id', userId)
-    .eq('status', 'present')
-    .not('clock_in', 'is', null)
+    .in('status', ['present', 'half_day'])
     .lt('date', today)
     .gte('date', fromDate)
     .order('date', { ascending: false })
@@ -104,34 +117,18 @@ export async function findUnfiledUpdateDate(
   const workedDates = (workedLogs ?? []).map(l => l.date as string)
   if (workedDates.length === 0) return null
 
-  const [{ data: updates }, { data: leaves }] = await Promise.all([
-    admin
-      .from('daily_updates')
-      .select('date, work_entries, learning_hours')
-      .eq('company_id', companyId)
-      .eq('user_id', userId)
-      .in('date', workedDates),
-    admin
-      .from('leaves')
-      .select('from_date, to_date')
-      .eq('company_id', companyId)
-      .eq('user_id', userId)
-      .eq('status', 'approved')
-      .gte('to_date', workedDates[workedDates.length - 1])
-      .lte('from_date', workedDates[0]),
-  ])
+  const { data: updates } = await admin
+    .from('daily_updates')
+    .select('date, work_entries, learning_hours')
+    .eq('company_id', companyId)
+    .eq('user_id', userId)
+    .in('date', workedDates)
 
   const updatesByDate = new Map<string, GateUpdateRow>(
     (updates ?? []).map(u => [u.date as string, u as GateUpdateRow])
   )
-  const leaveDates = new Set<string>()
-  for (const lv of leaves ?? []) {
-    for (const date of workedDates) {
-      if (date >= (lv.from_date as string) && date <= (lv.to_date as string)) leaveDates.add(date)
-    }
-  }
 
-  return pickUnfiledDate(workedDates, updatesByDate, leaveDates)
+  return pickUnfiledDate(workedDates, updatesByDate, new Set())
 }
 
 export function formatGateDate(date: string): string {

@@ -140,6 +140,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [yesLogoutError, setYesLogoutError] = useState<string | null>(null)
   // Clock-out 12h confirmation
   const [showClockOutConfirm, setShowClockOutConfirm] = useState(false)
+  // 13h+ confirmation for manually-entered logout times (yesterday-block and edit-times flows)
+  const [pendingTimeConfirm, setPendingTimeConfirm] = useState<{ kind: "yesterday" | "edit"; message: string } | null>(null)
   const [historyDate, setHistoryDate] = useState("")
   const [historyLog, setHistoryLog] = useState<{
     clock_in: string | null; clock_out: string | null; work_type: string | null; status: string
@@ -336,16 +338,20 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     setNavLoading(false)
   }
 
-  async function handleEditTimes() {
+  async function handleEditTimes(confirmed = false) {
     if (!editingDate || !editCIn) return
     setEditSaving(true); setEditError(null); setEditSaved(false)
-    const res = await editAttendanceTimes(editingDate, editCIn, editCOut, editBrkIn || undefined, editBrkOut || undefined)
+    const res = await editAttendanceTimes(editingDate, editCIn, editCOut, editBrkIn || undefined, editBrkOut || undefined, confirmed)
     if (res.success) {
       setEditSaved(true)
       if (rangeMode !== "date") await handleRangeFilter(rangeMode)
       else { const u = await getAttendanceByDate(editingDate); if (u.success && u.log) setHistoryLog(u.log) }
       setTimeout(() => { setEditingDate(null); setEditSaved(false) }, 1200)
-    } else setEditError(res.error ?? "Failed to save.")
+    } else if (res.needsConfirm) {
+      setPendingTimeConfirm({ kind: "edit", message: res.error ?? "" })
+    } else {
+      setEditError(res.error ?? "Failed to save.")
+    }
     setEditSaving(false)
   }
 
@@ -567,8 +573,9 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                             setYesLogoutSaving(true); setYesLogoutError(null)
                             const res = await manualClockOut(yesterdayStr, yesLogoutTime)
                             setYesLogoutSaving(false)
-                            if (!res.success) { setYesLogoutError(res.error ?? "Failed to save"); return }
-                            setYesLogoutSaved(true)
+                            if (res.success) { setYesLogoutSaved(true); return }
+                            if (res.needsConfirm) { setPendingTimeConfirm({ kind: "yesterday", message: res.error ?? "" }); return }
+                            setYesLogoutError(res.error ?? "Failed to save")
                           }}
                           className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold disabled:opacity-50"
                           style={{ background: "#D97706", color: "#fff" }}>
@@ -1332,7 +1339,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                                             <input type="time" value={editCOut} onChange={e => setEditCOut(e.target.value)}
                                               style={{ padding:"6px 10px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none" }}/>
                                           </div>
-                                          <button onClick={handleEditTimes} disabled={editSaving || !editCIn}
+                                          <button onClick={() => handleEditTimes()} disabled={editSaving || !editCIn}
                                             style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:8, background:"#6366F1", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:editSaving?0.6:1 }}>
                                             {editSaving ? <Loader2 size={12} className="animate-spin"/> : <CheckCircle2 size={12}/>} Save
                                           </button>
@@ -1457,7 +1464,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                                       <input type="time" value={editCOut} onChange={e => setEditCOut(e.target.value)}
                                         style={{ padding:"6px 10px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none" }}/>
                                     </div>
-                                    <button onClick={handleEditTimes} disabled={editSaving || !editCIn}
+                                    <button onClick={() => handleEditTimes()} disabled={editSaving || !editCIn}
                                       style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:8, background:"#6366F1", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:editSaving?0.6:1 }}>
                                       {editSaving ? <Loader2 size={12} className="animate-spin"/> : <CheckCircle2 size={12}/>} Save
                                     </button>
@@ -1481,6 +1488,47 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
       </div>
 
     </div>
+
+    {/* 13h+ confirmation for a manually-entered logout time (yesterday-block / edit-times) */}
+    {pendingTimeConfirm && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.45)" }}>
+        <div className="rounded-2xl p-6 max-w-[340px] w-full mx-4 space-y-4" style={{ background: "#fff", boxShadow: "0 8px 48px rgba(0,0,0,0.18)" }}>
+          <div className="flex items-center gap-3">
+            <AlertTriangle size={22} style={{ color: "#D97706", flexShrink: 0 }} />
+            <p className="text-[15px] font-black" style={{ color: "#111" }}>Long Work Span</p>
+          </div>
+          <p className="text-[13px]" style={{ color: "#6B7280" }}>{pendingTimeConfirm.message}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                const kind = pendingTimeConfirm.kind
+                setPendingTimeConfirm(null)
+                if (kind === "yesterday") {
+                  setYesLogoutSaving(true); setYesLogoutError(null)
+                  startTransition(async () => {
+                    const res = await manualClockOut(yesterdayStr, yesLogoutTime, true)
+                    setYesLogoutSaving(false)
+                    if (res.success) setYesLogoutSaved(true)
+                    else setYesLogoutError(res.error ?? "Failed to save")
+                  })
+                } else {
+                  handleEditTimes(true)
+                }
+              }}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-bold"
+              style={{ background: "#de1a1a", color: "#fff" }}>
+              Yes, That&apos;s Correct
+            </button>
+            <button
+              onClick={() => setPendingTimeConfirm(null)}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
+              style={{ background: "#F3F4F6", color: "#6B7280" }}>
+              No, Let Me Fix It
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     </>
   )

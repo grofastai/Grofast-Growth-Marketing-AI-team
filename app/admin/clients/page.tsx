@@ -12,6 +12,7 @@ import {
   type UpdateRow,
   type DeliverableResult,
   type FreelancerWorkEntry,
+  type CollabConfirmationRow,
 } from '@/lib/clients-deliverables'
 import ClientsUnifiedClient from './clients-unified-client'
 
@@ -204,6 +205,7 @@ export default async function ClientsUnifiedPage({
       { data: pricingRaw },
       { data: freelancerRaw },
       { data: salaryHistoryRaw },
+      { data: collabRaw },
     ] = await Promise.all([
       admin
         .from('daily_updates')
@@ -231,6 +233,16 @@ export default async function ClientsUnifiedPage({
         .from('salary_history')
         .select('user_id, monthly_salary, effective_from')
         .eq('company_id', cid),
+      // Confirmed collaboration credits — these hours live only here, not in the
+      // collaborator's own work_entries, and must be added on top of the submitter's
+      // entry so a client's cost reflects everyone who actually worked on it.
+      admin
+        .from('collaboration_confirmations')
+        .select('collaborator_id, date, confirmed_hours, entry_snapshot')
+        .eq('company_id', cid)
+        .in('status', ['confirmed', 'edited_confirmed'])
+        .gte('date', dateFrom)
+        .lte('date', dateTo),
     ])
 
     const freelancerEntries: FreelancerWorkEntry[] = (freelancerRaw ?? []).map((r: Record<string, unknown>) => ({
@@ -254,6 +266,7 @@ export default async function ClientsUnifiedPage({
       dateTo,
       freelancerEntries,
       salaryHistoryRaw ?? [],
+      (collabRaw ?? []) as CollabConfirmationRow[],
     )
   }
 

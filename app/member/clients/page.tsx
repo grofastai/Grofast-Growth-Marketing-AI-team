@@ -2,7 +2,6 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { fetchSheetClients, stripFinancialFields, type SheetClient } from "@/lib/google/sheets"
 
 function adminSupabase() {
   return createClient(
@@ -16,16 +15,12 @@ function ini(name: string) {
   return name.split(" ").map(n => n[0] ?? "").join("").slice(0, 2).toUpperCase() || "??"
 }
 
-const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  active:   { bg: "rgba(22,163,74,0.1)",   color: "#16A34A", label: "Active"   },
-  past:     { bg: "rgba(107,114,128,0.1)", color: "#6B7280", label: "Past"     },
-  inactive: { bg: "rgba(107,114,128,0.1)", color: "#6B7280", label: "Inactive" },
-}
-function statusStyle(c: SheetClient, isPast: boolean) {
-  if (isPast) return STATUS_STYLE.past
-  const s = c.client_status.toLowerCase()
-  if (s.includes("active") || s.includes("current")) return STATUS_STYLE.active
-  return STATUS_STYLE.inactive
+type ClientRow = {
+  name: string
+  industry: string | null
+  location: string | null
+  package_name: string | null
+  service: string
 }
 
 export default async function MemberClientsPage() {
@@ -39,40 +34,23 @@ export default async function MemberClientsPage() {
   const admin = adminSupabase()
   const { data: profile } = await admin.from("users").select("company_id").eq("id", effectiveUserId).single()
 
-  // Primary source: Supabase clients (synced from Google Sheets by admin page)
   const { data: dbClients } = await admin
     .from("clients")
-    .select("name, industry, location, service, package_name, status, contact_name")
+    .select("name, industry, location, package_name, status, contact_name, client_services(service_options(name))")
     .eq("company_id", profile?.company_id ?? "")
     .eq("status", "active")
     .order("name")
 
-  let activeClients: SheetClient[] = []
-
-  if ((dbClients ?? []).length > 0) {
-    // Convert Supabase clients to SheetClient shape for the existing UI
-    type DbRow = NonNullable<typeof dbClients>[0]
-    const toSheet = (c: DbRow): SheetClient => ({
-      sno: '', client_status: 'Active',
-      customer_name: c.contact_name ?? '', company_name: c.name,
-      period: '', due_date: '', package_name: c.package_name ?? '',
-      payment_status: '', current_month: '', previous_month: '',
-      received: '', pending: '',
-      industry: c.industry ?? '', place: c.location ?? '',
-      mob_no: '', gender: '', position: '', age_group: '',
-      client_income_stage: '', business_stage: '', email: '',
-      source: '', onboarded_month: '', service: c.service ?? '', client_stage: '',
-    })
-    activeClients = (dbClients ?? []).map(toSheet)
-  } else {
-    // Fallback to Google Sheets if Supabase clients are not yet synced
-    const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
-    const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
-    if (sheetId) {
-      const rawActive = await fetchSheetClients(sheetId, sheetGid).catch(() => [])
-      activeClients = stripFinancialFields(rawActive)
-    }
-  }
+  type RawRow = NonNullable<typeof dbClients>[number]
+  const activeClients: ClientRow[] = (dbClients ?? []).map((c: RawRow) => ({
+    name: c.name,
+    industry: c.industry,
+    location: c.location,
+    package_name: c.package_name,
+    service: ((c.client_services ?? []) as { service_options: { name: string }[] }[])
+      .flatMap(cs => cs.service_options.map(o => o.name))
+      .join(", "),
+  }))
 
   const total = activeClients.length
 
@@ -103,7 +81,7 @@ export default async function MemberClientsPage() {
             </p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {activeClients.map((c, i) => <ClientRow key={i} c={c} isPast={false} />)}
+            {activeClients.map((c, i) => <ClientRow key={i} c={c} />)}
           </div>
         </section>
       )}
@@ -119,9 +97,8 @@ export default async function MemberClientsPage() {
   )
 }
 
-function ClientRow({ c, isPast }: { c: SheetClient; isPast: boolean }) {
-  const st = statusStyle(c, isPast)
-  const name = c.company_name || c.customer_name
+function ClientRow({ c }: { c: ClientRow }) {
+  const name = c.name
 
   return (
     <div style={{
@@ -132,8 +109,8 @@ function ClientRow({ c, isPast }: { c: SheetClient; isPast: boolean }) {
       {/* Avatar */}
       <div style={{
         width: 42, height: 42, borderRadius: 13, flexShrink: 0,
-        background: isPast ? "#F3F4F6" : "rgba(222,26,26,0.1)",
-        color: isPast ? "#9CA3AF" : "#DE1A1A",
+        background: "rgba(222,26,26,0.1)",
+        color: "#DE1A1A",
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 13, fontWeight: 900, fontFamily: "var(--font-jakarta)",
       }}>
@@ -151,10 +128,10 @@ function ClientRow({ c, isPast }: { c: SheetClient; isPast: boolean }) {
           {c.industry && (
             <span style={{ fontSize: 11, color: "#6B7280" }}>{c.industry}</span>
           )}
-          {c.place && (
+          {c.location && (
             <>
               <span style={{ fontSize: 11, color: "#D1D5DB" }}>·</span>
-              <span style={{ fontSize: 11, color: "#6B7280" }}>📍 {c.place}</span>
+              <span style={{ fontSize: 11, color: "#6B7280" }}>📍 {c.location}</span>
             </>
           )}
           {c.service && (
@@ -175,8 +152,8 @@ function ClientRow({ c, isPast }: { c: SheetClient; isPast: boolean }) {
           </span>
         )}
         <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 5,
-          background: st.bg, color: st.color }}>
-          {st.label}
+          background: "rgba(22,163,74,0.1)", color: "#16A34A" }}>
+          Active
         </span>
       </div>
     </div>

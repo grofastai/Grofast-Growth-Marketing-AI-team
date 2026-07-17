@@ -7,7 +7,7 @@ import {
   IndianRupee, Plus, Trash2, Pencil,
   Car, Megaphone, Monitor, Building2,
   Receipt, Layers, CheckCircle2, AlertCircle,
-  ChevronRight, Search, MoreVertical, TrendingUp,
+  ChevronRight, Search, MoreVertical, TrendingUp, Users,
 } from "lucide-react"
 import { FlatCard } from "@/components/ui/FlatCard"
 import { SegmentedControl } from "@/components/ui/SegmentedControl"
@@ -20,6 +20,7 @@ import {
   upsertCommonExpense,
   deleteCommonExpense,
 } from "@/lib/actions/client-expenses"
+import { setCommonExpenseParticipation } from "@/lib/actions/clients"
 import { todayIST } from "@/lib/utils/ist-date"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -65,6 +66,14 @@ type CommonExpense = {
 
 type ActiveClient = {
   name: string
+}
+
+type CommonParticipant = {
+  id: string
+  name: string
+  status: string
+  isInternal: boolean
+  included: boolean
 }
 
 
@@ -126,7 +135,6 @@ const TYPE_BG: Record<string, string> = {
 }
 
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-const INTERNAL_BRANDS = 3
 const INTERNAL_BRAND_NAMES = new Set(["GROFAST DIGITAL", "GROFAST AI", "KARTHICK BRANDS"])
 
 // ── Client Expense Modal ──────────────────────────────────────────────────────
@@ -392,13 +400,14 @@ function TravelTab({ shoots, savedTravel }: {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function ExpensesClient({
-  updates, users, clientExpenses, commonExpenses, activeClients, selectedMonth, employeeCostByClient,
+  updates, users, clientExpenses, commonExpenses, activeClients, commonParticipation, selectedMonth, employeeCostByClient,
 }: {
   updates: UpdateRow[]
   users: MemberUser[]
   clientExpenses: ClientExpense[]
   commonExpenses: CommonExpense[]
   activeClients: ActiveClient[]
+  commonParticipation: CommonParticipant[]
   selectedMonth: string
   employeeCostByClient: Record<string, number>
 }) {
@@ -408,6 +417,7 @@ export default function ExpensesClient({
   const [editingCommon, setEditCommon] = useState<CommonExpense | null>(null)
   const [isPending, start]             = useTransition()
   const [activeTab, setActiveTab]      = useState<"summary" | "direct" | "common" | "travel">("summary")
+  const [showParticipation, setShowParticipation] = useState(false)
   const [clientFilter, setClientFilter] = useState("all")
   const [search, setSearch]            = useState("")
   const [viewDetailsClient, setViewDetailsClient] = useState<string | null>(null)
@@ -421,7 +431,12 @@ export default function ExpensesClient({
     router.push(`/admin/expenses?month=${ny}-${String(nm).padStart(2, "0")}`)
   }
 
-  const overheadDivisor = activeClients.length + INTERNAL_BRANDS
+  // Who actually shares this month's common cost — the admin's explicit checklist
+  // choice (see the Common tab), not an inferred active/past status or date range.
+  // Internal Brands are now real checklist entries too (see commonParticipation), so
+  // they're counted here once via the checklist — no separate hardcoded addition.
+  const includedNames = new Set(commonParticipation.filter(c => c.included).map(c => c.name))
+  const overheadDivisor = includedNames.size
 
   const userMap = useMemo(() => {
     const m: Record<string, string> = {}
@@ -486,15 +501,24 @@ export default function ExpensesClient({
     return Array.from(allNames).map(name => {
       const empCost = employeeCostByClient[name] ?? 0
       const direct  = directMap[name] ?? 0
+      // Only clients checked in the Common tab's list share this month's overhead —
+      // a client with real employee/direct cost but not checked still shows their real
+      // cost, just with zero common share, instead of being forced into the split.
+      const overhead = includedNames.has(name) ? perClientOverhead : 0
       return {
         name,
         empCost,
         direct,
-        overhead: perClientOverhead,
-        total: direct + perClientOverhead + empCost,
+        overhead,
+        total: direct + overhead + empCost,
       }
-    }).sort((a, b) => b.total - a.total)
-  }, [clientExpenses, activeClients, perClientOverhead, employeeCostByClient])
+    })
+      // A client with zero employee cost, zero direct cost, and zero common share had
+      // nothing happen this month at all — showing them is pure clutter, not signal.
+      // Every real past client (any actual work or expense that month) still shows.
+      .filter(r => r.total > 0)
+      .sort((a, b) => b.total - a.total)
+  }, [clientExpenses, activeClients, perClientOverhead, employeeCostByClient, includedNames])
 
   const activeClientNames = useMemo(() => new Set(activeClients.map(c => c.name)), [activeClients])
 
@@ -518,6 +542,9 @@ export default function ExpensesClient({
   }
   function handleDeleteCommon(id: string) {
     start(async () => { await deleteCommonExpense(id); router.refresh() })
+  }
+  function handleToggleParticipation(clientId: string, included: boolean) {
+    start(async () => { await setCommonExpenseParticipation(clientId, selectedMonth, included); router.refresh() })
   }
 
   const pctOfTotal = (v: number) => grandTotal > 0 ? Math.round((v / grandTotal) * 100) : 0
@@ -752,9 +779,26 @@ export default function ExpensesClient({
         {/* Common / Shared */}
         {activeTab === "common" && (
           <FlatCard className="overflow-hidden">
-            <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: "1px solid #EDEDED" }}>
-              <Layers size={15} style={{ color: "#8B5CF6" }} />
-              <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#8B5CF6" }}>Common / Shared</span>
+            <div className="flex items-center justify-between gap-2 px-6 py-4" style={{ borderBottom: "1px solid #EDEDED" }}>
+              <div className="flex items-center gap-2">
+                <Layers size={15} style={{ color: "#8B5CF6" }} />
+                <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#8B5CF6" }}>Common / Shared</span>
+              </div>
+              <button onClick={() => setShowParticipation(true)}
+                className="flex items-center gap-2 transition-all duration-100 active:translate-y-[3px] shadow-[0_4px_0_#6D28D9] active:shadow-[0_0px_0_#6D28D9] hover:brightness-105"
+                style={{
+                  border: "none", cursor: "pointer", flexShrink: 0,
+                  background: "linear-gradient(180deg, #A78BFA 0%, #8B5CF6 100%)",
+                  padding: "10px 14px", borderRadius: 12,
+                }}>
+                <Users size={14} style={{ color: "#fff" }} strokeWidth={2.5} />
+                <span className="text-[11px] font-black uppercase tracking-wide whitespace-nowrap" style={{ color: "#fff" }}>
+                  Pick Common Clients
+                </span>
+                <span className="text-[11px] font-black px-2 py-0.5 rounded-full whitespace-nowrap" style={{ color: "#fff", background: "rgba(255,255,255,0.25)" }}>
+                  {includedNames.size}/{commonParticipation.length}
+                </span>
+              </button>
             </div>
             {commonExpenses.length === 0 ? (
               <div className="flex flex-col items-center py-12">
@@ -934,6 +978,62 @@ export default function ExpensesClient({
             onClose={() => { setModal(null); setEditCommon(null) }}
           />
         )}
+      </DrawerPanel>
+
+      {/* Common-cost participation — toggle list, internal brands pinned first */}
+      <DrawerPanel
+        open={showParticipation}
+        onClose={() => setShowParticipation(false)}
+        header={
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] font-black" style={{ color: "#111111" }}>Common Cost Sharing</span>
+            <span className="text-[11px] font-black px-2 py-0.5 rounded-full" style={{ color: "#8B5CF6", background: "rgba(139,92,246,0.1)" }}>
+              {includedNames.size}/{commonParticipation.length}
+            </span>
+          </div>
+        }
+      >
+        <div className="space-y-1">
+          {commonParticipation.length === 0 ? (
+            <p className="text-[12px]" style={{ color: "#6B1D3A" }}>No clients yet.</p>
+          ) : commonParticipation.map((c, i) => {
+            const prevWasInternal = i > 0 && commonParticipation[i - 1].isInternal
+            const showDivider = c.isInternal ? i === 0 : (i === 0 || (prevWasInternal && !c.isInternal))
+            return (
+              <div key={c.id}>
+                {showDivider && (
+                  <p className="text-[9px] font-black uppercase tracking-wider px-1 pt-2 pb-1.5" style={{ color: "#9CA3AF" }}>
+                    {c.isInternal ? "Internal Brands" : "Clients"}
+                  </p>
+                )}
+                <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: c.included ? "rgba(139,92,246,0.05)" : "transparent" }}>
+                  <span className="flex-1 text-[13px] font-bold truncate" style={{ color: "#111111" }}>{c.name}</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full flex-shrink-0"
+                    style={{ color: c.status === "active" ? "#0F9D64" : "#7F1D2B", background: c.status === "active" ? "rgba(15,157,100,0.1)" : "rgba(127,29,43,0.1)" }}>
+                    {c.status}
+                  </span>
+                  {/* Toggle switch */}
+                  <button
+                    onClick={() => handleToggleParticipation(c.id, !c.included)}
+                    disabled={isPending}
+                    aria-pressed={c.included}
+                    style={{
+                      width: 38, height: 22, borderRadius: 999, flexShrink: 0, position: "relative",
+                      background: c.included ? "#8B5CF6" : "#E5E7EB",
+                      border: "none", cursor: isPending ? "not-allowed" : "pointer", transition: "background 0.15s",
+                    }}
+                  >
+                    <span style={{
+                      position: "absolute", top: 2, left: c.included ? 18 : 2,
+                      width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.3)", transition: "left 0.15s",
+                    }} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </DrawerPanel>
 
       {/* Client details drawer */}

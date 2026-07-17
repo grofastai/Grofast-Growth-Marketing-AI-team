@@ -1,12 +1,55 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, X, Sparkles, Building2, Users, TrendingUp } from 'lucide-react'
-import type { ClientRow } from './page'
+import {
+  Search, X, Sparkles, Building2, Users, TrendingUp, Plus, Pencil, Trash2, Check,
+  MapPin, Phone, Mail, CalendarRange, Layers, Tag, User,
+} from 'lucide-react'
+import type { ClientRow, ServiceOption } from './page'
 import type { DeliverableResult } from '@/lib/clients-deliverables'
 import { fmtRupee, fmtDate } from '@/lib/clients-deliverables'
 import { todayIST } from '@/lib/utils/ist-date'
+import {
+  addClient, updateClientDetails, updateClientStatus, deleteClient,
+  addServiceOption, renameServiceOption, deleteServiceOption, setClientServices,
+} from '@/lib/actions/clients'
+
+const PACKAGE_OPTIONS = [
+  'YEARLY', 'HALF YEARLY', 'QUARTERLY', 'MONTHLY',
+  '15 DAYS', '10 DAYS', '7 DAYS', 'FREE TRIAL',
+  '4 MONTHS', '5 MONTHS', '7 MONTHS', '8 MONTHS', '9 MONTHS', '10 MONTHS', '11 MONTHS',
+]
+
+const MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+
+function monthStrToInput(s: string): string {
+  const m = s.trim().toUpperCase().match(/^([A-Z]{3})[A-Z]*\s+(\d{4})$/)
+  if (!m) return ''
+  const idx = MONTH_ABBR.indexOf(m[1])
+  return idx === -1 ? '' : `${m[2]}-${String(idx + 1).padStart(2, '0')}`
+}
+function inputToMonthStr(v: string): string {
+  if (!v) return ''
+  const [y, m] = v.split('-')
+  const idx = parseInt(m, 10) - 1
+  return (idx < 0 || idx > 11) ? '' : `${MONTH_ABBR[idx]} ${y}`
+}
+function parsePeriod(period: string): { from: string; to: string; recurring: boolean } {
+  const p = period.trim()
+  if (!p) return { from: '', to: '', recurring: false }
+  if (/^(MONTHLY|RECURRING)$/i.test(p)) return { from: '', to: '', recurring: true }
+  const parts = p.split(/\s*-\s*/)
+  if (parts.length === 2) return { from: monthStrToInput(parts[0]), to: monthStrToInput(parts[1]), recurring: false }
+  return { from: monthStrToInput(parts[0]), to: '', recurring: false }
+}
+function buildPeriodString(from: string, to: string, recurring: boolean): string {
+  if (recurring) return 'MONTHLY'
+  const f = inputToMonthStr(from)
+  const t = inputToMonthStr(to)
+  if (f && t && f !== t) return `${f} - ${t}`
+  return f
+}
 
 // ── Work type display config ──────────────────────────────────────────────────
 
@@ -80,9 +123,10 @@ function ClientCard({ c, isSelected, onClick }: { c: ClientRow; isSelected: bool
             )}
           </div>
         </div>
-        <div style={{
-          width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-          background: c.status === 'active' ? '#22C55E' : '#9CA3AF',
+        <div title={c.status === 'active' ? 'Active' : 'Past'} style={{
+          width: 9, height: 9, borderRadius: '50%', flexShrink: 0,
+          background: c.status === 'active' ? '#0F9D64' : '#7F1D2B',
+          boxShadow: `0 0 0 2px ${c.status === 'active' ? 'rgba(15,157,100,0.15)' : 'rgba(127,29,43,0.15)'}`,
         }} />
       </div>
     </button>
@@ -202,7 +246,7 @@ function TableCols({ showClient }: { showClient?: boolean }) {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ClientsUnifiedClient({
-  activeClients, pastClients,
+  activeClients, pastClients, serviceOptions,
   selectedClientName, selectedClientRow,
   deliverables,
   mode, period, today,
@@ -210,6 +254,7 @@ export default function ClientsUnifiedClient({
 }: {
   activeClients: ClientRow[]
   pastClients:   ClientRow[]
+  serviceOptions: ServiceOption[]
   selectedClientName: string | null
   selectedClientRow: ClientRow | null
   deliverables: DeliverableResult | null
@@ -221,9 +266,11 @@ export default function ClientsUnifiedClient({
 }) {
   const router = useRouter()
   const [search, setSearch] = useState('')
+  const [clientModal, setClientModal] = useState<'add' | 'edit' | null>(null)
+  const [isSaving, startSaving] = useTransition()
 
-  const internalClients = useMemo(() => sortInternalBrands(activeClients.filter(c => c.industry === 'Internal Brand')), [activeClients])
-  const regularActive   = useMemo(() => activeClients.filter(c => c.industry !== 'Internal Brand'), [activeClients])
+  const internalClients = useMemo(() => sortInternalBrands(activeClients.filter(c => c.is_internal)), [activeClients])
+  const regularActive   = useMemo(() => activeClients.filter(c => !c.is_internal), [activeClients])
 
   function filterList(list: ClientRow[]) {
     const q = search.toLowerCase()
@@ -290,8 +337,8 @@ export default function ClientsUnifiedClient({
       {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
       <div style={{ flexShrink: 0, margin: '16px 16px 0', borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)', boxShadow: '0 8px 32px rgba(222,26,26,0.35)', position: 'relative' }}>
         {/* Decorative circles */}
-        <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
-        <div style={{ position: 'absolute', bottom: -20, right: 180, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+        <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -20, right: 180, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
         {/* Pixar-style client illustration — box matches the file's true aspect ratio (1774x887) and is
             vertically centered. The ratio and object-fit:contain must stay in sync with the file: any
             mismatch makes the image scale past the box and lose an edge (a 1774/1024 box cropped the
@@ -347,6 +394,13 @@ export default function ClientsUnifiedClient({
             }}>
               {activeClients.length + pastClients.length}
             </span>
+            <button onClick={() => setClientModal('add')} style={{
+              marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4,
+              fontSize: 11, fontWeight: 800, color: '#fff', background: '#DE1A1A',
+              border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+            }}>
+              <Plus size={12} /> Add Client
+            </button>
           </div>
 
           {/* Search */}
@@ -506,24 +560,56 @@ export default function ClientsUnifiedClient({
                       {selectedClientRow.location}
                     </span>
                   ) : (
-                    [
-                      selectedClientRow.industry,
-                      selectedClientRow.location ? `📍 ${selectedClientRow.location}` : null,
-                      selectedClientRow.package_name ? `📦 ${selectedClientRow.package_name}` : null,
-                      selectedClientRow.service,
-                    ].filter(Boolean).map((item, i) => (
-                      <span key={i} style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>{item}</span>
+                    [selectedClientRow.location ? `📍 ${selectedClientRow.location}` : null]
+                    .filter(Boolean).map((item, i) => (
+                      <span key={i} style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>{item}</span>
                     ))
                   )}
                 </div>
               </div>
-              <span style={{
-                fontSize: 10, fontWeight: 700, padding: '4px 12px', borderRadius: 20, flexShrink: 0,
-                background: selectedClientRow.status === 'active' ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.15)',
-                color: '#FFF', border: '1px solid rgba(255,255,255,0.3)',
-              }}>
-                {selectedClientRow.status === 'active' ? 'Active' : 'Past'}
-              </span>
+              {!selectedClientRow.industry?.startsWith('__virtual') && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  {/* Internal Brands are always active by definition — they don't have a Past
+                      state, so no toggle is shown for them (only real clients switch). */}
+                  {!selectedClientRow.is_internal && (
+                    <button
+                      onClick={() => {
+                        const next = selectedClientRow.status === 'active' ? 'past' : 'active'
+                        startSaving(async () => { await updateClientStatus(selectedClientRow.id, next); router.refresh() })
+                      }}
+                      disabled={isSaving}
+                      style={{
+                        fontSize: 10, fontWeight: 900, padding: '5px 14px', borderRadius: 20, cursor: isSaving ? 'not-allowed' : 'pointer',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                        background: selectedClientRow.status === 'active' ? '#0F9D64' : '#7F1D2B',
+                        color: '#FFF', border: '2px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                      }}
+                      title="Click to switch Active ⇄ Past"
+                    >
+                      {selectedClientRow.status === 'active' ? '● Active' : '● Past'}
+                    </button>
+                  )}
+                  <button onClick={() => setClientModal('edit')}
+                    style={{ width: 30, height: 30, borderRadius: 10, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                    title="Edit client details">
+                    <Pencil size={13} style={{ color: '#fff' }} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!confirm(`Delete "${selectedClientRow.name}"? This only works if they have no real logged work or expenses on file — this cannot be undone.`)) return
+                      startSaving(async () => {
+                        const result = await deleteClient(selectedClientRow.id)
+                        if (result.success) router.push('/admin/clients')
+                        else alert(result.error ?? 'Failed to delete')
+                      })
+                    }}
+                    disabled={isSaving}
+                    style={{ width: 30, height: 30, borderRadius: 10, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isSaving ? 'not-allowed' : 'pointer' }}
+                    title="Delete client">
+                    <Trash2 size={13} style={{ color: '#fff' }} />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* ── Date filter ──────────────────────────────────────────── */}
@@ -778,6 +864,388 @@ export default function ClientsUnifiedClient({
           </div>
         )}
       </div>
+      </div>
+
+      {clientModal && (
+        <ClientFormModal
+          mode={clientModal}
+          client={clientModal === 'edit' ? selectedClientRow : null}
+          serviceOptions={serviceOptions}
+          isSaving={isSaving}
+          onClose={() => setClientModal(null)}
+          onSave={(fields) => {
+            startSaving(async () => {
+              if (clientModal === 'add') {
+                const fd = new FormData()
+                Object.entries(fields).forEach(([k, v]) => {
+                  if (k === 'is_internal' || k === 'serviceIds' || v == null) return
+                  fd.set(k, v as string)
+                })
+                fd.set('is_internal', fields.is_internal ? 'true' : 'false')
+                const result = await addClient(fd)
+                if (result.success && result.id) {
+                  await setClientServices(result.id, fields.serviceIds)
+                  setClientModal(null)
+                  router.refresh()
+                } else if (result.success) {
+                  setClientModal(null); router.refresh()
+                } else alert(result.error ?? 'Failed to add client')
+              } else if (selectedClientRow) {
+                const result = await updateClientDetails(selectedClientRow.id, {
+                  name: fields.name, contact_name: fields.contact_name || null,
+                  industry: fields.industry || null, location: fields.location || null,
+                  package_name: fields.package_name || null,
+                  period: fields.period || null, phone: fields.phone || null, email: fields.email || null,
+                  is_internal: fields.is_internal,
+                })
+                if (result.success) {
+                  await setClientServices(selectedClientRow.id, fields.serviceIds)
+                  setClientModal(null)
+                  if (fields.name !== selectedClientRow.name) router.push(`/admin/clients?client=${encodeURIComponent(fields.name)}`)
+                  else router.refresh()
+                } else alert(result.error ?? 'Failed to save')
+              }
+            })
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Add / Edit client modal ─────────────────────────────────────────────────
+
+type ClientFormFields = {
+  name: string; contact_name: string; industry: string; location: string
+  serviceIds: string[]; package_name: string; period: string; phone: string; email: string
+  is_internal: boolean
+}
+
+function ClientFormModal({
+  mode, client, serviceOptions, isSaving, onClose, onSave,
+}: {
+  mode: 'add' | 'edit'
+  client: ClientRow | null
+  serviceOptions: ServiceOption[]
+  isSaving: boolean
+  onClose: () => void
+  onSave: (fields: ClientFormFields) => void
+}) {
+  const [fields, setFields] = useState<ClientFormFields>({
+    name:         client?.name ?? '',
+    contact_name: client?.contact_name ?? '',
+    industry:     client?.industry ?? '',
+    location:     client?.location ?? '',
+    serviceIds:   client?.serviceIds ?? [],
+    package_name: client?.package_name ?? '',
+    period:       client?.period ?? '',
+    phone:        client?.phone ?? '',
+    email:        client?.email ?? '',
+    is_internal:  client?.is_internal ?? false,
+  })
+  const initialPeriod = parsePeriod(client?.period ?? '')
+  const [periodFrom, setPeriodFrom] = useState(initialPeriod.from)
+  const [periodTo, setPeriodTo] = useState(initialPeriod.to)
+  const [periodRecurring, setPeriodRecurring] = useState(initialPeriod.recurring)
+
+  const [options, setOptions] = useState<ServiceOption[]>(serviceOptions)
+  const [newServiceName, setNewServiceName] = useState('')
+  const [editingServices, setEditingServices] = useState(false)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameText, setRenameText] = useState('')
+  const [busy, startBusy] = useTransition()
+
+  function toggleService(id: string) {
+    setFields(f => ({
+      ...f,
+      serviceIds: f.serviceIds.includes(id) ? f.serviceIds.filter(x => x !== id) : [...f.serviceIds, id],
+    }))
+  }
+
+  function handleAddService() {
+    const name = newServiceName.trim()
+    if (!name) return
+    startBusy(async () => {
+      const result = await addServiceOption(name)
+      if (result.success && result.option) {
+        const opt = result.option
+        setOptions(prev => [...prev, opt].sort((a, b) => a.name.localeCompare(b.name)))
+        setFields(f => ({ ...f, serviceIds: [...f.serviceIds, opt.id] }))
+        setNewServiceName('')
+      } else if (result.error) {
+        alert(result.error)
+      }
+    })
+  }
+
+  function commitRename() {
+    const id = renamingId
+    const name = renameText.trim()
+    setRenamingId(null)
+    if (!id || !name) return
+    startBusy(async () => {
+      const result = await renameServiceOption(id, name)
+      if (result.success) {
+        setOptions(prev => prev.map(o => o.id === id ? { ...o, name: name.toUpperCase() } : o).sort((a, b) => a.name.localeCompare(b.name)))
+      } else if (result.error) alert(result.error)
+    })
+  }
+
+  function handleDeleteService(o: ServiceOption) {
+    if (!confirm(`Delete "${o.name}"? This removes it from every client that has it selected.`)) return
+    startBusy(async () => {
+      const result = await deleteServiceOption(o.id)
+      if (result.success) {
+        setOptions(prev => prev.filter(x => x.id !== o.id))
+        setFields(f => ({ ...f, serviceIds: f.serviceIds.filter(id => id !== o.id) }))
+      } else if (result.error) alert(result.error)
+    })
+  }
+
+  function set(key: keyof Omit<ClientFormFields, 'is_internal' | 'serviceIds' | 'period'>) {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setFields(f => ({ ...f, [key]: e.target.value }))
+  }
+
+  const FIELD: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10,
+    border: '1.5px solid #E9EAEE', fontSize: 13, color: '#111827', outline: 'none',
+    background: '#fff', transition: 'border-color 0.15s',
+  }
+  const LABEL: React.CSSProperties = {
+    fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
+    color: '#8B8FA3', display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6,
+  }
+  const CARD: React.CSSProperties = {
+    background: '#FAFAFB', border: '1px solid #F0F1F4', borderRadius: 16, padding: 16,
+    display: 'flex', flexDirection: 'column', gap: 12,
+  }
+  const SECTION_TITLE: React.CSSProperties = {
+    fontSize: 10.5, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.07em',
+    color: '#DE1A1A', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2,
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,17,17,0.55)', backdropFilter: 'blur(2px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+      onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: 22, width: '100%', maxWidth: 500, maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.28)', display: 'flex', flexDirection: 'column' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header strip */}
+        <div style={{
+          background: 'linear-gradient(135deg, #DE1A1A 0%, #7F1D1D 100%)', padding: '18px 22px',
+          display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', top: -30, right: -10, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', pointerEvents: 'none' }} />
+          <div style={{
+            width: 38, height: 38, borderRadius: 12, background: 'rgba(255,255,255,0.18)',
+            border: '1.5px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <Building2 size={17} style={{ color: '#fff' }} />
+          </div>
+          <h3 style={{ fontSize: 16, fontWeight: 900, color: '#fff', margin: 0, fontFamily: 'var(--font-jakarta)', flex: 1 }}>
+            {mode === 'add' ? 'Add Client' : 'Edit Client'}
+          </h3>
+          <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 9, background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={14} style={{ color: '#fff' }} />
+          </button>
+        </div>
+
+        <div style={{ padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* Basics */}
+          <div style={CARD}>
+            <div>
+              <label style={LABEL}><Tag size={11} /> Client / Company Name *</label>
+              <input style={FIELD} value={fields.name} onChange={set('name')} placeholder="e.g. Evan Styles Makeover" />
+            </div>
+            <button type="button"
+              onClick={() => setFields(f => ({ ...f, is_internal: !f.is_internal }))}
+              className="transition-all duration-100 active:translate-y-[2px]"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 9, width: '100%', textAlign: 'left',
+                padding: '10px 14px', borderRadius: 12, cursor: 'pointer', border: 'none',
+                background: fields.is_internal
+                  ? 'linear-gradient(180deg, #EF4444 0%, #DE1A1A 100%)'
+                  : 'linear-gradient(180deg, #FFFFFF 0%, #F3F4F6 100%)',
+                boxShadow: fields.is_internal ? '0 3px 0 #9F1616' : '0 3px 0 #D8DADF',
+              }}>
+              <div style={{
+                width: 18, height: 18, borderRadius: 6, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: fields.is_internal ? 'rgba(255,255,255,0.25)' : '#fff',
+                border: fields.is_internal ? 'none' : '1.5px solid #D1D5DB',
+              }}>
+                {fields.is_internal && <Check size={12} strokeWidth={3.5} style={{ color: '#fff' }} />}
+              </div>
+              <span style={{ fontSize: 12.5, fontWeight: 800, color: fields.is_internal ? '#fff' : '#374151' }}>
+                Internal Brand
+              </span>
+            </button>
+          </div>
+
+          {/* Contact */}
+          <div style={CARD}>
+            <span style={SECTION_TITLE}><User size={12} /> Contact</span>
+            <div>
+              <label style={LABEL}>Client Name</label>
+              <input style={FIELD} value={fields.contact_name} onChange={set('contact_name')} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={LABEL}><Phone size={10} /> Phone</label>
+                <input style={FIELD} value={fields.phone} onChange={set('phone')} />
+              </div>
+              <div>
+                <label style={LABEL}><Mail size={10} /> Email</label>
+                <input style={FIELD} value={fields.email} onChange={set('email')} />
+              </div>
+            </div>
+          </div>
+
+          {/* Business */}
+          <div style={CARD}>
+            <span style={SECTION_TITLE}><Building2 size={12} /> Business</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={LABEL}>Industry</label>
+                <input style={FIELD} value={fields.industry} onChange={set('industry')} />
+              </div>
+              <div>
+                <label style={LABEL}><MapPin size={10} /> Location</label>
+                <input style={FIELD} value={fields.location} onChange={set('location')} />
+              </div>
+            </div>
+          </div>
+
+          {/* Engagement */}
+          <div style={CARD}>
+            <span style={SECTION_TITLE}><Layers size={12} /> Engagement</span>
+
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label style={{ ...LABEL, marginBottom: 0 }}>Services</label>
+                <button type="button" onClick={() => { setEditingServices(e => !e); setRenamingId(null) }}
+                  style={{ fontSize: 10, fontWeight: 800, color: '#DE1A1A', background: 'none', border: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  {editingServices ? 'Done' : 'Edit list'}
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {options.map(o => {
+                  const active = fields.serviceIds.includes(o.id)
+                  if (editingServices) {
+                    if (renamingId === o.id) {
+                      return (
+                        <input key={o.id} autoFocus value={renameText}
+                          onChange={e => setRenameText(e.target.value)}
+                          onBlur={commitRename}
+                          onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenamingId(null) }}
+                          style={{ ...FIELD, width: 150, padding: '5px 10px', fontSize: 11.5 }} />
+                      )
+                    }
+                    return (
+                      <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 4px 4px 12px', borderRadius: 999, border: '1.5px solid #E5E7EB', background: '#fff' }}>
+                        <button type="button" onClick={() => { setRenamingId(o.id); setRenameText(o.name) }}
+                          style={{ background: 'none', border: 'none', fontSize: 11.5, fontWeight: 700, color: '#374151', cursor: 'pointer', padding: 0 }}>
+                          {o.name}
+                        </button>
+                        <button type="button" onClick={() => handleDeleteService(o)}
+                          style={{ width: 18, height: 18, borderRadius: '50%', border: 'none', background: '#FEE2E2', color: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                          <X size={10} strokeWidth={3} />
+                        </button>
+                      </div>
+                    )
+                  }
+                  return (
+                    <button key={o.id} type="button" onClick={() => toggleService(o.id)}
+                      style={{
+                        padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                        border: `1.5px solid ${active ? '#DE1A1A' : '#E5E7EB'}`,
+                        background: active ? 'rgba(222,26,26,0.08)' : '#fff',
+                        color: active ? '#DE1A1A' : '#6B7280',
+                      }}>
+                      {o.name}
+                    </button>
+                  )
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <input
+                  value={newServiceName}
+                  onChange={e => setNewServiceName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddService() } }}
+                  placeholder="+ Add new service"
+                  style={{ ...FIELD, flex: 1, fontSize: 12 }}
+                />
+                <button type="button" onClick={handleAddService} disabled={!newServiceName.trim() || busy}
+                  style={{
+                    padding: '0 14px', borderRadius: 10, border: 'none', fontSize: 12, fontWeight: 700,
+                    background: '#F3F4F6', color: '#374151',
+                    cursor: (!newServiceName.trim() || busy) ? 'not-allowed' : 'pointer',
+                    opacity: (!newServiceName.trim() || busy) ? 0.6 : 1,
+                  }}>
+                  Add
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label style={LABEL}>Package</label>
+              <select style={FIELD} value={fields.package_name} onChange={set('package_name')}>
+                <option value="">Select package</option>
+                {PACKAGE_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label style={LABEL}><CalendarRange size={10} /> Period</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                <input type="month" style={{ ...FIELD, flex: '1 1 120px' }} value={periodFrom}
+                  disabled={periodRecurring}
+                  onChange={e => setPeriodFrom(e.target.value)} />
+                <span style={{ fontSize: 12, color: '#9CA3AF', fontWeight: 700 }}>to</span>
+                <input type="month" style={{ ...FIELD, flex: '1 1 120px' }} value={periodTo}
+                  disabled={periodRecurring}
+                  onChange={e => setPeriodTo(e.target.value)} />
+              </div>
+              <button type="button" onClick={() => setPeriodRecurring(r => !r)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '5px 11px', borderRadius: 999,
+                  border: `1.5px solid ${periodRecurring ? '#DE1A1A' : '#E5E7EB'}`,
+                  background: periodRecurring ? 'rgba(222,26,26,0.08)' : '#fff',
+                  color: periodRecurring ? '#DE1A1A' : '#6B7280',
+                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                }}>
+                <div style={{
+                  width: 13, height: 13, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: `1.5px solid ${periodRecurring ? '#DE1A1A' : '#D1D5DB'}`, background: periodRecurring ? '#DE1A1A' : '#fff',
+                }}>
+                  {periodRecurring && <Check size={9} strokeWidth={4} style={{ color: '#fff' }} />}
+                </div>
+                No fixed end — billed monthly
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, padding: '16px 20px', borderTop: '1px solid #F0F1F4', flexShrink: 0 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '11px', borderRadius: 12, background: '#F3F4F6', color: '#374151', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              if (!fields.name.trim()) return
+              onSave({ ...fields, period: buildPeriodString(periodFrom, periodTo, periodRecurring) })
+            }}
+            disabled={isSaving || !fields.name.trim() || busy}
+            style={{
+              flex: 1.4, padding: '11px', borderRadius: 12, border: 'none', fontSize: 13, fontWeight: 800,
+              background: 'linear-gradient(180deg, #EF4444 0%, #DE1A1A 100%)', color: '#fff',
+              boxShadow: isSaving ? 'none' : '0 3px 0 #9F1616',
+              cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1,
+            }}>
+            {isSaving ? 'Saving…' : mode === 'add' ? 'Add Client' : 'Save Changes'}
+          </button>
+        </div>
       </div>
     </div>
   )

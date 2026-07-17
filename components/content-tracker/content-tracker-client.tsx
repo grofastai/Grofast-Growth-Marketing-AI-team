@@ -10,7 +10,7 @@ import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil,
   Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw, LayoutDashboard,
-  MoreVertical, Users, Clock,
+  MoreVertical, Users, Clock, XCircle,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
@@ -37,7 +37,7 @@ type Priority = "low" | "medium" | "high" | "urgent"
 type ContentSource = "shoot" | "ads_video" | "poster"
 type ContentStatus =
   | "scripting" | "voiceover" | "design" | "ready_to_edit"
-  | "editing" | "edited" | "on_review" | "ready_to_post" | "posted"
+  | "editing" | "edited" | "on_review" | "ready_to_post" | "posted" | "cancelled"
 type TargetingType = "broad" | "interest" | "lookalike" | "retargeting"
 type AdStatus = "active" | "paused" | "testing" | "stopped"
 
@@ -158,6 +158,7 @@ const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
   on_review:     { label: "On Review",     accent: "#F43F5E" },
   ready_to_post: { label: "Ready to Post", accent: "#0EA5E9" },
   posted:        { label: "Posted",        accent: "#22C55E" },
+  cancelled:     { label: "Cancelled",     accent: "#EF4444" },
 }
 // Advance-button fill — same bright-to-dark two-stop language as MODE_ACCENT.grad and
 // OVERVIEW_TILE_GRADIENTS, just derived from each status's accent instead of a hardcoded pair.
@@ -167,7 +168,7 @@ function statusButtonGradient(status: ContentStatus): string {
 }
 // The production board's column order — differs by content type only in its first column
 // (shoot/ads-video video enters at Ready to Edit; posters enter at Design).
-const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "editing", "edited", "on_review", "ready_to_post"]
+const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "editing", "edited", "on_review", "ready_to_post", "cancelled"]
 const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "editing", "edited", "on_review", "ready_to_post"]
 // The Ads Video sub-tab's own two-column board — feeds INTO Ready to Edit, doesn't include it.
 const ADS_VIDEO_ORDER: ContentStatus[] = ["scripting", "voiceover"]
@@ -455,9 +456,10 @@ function ContentCardInner({
   onEdit?: (item: ContentItem) => void
 }) {
   const TypeIcon = item.content_type === "video" ? Video : ImageIcon
-  // Video/poster brand accent — ties every card to the same red/violet identity used
-  // on the Overview tiles, instead of a fixed indigo regardless of content type.
-  const typeAccent = item.content_type === "video" ? MODE_ACCENT.video.solid : MODE_ACCENT.poster.solid
+  // The card's own column/status color, not a fixed video-vs-poster color — a card sitting
+  // in the teal Ready to Edit column shouldn't carry a red border into it. Content type is
+  // still legible from the icon (Video vs Image), it just no longer fights the column's hue.
+  const typeAccent = STATUS_CFG[item.status].accent
   // Every "who/when" tag on the card (shot by, voiced by, edited by, ads-video source,
   // scheduled slot, corrections) shades off this same accent instead of its own unrelated
   // hue, so nothing on the card fights the card's own color.
@@ -472,6 +474,10 @@ function ContentCardInner({
   if (onEdit) cardMenu.push({ label: "Edit details", icon: Pencil, onClick: () => onEdit(item) })
   if (onRequestCorrection && item.status === "on_review") {
     cardMenu.push({ label: "Needs correction", icon: RotateCcw, onClick: () => onRequestCorrection(item) })
+  }
+  // Footage that came out unusable — kept as a record instead of deleted outright.
+  if (item.status === "ready_to_edit") {
+    cardMenu.push({ label: "Cancel", icon: XCircle, onClick: () => onAdvance(item, "cancelled"), danger: true })
   }
   if (onEdit) cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true })
 
@@ -674,7 +680,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
   ]
   const next = NEXT_STATUS[item.status]
 
-  const accent = MODE_ACCENT.video.solid
+  const accent = STATUS_CFG[item.status].accent
   const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
@@ -1150,7 +1156,7 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
     cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(ad.id), danger: true })
   }
 
-  const accent = MODE_ACCENT.ads.solid
+  const accent = AD_STATUS_CFG[ad.status].color
   const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
   const stripeColor = underperforming ? "#EF4444" : accent
   return (
@@ -2848,8 +2854,8 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
   const navCounts = useMemo(() => ({
     overview: overview.attention.reduce((sum, a) => sum + a.count, 0),
-    video: items.filter(i => i.content_type === "video" && i.status !== "posted").length,
-    poster: items.filter(i => i.content_type === "poster" && i.status !== "posted").length,
+    video: items.filter(i => i.content_type === "video" && i.status !== "posted" && i.status !== "cancelled").length,
+    poster: items.filter(i => i.content_type === "poster" && i.status !== "posted" && i.status !== "cancelled").length,
     ads: ads.filter(a => a.status === "active").length,
   }), [items, ads, overview])
 
@@ -2864,7 +2870,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       ...(mode === "video"
         ? [{ key: "adsvideo", label: "Ads Video", icon: Sparkles, count: activeAdsVideo.length }]
         : []),
-      { key: "pipeline", label: "Ready to Edit", icon: Layers, count: ofMode.filter(i => pipelineOrder.includes(i.status)).length },
+      { key: "pipeline", label: "Ready to Edit", icon: Layers, count: ofMode.filter(i => pipelineOrder.includes(i.status) && i.status !== "cancelled").length },
       { key: "log", label: "Posted", icon: History, count: ofMode.filter(i => i.status === "posted").length },
     ]
   }, [mode, items, shoots, contentTypeForMode, pipelineOrder])
@@ -2908,6 +2914,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     const map = new Map<string, { posted: number; unposted: number; unedited: number }>()
     for (const item of items) {
       if (item.content_type !== contentTypeForMode) continue
+      if (item.status === "cancelled") continue
       if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0 })
       const rec = map.get(item.client_name)!
       if (item.status === "posted") {
@@ -3295,7 +3302,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
           <div className="hidden md:block">
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver as never} onDragEnd={handleDragEnd}>
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${pipelineOrder.length}, minmax(0, 1fr))` }}>
                 {pipelineOrder.map(status => {
                   const list = colItems(status)
                   const cfg = STATUS_CFG[status]

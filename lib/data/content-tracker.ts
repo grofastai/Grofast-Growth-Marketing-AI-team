@@ -35,7 +35,7 @@ export async function getContentTrackerData(companyId: string): Promise<{
 
   type ItemRow = {
     id: string; client_name: string; title: string; content_type: 'video' | 'poster'
-    status: 'scripting' | 'voiceover' | 'design' | 'ready_to_edit' | 'editing' | 'edited' | 'on_review' | 'ready_to_post' | 'posted'
+    status: 'scripting' | 'voiceover' | 'design' | 'ready_to_edit' | 'editing' | 'edited' | 'on_review' | 'ready_to_post' | 'posted' | 'cancelled'
     source: 'shoot' | 'ads_video' | 'poster'
     shot_by: string | null; shot_date: string | null; edited_by: string | null; edited_date: string | null
     notes: string | null; created_at: string

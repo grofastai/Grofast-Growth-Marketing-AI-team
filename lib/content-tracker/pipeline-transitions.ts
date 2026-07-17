@@ -4,7 +4,7 @@
 // rejected identically.
 export type ContentPipelineStatus =
   | 'scripting' | 'voiceover' | 'design' | 'ready_to_edit'
-  | 'editing' | 'edited' | 'on_review' | 'ready_to_post' | 'posted'
+  | 'editing' | 'edited' | 'on_review' | 'ready_to_post' | 'posted' | 'cancelled'
 
 export type ContentSource = 'shoot' | 'ads_video' | 'poster'
 
@@ -12,13 +12,17 @@ const TRANSITIONS: Record<ContentPipelineStatus, ContentPipelineStatus[]> = {
   scripting: ['voiceover'],
   voiceover: ['ready_to_edit'],
   design: ['editing'],
-  ready_to_edit: ['editing'],
+  // A shoot can produce footage that never gets edited (unusable take, client pulls the
+  // ask) — Cancelled is reachable straight from Ready to Edit rather than requiring it
+  // to be deleted outright.
+  ready_to_edit: ['editing', 'cancelled'],
   editing: ['edited'],
   edited: ['on_review'],
   // The review gate: approve moves it on, a correction sends it back to the editor.
   on_review: ['ready_to_post', 'editing'],
   ready_to_post: ['posted'],
   posted: [],
+  cancelled: [],
 }
 
 export function isValidPipelineTransition(from: ContentPipelineStatus, to: ContentPipelineStatus): boolean {

@@ -4,7 +4,7 @@
 
 export type OverviewStatus =
   | 'scripting' | 'voiceover' | 'design' | 'ready_to_edit'
-  | 'editing' | 'edited' | 'on_review' | 'ready_to_post' | 'posted'
+  | 'editing' | 'edited' | 'on_review' | 'ready_to_post' | 'posted' | 'cancelled'
 export type OverviewShootStatus = 'scheduled' | 'completed' | 'cancelled'
 export type OverviewAdStatus = 'active' | 'testing' | 'paused' | 'stopped'
 
@@ -80,7 +80,7 @@ function daysBetween(from: string, to: string): number {
 function emptyStages(): StageCounts {
   return {
     scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0,
-    editing: 0, edited: 0, on_review: 0, ready_to_post: 0, posted: 0,
+    editing: 0, edited: 0, on_review: 0, ready_to_post: 0, posted: 0, cancelled: 0,
   }
 }
 

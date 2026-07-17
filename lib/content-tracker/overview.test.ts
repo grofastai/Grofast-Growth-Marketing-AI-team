@@ -23,7 +23,7 @@ function shoot(overrides: Partial<OverviewShoot> = {}): OverviewShoot {
 function ad(overrides: Partial<OverviewAd> = {}): OverviewAd {
   return { id: 'a1', status: 'active', created_at: `${TODAY}T09:00:00Z`, ...overrides }
 }
-const EMPTY_STAGES = { scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0, editing: 0, edited: 0, on_review: 0, ready_to_post: 0, posted: 0 }
+const EMPTY_STAGES = { scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0, editing: 0, edited: 0, on_review: 0, ready_to_post: 0, posted: 0, cancelled: 0 }
 
 describe('stage counts', () => {
   it('splits video and poster counts by content_type', () => {

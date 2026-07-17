@@ -31,6 +31,17 @@ describe('isValidPipelineTransition', () => {
   it('rejects a status transitioning to itself', () => {
     expect(isValidPipelineTransition('editing', 'editing')).toBe(false)
   })
+  it('allows cancelling straight from Ready to Edit', () => {
+    expect(isValidPipelineTransition('ready_to_edit', 'cancelled')).toBe(true)
+  })
+  it('rejects cancelling from any other stage', () => {
+    expect(isValidPipelineTransition('editing', 'cancelled')).toBe(false)
+    expect(isValidPipelineTransition('design', 'cancelled')).toBe(false)
+  })
+  it('rejects cancelled -> anything (terminal state)', () => {
+    expect(isValidPipelineTransition('cancelled', 'ready_to_edit')).toBe(false)
+    expect(isValidPipelineTransition('cancelled', 'editing')).toBe(false)
+  })
 })
 
 describe('isStatusAllowedForSource', () => {

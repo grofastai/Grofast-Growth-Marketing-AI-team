@@ -169,7 +169,7 @@ function statusButtonGradient(status: ContentStatus): string {
 // The production board's column order — differs by content type only in its first column
 // (shoot/ads-video video enters at Ready to Edit; posters enter at Design).
 const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "editing", "edited", "on_review", "ready_to_post", "cancelled"]
-const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "editing", "edited", "on_review", "ready_to_post"]
+const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "editing", "edited", "on_review", "ready_to_post", "cancelled"]
 // The Ads Video sub-tab's own two-column board — feeds INTO Ready to Edit, doesn't include it.
 const ADS_VIDEO_ORDER: ContentStatus[] = ["scripting", "voiceover"]
 // The default "move forward" target for the generic advance button. on_review is
@@ -475,8 +475,8 @@ function ContentCardInner({
   if (onRequestCorrection && item.status === "on_review") {
     cardMenu.push({ label: "Needs correction", icon: RotateCcw, onClick: () => onRequestCorrection(item) })
   }
-  // Footage that came out unusable — kept as a record instead of deleted outright.
-  if (item.status === "ready_to_edit") {
+  // Footage or a design that came out unusable — kept as a record instead of deleted outright.
+  if (item.status === "ready_to_edit" || item.status === "editing") {
     cardMenu.push({ label: "Cancel", icon: XCircle, onClick: () => onAdvance(item, "cancelled"), danger: true })
   }
   if (onEdit) cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true })

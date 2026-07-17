@@ -37,7 +37,7 @@ type Priority = "low" | "medium" | "high" | "urgent"
 type ContentSource = "shoot" | "ads_video" | "poster"
 type ContentStatus =
   | "scripting" | "voiceover" | "design" | "ready_to_edit"
-  | "editing" | "edited" | "on_review" | "ready_to_post" | "posted" | "cancelled"
+  | "edited" | "on_review" | "ready_to_post" | "posted" | "cancelled"
 type TargetingType = "broad" | "interest" | "lookalike" | "retargeting"
 type AdStatus = "active" | "paused" | "testing" | "stopped"
 
@@ -150,9 +150,8 @@ const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
   voiceover:     { label: "Voice Over",    accent: "#1E3A8A" },
   design:        { label: "Design",        accent: "#F59E0B" },
   ready_to_edit: { label: "Ready to Edit", accent: "#0D9488" },
-  editing:       { label: "Editing",       accent: "#6366F1" },
-  // Was #9B6BFF (purple) — sat right next to Editing's indigo and read as nearly the
-  // same color once darkened for the badge fill. Fuchsia is a clean break from it.
+  // Was #9B6BFF (purple) — read as nearly the same color as neighboring stages once
+  // darkened for the badge fill. Fuchsia is a clean break from it.
   edited:        { label: "Edited",        accent: "#D946EF" },
   // Was #EC4899 (pink) — too close to Edited's new fuchsia. Rose leans warmer/redder.
   on_review:     { label: "On Review",     accent: "#F43F5E" },
@@ -168,8 +167,8 @@ function statusButtonGradient(status: ContentStatus): string {
 }
 // The production board's column order — differs by content type only in its first column
 // (shoot/ads-video video enters at Ready to Edit; posters enter at Design).
-const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "editing", "edited", "on_review", "ready_to_post", "cancelled"]
-const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "editing", "edited", "on_review", "ready_to_post", "cancelled"]
+const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "edited", "on_review", "ready_to_post", "cancelled"]
+const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "edited", "on_review", "ready_to_post", "cancelled"]
 // The Ads Video sub-tab's own two-column board — feeds INTO Ready to Edit, doesn't include it.
 const ADS_VIDEO_ORDER: ContentStatus[] = ["scripting", "voiceover"]
 // The default "move forward" target for the generic advance button. on_review is
@@ -178,9 +177,8 @@ const ADS_VIDEO_ORDER: ContentStatus[] = ["scripting", "voiceover"]
 const NEXT_STATUS: Partial<Record<ContentStatus, ContentStatus>> = {
   scripting: "voiceover",
   voiceover: "ready_to_edit",
-  design: "editing",
-  ready_to_edit: "editing",
-  editing: "edited",
+  design: "edited",
+  ready_to_edit: "edited",
   edited: "on_review",
   ready_to_post: "posted",
 }
@@ -476,7 +474,7 @@ function ContentCardInner({
     cardMenu.push({ label: "Needs correction", icon: RotateCcw, onClick: () => onRequestCorrection(item) })
   }
   // Footage or a design that came out unusable — kept as a record instead of deleted outright.
-  if (item.status === "ready_to_edit" || item.status === "editing") {
+  if (item.status === "ready_to_edit" || item.status === "design") {
     cardMenu.push({ label: "Cancel", icon: XCircle, onClick: () => onAdvance(item, "cancelled"), danger: true })
   }
   if (onEdit) cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true })
@@ -563,11 +561,11 @@ function ContentCardInner({
             </div>
           </div>
         )}
-        {/* While it's in Editing, name the editor outright — the point of asking "who's
-            starting this?" is that the rest of the team can see it without hovering. */}
-        {item.editedByUser && item.status === "editing" ? (
+        {/* Once it's Edited, name the editor outright — the point of asking "who edited
+            this?" is that the rest of the team can see it without hovering. */}
+        {item.editedByUser && item.status === "edited" ? (
           <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-            title={`${item.editedByUser.name} is editing this`}
+            title={`Edited by ${item.editedByUser.name}`}
             style={{ background: `${typeAccent}18`, color: typeAccentDark }}>
             <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
               style={{ background: typeAccentDark, color: "#fff" }}>
@@ -623,7 +621,7 @@ function ContentCardInner({
         </div>
       )}
 
-      {/* The review gate: approve moves it on, a correction sends it back to Editing. */}
+      {/* The review gate: approve moves it on, a correction sends it back to Edited for rework. */}
       {item.status === "on_review" ? (
         <div className="flex flex-col gap-1.5">
           <button
@@ -1354,7 +1352,7 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
         <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "10px 12px", borderRadius: 10, background: alreadyPosted ? "rgba(34,197,94,0.06)" : "#F9FAFB", border: `1.5px solid ${alreadyPosted ? "rgba(34,197,94,0.3)" : "#E5E7EB"}` }}>
           <input type="checkbox" checked={alreadyPosted} onChange={e => setAlreadyPosted(e.target.checked)} style={{ width: 15, height: 15, accentColor: "#22C55E" }} />
           <span style={{ fontSize: 12, fontWeight: 700, color: alreadyPosted ? "#16A34A" : "#374151" }}>Already posted</span>
-          <span style={{ fontSize: 10, color: "#374151", fontWeight: 600 }}>— skip Editing/Edited, log it straight as Posted</span>
+          <span style={{ fontSize: 10, color: "#374151", fontWeight: 600 }}>— skip the pipeline, log it straight as Posted</span>
         </label>
 
         {alreadyPosted && (
@@ -2021,7 +2019,7 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   )
 }
 
-// ── "Needs correction" — sends an Edited item back to Editing with what to fix ──────
+// ── "Needs correction" — sends an item back to Edited for rework, with what to fix ──
 function RequestCorrectionModal({ item, members, onClose, onRequested }: {
   item: ContentItem
   members: Member[]
@@ -2051,8 +2049,8 @@ function RequestCorrectionModal({ item, members, onClose, onRequested }: {
     <Modal title="Needs Correction" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-          <strong style={{ color: "#111827" }}>{item.title}</strong> goes back to Editing. The round-trip
-          is logged, so you can see how many rounds it took.
+          <strong style={{ color: "#111827" }}>{item.title}</strong> goes back to Edited for rework. The
+          round-trip is logged, so you can see how many rounds it took.
         </p>
         <div>
           <label style={LABEL}>What needs fixing? *</label>
@@ -2147,15 +2145,17 @@ function ReadyToPostModal({ item, onClose, onScheduled }: {
   )
 }
 
-// ── "Who's starting the edit?" — the accountability prompt when a video enters Editing ──
-function StartEditingModal({ item, members, currentUserId, onClose, onConfirm }: {
+// ── "Who edited this?" — the accountability prompt when an item moves to Edited ──
+// There's no separate Editing stage to capture this at anymore, so it's asked here,
+// at the point the item is actually marked Edited.
+function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
   item: ContentItem
   members: Member[]
   currentUserId: string
   onClose: () => void
   onConfirm: (editorId: string, editorName: string) => void
 }) {
-  // Defaults to whoever clicked — the common case is "I'm starting this" — but a manager
+  // Defaults to whoever clicked — the common case is "I edited this" — but a manager
   // can reassign to anyone.
   const [editorId, setEditorId] = useState(
     members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
@@ -2164,16 +2164,16 @@ function StartEditingModal({ item, members, currentUserId, onClose, onConfirm }:
 
   function submit() {
     const editor = members.find(m => m.id === editorId)
-    if (!editor) { setError("Pick who's starting this edit"); return }
+    if (!editor) { setError("Pick who edited this"); return }
     onConfirm(editor.id, editor.name)
   }
 
   return (
-    <Modal title="Who's starting this edit?" onClose={onClose}>
+    <Modal title="Who edited this?" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-          <strong style={{ color: "#111827" }}>{item.title}</strong> is moving to Editing. Recording who
-          started it means the rest of the team can see it&apos;s being worked on.
+          <strong style={{ color: "#111827" }}>{item.title}</strong> is moving to Edited. Recording who
+          edited it means the rest of the team can see who to ask.
         </p>
         <div>
           <label style={LABEL}>Editor *</label>
@@ -2184,7 +2184,7 @@ function StartEditingModal({ item, members, currentUserId, onClose, onConfirm }:
           </select>
         </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
-        <PrimaryButton onClick={submit}>Start Editing</PrimaryButton>
+        <PrimaryButton onClick={submit}>Mark Edited</PrimaryButton>
       </div>
     </Modal>
   )
@@ -2599,7 +2599,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [adsSearch, setAdsSearch] = useState("")
   const [showNewShoot, setShowNewShoot] = useState(false)
   const [completeShootFor, setCompleteShootFor] = useState<Shoot | null>(null)
-  const [startEditingItem, setStartEditingItem] = useState<ContentItem | null>(null)
+  const [markEditedItem, setMarkEditedItem] = useState<ContentItem | null>(null)
   const [voiceOverItem, setVoiceOverItem] = useState<ContentItem | null>(null)
   const [readyToPostItem, setReadyToPostItem] = useState<ContentItem | null>(null)
   const [correctionItem, setCorrectionItem] = useState<ContentItem | null>(null)
@@ -2673,7 +2673,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     return Array.from(months).sort().reverse()
   }, [items])
 
-  // The item's own "current stage" date — shot/editing by shot date, edited by edited
+  // The item's own "current stage" date — pre-Edited by shot date, edited by edited
   // date, posted by its (latest) post date. Month and day filters both key off this.
   function itemStageDate(item: ContentItem): string | null {
     if (item.status === "posted") {
@@ -2715,8 +2715,9 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     // Ready to Post asks where and when it's going out — used both for the normal forward
     // path and for approving out of On Review.
     if (next === "ready_to_post") { setReadyToPostItem(item); return }
-    // Entering Editing asks who's starting it — that's the accountability moment.
-    if (next === "editing" && members.length > 0) { setStartEditingItem(item); return }
+    // Reaching Edited asks who edited it — that's the accountability moment, since
+    // there's no separate Editing stage to capture it at.
+    if (next === "edited" && members.length > 0) { setMarkEditedItem(item); return }
     // Entering Voice Over asks who recorded it.
     if (next === "voiceover") { setVoiceOverItem(item); return }
     const previous = item.status
@@ -2733,7 +2734,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   function handleCorrectionRequested(correction: ContentCorrection) {
     setItems(prev => prev.map(i => i.id === correction.content_item_id ? {
       ...i,
-      status: "editing",
+      status: "edited",
       corrections: [correction, ...i.corrections],
       // If it was reassigned, that person is now the editor.
       editedByUser: correction.assignedToUser ?? i.editedByUser,
@@ -2751,12 +2752,12 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     setReadyToPostItem(null)
   }
 
-  function handleStartEditing(item: ContentItem, editorId: string, editorName: string) {
+  function handleMarkEdited(item: ContentItem, editorId: string, editorName: string) {
     setItems(prev => prev.map(i => i.id === item.id
-      ? { ...i, status: "editing", editedByUser: { id: editorId, name: editorName } }
+      ? { ...i, status: "edited", edited_date: new Date().toISOString().split("T")[0], editedByUser: { id: editorId, name: editorName } }
       : i))
-    setStartEditingItem(null)
-    startTransition(async () => { await updateContentItemStatus(item.id, "editing", editorId) })
+    setMarkEditedItem(null)
+    startTransition(async () => { await updateContentItemStatus(item.id, "edited", editorId) })
   }
 
   function handleVoiceOverRecorded(item: ContentItem, voiceoverBy: VoiceFreelancer, date: string) {
@@ -2877,12 +2878,11 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
   const stats = useMemo(() => {
     const readyToEdit = items.filter(i => i.status === "ready_to_edit").length
-    const editing = items.filter(i => i.status === "editing").length
     const edited = items.filter(i => i.status === "edited").length
     const readyToPost = items.filter(i => i.status === "ready_to_post").length
     const posted = items.filter(i => i.status === "posted").length
     const totalPosts = items.reduce((s, i) => s + i.posts.length, 0)
-    return { readyToEdit, editing, edited, readyToPost, posted, totalPosts }
+    return { readyToEdit, edited, readyToPost, posted, totalPosts }
   }, [items])
 
   // The "what's due next" queue — items scheduled into Ready to Post, soonest first.
@@ -2906,7 +2906,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const logClientOptions = allClientOptions
   const logMonthOptions = allMonthOptions
 
-  // Per-client KPI strip: Posted / Unposted (edited, awaiting a platform) / Unedited (shot or editing)
+  // Per-client KPI strip: Posted / Unposted (edited, awaiting a platform) / Unedited (not yet edited)
   // — bucketed by whichever date is relevant to that item's current stage, so "All Time" vs a
   // specific month both mean something for items that haven't reached posting yet.
   const clientKPIs = useMemo(() => {
@@ -3122,7 +3122,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         title="Content & Ads Tracker"
         subtitle="Every video and poster from shoot to post — plus a full ad hooks & targeting history."
         chips={[
-          { icon: <Video size={11} />, label: `${stats.readyToEdit + stats.editing + stats.edited} in pipeline` },
+          { icon: <Video size={11} />, label: `${stats.readyToEdit + stats.edited} in pipeline` },
           { icon: <CalendarDays size={11} />, label: `${stats.readyToPost} ready to post` },
           { icon: <Check size={11} />, label: `${stats.posted} posted` },
           { icon: <Megaphone size={11} />, label: `${ads.filter(a => a.status === "active").length} active ads` },
@@ -3822,10 +3822,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           onClose={() => setEditAdFor(null)}
           onSaved={patch => handleAdSaved(editAdFor.id, patch)} />
       )}
-      {startEditingItem && (
-        <StartEditingModal item={startEditingItem} members={members} currentUserId={currentUserId}
-          onClose={() => setStartEditingItem(null)}
-          onConfirm={(editorId, editorName) => handleStartEditing(startEditingItem, editorId, editorName)} />
+      {markEditedItem && (
+        <MarkEditedModal item={markEditedItem} members={members} currentUserId={currentUserId}
+          onClose={() => setMarkEditedItem(null)}
+          onConfirm={(editorId, editorName) => handleMarkEdited(markEditedItem, editorId, editorName)} />
       )}
       {showNewAdsVideo && (
         <NewAdsVideoModal

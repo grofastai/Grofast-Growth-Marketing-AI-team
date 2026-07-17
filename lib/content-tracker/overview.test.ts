@@ -23,21 +23,21 @@ function shoot(overrides: Partial<OverviewShoot> = {}): OverviewShoot {
 function ad(overrides: Partial<OverviewAd> = {}): OverviewAd {
   return { id: 'a1', status: 'active', created_at: `${TODAY}T09:00:00Z`, ...overrides }
 }
-const EMPTY_STAGES = { scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0, editing: 0, edited: 0, on_review: 0, ready_to_post: 0, posted: 0, cancelled: 0 }
+const EMPTY_STAGES = { scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0, edited: 0, on_review: 0, ready_to_post: 0, posted: 0, cancelled: 0 }
 
 describe('stage counts', () => {
   it('splits video and poster counts by content_type', () => {
     const o = computeOverview({
       items: [
         item({ id: '1', content_type: 'video', status: 'ready_to_edit' }),
-        item({ id: '2', content_type: 'video', status: 'editing' }),
-        item({ id: '3', content_type: 'poster', status: 'editing' }),
+        item({ id: '2', content_type: 'video', status: 'edited' }),
+        item({ id: '3', content_type: 'poster', status: 'edited' }),
         item({ id: '4', content_type: 'poster', status: 'posted' }),
       ],
       shoots: [], ads: [], today: TODAY,
     })
-    expect(o.videos).toEqual({ ...EMPTY_STAGES, ready_to_edit: 1, editing: 1 })
-    expect(o.posters).toEqual({ ...EMPTY_STAGES, editing: 1, posted: 1 })
+    expect(o.videos).toEqual({ ...EMPTY_STAGES, ready_to_edit: 1, edited: 1 })
+    expect(o.posters).toEqual({ ...EMPTY_STAGES, edited: 1, posted: 1 })
   })
 
   it('returns all-zero counts for empty input', () => {
@@ -114,23 +114,33 @@ describe('needs attention — overdue', () => {
   })
 })
 
-describe('needs attention — stuck in editing', () => {
-  it('flags an item editing for 7+ days, but not 6', () => {
+describe('needs attention — stuck before Edited', () => {
+  it('flags an item sitting in Ready to Edit for 7+ days, but not 6', () => {
     const o = computeOverview({
       items: [
-        item({ id: 'six', status: 'editing', shot_date: '2026-07-08' }),
-        item({ id: 'seven', status: 'editing', shot_date: '2026-07-07' }),
-        item({ id: 'eight', status: 'editing', shot_date: '2026-07-06' }),
+        item({ id: 'six', status: 'ready_to_edit', shot_date: '2026-07-08' }),
+        item({ id: 'seven', status: 'ready_to_edit', shot_date: '2026-07-07' }),
+        item({ id: 'eight', status: 'ready_to_edit', shot_date: '2026-07-06' }),
       ],
       shoots: [], ads: [], today: TODAY,
     })
     expect(o.attention.find(a => a.kind === 'stuck-editing')?.count).toBe(2)
   })
 
+  it('also flags a poster sitting in Design for 7+ days', () => {
+    const o = computeOverview({
+      items: [
+        item({ id: 'poster', content_type: 'poster', source: 'poster', status: 'design', shot_date: '2026-07-01' }),
+      ],
+      shoots: [], ads: [], today: TODAY,
+    })
+    expect(o.attention.find(a => a.kind === 'stuck-editing')?.count).toBe(1)
+  })
+
   it('uses the LATEST of shot_date and the last correction — a just-bounced item is not stuck', () => {
     const o = computeOverview({
       items: [
-        item({ id: 'bounced', status: 'editing', shot_date: '2026-06-01', corrections: [{ correction_date: TODAY }] }),
+        item({ id: 'bounced', status: 'ready_to_edit', shot_date: '2026-06-01', corrections: [{ correction_date: TODAY }] }),
       ],
       shoots: [], ads: [], today: TODAY,
     })
@@ -140,7 +150,7 @@ describe('needs attention — stuck in editing', () => {
   it('still flags an item whose last correction was itself 7+ days ago', () => {
     const o = computeOverview({
       items: [
-        item({ id: 'stale-correction', status: 'editing', shot_date: '2026-06-01', corrections: [{ correction_date: '2026-07-07' }] }),
+        item({ id: 'stale-correction', status: 'ready_to_edit', shot_date: '2026-06-01', corrections: [{ correction_date: '2026-07-07' }] }),
       ],
       shoots: [], ads: [], today: TODAY,
     })
@@ -150,7 +160,7 @@ describe('needs attention — stuck in editing', () => {
   it('an ads-video item with no shot_date falls back to voiceover_date', () => {
     const o = computeOverview({
       items: [
-        item({ id: 'av', status: 'editing', source: 'ads_video', shot_date: null, voiceover_date: '2026-07-07', created_at: '2026-07-01T09:00:00Z' }),
+        item({ id: 'av', status: 'ready_to_edit', source: 'ads_video', shot_date: null, voiceover_date: '2026-07-07', created_at: '2026-07-01T09:00:00Z' }),
       ],
       shoots: [], ads: [], today: TODAY,
     })
@@ -189,7 +199,7 @@ describe('needs attention — shoots today and repeat bounces', () => {
 describe('needs attention — awaiting review and in scripting', () => {
   it('counts items sitting in on_review', () => {
     const o = computeOverview({
-      items: [item({ id: '1', status: 'on_review' }), item({ id: '2', status: 'on_review' }), item({ id: '3', status: 'editing' })],
+      items: [item({ id: '1', status: 'on_review' }), item({ id: '2', status: 'on_review' }), item({ id: '3', status: 'edited' })],
       shoots: [], ads: [], today: TODAY,
     })
     const entry = o.attention.find(a => a.kind === 'awaiting-review')
@@ -215,7 +225,8 @@ describe('needs attention — awaiting review and in scripting', () => {
 describe('needs attention — ordering and empty state', () => {
   it('omits zero-count entries entirely', () => {
     const o = computeOverview({
-      items: [item({ status: 'ready_to_edit' })],
+      // Shot today, not 7+ days ago — otherwise this itself would trip stuck-editing.
+      items: [item({ status: 'ready_to_edit', shot_date: TODAY, created_at: `${TODAY}T09:00:00Z` })],
       shoots: [], ads: [], today: TODAY,
     })
     expect(o.attention).toEqual([])

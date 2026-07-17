@@ -4,7 +4,7 @@
 
 export type OverviewStatus =
   | 'scripting' | 'voiceover' | 'design' | 'ready_to_edit'
-  | 'editing' | 'edited' | 'on_review' | 'ready_to_post' | 'posted' | 'cancelled'
+  | 'edited' | 'on_review' | 'ready_to_post' | 'posted' | 'cancelled'
 export type OverviewShootStatus = 'scheduled' | 'completed' | 'cancelled'
 export type OverviewAdStatus = 'active' | 'testing' | 'paused' | 'stopped'
 
@@ -80,7 +80,7 @@ function daysBetween(from: string, to: string): number {
 function emptyStages(): StageCounts {
   return {
     scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0,
-    editing: 0, edited: 0, on_review: 0, ready_to_post: 0, posted: 0, cancelled: 0,
+    edited: 0, on_review: 0, ready_to_post: 0, posted: 0, cancelled: 0,
   }
 }
 
@@ -92,12 +92,13 @@ function countStages(items: OverviewItem[], type: 'video' | 'poster'): StageCoun
   return counts
 }
 
-// When did this item most recently ENTER its current editing state? Takes the LATEST of
-// every date that could mark that moment: shot_date (shoot origin), voiceover_date (ads-video
-// origin), created_at (fallback for either), and any correction bounce. An item bounced back
-// for a correction has an old shot_date but has only just re-entered Editing — using
-// shot_date alone would wrongly flag it as stalled the moment someone returns it.
-function editingSince(item: OverviewItem): string | null {
+// When did this item most recently ENTER its current pre-Edited state (Ready to Edit /
+// Design)? Takes the LATEST of every date that could mark that moment: shot_date (shoot
+// origin), voiceover_date (ads-video origin), created_at (fallback for either), and any
+// correction bounce. An item bounced back for a correction has an old shot_date but has
+// only just re-entered rework — using shot_date alone would wrongly flag it as stalled
+// the moment someone returns it.
+function enteredStageSince(item: OverviewItem): string | null {
   const dates = [item.shot_date, item.voiceover_date, item.created_at.slice(0, 10), ...item.corrections.map(c => c.correction_date)]
     .filter((d): d is string => !!d)
   if (dates.length === 0) return null
@@ -141,8 +142,8 @@ export function computeOverview({ items, shoots, ads, today, range }: OverviewIn
   for (const a of adsInRange) adCounts[a.status]++
 
   const stuckEditing = items.filter(i => {
-    if (i.status !== 'editing') return false
-    const since = editingSince(i)
+    if (i.status !== 'ready_to_edit' && i.status !== 'design') return false
+    const since = enteredStageSince(i)
     return since !== null && daysBetween(since, today) >= STUCK_EDITING_DAYS
   }).length
 
@@ -175,7 +176,7 @@ export function computeOverview({ items, shoots, ads, today, range }: OverviewIn
     {
       kind: 'stuck-editing',
       count: stuckEditing,
-      label: `${stuckEditing} item${stuckEditing === 1 ? '' : 's'} stuck in Editing ${STUCK_EDITING_DAYS}+ days`,
+      label: `${stuckEditing} item${stuckEditing === 1 ? '' : 's'} not edited in ${STUCK_EDITING_DAYS}+ days`,
       target: { mode: 'video', tab: 'pipeline' },
     },
     {

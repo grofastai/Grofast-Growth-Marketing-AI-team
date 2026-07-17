@@ -6,42 +6,40 @@ describe('isValidPipelineTransition', () => {
     expect(isValidPipelineTransition('scripting', 'voiceover')).toBe(true)
     expect(isValidPipelineTransition('voiceover', 'ready_to_edit')).toBe(true)
   })
-  it('allows the poster front half: design -> editing', () => {
-    expect(isValidPipelineTransition('design', 'editing')).toBe(true)
+  it('allows the poster front half: design -> edited', () => {
+    expect(isValidPipelineTransition('design', 'edited')).toBe(true)
   })
   it('allows the shared production chain', () => {
-    expect(isValidPipelineTransition('ready_to_edit', 'editing')).toBe(true)
-    expect(isValidPipelineTransition('editing', 'edited')).toBe(true)
+    expect(isValidPipelineTransition('ready_to_edit', 'edited')).toBe(true)
     expect(isValidPipelineTransition('edited', 'on_review')).toBe(true)
     expect(isValidPipelineTransition('ready_to_post', 'posted')).toBe(true)
   })
-  it('on_review branches two ways: approve to ready_to_post, or bounce back to editing', () => {
+  it('on_review branches two ways: approve to ready_to_post, or bounce back to edited', () => {
     expect(isValidPipelineTransition('on_review', 'ready_to_post')).toBe(true)
-    expect(isValidPipelineTransition('on_review', 'editing')).toBe(true)
+    expect(isValidPipelineTransition('on_review', 'edited')).toBe(true)
   })
   it('rejects skipping a stage', () => {
-    expect(isValidPipelineTransition('ready_to_edit', 'edited')).toBe(false)
     expect(isValidPipelineTransition('scripting', 'ready_to_edit')).toBe(false)
     expect(isValidPipelineTransition('edited', 'ready_to_post')).toBe(false)
   })
   it('rejects posted -> anything (terminal state)', () => {
-    expect(isValidPipelineTransition('posted', 'editing')).toBe(false)
+    expect(isValidPipelineTransition('posted', 'edited')).toBe(false)
     expect(isValidPipelineTransition('posted', 'ready_to_post')).toBe(false)
   })
   it('rejects a status transitioning to itself', () => {
-    expect(isValidPipelineTransition('editing', 'editing')).toBe(false)
+    expect(isValidPipelineTransition('edited', 'edited')).toBe(false)
   })
-  it('allows cancelling from Ready to Edit or Editing', () => {
+  it('allows cancelling from Ready to Edit or Design', () => {
     expect(isValidPipelineTransition('ready_to_edit', 'cancelled')).toBe(true)
-    expect(isValidPipelineTransition('editing', 'cancelled')).toBe(true)
+    expect(isValidPipelineTransition('design', 'cancelled')).toBe(true)
   })
   it('rejects cancelling from any other stage', () => {
-    expect(isValidPipelineTransition('design', 'cancelled')).toBe(false)
     expect(isValidPipelineTransition('edited', 'cancelled')).toBe(false)
+    expect(isValidPipelineTransition('on_review', 'cancelled')).toBe(false)
   })
   it('rejects cancelled -> anything (terminal state)', () => {
     expect(isValidPipelineTransition('cancelled', 'ready_to_edit')).toBe(false)
-    expect(isValidPipelineTransition('cancelled', 'editing')).toBe(false)
+    expect(isValidPipelineTransition('cancelled', 'edited')).toBe(false)
   })
 })
 
@@ -58,7 +56,7 @@ describe('isStatusAllowedForSource', () => {
   })
   it('shared stages are reachable by every source', () => {
     for (const source of ['shoot', 'ads_video', 'poster'] as const) {
-      expect(isStatusAllowedForSource('editing', source)).toBe(true)
+      expect(isStatusAllowedForSource('edited', source)).toBe(true)
       expect(isStatusAllowedForSource('on_review', source)).toBe(true)
       expect(isStatusAllowedForSource('posted', source)).toBe(true)
     }

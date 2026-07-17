@@ -1,8 +1,7 @@
-export type ShootStatus = 'scheduled' | 'going' | 'completed' | 'cancelled'
+export type ShootStatus = 'scheduled' | 'completed' | 'cancelled'
 
 const VALID_TRANSITIONS: Record<ShootStatus, ShootStatus[]> = {
-  scheduled: ['going', 'cancelled'],
-  going: ['completed', 'cancelled'],
+  scheduled: ['completed', 'cancelled'],
   completed: [],
   cancelled: [],
 }

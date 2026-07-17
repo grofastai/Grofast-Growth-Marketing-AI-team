@@ -33,7 +33,7 @@ async function currentUser() {
   return { id: user.id, companyId: profile.company_id as string, role: profile.role as string, admin }
 }
 
-// ── Content Items (Shot -> Editing -> Edited -> Posted) ─────────────────────
+// ── Content Items (Shot -> Edited -> Posted) ────────────────────────────────
 
 export async function createContentItem(input: CreateContentItemInput): Promise<{ success: boolean; error?: string; id?: string }> {
   const parsed = createContentItemSchema.safeParse(input)
@@ -110,9 +110,9 @@ export type CreatedCorrection = {
   assignedToUser: { id: string; name: string } | null
 }
 
-// The correction loop: an Edited item that needs changes goes BACK to Editing with a
-// note about what to fix. The round-trip is logged (append-only) rather than overwritten,
-// so you can see a video went through N rounds instead of just its current state.
+// The correction loop: an item that needs changes goes BACK to Edited with a note about
+// what to fix. The round-trip is logged (append-only) rather than overwritten, so you
+// can see a video went through N rounds instead of just its current state.
 export async function requestCorrection(
   input: RequestCorrectionInput
 ): Promise<{ success: boolean; error?: string; correction?: CreatedCorrection }> {
@@ -138,9 +138,10 @@ export async function requestCorrection(
   }).select('id, correction_date').single()
   if (error) return { success: false, error: error.message }
 
-  // Back to Editing. If the correction was assigned to someone, they become the editor —
-  // otherwise whoever was already editing keeps it.
-  const updates: Record<string, unknown> = { status: 'editing', updated_at: new Date().toISOString() }
+  // Back to Edited for rework — there's no separate Editing stage to bounce into. If the
+  // correction was assigned to someone, they become the editor — otherwise whoever
+  // already edited it keeps it.
+  const updates: Record<string, unknown> = { status: 'edited', updated_at: new Date().toISOString() }
   if (parsed.data.assigned_to) updates.edited_by = parsed.data.assigned_to
 
   const { error: statusError } = await ctx.admin.from('content_items')
@@ -211,17 +212,12 @@ export async function updateContentItemStatus(
 
   const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
 
-  // Moving to Editing is where the editor is recorded — that's the accountability
-  // moment ("who is starting this?"), so edited_by is set here, not on completion.
-  if (status === 'editing' && editorId) {
-    updates.edited_by = editorId
-  }
-
   if (status === 'edited') {
     updates.edited_date = todayIST()
-    // Don't clobber the editor picked when it entered Editing. Only fall back to the
-    // current user if it somehow skipped that step and has no editor recorded.
-    if (!current.edited_by) updates.edited_by = ctx.id
+    // Reaching Edited is where the editor is recorded — that's the accountability moment
+    // ("who edited this?"), since there's no separate Editing stage to capture it at.
+    if (editorId) updates.edited_by = editorId
+    else if (!current.edited_by) updates.edited_by = ctx.id
   }
 
   const { error } = await ctx.admin.from('content_items').update(updates).eq('id', id).eq('company_id', ctx.companyId)

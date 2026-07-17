@@ -12,11 +12,11 @@ const TRANSITIONS: Record<ContentPipelineStatus, ContentPipelineStatus[]> = {
   scripting: ['voiceover'],
   voiceover: ['ready_to_edit'],
   design: ['editing'],
-  // A shoot can produce footage that never gets edited (unusable take, client pulls the
-  // ask) — Cancelled is reachable straight from Ready to Edit rather than requiring it
-  // to be deleted outright.
+  // Footage or a design can turn out unusable (bad take, client pulls the ask) at either
+  // point before it's actually finished — Cancelled is reachable from Ready to Edit or
+  // from Editing itself, for both video and poster, rather than requiring deletion.
   ready_to_edit: ['editing', 'cancelled'],
-  editing: ['edited'],
+  editing: ['edited', 'cancelled'],
   edited: ['on_review'],
   // The review gate: approve moves it on, a correction sends it back to the editor.
   on_review: ['ready_to_post', 'editing'],

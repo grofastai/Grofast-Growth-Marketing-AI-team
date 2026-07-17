@@ -10,7 +10,7 @@ import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil,
   Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw, LayoutDashboard,
-  MoreVertical, Users, Clock,
+  MoreVertical, Users, Clock, XCircle,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
@@ -38,7 +38,7 @@ type Priority = "low" | "medium" | "high" | "urgent"
 type ContentSource = "shoot" | "ads_video" | "poster"
 type ContentStatus =
   | "scripting" | "voiceover" | "design" | "ready_to_edit"
-  | "editing" | "edited" | "on_review" | "ready_to_post" | "posted"
+  | "edited" | "on_review" | "ready_to_post" | "posted" | "cancelled"
 type TargetingType = "broad" | "interest" | "lookalike" | "retargeting"
 type AdStatus = "active" | "paused" | "testing" | "stopped"
 
@@ -118,7 +118,7 @@ export type Ad = {
   performanceEntries: AdPerformanceEntry[]
 }
 
-export type ShootStatus = "scheduled" | "going" | "completed" | "cancelled"
+export type ShootStatus = "scheduled" | "completed" | "cancelled"
 export type ShootTitleRef = { id: string; title: string; content_item_id: string | null }
 export type Shoot = {
   id: string
@@ -151,14 +151,14 @@ const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
   voiceover:     { label: "Voice Over",    accent: "#1E3A8A" },
   design:        { label: "Design",        accent: "#F59E0B" },
   ready_to_edit: { label: "Ready to Edit", accent: "#0D9488" },
-  editing:       { label: "Editing",       accent: "#6366F1" },
-  // Was #9B6BFF (purple) — sat right next to Editing's indigo and read as nearly the
-  // same color once darkened for the badge fill. Fuchsia is a clean break from it.
+  // Was #9B6BFF (purple) — read as nearly the same color as neighboring stages once
+  // darkened for the badge fill. Fuchsia is a clean break from it.
   edited:        { label: "Edited",        accent: "#D946EF" },
   // Was #EC4899 (pink) — too close to Edited's new fuchsia. Rose leans warmer/redder.
   on_review:     { label: "On Review",     accent: "#F43F5E" },
   ready_to_post: { label: "Ready to Post", accent: "#0EA5E9" },
   posted:        { label: "Posted",        accent: "#22C55E" },
+  cancelled:     { label: "Cancelled",     accent: "#EF4444" },
 }
 // Advance-button fill — same bright-to-dark two-stop language as MODE_ACCENT.grad and
 // OVERVIEW_TILE_GRADIENTS, just derived from each status's accent instead of a hardcoded pair.
@@ -168,8 +168,8 @@ function statusButtonGradient(status: ContentStatus): string {
 }
 // The production board's column order — differs by content type only in its first column
 // (shoot/ads-video video enters at Ready to Edit; posters enter at Design).
-const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "editing", "edited", "on_review", "ready_to_post"]
-const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "editing", "edited", "on_review", "ready_to_post"]
+const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "edited", "on_review", "ready_to_post", "cancelled"]
+const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "edited", "on_review", "ready_to_post", "cancelled"]
 // The Ads Video sub-tab's own two-column board — feeds INTO Ready to Edit, doesn't include it.
 const ADS_VIDEO_ORDER: ContentStatus[] = ["scripting", "voiceover"]
 // The default "move forward" target for the generic advance button. on_review is
@@ -178,9 +178,8 @@ const ADS_VIDEO_ORDER: ContentStatus[] = ["scripting", "voiceover"]
 const NEXT_STATUS: Partial<Record<ContentStatus, ContentStatus>> = {
   scripting: "voiceover",
   voiceover: "ready_to_edit",
-  design: "editing",
-  ready_to_edit: "editing",
-  editing: "edited",
+  design: "edited",
+  ready_to_edit: "edited",
   edited: "on_review",
   ready_to_post: "posted",
 }
@@ -219,11 +218,10 @@ const AD_STATUS_CFG: Record<AdStatus, { label: string; color: string }> = {
 
 const SHOOT_STATUS_CFG: Record<ShootStatus, { label: string; color: string }> = {
   scheduled: { label: "Scheduled", color: "#F59E0B" },
-  going:     { label: "Going",     color: "#3B82F6" },
   completed: { label: "Completed", color: "#22C55E" },
   cancelled: { label: "Cancelled", color: "#EF4444" },
 }
-const SHOOT_STATUS_ORDER: ShootStatus[] = ["scheduled", "going", "completed", "cancelled"]
+const SHOOT_STATUS_ORDER: ShootStatus[] = ["scheduled", "completed", "cancelled"]
 const AD_STATUS_ORDER: AdStatus[] = ["active", "testing", "paused", "stopped"]
 
 const LABEL: React.CSSProperties = {
@@ -236,12 +234,13 @@ const FIELD: React.CSSProperties = {
   padding: "8px 10px", outline: "none",
 }
 // Toolbar filters (client/time/day) — distinct from FIELD, which stays neutral for
-// modal form inputs. Bold bright-to-dark red gradient (same language as the advance
-// buttons/Overview tiles), white text — not a pale tint.
+// modal form inputs. These render above every board (Video/Poster/Ads/Overview), each
+// with its own accent color, so a fixed red clashed on the non-video boards. Neutral
+// reads correctly next to all of them.
 const FILTER_FIELD: React.CSSProperties = {
-  width: "auto", fontSize: 12, fontWeight: 700, color: "#fff",
-  background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)",
-  border: "1.5px solid #6B0F0F", borderRadius: 10,
+  width: "auto", fontSize: 12, fontWeight: 700, color: "#374151",
+  background: "#fff",
+  border: "1.5px solid #E5E7EB", borderRadius: 10,
   padding: "8px 10px", outline: "none", cursor: "pointer",
 }
 
@@ -456,9 +455,14 @@ function ContentCardInner({
   onEdit?: (item: ContentItem) => void
 }) {
   const TypeIcon = item.content_type === "video" ? Video : ImageIcon
-  // Video/poster brand accent — ties every card to the same red/violet identity used
-  // on the Overview tiles, instead of a fixed indigo regardless of content type.
-  const typeAccent = item.content_type === "video" ? MODE_ACCENT.video.solid : MODE_ACCENT.poster.solid
+  // The card's own column/status color, not a fixed video-vs-poster color — a card sitting
+  // in the teal Ready to Edit column shouldn't carry a red border into it. Content type is
+  // still legible from the icon (Video vs Image), it just no longer fights the column's hue.
+  const typeAccent = STATUS_CFG[item.status].accent
+  // Every "who/when" tag on the card (shot by, voiced by, edited by, ads-video source,
+  // scheduled slot, corrections) shades off this same accent instead of its own unrelated
+  // hue, so nothing on the card fights the card's own color.
+  const typeAccentDark = `color-mix(in srgb, ${typeAccent} 70%, #000)`
   const age = (item.status === "ready_to_edit" || item.status === "design") ? daysAgo(originDate(item))
     : item.status === "edited" ? daysAgo(item.edited_date) : null
   const stale = age !== null && age >= 3
@@ -469,6 +473,10 @@ function ContentCardInner({
   if (onEdit) cardMenu.push({ label: "Edit details", icon: Pencil, onClick: () => onEdit(item) })
   if (onRequestCorrection && item.status === "on_review") {
     cardMenu.push({ label: "Needs correction", icon: RotateCcw, onClick: () => onRequestCorrection(item) })
+  }
+  // Footage or a design that came out unusable — kept as a record instead of deleted outright.
+  if (item.status === "ready_to_edit" || item.status === "design") {
+    cardMenu.push({ label: "Cancel", icon: XCircle, onClick: () => onAdvance(item, "cancelled"), danger: true })
   }
   if (onEdit) cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true })
 
@@ -500,7 +508,7 @@ function ContentCardInner({
         <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full truncate max-w-[110px]"
           style={{ background: `${typeAccent}14`, color: typeAccent }}>{item.client_name}</span>
         {item.source === "ads_video" && (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(217,119,6,0.1)", color: "#D97706" }}>
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${typeAccent}18`, color: typeAccentDark }}>
             🎙️ Ads Video
           </span>
         )}
@@ -542,33 +550,33 @@ function ContentCardInner({
       <div className="flex items-center gap-2 mb-2">
         {item.shotByUser && (
           <div className="flex items-center gap-1" title={`Shot by ${item.shotByUser.name}`}>
-            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#F59E0B", color: "#fff" }}>
+            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.shotByUser.name)}
             </div>
           </div>
         )}
         {item.voiceoverBy && (item.status === "voiceover" || item.status === "ready_to_edit") && (
           <div className="flex items-center gap-1" title={`Voiced by ${item.voiceoverBy.name}`}>
-            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#EAB308", color: "#fff" }}>
+            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.voiceoverBy.name)}
             </div>
           </div>
         )}
-        {/* While it's in Editing, name the editor outright — the point of asking "who's
-            starting this?" is that the rest of the team can see it without hovering. */}
-        {item.editedByUser && item.status === "editing" ? (
+        {/* Once it's Edited, name the editor outright — the point of asking "who edited
+            this?" is that the rest of the team can see it without hovering. */}
+        {item.editedByUser && item.status === "edited" ? (
           <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-            title={`${item.editedByUser.name} is editing this`}
-            style={{ background: "rgba(155,107,255,0.12)", color: "#9B6BFF" }}>
+            title={`Edited by ${item.editedByUser.name}`}
+            style={{ background: `${typeAccent}18`, color: typeAccentDark }}>
             <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
-              style={{ background: "#9B6BFF", color: "#fff" }}>
+              style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.editedByUser.name)}
             </span>
             {item.editedByUser.name}
           </span>
         ) : item.editedByUser ? (
           <div className="flex items-center gap-1" title={`Edited by ${item.editedByUser.name}`}>
-            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#9B6BFF", color: "#fff" }}>
+            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.editedByUser.name)}
             </div>
           </div>
@@ -578,10 +586,10 @@ function ContentCardInner({
 
       {/* Scheduled slot — shown while it's queued in Ready to Post. */}
       {item.status === "ready_to_post" && item.scheduled_post_date && (
-        <div className="mb-2 p-2 rounded-xl" style={{ background: "rgba(14,165,233,0.08)" }}>
+        <div className="mb-2 p-2 rounded-xl" style={{ background: `${typeAccent}14` }}>
           <div className="flex items-center gap-1 mb-1">
-            <CalendarDays size={10} style={{ color: "#0EA5E9" }} />
-            <span className="text-[9px] font-bold" style={{ color: "#0EA5E9" }}>
+            <CalendarDays size={10} style={{ color: typeAccentDark }} />
+            <span className="text-[9px] font-bold" style={{ color: typeAccentDark }}>
               {fmtDate(item.scheduled_post_date)}{item.scheduled_post_time ? ` · ${fmtTime(item.scheduled_post_time)}` : ""}
             </span>
           </div>
@@ -605,7 +613,7 @@ function ContentCardInner({
         <div className="mb-2">
           <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full w-fit"
             title={item.corrections.map(c => c.notes).join(" · ")}
-            style={{ background: "rgba(245,158,11,0.12)", color: "#D97706" }}>
+            style={{ background: `${typeAccent}18`, color: typeAccentDark }}>
             <RotateCcw size={9} /> {item.corrections.length} correction{item.corrections.length > 1 ? "s" : ""}
           </span>
           <p className="text-[9px] mt-1 line-clamp-2" style={{ color: "#6B7280" }}>
@@ -614,7 +622,7 @@ function ContentCardInner({
         </div>
       )}
 
-      {/* The review gate: approve moves it on, a correction sends it back to Editing. */}
+      {/* The review gate: approve moves it on, a correction sends it back to Edited for rework. */}
       {item.status === "on_review" ? (
         <div className="flex flex-col gap-1.5">
           <button
@@ -671,7 +679,8 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
   ]
   const next = NEXT_STATUS[item.status]
 
-  const accent = MODE_ACCENT.video.solid
+  const accent = STATUS_CFG[item.status].accent
+  const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
       style={{
@@ -722,7 +731,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
 
       {item.voiceoverBy && (
         <div className="flex items-center gap-1.5 mb-3" title={`Voiced by ${item.voiceoverBy.name}`}>
-          <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#EAB308", color: "#fff" }}>
+          <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: accentDark, color: "#fff" }}>
             {initials(item.voiceoverBy.name)}
           </div>
           <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{item.voiceoverBy.name}</span>
@@ -830,15 +839,15 @@ function DayFilter({ value, onChange }: { value: string; onChange: (v: string) =
   return (
     <div className="flex items-center gap-1"
       style={{
-        background: value ? "linear-gradient(135deg, #FF4D4D 0%, #DE1A1A 100%)" : "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)",
-        border: `1.5px solid ${value ? "#DE1A1A" : "#6B0F0F"}`, borderRadius: 10, padding: "0 6px",
+        background: value ? "#F3F4F6" : "#fff",
+        border: `1.5px solid ${value ? "#9CA3AF" : "#E5E7EB"}`, borderRadius: 10, padding: "0 6px",
       }}>
-      <CalendarDays size={13} style={{ color: "#fff", flexShrink: 0 }} />
+      <CalendarDays size={13} style={{ color: "#6B7280", flexShrink: 0 }} />
       <input type="date" value={value} onChange={e => onChange(e.target.value)} aria-label="Filter by day"
-        style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "inherit", cursor: "pointer", padding: "7px 2px", colorScheme: "dark" }} />
+        style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 700, color: "#374151", fontFamily: "inherit", cursor: "pointer", padding: "7px 2px", colorScheme: "light" }} />
       {value && (
         <button onClick={() => onChange("")} title="Clear day"
-          style={{ padding: "2px 6px", borderRadius: 6, border: "none", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 11, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
+          style={{ padding: "2px 6px", borderRadius: 6, border: "none", background: "rgba(107,114,128,0.15)", color: "#374151", fontSize: 11, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
           ✕
         </button>
       )}
@@ -1002,16 +1011,17 @@ function KanbanEmptyCell({ isOver }: { isOver: boolean }) {
 // unreadable soup in a narrow kanban column, so: a count, then a scannable list capped at
 // three, with the rest a click away. Dots rather than numbers — the videos aren't a
 // sequence, and numbering would imply an order that doesn't exist.
-function ShootTitleList({ titles }: { titles: ShootTitleRef[] }) {
+function ShootTitleList({ titles, accent }: { titles: ShootTitleRef[]; accent: string }) {
   const [expanded, setExpanded] = useState(false)
   const COLLAPSED = 3
   const shown = expanded ? titles : titles.slice(0, COLLAPSED)
   const hidden = titles.length - shown.length
+  const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
 
   return (
     <div style={{ marginTop: 8 }}>
       <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-lg"
-        style={{ background: "rgba(59,130,246,0.09)", color: "#3B82F6" }}>
+        style={{ background: `${accent}18`, color: accentDark }}>
         <Video size={10} /> {titles.length} video{titles.length === 1 ? "" : "s"}
       </span>
 
@@ -1019,7 +1029,7 @@ function ShootTitleList({ titles }: { titles: ShootTitleRef[] }) {
         {shown.map(t => (
           <div key={t.id} className="flex items-center gap-2"
             style={{ padding: "5px 0", borderBottom: "1px solid #F3F4F6" }}>
-            <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#3B82F6", flexShrink: 0 }} />
+            <span style={{ width: 4, height: 4, borderRadius: "50%", background: accentDark, flexShrink: 0 }} />
             <span className="text-[11px] truncate" style={{ color: "#374151" }}>{t.title}</span>
           </div>
         ))}
@@ -1028,7 +1038,7 @@ function ShootTitleList({ titles }: { titles: ShootTitleRef[] }) {
       {titles.length > COLLAPSED && (
         <button onPointerDown={e => e.stopPropagation()} onClick={() => setExpanded(v => !v)}
           className="text-[10px] font-bold"
-          style={{ marginTop: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: expanded ? "#9CA3AF" : "#3B82F6" }}>
+          style={{ marginTop: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: expanded ? "#9CA3AF" : accentDark }}>
           {expanded ? "Show less" : `+ ${hidden} more`}
         </button>
       )}
@@ -1049,7 +1059,10 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
   if (onEditCrew) menu.push({ label: "Who went", icon: Users, onClick: () => onEditCrew(shoot) })
   if (onDelete) menu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(shoot), danger: true })
 
-  const accent = "#3B82F6"
+  // Every colored element on this card is a shade of the shoot's own status color —
+  // a Completed (green) card shouldn't have blue crew badges fighting its own theme.
+  const accent = SHOOT_STATUS_CFG[shoot.status].color
+  const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 select-none"
       style={{
@@ -1070,7 +1083,7 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
       </div>
 
       {/* Video titles only exist once the shoot is marked Done — that's when they're captured. */}
-      {shoot.titles.length > 0 && <ShootTitleList titles={shoot.titles} />}
+      {shoot.titles.length > 0 && <ShootTitleList titles={shoot.titles} accent={accent} />}
 
       {/* Who covered the shoot. Always shown — an empty crew is itself worth seeing, and it's
           editable at any point so older shoots with nobody recorded can be filled in. */}
@@ -1080,7 +1093,7 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
           {shoot.goingByUsers.length === 0 ? (
             <button onPointerDown={e => e.stopPropagation()} onClick={() => onEditCrew(shoot)}
               className="block text-[10px] font-bold"
-              style={{ marginTop: 3, background: "none", border: "none", padding: 0, cursor: "pointer", color: "#3B82F6" }}>
+              style={{ marginTop: 3, background: "none", border: "none", padding: 0, cursor: "pointer", color: accentDark }}>
               + Add crew
             </button>
           ) : (
@@ -1088,9 +1101,9 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
               {shoot.goingByUsers.map(u => (
                 <span key={u.id} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
                   title={u.name}
-                  style={{ background: "rgba(59,130,246,0.1)", color: "#3B82F6" }}>
+                  style={{ background: `${accent}18`, color: accentDark }}>
                   <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
-                    style={{ background: "#3B82F6", color: "#fff" }}>
+                    style={{ background: accentDark, color: "#fff" }}>
                     {initials(u.name)}
                   </span>
                   {u.name}
@@ -1103,22 +1116,13 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
 
       {shoot.notes && <p className="text-[10px]" style={{ color: "#6B7280", margin: "6px 0 0" }}>{shoot.notes}</p>}
 
-      {(shoot.status === "scheduled" || shoot.status === "going") && (
+      {shoot.status === "scheduled" && (
         <div className="flex flex-wrap gap-1.5" style={{ marginTop: 10 }}>
-          {shoot.status === "scheduled" && (
-            <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "going")}
-              className="text-[9px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
-              style={{ border: "none", background: "#1D4ED8", color: "#fff", cursor: "pointer" }}>
-              Mark Going
-            </button>
-          )}
-          {shoot.status === "going" && (
-            <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "completed")}
-              className="text-[9px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
-              style={{ border: "none", background: "#15803D", color: "#fff", cursor: "pointer" }}>
-              Mark Done
-            </button>
-          )}
+          <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "completed")}
+            className="text-[9px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
+            style={{ border: "none", background: "#15803D", color: "#fff", cursor: "pointer" }}>
+            Mark Done
+          </button>
           <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "cancelled")}
             className="text-[9px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
             style={{ border: "none", background: "#B91C1C", color: "#fff", cursor: "pointer" }}>
@@ -1151,7 +1155,8 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
     cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(ad.id), danger: true })
   }
 
-  const accent = MODE_ACCENT.ads.solid
+  const accent = AD_STATUS_CFG[ad.status].color
+  const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
   const stripeColor = underperforming ? "#EF4444" : accent
   return (
     <div className="rounded-2xl mb-2.5 select-none" style={{
@@ -1191,7 +1196,7 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
             </span>
           )}
           <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-            style={{ background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
+            style={{ background: `${accent}18`, color: accentDark }}>
             <Target size={9} /> {ad.hook_count} hooks
           </span>
           {ad.targeting_type && (
@@ -1208,10 +1213,10 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
           {ad.targeting_notes && <p className="text-[10px]" style={{ color: "#6B7280", margin: "10px 0" }}>{ad.targeting_notes}</p>}
 
           <div className="flex items-center justify-between" style={{ marginTop: 10, marginBottom: 6 }}>
-            <span className="text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: "#16A34A" }}>Performance</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: accentDark }}>Performance</span>
             <button onClick={() => onLogPerformance(ad)}
               className="flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg"
-              style={{ border: "none", background: "rgba(34,197,94,0.08)", color: "#16A34A", cursor: "pointer" }}>
+              style={{ border: "none", background: `${accent}14`, color: accentDark, cursor: "pointer" }}>
               <Plus size={10} /> Log
             </button>
           </div>
@@ -1242,10 +1247,10 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
           )}
 
           <div className="flex items-center justify-between" style={{ marginTop: 12, marginBottom: 6 }}>
-            <span className="text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: "#6366F1" }}>Correction History</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: accentDark }}>Correction History</span>
             <button onClick={() => onLogCorrection(ad)}
               className="flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg"
-              style={{ border: "none", background: "rgba(99,102,241,0.08)", color: "#6366F1", cursor: "pointer" }}>
+              style={{ border: "none", background: `${accent}14`, color: accentDark, cursor: "pointer" }}>
               <Plus size={10} /> Log
             </button>
           </div>
@@ -1258,7 +1263,7 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] font-bold" style={{ color: "#374151" }}>{fmtDate(rev.revision_date)}</span>
                     <div className="flex gap-1">
-                      {rev.hook_count_after !== null && <span className="text-[9px] font-bold" style={{ color: "#6366F1" }}>{rev.hook_count_after} hooks</span>}
+                      {rev.hook_count_after !== null && <span className="text-[9px] font-bold" style={{ color: accentDark }}>{rev.hook_count_after} hooks</span>}
                       {rev.targeting_type_after && <span className="text-[9px] font-bold" style={{ color: TARGETING_CFG[rev.targeting_type_after].color }}>· {TARGETING_CFG[rev.targeting_type_after].label}</span>}
                     </div>
                   </div>
@@ -1348,7 +1353,7 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
         <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "10px 12px", borderRadius: 10, background: alreadyPosted ? "rgba(34,197,94,0.06)" : "#F9FAFB", border: `1.5px solid ${alreadyPosted ? "rgba(34,197,94,0.3)" : "#E5E7EB"}` }}>
           <input type="checkbox" checked={alreadyPosted} onChange={e => setAlreadyPosted(e.target.checked)} style={{ width: 15, height: 15, accentColor: "#22C55E" }} />
           <span style={{ fontSize: 12, fontWeight: 700, color: alreadyPosted ? "#16A34A" : "#374151" }}>Already posted</span>
-          <span style={{ fontSize: 10, color: "#374151", fontWeight: 600 }}>— skip Editing/Edited, log it straight as Posted</span>
+          <span style={{ fontSize: 10, color: "#374151", fontWeight: 600 }}>— skip the pipeline, log it straight as Posted</span>
         </label>
 
         {alreadyPosted && (
@@ -2015,7 +2020,7 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   )
 }
 
-// ── "Needs correction" — sends an Edited item back to Editing with what to fix ──────
+// ── "Needs correction" — sends an item back to Edited for rework, with what to fix ──
 function RequestCorrectionModal({ item, members, onClose, onRequested }: {
   item: ContentItem
   members: Member[]
@@ -2045,8 +2050,8 @@ function RequestCorrectionModal({ item, members, onClose, onRequested }: {
     <Modal title="Needs Correction" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-          <strong style={{ color: "#111827" }}>{item.title}</strong> goes back to Editing. The round-trip
-          is logged, so you can see how many rounds it took.
+          <strong style={{ color: "#111827" }}>{item.title}</strong> goes back to Edited for rework. The
+          round-trip is logged, so you can see how many rounds it took.
         </p>
         <div>
           <label style={LABEL}>What needs fixing? *</label>
@@ -2141,15 +2146,17 @@ function ReadyToPostModal({ item, onClose, onScheduled }: {
   )
 }
 
-// ── "Who's starting the edit?" — the accountability prompt when a video enters Editing ──
-function StartEditingModal({ item, members, currentUserId, onClose, onConfirm }: {
+// ── "Who edited this?" — the accountability prompt when an item moves to Edited ──
+// There's no separate Editing stage to capture this at anymore, so it's asked here,
+// at the point the item is actually marked Edited.
+function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
   item: ContentItem
   members: Member[]
   currentUserId: string
   onClose: () => void
   onConfirm: (editorId: string, editorName: string) => void
 }) {
-  // Defaults to whoever clicked — the common case is "I'm starting this" — but a manager
+  // Defaults to whoever clicked — the common case is "I edited this" — but a manager
   // can reassign to anyone.
   const [editorId, setEditorId] = useState(
     members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
@@ -2158,16 +2165,16 @@ function StartEditingModal({ item, members, currentUserId, onClose, onConfirm }:
 
   function submit() {
     const editor = members.find(m => m.id === editorId)
-    if (!editor) { setError("Pick who's starting this edit"); return }
+    if (!editor) { setError("Pick who edited this"); return }
     onConfirm(editor.id, editor.name)
   }
 
   return (
-    <Modal title="Who's starting this edit?" onClose={onClose}>
+    <Modal title="Who edited this?" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-          <strong style={{ color: "#111827" }}>{item.title}</strong> is moving to Editing. Recording who
-          started it means the rest of the team can see it&apos;s being worked on.
+          <strong style={{ color: "#111827" }}>{item.title}</strong> is moving to Edited. Recording who
+          edited it means the rest of the team can see who to ask.
         </p>
         <div>
           <label style={LABEL}>Editor *</label>
@@ -2178,7 +2185,7 @@ function StartEditingModal({ item, members, currentUserId, onClose, onConfirm }:
           </select>
         </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
-        <PrimaryButton onClick={submit}>Start Editing</PrimaryButton>
+        <PrimaryButton onClick={submit}>Mark Edited</PrimaryButton>
       </div>
     </Modal>
   )
@@ -2235,57 +2242,6 @@ function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
   )
 }
 
-// ── "Who's going?" — the accountability prompt when a shoot is marked Going ──────
-function GoingCrewModal({ shoot, members, currentUserId, onClose, onConfirm }: {
-  shoot: Shoot
-  members: Member[]
-  currentUserId: string
-  onClose: () => void
-  onConfirm: (crew: Member[]) => void
-}) {
-  const [crew, setCrew] = useState<string[]>(
-    members.some(m => m.id === currentUserId) ? [currentUserId] : []
-  )
-  const [error, setError] = useState<string | null>(null)
-
-  function toggle(id: string) {
-    setCrew(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-  }
-
-  function submit() {
-    if (crew.length === 0) { setError("Pick at least one person going"); return }
-    onConfirm(members.filter(m => crew.includes(m.id)))
-  }
-
-  return (
-    <Modal title="Who's going on this shoot?" onClose={onClose}>
-      <div className="flex flex-col gap-3">
-        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-          <strong style={{ color: "#111827" }}>{shoot.legacyTitle}</strong> — pick everyone covering it.
-        </p>
-        <div>
-          <label style={LABEL}>Crew * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {members.map(m => {
-              const on = crew.includes(m.id)
-              return (
-                <button key={m.id} onClick={() => toggle(m.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {on && <Check size={11} />} {m.name}{m.id === currentUserId ? " (me)" : ""}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
-        <PrimaryButton onClick={submit}>
-          Mark Going{crew.length > 0 ? ` (${crew.length})` : ""}
-        </PrimaryButton>
-      </div>
-    </Modal>
-  )
-}
-
 // ── Complete Shoot modal — captures the video titles that came out of the shoot ──
 function CompleteShootModal({ shoot, members, currentUserId, onClose, onCompleted }: {
   shoot: Shoot
@@ -2296,9 +2252,8 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
 }) {
   const [titleInput, setTitleInput] = useState("")
   const [titles, setTitles] = useState<string[]>([])
-  // Crew is asked here too, not just at Going — a shoot dragged straight to Completed would
-  // otherwise end up Done with no record of who went. Pre-filled with whoever was marked
-  // Going, so the common path is just "confirm".
+  // Crew is captured here, at completion — pre-filled from any crew already recorded
+  // (e.g. backfilled via "Who went") so the common path is just "confirm".
   const [crew, setCrew] = useState<string[]>(() => {
     if (shoot.goingByUsers.length > 0) return shoot.goingByUsers.map(u => u.id)
     return members.some(m => m.id === currentUserId) ? [currentUserId] : []
@@ -2645,11 +2600,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [adsSearch, setAdsSearch] = useState("")
   const [showNewShoot, setShowNewShoot] = useState(false)
   const [completeShootFor, setCompleteShootFor] = useState<Shoot | null>(null)
-  const [startEditingItem, setStartEditingItem] = useState<ContentItem | null>(null)
+  const [markEditedItem, setMarkEditedItem] = useState<ContentItem | null>(null)
   const [voiceOverItem, setVoiceOverItem] = useState<ContentItem | null>(null)
   const [readyToPostItem, setReadyToPostItem] = useState<ContentItem | null>(null)
   const [correctionItem, setCorrectionItem] = useState<ContentItem | null>(null)
-  const [goingCrewFor, setGoingCrewFor] = useState<Shoot | null>(null)
   const [editCrewFor, setEditCrewFor] = useState<Shoot | null>(null)
   const [editShootFor, setEditShootFor] = useState<Shoot | null>(null)
   const [deleteShootFor, setDeleteShootFor] = useState<Shoot | null>(null)
@@ -2720,7 +2674,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     return Array.from(months).sort().reverse()
   }, [items])
 
-  // The item's own "current stage" date — shot/editing by shot date, edited by edited
+  // The item's own "current stage" date — pre-Edited by shot date, edited by edited
   // date, posted by its (latest) post date. Month and day filters both key off this.
   function itemStageDate(item: ContentItem): string | null {
     if (item.status === "posted") {
@@ -2762,8 +2716,9 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     // Ready to Post asks where and when it's going out — used both for the normal forward
     // path and for approving out of On Review.
     if (next === "ready_to_post") { setReadyToPostItem(item); return }
-    // Entering Editing asks who's starting it — that's the accountability moment.
-    if (next === "editing" && members.length > 0) { setStartEditingItem(item); return }
+    // Reaching Edited asks who edited it — that's the accountability moment, since
+    // there's no separate Editing stage to capture it at.
+    if (next === "edited" && members.length > 0) { setMarkEditedItem(item); return }
     // Entering Voice Over asks who recorded it.
     if (next === "voiceover") { setVoiceOverItem(item); return }
     const previous = item.status
@@ -2780,7 +2735,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   function handleCorrectionRequested(correction: ContentCorrection) {
     setItems(prev => prev.map(i => i.id === correction.content_item_id ? {
       ...i,
-      status: "editing",
+      status: "edited",
       corrections: [correction, ...i.corrections],
       // If it was reassigned, that person is now the editor.
       editedByUser: correction.assignedToUser ?? i.editedByUser,
@@ -2798,12 +2753,12 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     setReadyToPostItem(null)
   }
 
-  function handleStartEditing(item: ContentItem, editorId: string, editorName: string) {
+  function handleMarkEdited(item: ContentItem, editorId: string, editorName: string) {
     setItems(prev => prev.map(i => i.id === item.id
-      ? { ...i, status: "editing", editedByUser: { id: editorId, name: editorName } }
+      ? { ...i, status: "edited", edited_date: new Date().toISOString().split("T")[0], editedByUser: { id: editorId, name: editorName } }
       : i))
-    setStartEditingItem(null)
-    startTransition(async () => { await updateContentItemStatus(item.id, "editing", editorId) })
+    setMarkEditedItem(null)
+    startTransition(async () => { await updateContentItemStatus(item.id, "edited", editorId) })
   }
 
   function handleVoiceOverRecorded(item: ContentItem, voiceoverBy: VoiceFreelancer, date: string) {
@@ -2901,8 +2856,8 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
   const navCounts = useMemo(() => ({
     overview: overview.attention.reduce((sum, a) => sum + a.count, 0),
-    video: items.filter(i => i.content_type === "video" && i.status !== "posted").length,
-    poster: items.filter(i => i.content_type === "poster" && i.status !== "posted").length,
+    video: items.filter(i => i.content_type === "video" && i.status !== "posted" && i.status !== "cancelled").length,
+    poster: items.filter(i => i.content_type === "poster" && i.status !== "posted" && i.status !== "cancelled").length,
     ads: ads.filter(a => a.status === "active").length,
   }), [items, ads, overview])
 
@@ -2912,24 +2867,23 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     const activeAdsVideo = items.filter(i => i.content_type === "video" && i.source === "ads_video" && (i.status === "scripting" || i.status === "voiceover"))
     return [
       ...(mode === "video"
-        ? [{ key: "shoots", label: "Shoots", icon: Camera, count: shoots.filter(s => s.status === "scheduled" || s.status === "going").length }]
+        ? [{ key: "shoots", label: "Shoots", icon: Camera, count: shoots.filter(s => s.status === "scheduled").length }]
         : []),
       ...(mode === "video"
         ? [{ key: "adsvideo", label: "Ads Video", icon: Sparkles, count: activeAdsVideo.length }]
         : []),
-      { key: "pipeline", label: "Ready to Edit", icon: Layers, count: ofMode.filter(i => pipelineOrder.includes(i.status)).length },
+      { key: "pipeline", label: "Ready to Edit", icon: Layers, count: ofMode.filter(i => pipelineOrder.includes(i.status) && i.status !== "cancelled").length },
       { key: "log", label: "Posted", icon: History, count: ofMode.filter(i => i.status === "posted").length },
     ]
   }, [mode, items, shoots, contentTypeForMode, pipelineOrder])
 
   const stats = useMemo(() => {
     const readyToEdit = items.filter(i => i.status === "ready_to_edit").length
-    const editing = items.filter(i => i.status === "editing").length
     const edited = items.filter(i => i.status === "edited").length
     const readyToPost = items.filter(i => i.status === "ready_to_post").length
     const posted = items.filter(i => i.status === "posted").length
     const totalPosts = items.reduce((s, i) => s + i.posts.length, 0)
-    return { readyToEdit, editing, edited, readyToPost, posted, totalPosts }
+    return { readyToEdit, edited, readyToPost, posted, totalPosts }
   }, [items])
 
   // The "what's due next" queue — items scheduled into Ready to Post, soonest first.
@@ -2953,7 +2907,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const logClientOptions = allClientOptions
   const logMonthOptions = allMonthOptions
 
-  // Per-client KPI strip: Posted / Unposted (edited, awaiting a platform) / Unedited (shot or editing)
+  // Per-client KPI strip: Posted / Unposted (edited, awaiting a platform) / Unedited (not yet edited)
   // — bucketed by whichever date is relevant to that item's current stage, so "All Time" vs a
   // specific month both mean something for items that haven't reached posting yet.
   const clientKPIs = useMemo(() => {
@@ -2961,6 +2915,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     const map = new Map<string, { posted: number; unposted: number; unedited: number }>()
     for (const item of items) {
       if (item.content_type !== contentTypeForMode) continue
+      if (item.status === "cancelled") continue
       if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0 })
       const rec = map.get(item.client_name)!
       if (item.status === "posted") {
@@ -3025,16 +2980,12 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     })
   }, [shoots, shootsClientFilter, shootsMonthFilter, shootsDayFilter])
 
-  // Completing needs the video titles, and Going needs the crew — both route through a
-  // modal rather than firing the action directly. Cancelled is immediate.
+  // Completing needs the video titles, so it routes through a modal rather than firing
+  // the action directly. Cancelled is immediate.
   function handleShootStatus(shootId: string, status: ShootStatus) {
     const shoot = shoots.find(s => s.id === shootId)
     if (status === "completed") {
       if (shoot) setCompleteShootFor(shoot)
-      return
-    }
-    if (status === "going" && members.length > 0 && !shoot?.goingByUsers.length) {
-      if (shoot) setGoingCrewFor(shoot)
       return
     }
     const previous = shoot?.status
@@ -3045,12 +2996,6 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         setShoots(prev => prev.map(s => s.id === shootId ? { ...s, status: previous } : s))
       }
     })
-  }
-
-  function handleGoingCrew(shootId: string, crew: Member[]) {
-    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, status: "going", goingByUsers: crew } : s))
-    setGoingCrewFor(null)
-    startTransition(async () => { await updateShootStatus(shootId, "going", crew.map(m => m.id)) })
   }
 
   function handleShootCompleted(shootId: string, created: CreatedShootItem[], crew: Member[]) {
@@ -3178,7 +3123,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         title="Content & Ads Tracker"
         subtitle="Every video and poster from shoot to post — plus a full ad hooks & targeting history."
         chips={[
-          { icon: <Video size={11} />, label: `${stats.readyToEdit + stats.editing + stats.edited} in pipeline` },
+          { icon: <Video size={11} />, label: `${stats.readyToEdit + stats.edited} in pipeline` },
           { icon: <CalendarDays size={11} />, label: `${stats.readyToPost} ready to post` },
           { icon: <Check size={11} />, label: `${stats.posted} posted` },
           { icon: <Megaphone size={11} />, label: `${ads.filter(a => a.status === "active").length} active ads` },
@@ -3334,7 +3279,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
             <MonthSelect value={pipelineMonthFilter} onChange={setPipelineMonthFilter} options={allMonthOptions} />
             <DayFilter value={pipelineDayFilter} onChange={setPipelineDayFilter} />
             <button onClick={() => setShowNewContent(true)}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: MODE_ACCENT[mode].grad, color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               <Plus size={14} /> New Content
             </button>
           </div>
@@ -3358,7 +3303,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
           <div className="hidden md:block">
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver as never} onDragEnd={handleDragEnd}>
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${pipelineOrder.length}, minmax(0, 1fr))` }}>
                 {pipelineOrder.map(status => {
                   const list = colItems(status)
                   const cfg = STATUS_CFG[status]
@@ -3517,9 +3462,9 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                   </thead>
                   <tbody>
                     {clientKPIs.map(row => (
-                      <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6", cursor: "pointer" }}
+                      <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6", cursor: "pointer", background: logClientFilter === row.client ? "rgba(17,24,39,0.04)" : "transparent" }}
                         onClick={() => setLogClientFilter(prev => prev === row.client ? "all" : row.client)}>
-                        <td style={{ padding: "9px 14px", fontWeight: 700, color: logClientFilter === row.client ? "#DE1A1A" : "#111827" }}>{row.client}</td>
+                        <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
                         <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
                         <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.edited.accent }}>{row.unposted}</td>
                         <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.ready_to_edit.accent }}>{row.unedited}</td>
@@ -3553,7 +3498,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
           <div className="flex items-center gap-2 flex-wrap">
             <button onClick={() => setLogPlatformFilter("all")}
-              style={{ padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${logPlatformFilter === "all" ? "#DE1A1A" : "#E5E7EB"}`, background: logPlatformFilter === "all" ? "rgba(222,26,26,0.08)" : "#fff", color: logPlatformFilter === "all" ? "#DE1A1A" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              style={{ padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${logPlatformFilter === "all" ? "#111827" : "#E5E7EB"}`, background: logPlatformFilter === "all" ? "rgba(17,24,39,0.06)" : "#fff", color: logPlatformFilter === "all" ? "#111827" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
               All Platforms
             </button>
             {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
@@ -3658,7 +3603,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               <DayFilter value={adsDayFilter} onChange={setAdsDayFilter} />
             </div>
             <button onClick={() => setShowNewAd(true)}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: MODE_ACCENT.ads.grad, color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               <Plus size={14} /> New Ad
             </button>
           </div>
@@ -3776,7 +3721,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               onDragStart={e => setShootDragId(String(e.active.id))}
               onDragOver={handleShootDragOver as never}
               onDragEnd={handleShootDragEnd}>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 {SHOOT_STATUS_ORDER.map(status => {
                   const cfg = SHOOT_STATUS_CFG[status]
                   const list = filteredShoots.filter(s => s.status === status)
@@ -3878,10 +3823,10 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           onClose={() => setEditAdFor(null)}
           onSaved={patch => handleAdSaved(editAdFor.id, patch)} />
       )}
-      {startEditingItem && (
-        <StartEditingModal item={startEditingItem} members={members} currentUserId={currentUserId}
-          onClose={() => setStartEditingItem(null)}
-          onConfirm={(editorId, editorName) => handleStartEditing(startEditingItem, editorId, editorName)} />
+      {markEditedItem && (
+        <MarkEditedModal item={markEditedItem} members={members} currentUserId={currentUserId}
+          onClose={() => setMarkEditedItem(null)}
+          onConfirm={(editorId, editorName) => handleMarkEdited(markEditedItem, editorId, editorName)} />
       )}
       {showNewAdsVideo && (
         <NewAdsVideoModal
@@ -3914,11 +3859,6 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       {correctionItem && (
         <RequestCorrectionModal item={correctionItem} members={members}
           onClose={() => setCorrectionItem(null)} onRequested={handleCorrectionRequested} />
-      )}
-      {goingCrewFor && (
-        <GoingCrewModal shoot={goingCrewFor} members={members} currentUserId={currentUserId}
-          onClose={() => setGoingCrewFor(null)}
-          onConfirm={crew => handleGoingCrew(goingCrewFor.id, crew)} />
       )}
     </div>
   )

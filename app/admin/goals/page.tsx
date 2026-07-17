@@ -28,7 +28,7 @@ export default async function GoalsPage() {
       .order("created_at", { ascending: false })
       .limit(100),
     admin.from("users")
-      .select("id, name, employee_id, team, gender")
+      .select("id, name, employee_id, team, gender, photo_url")
       .eq("company_id", cid)
       .eq("role", "MEMBER")
       .order("name"),

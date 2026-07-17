@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const CONTENT_STATUSES = [
   'scripting', 'voiceover', 'design', 'ready_to_edit',
-  'editing', 'edited', 'on_review', 'ready_to_post', 'posted',
+  'edited', 'on_review', 'ready_to_post', 'posted', 'cancelled',
 ] as const
 export const CONTENT_TYPES    = ['video', 'poster'] as const
 export const CONTENT_SOURCES  = ['shoot', 'ads_video', 'poster'] as const
@@ -20,8 +20,8 @@ export const createContentItemSchema = z.object({
   content_type: z.enum(CONTENT_TYPES).default('video'),
   shot_date:    z.string().optional(),
   notes:        z.string().optional(),
-  // Backfill path: skip Shot -> Editing -> Edited and record it as already
-  // posted in one step, instead of forcing a drag through every stage.
+  // Backfill path: skip Shot -> Edited and record it as already posted in one
+  // step, instead of forcing a drag through every stage.
   posted_platforms: z.array(z.enum(PLATFORMS)).optional(),
   posted_date:      z.string().optional(),
 })

@@ -29,7 +29,7 @@ interface Task {
   projects: { id: string; business_name: string } | null
 }
 
-interface Member { id: string; name: string; employee_id: string; team?: string | null; gender?: string | null }
+interface Member { id: string; name: string; employee_id: string; team?: string | null; gender?: string | null; photo_url?: string | null }
 interface Project { id: string; business_name: string; client_name?: string | null }
 
 const STATUS_CONFIG = {
@@ -104,18 +104,19 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
 
   return (
     <div className="group" style={{
-      background: "#FFFFFF", borderRadius: 14,
-      border: "1px solid #F0F0F0",
+      background: "linear-gradient(150deg, #E31E24 0%, #8A0F14 32%, #300506 62%, #0A0A0A 100%)",
+      borderRadius: 14,
+      border: "1px solid rgba(255,255,255,0.1)",
       borderLeft: `3px solid ${pr.color}`,
-      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+      boxShadow: "0 6px 20px rgba(0,0,0,0.28)",
       padding: "14px 14px 10px",
       transition: "box-shadow 0.2s, transform 0.2s",
     }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "0 6px 20px rgba(0,0,0,0.12)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)" }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)" }}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "0 10px 28px rgba(0,0,0,0.4)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)" }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "0 6px 20px rgba(0,0,0,0.28)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)" }}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
-        <p className="text-[13px] font-semibold leading-snug flex-1" style={{ color: "#111827" }}>{task.title}</p>
+        <p className="text-[13px] font-semibold leading-snug flex-1" style={{ color: "#FFFFFF" }}>{task.title}</p>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {creator && (
             <div title={`Assigned by ${creator.name}`} style={{ flexShrink: 0, cursor: "default" }}>
@@ -124,7 +125,7 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
                   src={creator.photo_url}
                   alt={creator.name}
                   width={22} height={22}
-                  style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", border: "1.5px solid #fff", boxShadow: "0 1px 4px rgba(0,0,0,0.18)" }}
+                  style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", border: "1.5px solid #fff", boxShadow: "0 1px 4px rgba(0,0,0,0.35)" }}
                 />
               ) : (
                 <div style={{
@@ -132,7 +133,7 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
                   background: creatorColor(creator.name),
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 8, fontWeight: 800, color: "#fff",
-                  boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.35)",
                   border: "1.5px solid #fff",
                 }}>
                   {creatorInitials(creator.name)}
@@ -142,29 +143,29 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
           )}
           <button onClick={() => onDelete(task.id)} disabled={isDeleting}
             className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-            {isDeleting ? <Loader2 size={11} className="animate-spin" style={{ color: "#de1a1a" }} />
-              : <Trash2 size={11} style={{ color: "rgba(222,26,26,0.45)" }} />}
+            {isDeleting ? <Loader2 size={11} className="animate-spin" style={{ color: "#FFFFFF" }} />
+              : <Trash2 size={11} style={{ color: "rgba(255,255,255,0.55)" }} />}
           </button>
         </div>
       </div>
       {task.description && (
-        <p className="text-[11px] mb-2.5 leading-relaxed" style={{ color: "#5B2C6F" }}>{task.description}</p>
+        <p className="text-[11px] mb-2.5 leading-relaxed" style={{ color: "rgba(255,255,255,0.75)" }}>{task.description}</p>
       )}
       <div className="flex flex-wrap gap-1.5 mb-2.5">
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-          style={{ background: pr.bg, color: pr.color }}>{task.priority.toUpperCase()}</span>
+          style={{ background: "rgba(255,255,255,0.92)", color: pr.color }}>{task.priority.toUpperCase()}</span>
         <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-          style={{ background: st.bg, color: st.color }}>
+          style={{ background: "rgba(255,255,255,0.92)", color: st.color }}>
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: st.dot }} />
           {st.label}
         </span>
         {project && (
           <span className="text-[10px] px-2 py-0.5 rounded-full"
-            style={{ background: "rgba(222,26,26,0.07)", color: "#B91C1C" }}>{project.business_name}</span>
+            style={{ background: "rgba(255,255,255,0.92)", color: "#B91C1C" }}>{project.business_name}</span>
         )}
         {task.due_date && (
           <span className="flex items-center gap-0.5 text-[10px] px-2 py-0.5 rounded-full"
-            style={{ background: overdue ? "rgba(222,26,26,0.08)" : "#F3F4F6", color: overdue ? "#de1a1a" : "#5B2C6F" }}>
+            style={{ background: "rgba(255,255,255,0.92)", color: overdue ? "#de1a1a" : "#5B2C6F" }}>
             <Calendar size={9} /> {fmt(task.due_date)}{overdue ? " ⚠" : ""}
           </span>
         )}
@@ -172,10 +173,10 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
           task.acknowledged_at ? (
             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
               title={`Seen at ${new Date(task.acknowledged_at).toLocaleString()}`}
-              style={{ background: "rgba(16,185,129,0.1)", color: "#10B981" }}>✓ Seen</span>
+              style={{ background: "rgba(255,255,255,0.92)", color: "#10B981" }}>✓ Seen</span>
           ) : (
             <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
-              style={{ background: "rgba(156,163,175,0.12)", color: "#5B2C6F" }}>Not seen</span>
+              style={{ background: "rgba(255,255,255,0.92)", color: "#5B2C6F" }}>Not seen</span>
           )
         )}
       </div>
@@ -183,8 +184,8 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
       {(task.attachments ?? []).length > 0 && (
         <div style={{ marginBottom: 8, display: "flex", flexDirection: "column", gap: 4 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
-            <Paperclip size={9} style={{ color: "#5B2C6F" }} />
-            <span style={{ fontSize: 9, fontWeight: 700, color: "#5B2C6F", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <Paperclip size={9} style={{ color: "rgba(255,255,255,0.65)" }} />
+            <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
               Attachments ({(task.attachments ?? []).length})
             </span>
           </div>
@@ -193,37 +194,37 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
             const name = att.name ?? att.url
             return (
               <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", borderRadius: 8, background: "#F9FAFB", border: "1px solid #E5E7EB", textDecoration: "none" }}>
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", borderRadius: 8, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", textDecoration: "none" }}>
                 {isImage
-                  ? <FileText size={10} style={{ color: "#10B981", flexShrink: 0 }} />
+                  ? <FileText size={10} style={{ color: "#6EE7B7", flexShrink: 0 }} />
                   : att.type === 'file'
-                    ? <FileText size={10} style={{ color: "#6366F1", flexShrink: 0 }} />
-                    : <Link2 size={10} style={{ color: "#6366F1", flexShrink: 0 }} />}
-                <span style={{ flex: 1, fontSize: 10, color: "#6366F1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    ? <FileText size={10} style={{ color: "#A5B4FC", flexShrink: 0 }} />
+                    : <Link2 size={10} style={{ color: "#A5B4FC", flexShrink: 0 }} />}
+                <span style={{ flex: 1, fontSize: 10, color: "#C7D2FE", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {name.length > 40 ? name.slice(0, 37) + "…" : name}
                 </span>
-                <ExternalLink size={9} style={{ color: "#5B2C6F", flexShrink: 0 }} />
+                <ExternalLink size={9} style={{ color: "rgba(255,255,255,0.65)", flexShrink: 0 }} />
               </a>
             )
           })}
         </div>
       )}
       <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pt-2"
-        style={{ borderTop: "1px dashed #F0F0F0" }}>
+        style={{ borderTop: "1px dashed rgba(255,255,255,0.2)" }}>
         {prev && (
           <button onClick={() => onMove(task.id, prev)} disabled={isMoving}
             className="flex-1 text-[10px] font-semibold py-1.5 rounded-lg"
-            style={{ background: "#F9FAFB", color: "#5B2C6F", border: "1px solid #E5E7EB" }}>← Back</button>
+            style={{ background: "rgba(255,255,255,0.1)", color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.25)" }}>← Back</button>
         )}
         {next && (
           <button onClick={() => onMove(task.id, next)} disabled={isMoving}
             className="flex-1 text-[10px] font-bold py-1.5 rounded-lg flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg,#de1a1a,#991B1B)", color: "#FFFFFF", border: "none" }}>
+            style={{ background: "#FFFFFF", color: "#8A0F14", border: "none" }}>
             {isMoving ? <Loader2 size={11} className="animate-spin" /> : "Move Forward →"}
           </button>
         )}
         {!prev && !next && (
-          <p className="text-[10px] text-center w-full font-semibold" style={{ color: "#10B981" }}>✓ Done</p>
+          <p className="text-[10px] text-center w-full font-semibold" style={{ color: "#6EE7B7" }}>✓ Done</p>
         )}
       </div>
     </div>
@@ -314,13 +315,14 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
   const memberColumns = [
     {
       id: "unassigned", label: "Unassigned", initials: "?", team: null as string | null,
-      gender: null as string | null, illustration: "/brand/task-assign/4ed6bcdd-a758-45ae-aac4-e112cd84ae67.png",
+      gender: null as string | null, photoUrl: null as string | null,
+      illustration: "/brand/task-assign/4ed6bcdd-a758-45ae-aac4-e112cd84ae67.png",
       tasks: tasks.filter(t => t.status !== "completed" && !(Array.isArray(t.users) ? t.users[0] : t.users)),
     },
     ...members.map((m, idx) => ({
       id: m.id, label: m.name,
       initials: m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(),
-      team: m.team ?? null, gender: m.gender ?? null,
+      team: m.team ?? null, gender: m.gender ?? null, photoUrl: m.photo_url ?? null,
       tasks: tasks.filter(t => { const u = Array.isArray(t.users) ? t.users[0] : t.users; return t.status !== "completed" && u?.id === m.id }),
       illustration: getMemberIllustration(m.gender, idx),
     })),
@@ -344,14 +346,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
     { label: "Total Tasks", count: total,  img: "/brand/task-assign/total.png",      numColor: "#de1a1a", accent: "#de1a1a", accentBg: "rgba(222,26,26,0.06)",   pct: 100          },
   ]
 
-  const TEAM_COLORS = [
-    { from: "#6366F1", to: "#8B5CF6" },
-    { from: "#de1a1a", to: "#F97316" },
-    { from: "#10B981", to: "#06B6D4" },
-    { from: "#F59E0B", to: "#EF4444" },
-    { from: "#8B5CF6", to: "#EC4899" },
-    { from: "#3B82F6", to: "#6366F1" },
-  ]
+  const MEMBER_COLOR = { from: "#de1a1a", to: "#991B1B" }
 
   return (
     <div style={{ background: "linear-gradient(160deg,#F8F9FF 0%,#F5F6FA 100%)", minHeight: "100vh", padding: "24px 28px 56px" }}>
@@ -424,6 +419,11 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
             }}>
               <Plus size={16} /> Create Task
             </button>
+
+            {/* Illustration — fixed flex item (not absolutely positioned) so it never overlaps the buttons or text; stacks in the same order on every breakpoint */}
+            <div style={{ position: "relative", width: "clamp(64px,14vw,110px)", height: "clamp(64px,14vw,110px)", flexShrink: 0, alignSelf: "center", filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.25))" }}>
+              <Image src="/brand/task-assign/taskboardhero.png" alt="" fill style={{ objectFit: "contain" }} />
+            </div>
           </div>
         </div>
       </div>
@@ -464,9 +464,9 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
       {viewMode === "member" && (
         <div style={{ overflowX: "auto", paddingBottom: 8 }}>
           <div style={{ display: "flex", gap: 18, minWidth: `${memberColumns.length * 340}px` }}>
-            {memberColumns.map((col, colIdx) => {
+            {memberColumns.map((col) => {
               const isUnassigned = col.id === "unassigned"
-              const tc = TEAM_COLORS[colIdx % TEAM_COLORS.length]
+              const tc = MEMBER_COLOR
               return (
                 <div key={col.id} style={{
                   width: 320, flexShrink: 0, borderRadius: 22,
@@ -487,12 +487,14 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                     <div style={{
                       width: 40, height: 40, borderRadius: 12, flexShrink: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 13, fontWeight: 900,
+                      fontSize: 13, fontWeight: 900, overflow: "hidden",
                       background: isUnassigned ? "#F3F4F6" : `linear-gradient(135deg, ${tc.from}, ${tc.to})`,
                       color: isUnassigned ? "#5B2C6F" : "#FFFFFF",
                       boxShadow: isUnassigned ? "none" : `0 4px 12px ${tc.from}40`,
                     }}>
-                      {col.initials}
+                      {col.photoUrl
+                        ? <img src={col.photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        : col.initials}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, lineHeight: 1.3 }}>{col.label}</p>

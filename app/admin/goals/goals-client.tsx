@@ -28,7 +28,7 @@ interface Task {
   projects: { id: string; business_name: string } | null
 }
 
-interface Member { id: string; name: string; employee_id: string; team?: string | null; gender?: string | null }
+interface Member { id: string; name: string; employee_id: string; team?: string | null; gender?: string | null; photo_url?: string | null }
 interface Project { id: string; business_name: string; client_name?: string | null }
 
 const STATUS_CONFIG = {
@@ -313,13 +313,14 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
   const memberColumns = [
     {
       id: "unassigned", label: "Unassigned", initials: "?", team: null as string | null,
-      gender: null as string | null, illustration: "/brand/task-assign/4ed6bcdd-a758-45ae-aac4-e112cd84ae67.png",
+      gender: null as string | null, photoUrl: null as string | null,
+      illustration: "/brand/task-assign/4ed6bcdd-a758-45ae-aac4-e112cd84ae67.png",
       tasks: tasks.filter(t => t.status !== "completed" && !(Array.isArray(t.users) ? t.users[0] : t.users)),
     },
     ...members.map((m, idx) => ({
       id: m.id, label: m.name,
       initials: m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(),
-      team: m.team ?? null, gender: m.gender ?? null,
+      team: m.team ?? null, gender: m.gender ?? null, photoUrl: m.photo_url ?? null,
       tasks: tasks.filter(t => { const u = Array.isArray(t.users) ? t.users[0] : t.users; return t.status !== "completed" && u?.id === m.id }),
       illustration: getMemberIllustration(m.gender, idx),
     })),
@@ -343,14 +344,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
     { label: "Total Tasks", count: total,  img: "/brand/task-assign/total.png",      numColor: "#de1a1a", accent: "#de1a1a", accentBg: "rgba(222,26,26,0.06)",   pct: 100          },
   ]
 
-  const TEAM_COLORS = [
-    { from: "#6366F1", to: "#8B5CF6" },
-    { from: "#de1a1a", to: "#F97316" },
-    { from: "#10B981", to: "#06B6D4" },
-    { from: "#F59E0B", to: "#EF4444" },
-    { from: "#8B5CF6", to: "#EC4899" },
-    { from: "#3B82F6", to: "#6366F1" },
-  ]
+  const MEMBER_COLOR = { from: "#de1a1a", to: "#991B1B" }
 
   return (
     <div style={{ background: "linear-gradient(160deg,#F8F9FF 0%,#F5F6FA 100%)", minHeight: "100vh", padding: "24px 28px 56px" }}>
@@ -463,9 +457,9 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
       {viewMode === "member" && (
         <div style={{ overflowX: "auto", paddingBottom: 8 }}>
           <div style={{ display: "flex", gap: 18, minWidth: `${memberColumns.length * 340}px` }}>
-            {memberColumns.map((col, colIdx) => {
+            {memberColumns.map((col) => {
               const isUnassigned = col.id === "unassigned"
-              const tc = TEAM_COLORS[colIdx % TEAM_COLORS.length]
+              const tc = MEMBER_COLOR
               return (
                 <div key={col.id} style={{
                   width: 320, flexShrink: 0, borderRadius: 22,
@@ -486,12 +480,14 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                     <div style={{
                       width: 40, height: 40, borderRadius: 12, flexShrink: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 13, fontWeight: 900,
+                      fontSize: 13, fontWeight: 900, overflow: "hidden",
                       background: isUnassigned ? "#F3F4F6" : `linear-gradient(135deg, ${tc.from}, ${tc.to})`,
                       color: isUnassigned ? "#5B2C6F" : "#FFFFFF",
                       boxShadow: isUnassigned ? "none" : `0 4px 12px ${tc.from}40`,
                     }}>
-                      {col.initials}
+                      {col.photoUrl
+                        ? <img src={col.photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        : col.initials}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, lineHeight: 1.3 }}>{col.label}</p>

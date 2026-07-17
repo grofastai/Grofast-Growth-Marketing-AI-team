@@ -419,6 +419,11 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
             }}>
               <Plus size={16} /> Create Task
             </button>
+
+            {/* Illustration — fixed flex item (not absolutely positioned) so it never overlaps the buttons or text; stacks in the same order on every breakpoint */}
+            <div style={{ position: "relative", width: "clamp(64px,14vw,110px)", height: "clamp(64px,14vw,110px)", flexShrink: 0, alignSelf: "center", filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.25))" }}>
+              <Image src="/brand/task-assign/taskboardhero.png" alt="" fill style={{ objectFit: "contain" }} />
+            </div>
           </div>
         </div>
       </div>

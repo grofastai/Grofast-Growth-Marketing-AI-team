@@ -458,6 +458,10 @@ function ContentCardInner({
   // Video/poster brand accent — ties every card to the same red/violet identity used
   // on the Overview tiles, instead of a fixed indigo regardless of content type.
   const typeAccent = item.content_type === "video" ? MODE_ACCENT.video.solid : MODE_ACCENT.poster.solid
+  // Every "who/when" tag on the card (shot by, voiced by, edited by, ads-video source,
+  // scheduled slot, corrections) shades off this same accent instead of its own unrelated
+  // hue, so nothing on the card fights the card's own color.
+  const typeAccentDark = `color-mix(in srgb, ${typeAccent} 70%, #000)`
   const age = (item.status === "ready_to_edit" || item.status === "design") ? daysAgo(originDate(item))
     : item.status === "edited" ? daysAgo(item.edited_date) : null
   const stale = age !== null && age >= 3
@@ -499,7 +503,7 @@ function ContentCardInner({
         <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full truncate max-w-[110px]"
           style={{ background: `${typeAccent}14`, color: typeAccent }}>{item.client_name}</span>
         {item.source === "ads_video" && (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(217,119,6,0.1)", color: "#D97706" }}>
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${typeAccent}18`, color: typeAccentDark }}>
             🎙️ Ads Video
           </span>
         )}
@@ -541,14 +545,14 @@ function ContentCardInner({
       <div className="flex items-center gap-2 mb-2">
         {item.shotByUser && (
           <div className="flex items-center gap-1" title={`Shot by ${item.shotByUser.name}`}>
-            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#F59E0B", color: "#fff" }}>
+            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.shotByUser.name)}
             </div>
           </div>
         )}
         {item.voiceoverBy && (item.status === "voiceover" || item.status === "ready_to_edit") && (
           <div className="flex items-center gap-1" title={`Voiced by ${item.voiceoverBy.name}`}>
-            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#EAB308", color: "#fff" }}>
+            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.voiceoverBy.name)}
             </div>
           </div>
@@ -558,16 +562,16 @@ function ContentCardInner({
         {item.editedByUser && item.status === "editing" ? (
           <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
             title={`${item.editedByUser.name} is editing this`}
-            style={{ background: "rgba(155,107,255,0.12)", color: "#9B6BFF" }}>
+            style={{ background: `${typeAccent}18`, color: typeAccentDark }}>
             <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
-              style={{ background: "#9B6BFF", color: "#fff" }}>
+              style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.editedByUser.name)}
             </span>
             {item.editedByUser.name}
           </span>
         ) : item.editedByUser ? (
           <div className="flex items-center gap-1" title={`Edited by ${item.editedByUser.name}`}>
-            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#9B6BFF", color: "#fff" }}>
+            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.editedByUser.name)}
             </div>
           </div>
@@ -577,10 +581,10 @@ function ContentCardInner({
 
       {/* Scheduled slot — shown while it's queued in Ready to Post. */}
       {item.status === "ready_to_post" && item.scheduled_post_date && (
-        <div className="mb-2 p-2 rounded-xl" style={{ background: "rgba(14,165,233,0.08)" }}>
+        <div className="mb-2 p-2 rounded-xl" style={{ background: `${typeAccent}14` }}>
           <div className="flex items-center gap-1 mb-1">
-            <CalendarDays size={10} style={{ color: "#0EA5E9" }} />
-            <span className="text-[9px] font-bold" style={{ color: "#0EA5E9" }}>
+            <CalendarDays size={10} style={{ color: typeAccentDark }} />
+            <span className="text-[9px] font-bold" style={{ color: typeAccentDark }}>
               {fmtDate(item.scheduled_post_date)}{item.scheduled_post_time ? ` · ${fmtTime(item.scheduled_post_time)}` : ""}
             </span>
           </div>
@@ -604,7 +608,7 @@ function ContentCardInner({
         <div className="mb-2">
           <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full w-fit"
             title={item.corrections.map(c => c.notes).join(" · ")}
-            style={{ background: "rgba(245,158,11,0.12)", color: "#D97706" }}>
+            style={{ background: `${typeAccent}18`, color: typeAccentDark }}>
             <RotateCcw size={9} /> {item.corrections.length} correction{item.corrections.length > 1 ? "s" : ""}
           </span>
           <p className="text-[9px] mt-1 line-clamp-2" style={{ color: "#6B7280" }}>
@@ -671,6 +675,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
   const next = NEXT_STATUS[item.status]
 
   const accent = MODE_ACCENT.video.solid
+  const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
       style={{
@@ -721,7 +726,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
 
       {item.voiceoverBy && (
         <div className="flex items-center gap-1.5 mb-3" title={`Voiced by ${item.voiceoverBy.name}`}>
-          <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#EAB308", color: "#fff" }}>
+          <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: accentDark, color: "#fff" }}>
             {initials(item.voiceoverBy.name)}
           </div>
           <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{item.voiceoverBy.name}</span>
@@ -1001,16 +1006,17 @@ function KanbanEmptyCell({ isOver }: { isOver: boolean }) {
 // unreadable soup in a narrow kanban column, so: a count, then a scannable list capped at
 // three, with the rest a click away. Dots rather than numbers — the videos aren't a
 // sequence, and numbering would imply an order that doesn't exist.
-function ShootTitleList({ titles }: { titles: ShootTitleRef[] }) {
+function ShootTitleList({ titles, accent }: { titles: ShootTitleRef[]; accent: string }) {
   const [expanded, setExpanded] = useState(false)
   const COLLAPSED = 3
   const shown = expanded ? titles : titles.slice(0, COLLAPSED)
   const hidden = titles.length - shown.length
+  const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
 
   return (
     <div style={{ marginTop: 8 }}>
       <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-lg"
-        style={{ background: "rgba(59,130,246,0.09)", color: "#3B82F6" }}>
+        style={{ background: `${accent}18`, color: accentDark }}>
         <Video size={10} /> {titles.length} video{titles.length === 1 ? "" : "s"}
       </span>
 
@@ -1018,7 +1024,7 @@ function ShootTitleList({ titles }: { titles: ShootTitleRef[] }) {
         {shown.map(t => (
           <div key={t.id} className="flex items-center gap-2"
             style={{ padding: "5px 0", borderBottom: "1px solid #F3F4F6" }}>
-            <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#3B82F6", flexShrink: 0 }} />
+            <span style={{ width: 4, height: 4, borderRadius: "50%", background: accentDark, flexShrink: 0 }} />
             <span className="text-[11px] truncate" style={{ color: "#374151" }}>{t.title}</span>
           </div>
         ))}
@@ -1027,7 +1033,7 @@ function ShootTitleList({ titles }: { titles: ShootTitleRef[] }) {
       {titles.length > COLLAPSED && (
         <button onPointerDown={e => e.stopPropagation()} onClick={() => setExpanded(v => !v)}
           className="text-[10px] font-bold"
-          style={{ marginTop: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: expanded ? "#9CA3AF" : "#3B82F6" }}>
+          style={{ marginTop: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: expanded ? "#9CA3AF" : accentDark }}>
           {expanded ? "Show less" : `+ ${hidden} more`}
         </button>
       )}
@@ -1048,7 +1054,10 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
   if (onEditCrew) menu.push({ label: "Who went", icon: Users, onClick: () => onEditCrew(shoot) })
   if (onDelete) menu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(shoot), danger: true })
 
-  const accent = "#3B82F6"
+  // Every colored element on this card is a shade of the shoot's own status color —
+  // a Completed (green) card shouldn't have blue crew badges fighting its own theme.
+  const accent = SHOOT_STATUS_CFG[shoot.status].color
+  const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 select-none"
       style={{
@@ -1069,7 +1078,7 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
       </div>
 
       {/* Video titles only exist once the shoot is marked Done — that's when they're captured. */}
-      {shoot.titles.length > 0 && <ShootTitleList titles={shoot.titles} />}
+      {shoot.titles.length > 0 && <ShootTitleList titles={shoot.titles} accent={accent} />}
 
       {/* Who covered the shoot. Always shown — an empty crew is itself worth seeing, and it's
           editable at any point so older shoots with nobody recorded can be filled in. */}
@@ -1079,7 +1088,7 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
           {shoot.goingByUsers.length === 0 ? (
             <button onPointerDown={e => e.stopPropagation()} onClick={() => onEditCrew(shoot)}
               className="block text-[10px] font-bold"
-              style={{ marginTop: 3, background: "none", border: "none", padding: 0, cursor: "pointer", color: "#3B82F6" }}>
+              style={{ marginTop: 3, background: "none", border: "none", padding: 0, cursor: "pointer", color: accentDark }}>
               + Add crew
             </button>
           ) : (
@@ -1087,9 +1096,9 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
               {shoot.goingByUsers.map(u => (
                 <span key={u.id} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
                   title={u.name}
-                  style={{ background: "rgba(59,130,246,0.1)", color: "#3B82F6" }}>
+                  style={{ background: `${accent}18`, color: accentDark }}>
                   <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
-                    style={{ background: "#3B82F6", color: "#fff" }}>
+                    style={{ background: accentDark, color: "#fff" }}>
                     {initials(u.name)}
                   </span>
                   {u.name}
@@ -1142,6 +1151,7 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
   }
 
   const accent = MODE_ACCENT.ads.solid
+  const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
   const stripeColor = underperforming ? "#EF4444" : accent
   return (
     <div className="rounded-2xl mb-2.5 select-none" style={{
@@ -1181,7 +1191,7 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
             </span>
           )}
           <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-            style={{ background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
+            style={{ background: `${accent}18`, color: accentDark }}>
             <Target size={9} /> {ad.hook_count} hooks
           </span>
           {ad.targeting_type && (
@@ -1198,10 +1208,10 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
           {ad.targeting_notes && <p className="text-[10px]" style={{ color: "#6B7280", margin: "10px 0" }}>{ad.targeting_notes}</p>}
 
           <div className="flex items-center justify-between" style={{ marginTop: 10, marginBottom: 6 }}>
-            <span className="text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: "#16A34A" }}>Performance</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: accentDark }}>Performance</span>
             <button onClick={() => onLogPerformance(ad)}
               className="flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg"
-              style={{ border: "none", background: "rgba(34,197,94,0.08)", color: "#16A34A", cursor: "pointer" }}>
+              style={{ border: "none", background: `${accent}14`, color: accentDark, cursor: "pointer" }}>
               <Plus size={10} /> Log
             </button>
           </div>
@@ -1232,10 +1242,10 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
           )}
 
           <div className="flex items-center justify-between" style={{ marginTop: 12, marginBottom: 6 }}>
-            <span className="text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: "#6366F1" }}>Correction History</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.06em]" style={{ color: accentDark }}>Correction History</span>
             <button onClick={() => onLogCorrection(ad)}
               className="flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-lg"
-              style={{ border: "none", background: "rgba(99,102,241,0.08)", color: "#6366F1", cursor: "pointer" }}>
+              style={{ border: "none", background: `${accent}14`, color: accentDark, cursor: "pointer" }}>
               <Plus size={10} /> Log
             </button>
           </div>
@@ -1248,7 +1258,7 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] font-bold" style={{ color: "#374151" }}>{fmtDate(rev.revision_date)}</span>
                     <div className="flex gap-1">
-                      {rev.hook_count_after !== null && <span className="text-[9px] font-bold" style={{ color: "#6366F1" }}>{rev.hook_count_after} hooks</span>}
+                      {rev.hook_count_after !== null && <span className="text-[9px] font-bold" style={{ color: accentDark }}>{rev.hook_count_after} hooks</span>}
                       {rev.targeting_type_after && <span className="text-[9px] font-bold" style={{ color: TARGETING_CFG[rev.targeting_type_after].color }}>· {TARGETING_CFG[rev.targeting_type_after].label}</span>}
                     </div>
                   </div>

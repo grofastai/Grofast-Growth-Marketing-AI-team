@@ -5,7 +5,7 @@
 export type OverviewStatus =
   | 'scripting' | 'voiceover' | 'design' | 'ready_to_edit'
   | 'editing' | 'edited' | 'on_review' | 'ready_to_post' | 'posted'
-export type OverviewShootStatus = 'scheduled' | 'going' | 'completed' | 'cancelled'
+export type OverviewShootStatus = 'scheduled' | 'completed' | 'cancelled'
 export type OverviewAdStatus = 'active' | 'testing' | 'paused' | 'stopped'
 
 // Structural, minimal input types — the client component's richer ContentItem / Shoot / Ad
@@ -134,7 +134,7 @@ export function computeOverview({ items, shoots, ads, today, range }: OverviewIn
   const shootsInRange = shoots.filter(s => inRange(s.created_at, range))
   const adsInRange = ads.filter(a => inRange(a.created_at, range))
 
-  const shootCounts: ShootCounts = { scheduled: 0, going: 0, completed: 0, cancelled: 0 }
+  const shootCounts: ShootCounts = { scheduled: 0, completed: 0, cancelled: 0 }
   for (const s of shootsInRange) shootCounts[s.status]++
 
   const adCounts: AdCounts = { active: 0, testing: 0, paused: 0, stopped: 0 }
@@ -147,7 +147,7 @@ export function computeOverview({ items, shoots, ads, today, range }: OverviewIn
   }).length
 
   const shootsToday = shoots.filter(
-    s => (s.status === 'scheduled' || s.status === 'going') && s.start_time.split('T')[0] === today
+    s => s.status === 'scheduled' && s.start_time.split('T')[0] === today
   ).length
 
   const repeatCorrections = items.filter(

@@ -117,7 +117,7 @@ export type Ad = {
   performanceEntries: AdPerformanceEntry[]
 }
 
-export type ShootStatus = "scheduled" | "going" | "completed" | "cancelled"
+export type ShootStatus = "scheduled" | "completed" | "cancelled"
 export type ShootTitleRef = { id: string; title: string; content_item_id: string | null }
 export type Shoot = {
   id: string
@@ -218,11 +218,10 @@ const AD_STATUS_CFG: Record<AdStatus, { label: string; color: string }> = {
 
 const SHOOT_STATUS_CFG: Record<ShootStatus, { label: string; color: string }> = {
   scheduled: { label: "Scheduled", color: "#F59E0B" },
-  going:     { label: "Going",     color: "#3B82F6" },
   completed: { label: "Completed", color: "#22C55E" },
   cancelled: { label: "Cancelled", color: "#EF4444" },
 }
-const SHOOT_STATUS_ORDER: ShootStatus[] = ["scheduled", "going", "completed", "cancelled"]
+const SHOOT_STATUS_ORDER: ShootStatus[] = ["scheduled", "completed", "cancelled"]
 const AD_STATUS_ORDER: AdStatus[] = ["active", "testing", "paused", "stopped"]
 
 const LABEL: React.CSSProperties = {
@@ -235,12 +234,13 @@ const FIELD: React.CSSProperties = {
   padding: "8px 10px", outline: "none",
 }
 // Toolbar filters (client/time/day) — distinct from FIELD, which stays neutral for
-// modal form inputs. Bold bright-to-dark red gradient (same language as the advance
-// buttons/Overview tiles), white text — not a pale tint.
+// modal form inputs. These render above every board (Video/Poster/Ads/Overview), each
+// with its own accent color, so a fixed red clashed on the non-video boards. Neutral
+// reads correctly next to all of them.
 const FILTER_FIELD: React.CSSProperties = {
-  width: "auto", fontSize: 12, fontWeight: 700, color: "#fff",
-  background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)",
-  border: "1.5px solid #6B0F0F", borderRadius: 10,
+  width: "auto", fontSize: 12, fontWeight: 700, color: "#374151",
+  background: "#fff",
+  border: "1.5px solid #E5E7EB", borderRadius: 10,
   padding: "8px 10px", outline: "none", cursor: "pointer",
 }
 
@@ -829,15 +829,15 @@ function DayFilter({ value, onChange }: { value: string; onChange: (v: string) =
   return (
     <div className="flex items-center gap-1"
       style={{
-        background: value ? "linear-gradient(135deg, #FF4D4D 0%, #DE1A1A 100%)" : "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)",
-        border: `1.5px solid ${value ? "#DE1A1A" : "#6B0F0F"}`, borderRadius: 10, padding: "0 6px",
+        background: value ? "#F3F4F6" : "#fff",
+        border: `1.5px solid ${value ? "#9CA3AF" : "#E5E7EB"}`, borderRadius: 10, padding: "0 6px",
       }}>
-      <CalendarDays size={13} style={{ color: "#fff", flexShrink: 0 }} />
+      <CalendarDays size={13} style={{ color: "#6B7280", flexShrink: 0 }} />
       <input type="date" value={value} onChange={e => onChange(e.target.value)} aria-label="Filter by day"
-        style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: "inherit", cursor: "pointer", padding: "7px 2px", colorScheme: "dark" }} />
+        style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, fontWeight: 700, color: "#374151", fontFamily: "inherit", cursor: "pointer", padding: "7px 2px", colorScheme: "light" }} />
       {value && (
         <button onClick={() => onChange("")} title="Clear day"
-          style={{ padding: "2px 6px", borderRadius: 6, border: "none", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 11, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
+          style={{ padding: "2px 6px", borderRadius: 6, border: "none", background: "rgba(107,114,128,0.15)", color: "#374151", fontSize: 11, fontWeight: 800, cursor: "pointer", lineHeight: 1 }}>
           ✕
         </button>
       )}
@@ -1102,22 +1102,13 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
 
       {shoot.notes && <p className="text-[10px]" style={{ color: "#6B7280", margin: "6px 0 0" }}>{shoot.notes}</p>}
 
-      {(shoot.status === "scheduled" || shoot.status === "going") && (
+      {shoot.status === "scheduled" && (
         <div className="flex flex-wrap gap-1.5" style={{ marginTop: 10 }}>
-          {shoot.status === "scheduled" && (
-            <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "going")}
-              className="text-[9px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
-              style={{ border: "none", background: "#1D4ED8", color: "#fff", cursor: "pointer" }}>
-              Mark Going
-            </button>
-          )}
-          {shoot.status === "going" && (
-            <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "completed")}
-              className="text-[9px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
-              style={{ border: "none", background: "#15803D", color: "#fff", cursor: "pointer" }}>
-              Mark Done
-            </button>
-          )}
+          <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "completed")}
+            className="text-[9px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
+            style={{ border: "none", background: "#15803D", color: "#fff", cursor: "pointer" }}>
+            Mark Done
+          </button>
           <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "cancelled")}
             className="text-[9px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
             style={{ border: "none", background: "#B91C1C", color: "#fff", cursor: "pointer" }}>
@@ -2234,57 +2225,6 @@ function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
   )
 }
 
-// ── "Who's going?" — the accountability prompt when a shoot is marked Going ──────
-function GoingCrewModal({ shoot, members, currentUserId, onClose, onConfirm }: {
-  shoot: Shoot
-  members: Member[]
-  currentUserId: string
-  onClose: () => void
-  onConfirm: (crew: Member[]) => void
-}) {
-  const [crew, setCrew] = useState<string[]>(
-    members.some(m => m.id === currentUserId) ? [currentUserId] : []
-  )
-  const [error, setError] = useState<string | null>(null)
-
-  function toggle(id: string) {
-    setCrew(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-  }
-
-  function submit() {
-    if (crew.length === 0) { setError("Pick at least one person going"); return }
-    onConfirm(members.filter(m => crew.includes(m.id)))
-  }
-
-  return (
-    <Modal title="Who's going on this shoot?" onClose={onClose}>
-      <div className="flex flex-col gap-3">
-        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-          <strong style={{ color: "#111827" }}>{shoot.legacyTitle}</strong> — pick everyone covering it.
-        </p>
-        <div>
-          <label style={LABEL}>Crew * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {members.map(m => {
-              const on = crew.includes(m.id)
-              return (
-                <button key={m.id} onClick={() => toggle(m.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {on && <Check size={11} />} {m.name}{m.id === currentUserId ? " (me)" : ""}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
-        <PrimaryButton onClick={submit}>
-          Mark Going{crew.length > 0 ? ` (${crew.length})` : ""}
-        </PrimaryButton>
-      </div>
-    </Modal>
-  )
-}
-
 // ── Complete Shoot modal — captures the video titles that came out of the shoot ──
 function CompleteShootModal({ shoot, members, currentUserId, onClose, onCompleted }: {
   shoot: Shoot
@@ -2295,9 +2235,8 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
 }) {
   const [titleInput, setTitleInput] = useState("")
   const [titles, setTitles] = useState<string[]>([])
-  // Crew is asked here too, not just at Going — a shoot dragged straight to Completed would
-  // otherwise end up Done with no record of who went. Pre-filled with whoever was marked
-  // Going, so the common path is just "confirm".
+  // Crew is captured here, at completion — pre-filled from any crew already recorded
+  // (e.g. backfilled via "Who went") so the common path is just "confirm".
   const [crew, setCrew] = useState<string[]>(() => {
     if (shoot.goingByUsers.length > 0) return shoot.goingByUsers.map(u => u.id)
     return members.some(m => m.id === currentUserId) ? [currentUserId] : []
@@ -2648,7 +2587,6 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [voiceOverItem, setVoiceOverItem] = useState<ContentItem | null>(null)
   const [readyToPostItem, setReadyToPostItem] = useState<ContentItem | null>(null)
   const [correctionItem, setCorrectionItem] = useState<ContentItem | null>(null)
-  const [goingCrewFor, setGoingCrewFor] = useState<Shoot | null>(null)
   const [editCrewFor, setEditCrewFor] = useState<Shoot | null>(null)
   const [editShootFor, setEditShootFor] = useState<Shoot | null>(null)
   const [deleteShootFor, setDeleteShootFor] = useState<Shoot | null>(null)
@@ -2911,7 +2849,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     const activeAdsVideo = items.filter(i => i.content_type === "video" && i.source === "ads_video" && (i.status === "scripting" || i.status === "voiceover"))
     return [
       ...(mode === "video"
-        ? [{ key: "shoots", label: "Shoots", icon: Camera, count: shoots.filter(s => s.status === "scheduled" || s.status === "going").length }]
+        ? [{ key: "shoots", label: "Shoots", icon: Camera, count: shoots.filter(s => s.status === "scheduled").length }]
         : []),
       ...(mode === "video"
         ? [{ key: "adsvideo", label: "Ads Video", icon: Sparkles, count: activeAdsVideo.length }]
@@ -3024,16 +2962,12 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     })
   }, [shoots, shootsClientFilter, shootsMonthFilter, shootsDayFilter])
 
-  // Completing needs the video titles, and Going needs the crew — both route through a
-  // modal rather than firing the action directly. Cancelled is immediate.
+  // Completing needs the video titles, so it routes through a modal rather than firing
+  // the action directly. Cancelled is immediate.
   function handleShootStatus(shootId: string, status: ShootStatus) {
     const shoot = shoots.find(s => s.id === shootId)
     if (status === "completed") {
       if (shoot) setCompleteShootFor(shoot)
-      return
-    }
-    if (status === "going" && members.length > 0 && !shoot?.goingByUsers.length) {
-      if (shoot) setGoingCrewFor(shoot)
       return
     }
     const previous = shoot?.status
@@ -3044,12 +2978,6 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
         setShoots(prev => prev.map(s => s.id === shootId ? { ...s, status: previous } : s))
       }
     })
-  }
-
-  function handleGoingCrew(shootId: string, crew: Member[]) {
-    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, status: "going", goingByUsers: crew } : s))
-    setGoingCrewFor(null)
-    startTransition(async () => { await updateShootStatus(shootId, "going", crew.map(m => m.id)) })
   }
 
   function handleShootCompleted(shootId: string, created: CreatedShootItem[], crew: Member[]) {
@@ -3333,7 +3261,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
             <MonthSelect value={pipelineMonthFilter} onChange={setPipelineMonthFilter} options={allMonthOptions} />
             <DayFilter value={pipelineDayFilter} onChange={setPipelineDayFilter} />
             <button onClick={() => setShowNewContent(true)}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: MODE_ACCENT[mode].grad, color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               <Plus size={14} /> New Content
             </button>
           </div>
@@ -3516,9 +3444,9 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                   </thead>
                   <tbody>
                     {clientKPIs.map(row => (
-                      <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6", cursor: "pointer" }}
+                      <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6", cursor: "pointer", background: logClientFilter === row.client ? "rgba(17,24,39,0.04)" : "transparent" }}
                         onClick={() => setLogClientFilter(prev => prev === row.client ? "all" : row.client)}>
-                        <td style={{ padding: "9px 14px", fontWeight: 700, color: logClientFilter === row.client ? "#DE1A1A" : "#111827" }}>{row.client}</td>
+                        <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
                         <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
                         <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.edited.accent }}>{row.unposted}</td>
                         <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.ready_to_edit.accent }}>{row.unedited}</td>
@@ -3552,7 +3480,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
 
           <div className="flex items-center gap-2 flex-wrap">
             <button onClick={() => setLogPlatformFilter("all")}
-              style={{ padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${logPlatformFilter === "all" ? "#DE1A1A" : "#E5E7EB"}`, background: logPlatformFilter === "all" ? "rgba(222,26,26,0.08)" : "#fff", color: logPlatformFilter === "all" ? "#DE1A1A" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              style={{ padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${logPlatformFilter === "all" ? "#111827" : "#E5E7EB"}`, background: logPlatformFilter === "all" ? "rgba(17,24,39,0.06)" : "#fff", color: logPlatformFilter === "all" ? "#111827" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
               All Platforms
             </button>
             {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
@@ -3657,7 +3585,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               <DayFilter value={adsDayFilter} onChange={setAdsDayFilter} />
             </div>
             <button onClick={() => setShowNewAd(true)}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: MODE_ACCENT.ads.grad, color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               <Plus size={14} /> New Ad
             </button>
           </div>
@@ -3775,7 +3703,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               onDragStart={e => setShootDragId(String(e.active.id))}
               onDragOver={handleShootDragOver as never}
               onDragEnd={handleShootDragEnd}>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 {SHOOT_STATUS_ORDER.map(status => {
                   const cfg = SHOOT_STATUS_CFG[status]
                   const list = filteredShoots.filter(s => s.status === status)
@@ -3913,11 +3841,6 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       {correctionItem && (
         <RequestCorrectionModal item={correctionItem} members={members}
           onClose={() => setCorrectionItem(null)} onRequested={handleCorrectionRequested} />
-      )}
-      {goingCrewFor && (
-        <GoingCrewModal shoot={goingCrewFor} members={members} currentUserId={currentUserId}
-          onClose={() => setGoingCrewFor(null)}
-          onConfirm={crew => handleGoingCrew(goingCrewFor.id, crew)} />
       )}
     </div>
   )

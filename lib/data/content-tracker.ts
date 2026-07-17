@@ -49,7 +49,7 @@ export async function getContentTrackerData(companyId: string): Promise<{
   type AdRow = { id: string; client_name: string; ad_name: string; platform: string; launch_date: string | null; hook_count: number; targeting_type: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null; targeting_notes: string | null; status: 'active' | 'paused' | 'testing' | 'stopped'; created_at: string }
   type RevisionRow = { id: string; ad_id: string; revision_date: string; notes: string; hook_count_after: number | null; targeting_type_after: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null }
   type PerformanceRow = { id: string; ad_id: string; entry_date: string; spend: number; impressions: number; reach: number; clicks: number; ctr: number; results: number; note: string | null }
-  type ShootRow = { id: string; title: string; client: string; start_time: string; notes: string | null; status: 'scheduled' | 'going' | 'completed' | 'cancelled'; going_by: string[] | null; created_at: string }
+  type ShootRow = { id: string; title: string; client: string; start_time: string; notes: string | null; status: 'scheduled' | 'completed' | 'cancelled'; going_by: string[] | null; created_at: string }
   type ShootTitleRow = { id: string; shoot_id: string; title: string; content_item_id: string | null }
   type CorrectionRow = { id: string; content_item_id: string; correction_date: string; notes: string; requested_by: string | null; assigned_to: string | null }
   type FreelancerRow = { id: string; name: string; team: string | null; status: string }

@@ -82,13 +82,12 @@ describe('shoot counts', () => {
       items: [],
       shoots: [
         shoot({ id: '1', status: 'scheduled' }),
-        shoot({ id: '2', status: 'going' }),
-        shoot({ id: '3', status: 'completed' }),
-        shoot({ id: '4', status: 'cancelled' }),
+        shoot({ id: '2', status: 'completed' }),
+        shoot({ id: '3', status: 'cancelled' }),
       ],
       ads: [], today: TODAY,
     })
-    expect(o.shoots).toEqual({ scheduled: 1, going: 1, completed: 1, cancelled: 1 })
+    expect(o.shoots).toEqual({ scheduled: 1, completed: 1, cancelled: 1 })
   })
 })
 
@@ -161,12 +160,12 @@ describe('needs attention — stuck in editing', () => {
 })
 
 describe('needs attention — shoots today and repeat bounces', () => {
-  it('counts shoots scheduled or going today', () => {
+  it('counts shoots scheduled today', () => {
     const o = computeOverview({
       items: [],
       shoots: [
         shoot({ id: '1', status: 'scheduled', start_time: `${TODAY}T09:00:00` }),
-        shoot({ id: '2', status: 'going', start_time: `${TODAY}T14:00:00` }),
+        shoot({ id: '2', status: 'scheduled', start_time: `${TODAY}T14:00:00` }),
         shoot({ id: '3', status: 'completed', start_time: `${TODAY}T08:00:00` }),
         shoot({ id: '4', status: 'scheduled', start_time: '2026-07-20T09:00:00' }),
       ],

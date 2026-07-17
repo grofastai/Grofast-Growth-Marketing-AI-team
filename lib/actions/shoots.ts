@@ -78,8 +78,7 @@ export type CreatedShootItem = {
 
 export async function updateShootStatus(
   id: string,
-  status: ShootStatus,
-  goingBy?: string[]
+  status: ShootStatus
 ): Promise<{ success: boolean; error?: string; createdItems?: CreatedShootItem[] }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -97,11 +96,7 @@ export async function updateShootStatus(
     return { success: false, error: `Cannot move from ${shoot.status} to ${status}` }
   }
 
-  // Marking Going records WHO is covering the shoot, so the rest of the team can see it.
-  const updates: Record<string, unknown> = { status }
-  if (status === 'going' && goingBy && goingBy.length > 0) updates.going_by = goingBy
-
-  const { error } = await admin.from('shoots').update(updates).eq('id', id)
+  const { error } = await admin.from('shoots').update({ status }).eq('id', id)
   if (error) return { success: false, error: error.message }
 
   let createdItems: CreatedShootItem[] | undefined
@@ -278,8 +273,8 @@ export async function completeShootWithTitles(
     })
   }
 
-  // Crew is captured here too, not just at Going — a shoot dragged straight to Completed
-  // would otherwise end up Done with no record of who actually went.
+  // Crew is captured here, at completion — the only point in the shoot's lifecycle
+  // where "who went" is known.
   const completeUpdates: Record<string, unknown> = { status: 'completed' }
   if (goingBy && goingBy.length > 0) completeUpdates.going_by = goingBy
 

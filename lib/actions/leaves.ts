@@ -48,6 +48,52 @@ function parseCompanyId(accessToken: string): string | null {
   }
 }
 
+// full_day counts every calendar day in the range; half_day is always 0.5; anything
+// else (permission/wfh/shoot_day) doesn't count against the monthly cap at all.
+function leaveDayCount(leaveType: string, fromDate: string, toDate: string): number {
+  if (leaveType === 'full_day') {
+    return Math.ceil((new Date(toDate).getTime() - new Date(fromDate).getTime()) / 86400000) + 1
+  }
+  if (leaveType === 'half_day') return 0.5
+  return 0
+}
+
+// Shared by submitLeaveRequest (new request) and updateLeaveRequest (editing a still-
+// pending one) — both must check the SAME monthly cap, otherwise editing a pending
+// request is a silent backdoor around the limit a fresh submission would have hit.
+// excludeLeaveId lets an edit compare against every OTHER leave that month without
+// double-counting the very row being edited.
+async function checkMonthlyLeaveLimit(
+  adminCl: ReturnType<typeof createAdminClient>,
+  userId: string,
+  leaveType: string,
+  fromDate: string,
+  toDate: string,
+  excludeLeaveId?: string
+): Promise<string | null> {
+  if (leaveType !== 'full_day' && leaveType !== 'half_day') return null
+
+  const currentMonth = fromDate.slice(0, 7)
+  let query = adminCl
+    .from('leaves')
+    .select('from_date, to_date, leave_type')
+    .eq('user_id', userId)
+    .gte('from_date', `${currentMonth}-01`)
+    .lte('from_date', `${currentMonth}-31`)
+    .in('status', ['approved', 'pending'])
+  if (excludeLeaveId) query = query.neq('id', excludeLeaveId)
+  const { data: monthLeaves } = await query
+
+  const used = (monthLeaves ?? []).reduce(
+    (s: number, l: { from_date: string; to_date: string; leave_type: string | null }) =>
+      s + leaveDayCount(l.leave_type ?? 'full_day', l.from_date, l.to_date),
+    0
+  )
+  const thisRequestDays = leaveDayCount(leaveType, fromDate, toDate)
+  if (used + thisRequestDays > 5) return 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.'
+  return null
+}
+
 export async function submitLeaveRequest(
   _prev: { error: string } | { success: true } | null,
   formData: FormData
@@ -111,24 +157,15 @@ export async function submitLeaveRequest(
     .eq('id', effectiveUserId)
     .single()
 
-  // Monthly limit check (full_day + half_day only; permission/wfh/shoot_day excluded)
+  // Monthly limit check (full_day + half_day only; permission/wfh/shoot_day excluded).
+  // Counts THIS request's own days on top of what's already on file — not just
+  // whether the existing total alone has already hit the cap.
   const isExceptional = formData.get('is_exceptional') === 'true'
-  if (!isExceptional && (parsed.data.leave_type === 'full_day' || parsed.data.leave_type === 'half_day')) {
-    const currentMonth = parsed.data.from_date.slice(0, 7)
-    const { data: monthLeaves } = await adminCl
-      .from('leaves')
-      .select('from_date, to_date, leave_type')
-      .eq('user_id', effectiveUserId)
-      .gte('from_date', `${currentMonth}-01`)
-      .lte('from_date', `${currentMonth}-31`)
-      .in('status', ['approved', 'pending'])
-    const used = (monthLeaves ?? []).reduce((s, l) => {
-      const t = l.leave_type ?? 'full_day'
-      if (t === 'full_day') return s + (Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1)
-      if (t === 'half_day') return s + 0.5
-      return s
-    }, 0)
-    if (used >= 5) return { error: 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.' }
+  if (!isExceptional) {
+    const limitError = await checkMonthlyLeaveLimit(
+      adminCl, effectiveUserId, parsed.data.leave_type, parsed.data.from_date, parsed.data.to_date
+    )
+    if (limitError) return { error: limitError }
   }
 
   const { data: overlapping } = await adminCl
@@ -344,6 +381,18 @@ export async function updateLeaveRequest(
   if (!existing) return { error: 'Leave request not found' }
   if (existing.user_id !== user.id) return { error: 'Not authorized' }
   if (existing.status !== 'pending') return { error: 'Can only edit pending requests' }
+
+  // Same monthly cap as a fresh submission — otherwise editing a still-pending
+  // request (e.g. stretching a 1-day request to 3 days) is a silent backdoor
+  // around the limit a brand-new submission would have been blocked by.
+  const isExceptional = formData.get('is_exceptional') === 'true'
+  if (!isExceptional) {
+    const adminCl = createAdminClient()
+    const limitError = await checkMonthlyLeaveLimit(
+      adminCl, user.id, parsed.data.leave_type, parsed.data.from_date, parsed.data.to_date, leaveId
+    )
+    if (limitError) return { error: limitError }
+  }
 
   const { error } = await (supabase.from('leaves') as any)
     .update({

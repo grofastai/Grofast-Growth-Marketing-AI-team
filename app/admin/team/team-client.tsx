@@ -1568,19 +1568,29 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
         <div style={{ position: "absolute", top: 10, right: 380, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
 
         <div className="flex flex-col sm:grid sm:grid-cols-[auto_1fr_auto] sm:items-center gap-3" style={{ padding: "12px 22px", position: "relative", zIndex: 1 }}>
-          <div style={{ minWidth: 0 }}>
-            <div className="hidden sm:flex" style={{ alignItems: "center", gap: 10, marginBottom: 6 }}>
-              <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
-                <Sparkles size={16} style={{ color: "#FFD700" }} />
+          {/* Text + mobile illustration share a row so the image stays pinned to the right; text wraps to a second line instead of running under it */}
+          <div className="flex items-start justify-between gap-3 sm:contents">
+            <div className="flex-1" style={{ minWidth: 0 }}>
+              <div className="hidden sm:flex" style={{ alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
+                  <Sparkles size={16} style={{ color: "#FFD700" }} />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
+              <h1 className="text-[26px] sm:text-[32px] font-black text-white leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>Team</h1>
+              <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Manage your employees and their access</p>
             </div>
-            <h1 className="text-[26px] sm:text-[32px] font-black text-white leading-tight truncate" style={{ fontFamily: "var(--font-jakarta)" }}>Team</h1>
-            <p className="text-[13px] mt-1 truncate" style={{ color: "rgba(255,255,255,0.65)" }}>Manage your employees and their access</p>
+
+            {/* Mobile-only illustration — fixed to the right of the text row so it never overlaps; text wraps instead */}
+            <div className="flex sm:hidden justify-end flex-shrink-0">
+              <div style={{ position: "relative", width: "clamp(64px,20vw,96px)", height: "clamp(82px,26vw,124px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
+                <Image src="/brand/team-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
+              </div>
+            </div>
           </div>
 
-          {/* Center: illustration — its own grid column (1fr) on desktop, so it's centered in the space between the text and the button and fills the gap instead of leaving it empty; a normal-sized row of its own on mobile (not squeezed beside the button) so it never overlaps anything */}
-          <div className="flex justify-center">
+          {/* Desktop illustration — its own grid column (1fr), pinned to the right side next to the Add Member button */}
+          <div className="hidden sm:flex justify-end">
             <div style={{ position: "relative", width: "clamp(92px,13vw,182px)", height: "clamp(118px,16.5vw,234px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
               <Image src="/brand/team-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
             </div>

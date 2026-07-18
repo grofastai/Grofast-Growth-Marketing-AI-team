@@ -1567,41 +1567,30 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
         <div style={{ position: "absolute", bottom: -30, right: 220, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", top: 10, right: 380, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
 
-        <div className="flex items-center gap-4 flex-wrap" style={{ padding: "22px 28px", position: "relative", zIndex: 1 }}>
-          <div style={{ flex: "0 0 auto" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+        <div className="flex items-center flex-nowrap gap-3 sm:gap-4" style={{ padding: "22px 20px", position: "relative", zIndex: 1 }}>
+          <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+            <div className="hidden sm:flex" style={{ alignItems: "center", gap: 10, marginBottom: 8 }}>
               <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
                 <Sparkles size={16} style={{ color: "#FFD700" }} />
               </div>
               <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
             </div>
-            <h1 className="text-[32px] font-black text-white leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>Team</h1>
-            <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Manage your employees and their access</p>
-          </div>
-
-          {/* Search */}
-          <div className="relative flex-1 min-w-[160px] sm:min-w-[220px] max-w-[380px] mx-auto">
-            <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "rgba(255,255,255,0.45)" }} />
-            <input
-              value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search members…"
-              className="w-full rounded-xl pl-9 pr-4 py-2.5 text-[13px] outline-none"
-              style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#FFFFFF", fontFamily: "inherit" }}
-            />
+            <h1 className="text-[26px] sm:text-[32px] font-black text-white leading-tight truncate" style={{ fontFamily: "var(--font-jakarta)" }}>Team</h1>
+            <p className="text-[13px] mt-1 truncate" style={{ color: "rgba(255,255,255,0.65)" }}>Manage your employees and their access</p>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-3 ml-auto">
+          <div className="flex items-center gap-2 sm:gap-3" style={{ flexShrink: 0 }}>
             <button
               onClick={() => { setEditMember(null); setSheetOpen(true) }}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all"
+              className="flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap"
               style={{ background: "#FFFFFF", color: "#DE1A1A", boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }}>
-              <Plus size={14} /> Add Member
+              <Plus size={14} /> <span className="hidden sm:inline">Add Member</span>
             </button>
 
-            {/* Illustration — fixed flex item (not absolutely positioned) so it never overlaps the search bar or button; stacks in the same order on every breakpoint */}
-            <div style={{ position: "relative", width: "clamp(56px,10vw,96px)", height: "clamp(72px,13vw,124px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
-              <Image src="/brand/team-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
+            {/* Illustration — fixed flex item (not absolutely positioned) so it never overlaps the button; stacks in the same order on every breakpoint. Sized in the space freed up by removing the search bar (moved to the table header below) */}
+            <div style={{ position: "relative", width: "clamp(64px,11vw,150px)", height: "clamp(82px,14vw,192px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
+              <Image src="/brand/team-admin-hero.png" alt="" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
             </div>
           </div>
         </div>
@@ -1926,12 +1915,22 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
           ) : (
           <>
           {/* Table header row */}
-          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
             <div>
               <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Employee Directory</h3>
               <p className="text-[12px]" style={{ color: "#5C3D1F" }}>{filtered.length} of {regularMembers.length} members</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+            {/* Search — moved out of the header banner */}
+            <div className="relative flex-1 sm:flex-none sm:w-[200px]">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#9CA3AF" }} />
+              <input
+                value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search members…"
+                className="w-full rounded-lg pl-8 pr-3 py-2 text-[12px] outline-none"
+                style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}
+              />
+            </div>
             {/* Tab filters */}
             <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
               {([

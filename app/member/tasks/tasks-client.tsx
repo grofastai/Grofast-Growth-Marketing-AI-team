@@ -982,20 +982,9 @@ export default function MemberTasksClient({
             </p>
           </div>
 
-          {/* RIGHT: search + assign + stat pills */}
+          {/* RIGHT: assign + stat pills */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start", position: "relative", zIndex: 3, paddingTop: 0, paddingBottom: 20, width: "100%" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", borderRadius: 12, background: "rgba(0,0,0,0.22)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.28)" }}>
-                <Search size={12} style={{ color: "rgba(255,255,255,0.85)" }} />
-                <input value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Search tasks..."
-                  className="placeholder:text-white/70"
-                  style={{ background: "transparent", outline: "none", fontSize: 12, color: "#FFFFFF", width: 140, border: "none" }}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  onFocus={e => (e.target as any).placeholder = ""}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  onBlur={e => (e.target as any).placeholder = "Search tasks..."} />
-              </div>
               <button onClick={() => setShowAssign(true)}
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 12, background: "rgba(255,255,255,0.22)", backdropFilter: "blur(8px)", border: "1.5px solid rgba(255,255,255,0.35)", color: "#FFFFFF", fontSize: 12, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>
                 <Plus size={13} strokeWidth={3} /> Assign Task
@@ -1075,6 +1064,15 @@ export default function MemberTasksClient({
           </div>
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Search — moved out of the header banner */}
+            <div className="relative flex-shrink-0">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#9CA3AF" }} />
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search tasks..."
+                className="w-[130px] sm:w-[150px] rounded-xl pl-7 pr-3 py-1.5 text-[12px] outline-none"
+                style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#111111" }} />
+            </div>
+
             {/* Client filter */}
             <div className="relative flex-shrink-0">
               <ClientSelector

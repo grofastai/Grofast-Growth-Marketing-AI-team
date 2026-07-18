@@ -183,56 +183,57 @@ export default function FlMediaClient({
         {/* Hero banner — matches the member-facing freelancer team banners' layout
             (avatar badge, name, tagline, glass KPI strip, big right-anchored character).
             Background + character live in their own inset/overflow:hidden layer, separate
-            from the text/month-nav layer below. The character is sized by width — the
-            reference banners use height:"100%" and rely on their portrait character crops
-            having empty margin near the top corners so a fixed "nudge in" offset happens to
-            clear their Add Work button; this source image is a dense landscape collage
-            (1536x1024, 1.5:1) with no such margin, so that trick collides. Instead, the
-            month-nav pill sits inside the same row as the text (like the reference's Add
-            Work button), and the row reserves paddingRight via calc() using the image's own
-            clamp() formula — so the gutter always exactly matches the image's width at any
-            viewport size, guaranteeing no overlap by construction rather than by eyeballing
-            an offset. */}
-        <div className="sm:min-h-[210px] sm:max-h-[320px]" style={{ position: "relative", overflow: "visible", flexShrink: 0, borderRadius: 0, boxShadow: "0 4px 24px rgba(176,18,48,0.3)" }}>
-          <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(135deg, #7F0000 0%, #B01230 50%, #DC143C 100%)", zIndex: 0 }}>
+            from the text/month-nav layer below.
+
+            The month-nav pill is pinned to the true top-right corner (absolute, top:20/
+            right:20) — not inside the text row's flex flow — so it always sits exactly at
+            the rounded corner regardless of the row's own width. The character's `right`
+            offset is a fixed value chosen to clear the pill's own rendered width (~180px)
+            plus a margin; since `right` fixes the image's RIGHT edge regardless of how wide
+            it renders (width scaling only grows it further left), the character is
+            guaranteed to stay to the pill's left at any size. This is different from the
+            earlier attempt, which reserved gutter on the TEXT ROW instead of the pill's own
+            position — that pushed the pill inset from the corner while the character (still
+            anchored near the true edge) ended up sitting further right than the pill, the
+            opposite of what was wanted. */}
+        <div className="sm:min-h-[210px] sm:max-h-[320px]" style={{ position: "relative", overflow: "visible", flexShrink: 0, borderRadius: 24, boxShadow: "0 4px 24px rgba(176,18,48,0.3)" }}>
+          <div style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: 24, background: "linear-gradient(135deg, #7F0000 0%, #B01230 50%, #DC143C 100%)", zIndex: 0 }}>
             {/* Decorative circles */}
             <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
             <div style={{ position: "absolute", bottom: -30, left: 120, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
-            {/* Character (desktop) — anchored bottom-right, large like the reference banners */}
+            {/* Character (desktop) — anchored bottom-right, but inset far enough (right:230) to clear the top-right month-nav pill (~180px wide + margin), so it always renders to the pill's left */}
             <img src="/brand/freelancer-media-production-character.png" alt="" aria-hidden="true"
               className="hidden sm:block"
-              style={{ position: "absolute", bottom: 0, right: 20, width: "clamp(140px,26vw,320px)", height: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(220,20,60,0.5))" }} />
-            {/* Character (mobile) — grounded, shifted right for breathing room from the text */}
+              style={{ position: "absolute", bottom: 0, right: 230, width: "clamp(140px,26vw,320px)", height: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(220,20,60,0.5))" }} />
+            {/* Character (mobile) — grounded, shifted right for breathing room from the text; mobile month-nav is in-flow below the text, not corner-pinned, so no gutter needed here */}
             <img src="/brand/freelancer-media-production-character.png" alt="" aria-hidden="true"
               className="block sm:hidden"
               style={{ position: "absolute", bottom: 50, right: 10, width: "clamp(140px,34vw,220px)", height: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(220,20,60,0.5))" }} />
           </div>
+          {/* Month nav — desktop: pinned to the true top-right corner, above the rounded edge */}
+          <div className="hidden sm:flex" style={{ position: "absolute", top: 20, right: 20, zIndex: 3, alignItems: "center", gap: 6, background: "rgba(255,255,255,0.2)", borderRadius: 12, padding: "7px 10px", border: "2px solid rgba(255,255,255,0.4)", backdropFilter: "blur(10px)" }}>
+            <button onClick={() => setSelectedMonth(prevMonth(selectedMonth))} disabled={!canGoPrev}
+              style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "transparent", cursor: canGoPrev ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", opacity: canGoPrev ? 1 : 0.3 }}>
+              <ChevronLeft size={13} color="#fff" />
+            </button>
+            <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", minWidth: 96, textAlign: "center", letterSpacing: "0.01em" }}>{monthLabel(selectedMonth)}</span>
+            <button onClick={() => setSelectedMonth(nextMonth(selectedMonth))} disabled={!canGoNext}
+              style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "transparent", cursor: canGoNext ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", opacity: canGoNext ? 1 : 0.3 }}>
+              <ChevronRight size={13} color="#fff" />
+            </button>
+          </div>
           <div style={{ position: "relative", zIndex: 2, padding: "20px 20px 0" }}>
-            {/* Desktop layout — paddingRight reserves exactly the character's own clamp() width + a gap, so the month-nav pill (pushed to the row's right edge by justify-between) can never sit under it */}
-            <div className="hidden sm:flex sm:items-start sm:justify-between sm:gap-3" style={{ paddingRight: "calc(clamp(140px,26vw,320px) + 40px)" }}>
-                <div className="flex items-center gap-3">
-                  <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
-                    <span style={{ fontSize: 18, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)" }}>{selectedMember ? getInitials(selectedMember.name) : "👥"}</span>
-                  </div>
-                  <div>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", marginBottom: 6 }}>
-                      🎬 {selectedMember ? "Media Production · Login" : "Media Production"}
-                    </span>
-                    <h2 style={{ fontSize: "clamp(18px,3vw,22px)", fontWeight: 900, color: "#fff", margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{selectedMember?.name ?? "All Members"}</h2>
-                    <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", margin: "8px 0 0", letterSpacing: "-0.01em" }}>🎥 Bringing Every Shoot to Life</p>
-                  </div>
+            {/* Desktop layout */}
+            <div className="hidden sm:flex sm:items-center sm:gap-3">
+                <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
+                  <span style={{ fontSize: 18, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)" }}>{selectedMember ? getInitials(selectedMember.name) : "👥"}</span>
                 </div>
-                {/* Month nav — same top-right slot the reference uses for its Add Work button */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.2)", borderRadius: 12, padding: "7px 10px", border: "2px solid rgba(255,255,255,0.4)", backdropFilter: "blur(10px)", flexShrink: 0 }}>
-                  <button onClick={() => setSelectedMonth(prevMonth(selectedMonth))} disabled={!canGoPrev}
-                    style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "transparent", cursor: canGoPrev ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", opacity: canGoPrev ? 1 : 0.3 }}>
-                    <ChevronLeft size={13} color="#fff" />
-                  </button>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", minWidth: 96, textAlign: "center", letterSpacing: "0.01em" }}>{monthLabel(selectedMonth)}</span>
-                  <button onClick={() => setSelectedMonth(nextMonth(selectedMonth))} disabled={!canGoNext}
-                    style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "transparent", cursor: canGoNext ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", opacity: canGoNext ? 1 : 0.3 }}>
-                    <ChevronRight size={13} color="#fff" />
-                  </button>
+                <div>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", marginBottom: 6 }}>
+                    🎬 {selectedMember ? "Media Production · Login" : "Media Production"}
+                  </span>
+                  <h2 style={{ fontSize: "clamp(18px,3vw,22px)", fontWeight: 900, color: "#fff", margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{selectedMember?.name ?? "All Members"}</h2>
+                  <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", margin: "8px 0 0", letterSpacing: "-0.01em" }}>🎥 Bringing Every Shoot to Life</p>
                 </div>
             </div>
             {/* Mobile layout — no avatar (the character carries identity); month nav flows under the heading instead of sitting top-right */}

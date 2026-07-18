@@ -183,28 +183,30 @@ export default function FlMediaClient({
         {/* Hero banner — matches the member-facing freelancer team banners' layout
             (avatar badge, name, tagline, glass KPI strip, big right-anchored character).
             Background + character live in their own inset/overflow:hidden layer, separate
-            from the text/month-nav layer below, which is why the character can safely use
-            height:"100%" here — the earlier fixed-clamp workaround was only needed because
-            the character and the blurred month-nav pill used to share one overflow:hidden
-            container; splitting them into two layers (as the reference banner does) sidesteps
-            the Chromium clipping bug entirely instead of avoiding percentage sizing. */}
+            from the text/month-nav layer below. The character is sized by width (not
+            height:100%) because this source image is landscape (1536x1024, 1.5:1) — at any
+            height tall enough to look prominent it becomes very wide, and the reference
+            banners' height:100% trick assumes a narrow portrait crop. The desktop text row
+            reserves paddingRight matching the image's exact clamp() formula via calc(), so
+            the month-nav pill can't collide with it regardless of viewport width — a fixed
+            "nudge in from the edge" offset isn't enough once the image itself is this wide. */}
         <div className="sm:min-h-[210px] sm:max-h-[320px]" style={{ position: "relative", overflow: "visible", flexShrink: 0, borderRadius: 0, boxShadow: "0 4px 24px rgba(176,18,48,0.3)" }}>
           <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(135deg, #7F0000 0%, #B01230 50%, #DC143C 100%)", zIndex: 0 }}>
             {/* Decorative circles */}
             <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
             <div style={{ position: "absolute", bottom: -30, left: 120, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
-            {/* Character (desktop) — anchored bottom-right, nudged in so it clears the top-right month-nav pill */}
+            {/* Character (desktop) — anchored bottom-right, sized by width so its footprint is predictable */}
             <img src="/brand/freelancer-media-production-character.png" alt="" aria-hidden="true"
               className="hidden sm:block"
-              style={{ position: "absolute", bottom: 0, right: 90, height: "100%", maxHeight: 260, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(220,20,60,0.5))" }} />
+              style={{ position: "absolute", bottom: 0, right: 20, width: "clamp(140px,26vw,320px)", height: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(220,20,60,0.5))" }} />
             {/* Character (mobile) — grounded, shifted right for breathing room from the text */}
             <img src="/brand/freelancer-media-production-character.png" alt="" aria-hidden="true"
               className="block sm:hidden"
-              style={{ position: "absolute", bottom: 50, right: 10, height: 170, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(220,20,60,0.5))" }} />
+              style={{ position: "absolute", bottom: 50, right: 10, width: "clamp(140px,34vw,220px)", height: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(220,20,60,0.5))" }} />
           </div>
           <div style={{ position: "relative", zIndex: 2, padding: "20px 20px 0" }}>
             {/* Desktop layout */}
-            <div className="hidden sm:flex sm:items-start sm:flex-wrap sm:justify-between sm:gap-3">
+            <div className="hidden sm:flex sm:items-start sm:flex-wrap sm:justify-between sm:gap-3" style={{ paddingRight: "calc(clamp(140px,26vw,320px) + 40px)" }}>
               <div className="flex items-center gap-3">
                 <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
                   <span style={{ fontSize: 18, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)" }}>{selectedMember ? getInitials(selectedMember.name) : "👥"}</span>

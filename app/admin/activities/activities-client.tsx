@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Search, Filter, Clock, Users, AlertCircle, TrendingUp, Bell, Star, X, ChevronRight, Camera, Film, BookOpen, Coffee, GraduationCap, Mic, Image as ImageIcon, FileText, Code2, CalendarClock } from "lucide-react"
+import { Clock, Users, AlertCircle, TrendingUp, Bell, Star, X, ChevronRight, Camera, Film, BookOpen, Coffee, GraduationCap, Mic, Image as ImageIcon, FileText, Code2, CalendarClock } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 import { calcNetWorkHours } from "@/lib/utils/work-hours"
 import { PageHero } from "@/components/admin/PageHero"
@@ -51,20 +51,6 @@ function fmtHours(h: unknown): string {
   if (hrs && mins) return `${hrs}h ${mins}m`
   if (hrs) return `${hrs}h`
   return `${mins}m`
-}
-
-function getDescription(u: Update): string {
-  const entries = (Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
-  const first = entries.find(e => e.task_type !== "break")
-  if (first) {
-    const title = (first.title || first.task_name || first.description) as string | undefined
-    if (title) return title
-    const client = (first.client_name || first._brand || first._custom_client || first.client) as string | undefined
-    if (client) return `Worked on ${client}`
-  }
-  if (u.notes) return u.notes
-  if (u.attendance_status === "leave") return "On approved leave"
-  return "Submitted daily update"
 }
 
 function getTeamBadge(team: string | null | undefined): { label: string; bg: string; color: string } {
@@ -422,7 +408,6 @@ export default function ActivitiesClient({
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  const [search, setSearch] = useState("")
   const [customFrom, setCustomFrom] = useState(from)
   const [customTo, setCustomTo]     = useState(to)
   const [showCustom, setShowCustom] = useState(false)
@@ -548,15 +533,13 @@ export default function ActivitiesClient({
     return sorted[0] ?? null
   }, [updates])
 
-  // ── Filtered people list (grouped) ────────────────────────────────────────
+  // ── People list (grouped) ────────────────────────────────────────────────
   const filteredPeople = useMemo(() => {
-    const q = search.toLowerCase()
     const people: Array<{ userId: string; user: NonNullable<Update["users"]>; userUpdates: Update[]; totalHours: number; entryCount: number; time: string }> = []
 
     for (const [userId, userUpdates] of groupedByUser) {
       const user = Array.isArray(userUpdates[0]?.users) ? userUpdates[0].users[0] : userUpdates[0]?.users
       if (!user) continue
-      if (q && !user.name.toLowerCase().includes(q) && !userUpdates.some(u => getDescription(u).toLowerCase().includes(q))) continue
       const totalHours = userUpdates.reduce((s, u) => s + getUpdateHours(u), 0)
       const allEntries = userUpdates.flatMap(u => Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
       const entryCount = allEntries.filter(e => e.task_type !== "break").length
@@ -565,7 +548,7 @@ export default function ActivitiesClient({
     }
 
     return people.sort((a, b) => (b.userUpdates[0]?.created_at ?? "") .localeCompare(a.userUpdates[0]?.created_at ?? ""))
-  }, [groupedByUser, search])
+  }, [groupedByUser])
 
   const displayDate = useMemo(() => {
     try {
@@ -590,40 +573,17 @@ export default function ActivitiesClient({
           maxContentWidth={420}
           illustration={
             /* Mobile: right-anchored and flush with the bottom (no negative offset, so overflow:hidden
-               can't crop mid-figure). The "Keep it up" card that used to sit in this same corner has
-               been removed, so this is now clear space; md+: original centered placement. */
-            <div className="absolute right-2 bottom-2 top-auto md:left-[54%] md:right-auto md:top-1/2 md:bottom-auto md:-translate-x-1/2 md:-translate-y-1/2" style={{ zIndex: 1, pointerEvents: "none" }}>
+               can't crop mid-figure). md+: centered, nudged down a touch (top-[58%] instead of top-1/2)
+               and capped shorter than before so it sits with breathing room instead of clipping flush
+               against the banner's top/bottom edges now that the search row below it is gone and the
+               banner itself is shorter. */
+            <div className="absolute right-2 bottom-2 top-auto md:left-[54%] md:right-auto md:top-[58%] md:bottom-auto md:-translate-x-1/2 md:-translate-y-1/2" style={{ zIndex: 1, pointerEvents: "none" }}>
               <img
                 src="/brand/activities-hero.png"
                 alt=""
-                className="h-[clamp(64px,20vw,110px)] md:h-[clamp(120px,36vw,300px)]"
+                className="h-[clamp(64px,20vw,110px)] md:h-[clamp(84px,18vw,140px)]"
                 style={{ width: "auto", objectFit: "contain", userSelect: "none" }}
               />
-            </div>
-          }
-          belowSubtitle={
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <div style={{ position: "relative", flex: 1, maxWidth: 280 }}>
-                <Search size={14} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.45)", pointerEvents: "none" }} />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search members, updates..."
-                  style={{
-                    width: "100%", boxSizing: "border-box", height: 44,
-                    padding: "0 14px 0 38px", border: "1px solid rgba(255,255,255,0.18)",
-                    borderRadius: 14, background: "rgba(255,255,255,0.09)", backdropFilter: "blur(10px)",
-                    color: "#fff", fontSize: 13, outline: "none",
-                  }}
-                />
-              </div>
-              <button style={{
-                width: 44, height: 44, borderRadius: 14, background: "rgba(255,255,255,0.12)",
-                border: "1px solid rgba(255,255,255,0.18)", cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-              }}>
-                <Filter size={16} color="rgba(255,255,255,0.75)" />
-              </button>
             </div>
           }
           rightSlot={

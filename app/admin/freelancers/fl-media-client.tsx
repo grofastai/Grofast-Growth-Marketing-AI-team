@@ -195,10 +195,10 @@ export default function FlMediaClient({
             {/* Decorative circles */}
             <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
             <div style={{ position: "absolute", bottom: -30, left: 120, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
-            {/* Character (desktop) — anchored bottom-right, capped short enough that even at its widest it stays below the top-right month-nav pill */}
+            {/* Character (desktop) — centered horizontally in the banner; still capped short enough vertically that it stays clear of the top-right month-nav pill regardless of its centered position */}
             <img src="/brand/freelancer-media-production-character.png" alt="" aria-hidden="true"
               className="hidden sm:block"
-              style={{ position: "absolute", bottom: 0, right: 20, width: "clamp(110px,18vw,180px)", height: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(220,20,60,0.5))" }} />
+              style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "clamp(110px,18vw,180px)", height: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(220,20,60,0.5))" }} />
             {/* Character (mobile) — grounded, shifted right for breathing room from the text */}
             <img src="/brand/freelancer-media-production-character.png" alt="" aria-hidden="true"
               className="block sm:hidden"
@@ -217,8 +217,8 @@ export default function FlMediaClient({
             </button>
           </div>
           <div style={{ position: "relative", zIndex: 2, padding: "20px 20px 0" }}>
-            {/* Desktop layout */}
-            <div className="hidden sm:flex sm:items-center sm:gap-3">
+            {/* Desktop layout — capped to the left ~40% so a long member name can't stretch into the now-centered character's space */}
+            <div className="hidden sm:flex sm:items-center sm:gap-3 sm:max-w-[40%]">
                 <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
                   <span style={{ fontSize: 18, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)" }}>{selectedMember ? getInitials(selectedMember.name) : "👥"}</span>
                 </div>

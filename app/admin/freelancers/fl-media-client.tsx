@@ -196,7 +196,7 @@ export default function FlMediaClient({
             position — that pushed the pill inset from the corner while the character (still
             anchored near the true edge) ended up sitting further right than the pill, the
             opposite of what was wanted. */}
-        <div className="sm:min-h-[210px] sm:max-h-[320px]" style={{ position: "relative", overflow: "visible", flexShrink: 0, borderRadius: 24, boxShadow: "0 4px 24px rgba(176,18,48,0.3)" }}>
+        <div className="sm:min-h-[210px] sm:max-h-[320px]" style={{ position: "relative", overflow: "visible", flexShrink: 0, margin: "16px 16px 12px", borderRadius: 24, boxShadow: "0 4px 24px rgba(176,18,48,0.3)" }}>
           <div style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: 24, background: "linear-gradient(135deg, #7F0000 0%, #B01230 50%, #DC143C 100%)", zIndex: 0 }}>
             {/* Decorative circles */}
             <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />

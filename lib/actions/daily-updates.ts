@@ -46,11 +46,12 @@ function fixEntryDurations<T extends Record<string, unknown>>(entries: T[]): T[]
   return entries.map(e => {
     const start = e.start_time as string | null | undefined
     const end   = e.end_time   as string | null | undefined
-    if (!start || !end) return e
+    if (!start || !end || start === end) return e
     const [sh, sm] = start.split(':').map(Number)
     const [eh, em] = end.split(':').map(Number)
     if ([sh, sm, eh, em].some(isNaN)) return e
-    const expectedH = (eh * 60 + em - (sh * 60 + sm)) / 60
+    let expectedH = (eh * 60 + em - (sh * 60 + sm)) / 60
+    if (expectedH <= 0) expectedH += 24 // crosses midnight into the next day (e.g. 11 PM - 1:30 AM)
     if (expectedH <= 0 || expectedH > 15) return e
     return { ...e, duration_hours: Math.round(expectedH * 100) / 100 }
   })

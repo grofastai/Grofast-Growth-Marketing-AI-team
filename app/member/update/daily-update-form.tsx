@@ -96,7 +96,7 @@ function TimePicker({ value, onChange, allowEmpty, style: extraStyle }: { value:
   )
 }
 function calcDuration(start: string, end: string) {
-  if (!start || !end) return 0
+  if (!start || !end || start === end) return 0
   const [sh, sm] = start.split(":").map(Number)
   const [eh, em] = end.split(":").map(Number)
   let diff = (eh * 60 + em) - (sh * 60 + sm)
@@ -282,10 +282,11 @@ function newLearningBlock(): LearningBlock {
   return { id: crypto.randomUUID(), client: "", topic: "", from: "09:00", to: "09:00", notes: "" }
 }
 function calcLearningHours(from: string, to: string): number {
-  if (!from || !to) return 0
+  if (!from || !to || from === to) return 0
   const [fh, fm] = from.split(":").map(Number)
   const [th, tm] = to.split(":").map(Number)
-  const diff = (th * 60 + tm) - (fh * 60 + fm)
+  let diff = (th * 60 + tm) - (fh * 60 + fm)
+  if (diff <= 0) diff += 1440 // crosses midnight into the next day
   return diff > 0 ? Math.round(diff / 60 * 100) / 100 : 0
 }
 function parseExistingLearningBlocks(existingUpdate: Record<string, unknown>): LearningBlock[] {
@@ -961,7 +962,7 @@ export default function DailyUpdateForm({
     for (let i = 0; i < filledBlocks.length; i++) {
       const b = filledBlocks[i]
       const label = filledBlocks.length > 1 ? `Block ${i + 1}: ` : ""
-      if (!b.startTime || !b.endTime || toMins(b.endTime) <= toMins(b.startTime)) {
+      if (!b.startTime || !b.endTime || b.endTime === b.startTime) {
         setWorkingError(`${label}End time must be after start time.`); return
       }
       if (!b.description.trim()) {
@@ -998,7 +999,7 @@ export default function DailyUpdateForm({
       if (!v.title.trim()) { setWorkingError(`${label}Enter a script name.`); return }
       if (!v.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!v.endTime)   { setWorkingError(`${label}Enter end time.`); return }
-      if (toMins(v.endTime) <= toMins(v.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+      if (v.endTime === v.startTime) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
     // Poster mandatory: client, title, start time, end time
@@ -1010,7 +1011,7 @@ export default function DailyUpdateForm({
       if (!p.title.trim()) { setWorkingError(`${label}Enter a poster name.`); return }
       if (!p.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!p.endTime)   { setWorkingError(`${label}Enter end time.`); return }
-      if (toMins(p.endTime) <= toMins(p.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+      if (p.endTime === p.startTime) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
     // Scripting mandatory: client, title, start time, end time
@@ -1021,7 +1022,7 @@ export default function DailyUpdateForm({
       if (!s.title.trim()) { setWorkingError(`${label}Enter a script title.`); return }
       if (!s.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!s.endTime)   { setWorkingError(`${label}Enter end time.`); return }
-      if (toMins(s.endTime) <= toMins(s.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+      if (s.endTime === s.startTime) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
     // Development mandatory: client, project, sub-title, start/end time
@@ -1033,7 +1034,7 @@ export default function DailyUpdateForm({
       if (!d.subtitle.trim()) { setWorkingError(`${label}Enter what you worked on today.`); return }
       if (!d.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!d.endTime)   { setWorkingError(`${label}Enter end time.`); return }
-      if (toMins(d.endTime) <= toMins(d.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+      if (d.endTime === d.startTime) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
     // Editing (non-media) mandatory: client, video name, video type, start/end time
@@ -1046,7 +1047,7 @@ export default function DailyUpdateForm({
       if (!n.videoType || n.videoType === "") { setWorkingError(`${label}Select a video type.`); return }
       if (!n.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!n.endTime)   { setWorkingError(`${label}Enter end time.`); return }
-      if (toMins(n.endTime) <= toMins(n.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+      if (n.endTime === n.startTime) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
     const work_entries = [
@@ -1205,7 +1206,7 @@ export default function DailyUpdateForm({
       if (!s.clientName || s.clientName === "") { setError(`${label}Select a client.`); return }
       if (!s.title.trim()) { setError(`${label}Enter a shoot name.`); return }
       if (!s.startTime || !s.endTime) { setError(`${label}Set start and end time.`); return }
-      if (toMins(s.endTime) <= toMins(s.startTime)) { setError(`${label}End time must be after start time.`); return }
+      if (s.endTime === s.startTime) { setError(`${label}End time must be after start time.`); return }
     }
     for (let i = 0; i < edits.length; i++) {
       const e = edits[i]
@@ -1219,7 +1220,7 @@ export default function DailyUpdateForm({
       if (e.revisions === null || e.revisions === undefined || isNaN(Number(e.revisions)) || !Number.isInteger(Number(e.revisions)) || Number(e.revisions) < 0) { setError(`${label}Revisions must be a whole number (0, 1, 2…).`); return }
       if (e.hooksCompleted === null || e.hooksCompleted === undefined || isNaN(Number(e.hooksCompleted)) || !Number.isInteger(Number(e.hooksCompleted)) || Number(e.hooksCompleted) < 0) { setError(`${label}Hooks Completed must be a whole number (0, 1, 2…).`); return }
       if (!e.startTime || !e.endTime) { setError(`${label}Set start and end time.`); return }
-      if (toMins(e.endTime) <= toMins(e.startTime)) { setError(`${label}End time must be after start time.`); return }
+      if (e.endTime === e.startTime) { setError(`${label}End time must be after start time.`); return }
       if (!e.videoLink?.trim()) { setError(`${label}Add the Drive / Video link.`); return }
     }
 
@@ -1305,7 +1306,7 @@ export default function DailyUpdateForm({
         return setEntryErrors(p => ({ ...p, [entryId]: "Enter a shoot name before saving." }))
       if (!shootEntry.startTime || !shootEntry.endTime)
         return setEntryErrors(p => ({ ...p, [entryId]: "Set start and end time before saving." }))
-      if (toMins(shootEntry.endTime) <= toMins(shootEntry.startTime))
+      if (shootEntry.endTime === shootEntry.startTime)
         return setEntryErrors(p => ({ ...p, [entryId]: "End time must be after start time." }))
       // Overlap check against all other shoots and edits
       const otherShoots = shoots.filter(s => s.id !== entryId)
@@ -1333,7 +1334,7 @@ export default function DailyUpdateForm({
         return setEntryErrors(p => ({ ...p, [entryId]: "Set the Date Finished before saving." }))
       if (!editEntry.startTime || !editEntry.endTime)
         return setEntryErrors(p => ({ ...p, [entryId]: "Set start and end time before saving." }))
-      if (toMins(editEntry.endTime) <= toMins(editEntry.startTime))
+      if (editEntry.endTime === editEntry.startTime)
         return setEntryErrors(p => ({ ...p, [entryId]: "End time must be after start time." }))
       if (!editEntry.videoDuration)
         return setEntryErrors(p => ({ ...p, [entryId]: "Select the video length (e.g. 30 sec, 1 min) before saving." }))
@@ -1424,7 +1425,7 @@ export default function DailyUpdateForm({
       if (!o.title.trim()) { setLearningError(`${label}Enter a title.`); return }
       if (!o.startTime) { setLearningError(`${label}Enter start time.`); return }
       if (!o.endTime)   { setLearningError(`${label}Enter end time.`); return }
-      if (toMins(o.endTime) <= toMins(o.startTime)) { setLearningError(`${label}End time must be after start time.`); return }
+      if (o.endTime === o.startTime) { setLearningError(`${label}End time must be after start time.`); return }
     }
     if (filledLearningBlocks.length === 0 && others.length === 0) {
       setLearningError("Add at least one learning block or other activity."); return

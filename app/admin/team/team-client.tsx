@@ -1548,7 +1548,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
     // Total Members' art is a wide group shot, not a single character, so `contain`
     // fits it to the box width and it sprawls left over the count. Give it a smaller
     // box so it reads the same size as the single-character cards beside it.
-    { label: "Total Members", value: stats.total, sub: "All accounts", img: "/brand/team-total-members.png", bg: "linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%)", border: "rgba(236,72,153,0.15)", num: "#EC4899", role: "ALL", imgClass: "w-[50px] h-[50px] sm:w-28 sm:h-24 lg:w-[155px] lg:h-[135px]" },
+    { label: "Total Members", value: stats.total, sub: "All accounts", img: "/brand/team-total-members.png", bg: "linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%)", border: "rgba(236,72,153,0.15)", num: "#EC4899", role: "ALL", imgClass: "w-[62px] h-[62px] sm:w-28 sm:h-24 lg:w-[155px] lg:h-[135px]" },
     { label: "Admin Accounts", value: stats.admins, sub: "Admin access", img: "/brand/team-admins.png", bg: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "rgba(139,92,246,0.15)", num: "#7C3AED", role: "ADMIN" },
     { label: "Team Members", value: stats.teamMembers, sub: "Member accounts", img: "/brand/team-active-members.png", bg: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "rgba(34,197,94,0.15)", num: "#16A34A", role: "MEMBER" },
   ]
@@ -1600,7 +1600,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
               onClick={() => { setRoleFilter(isActive ? "ALL" : s.role); setSearch("") }}
               style={{
                 background: s.bg, border: `2px solid ${isActive ? s.num : s.border}`, borderRadius: 18,
-                padding: "20px 18px 0 22px", overflow: "hidden", position: "relative", minHeight: 148,
+                padding: "20px 18px 0 22px", overflow: "hidden", position: "relative", minHeight: 154,
                 cursor: "pointer", transition: "all 0.15s",
                 boxShadow: isActive ? `0 4px 20px ${s.num}33` : "none",
               }}>
@@ -1611,11 +1611,11 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                 </div>
               )}
               {/* Illustration */}
-              <div className={`absolute right-0 bottom-0 pointer-events-none ${s.imgClass ?? "w-[60px] h-[60px] sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px]"}`}>
+              <div className={`absolute right-0 bottom-0 pointer-events-none ${s.imgClass ?? "w-[72px] h-[72px] sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px]"}`}>
                 <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
               </div>
               {/* Text */}
-              <div style={{ position: "relative", zIndex: 1 }} className="max-w-[52%] sm:max-w-[60%] lg:max-w-[55%]">
+              <div style={{ position: "relative", zIndex: 1 }} className="max-w-[50%] sm:max-w-[60%] lg:max-w-[55%]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: s.num, opacity: 0.85 }}>{s.label}</p>
                 <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: s.num }}>{s.value}</p>
                 <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#5C3D1F" }}>{s.sub}</p>
@@ -1643,10 +1643,10 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                   FILTERED
                 </div>
               )}
-              <div className="absolute right-0 bottom-0 w-[60px] h-[60px] sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
+              <div className="absolute right-0 bottom-0 w-[72px] h-[72px] sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
                 <Image src="/brand/team-freelancers.png" alt="Freelancers" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
               </div>
-              <div style={{ position: "relative", zIndex: 1 }} className="max-w-[52%] sm:max-w-[60%] lg:max-w-[55%]">
+              <div style={{ position: "relative", zIndex: 1 }} className="max-w-[50%] sm:max-w-[60%] lg:max-w-[55%]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "#F97316", opacity: 0.85 }}>Freelancers</p>
                 <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: "#F97316" }}>{stats.freelancers}</p>
                 <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#5C3D1F" }}>Freelance team</p>

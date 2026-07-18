@@ -1567,8 +1567,8 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
         <div style={{ position: "absolute", bottom: -30, right: 220, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", top: 10, right: 380, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
 
-        <div className="flex items-center flex-nowrap gap-3 sm:gap-4" style={{ padding: "22px 20px", position: "relative", zIndex: 1 }}>
-          <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+        <div className="flex flex-col sm:grid sm:grid-cols-[auto_1fr_auto] sm:items-center gap-4" style={{ padding: "22px 20px", position: "relative", zIndex: 1 }}>
+          <div style={{ minWidth: 0 }}>
             <div className="hidden sm:flex" style={{ alignItems: "center", gap: 10, marginBottom: 8 }}>
               <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
                 <Sparkles size={16} style={{ color: "#FFD700" }} />
@@ -1579,19 +1579,21 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
             <p className="text-[13px] mt-1 truncate" style={{ color: "rgba(255,255,255,0.65)" }}>Manage your employees and their access</p>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2 sm:gap-3" style={{ flexShrink: 0 }}>
+          {/* Center: illustration — its own grid column (1fr) on desktop, so it's centered in the space between the text and the button and fills the gap instead of leaving it empty; a normal-sized row of its own on mobile (not squeezed beside the button) so it never overlaps anything */}
+          <div className="flex justify-center">
+            <div style={{ position: "relative", width: "clamp(80px,11vw,170px)", height: "clamp(102px,14vw,218px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
+              <Image src="/brand/team-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
+            </div>
+          </div>
+
+          {/* Right: Add Member button */}
+          <div className="flex items-center gap-2 sm:gap-3 self-start sm:self-center" style={{ flexShrink: 0 }}>
             <button
               onClick={() => { setEditMember(null); setSheetOpen(true) }}
               className="flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap"
               style={{ background: "#FFFFFF", color: "#DE1A1A", boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }}>
-              <Plus size={14} /> <span className="hidden sm:inline">Add Member</span>
+              <Plus size={14} /> <span>Add Member</span>
             </button>
-
-            {/* Illustration — fixed flex item (not absolutely positioned) so it never overlaps the button; stacks in the same order on every breakpoint. Sized in the space freed up by removing the search bar (moved to the table header below) */}
-            <div style={{ position: "relative", width: "clamp(64px,11vw,150px)", height: "clamp(82px,14vw,192px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
-              <Image src="/brand/team-admin-hero.png" alt="" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
-            </div>
           </div>
         </div>
       </div>

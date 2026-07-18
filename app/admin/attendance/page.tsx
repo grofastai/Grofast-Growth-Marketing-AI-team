@@ -228,9 +228,9 @@ export default async function AttendancePage({
             </div>
           </div>
 
-          {/* Center: illustration — its own grid column (1fr) sized to whatever space is left between the text and the date nav, so it's centered in the banner's open middle area and can never collide with either side regardless of content length */}
-          <div className="flex justify-center">
-            <div style={{ position: "relative", width: "clamp(70px,9vw,96px)", height: "clamp(105px,13.5vw,144px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
+          {/* Center: illustration — right-aligned in its own row on mobile (sits in the open gap above the date nav); becomes its own grid column (1fr) on desktop, centered in the space between text and date nav so it can never collide with either side */}
+          <div className="flex justify-end sm:justify-center">
+            <div style={{ position: "relative", width: "clamp(70px,10vw,112px)", height: "clamp(105px,15vw,168px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
               <Image src="/brand/attendance-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
             </div>
           </div>

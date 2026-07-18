@@ -9,6 +9,7 @@ import { sendNotification } from '@/lib/notifications/send'
 import { insertManyNotifications } from './notifications'
 import { calcNetWorkHours } from '@/lib/utils/work-hours'
 import { todayIST } from '@/lib/utils/ist-date'
+import { findUnfiledUpdateDate } from '@/lib/attendance-gate'
 
 function adminSupabase() {
   return createClient(
@@ -224,6 +225,21 @@ export async function submitDailyUpdate(
   const isManagement     = (profile as { is_management?: boolean | null }).is_management === true
   const isFreelancerMedia = profile.work_layout === 'freelance_media'
   const isAdmin           = (profile as { role?: string | null }).role === 'ADMIN'
+
+  // The date box on the form is only a suggestion to the browser — nothing stops a
+  // member from switching it back to today and submitting there instead, leaving an
+  // older day permanently unfiled (GF011, 2026-07-18: exactly this happened). This is
+  // the real backstop: re-check server-side, right before saving, whether an older day
+  // is still unfiled, and refuse anything that isn't that day.
+  if (!isManagement && !isFreelancerMedia && !isAdmin) {
+    const unfiledDate = await findUnfiledUpdateDate(admin, profile.company_id, userId, todayStr)
+    if (unfiledDate && unfiledDate !== today) {
+      return {
+        success: false,
+        error: `You still have an unfiled day: ${unfiledDate}. Please submit that day's update first before submitting for ${today}.`,
+      }
+    }
+  }
 
   // Fix 1: Block work entries that overlap with approved half-day leave time window
   {

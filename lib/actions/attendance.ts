@@ -470,9 +470,10 @@ export async function manualClockOut(
   if (fixGapHours > 18) {
     return { success: false, error: `That's a ${Math.round(fixGapHours)}-hour gap — no real work day runs that long. Please double-check the time, or ask your admin to correct this if it genuinely spans more than one day.` }
   }
-  // 13-18h: not impossible, but unusual enough to double-check before saving — ask once
-  // rather than silently accepting a likely typo. Under 13h needs no friction at all.
-  if (fixGapHours > 13 && !confirmed) {
+  // 12-18h: not impossible, but unusual enough to double-check before saving — ask once
+  // rather than silently accepting a likely typo. Under 12h needs no friction at all.
+  // Matches the live Log Out button's threshold (attendance-client.tsx).
+  if (fixGapHours > 12 && !confirmed) {
     return {
       success: false,
       needsConfirm: true,
@@ -678,7 +679,10 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
 // must still catch Friday, not stop at Saturday and call it clean).
 // Bounded by MAX_LOOKBACK_DAYS and the user's own join date, so a brand-new hire's
 // pre-employment history is never scanned or flagged.
-const MAX_LOOKBACK_DAYS = 14
+// Longest approved leave ever actually taken here is 6 days — 21 gives a wide safety
+// margin (rare medical/maternity leave etc.) without needing a batched-query rewrite:
+// the day-by-day scan below stays cheap enough at this size (~63 DB calls worst case).
+const MAX_LOOKBACK_DAYS = 21
 
 export async function findLastWorkingDayIssues(ctx: { userId: string; companyId: string }): Promise<{
   forgotLogout: boolean
@@ -693,7 +697,11 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
 }> {
   const admin = adminSupabase()
 
-  const [{ data: profile }, { data: pendingLeaves }] = await Promise.all([
+  const windowStart = nowISTShifted()
+  windowStart.setUTCDate(windowStart.getUTCDate() - MAX_LOOKBACK_DAYS)
+  const windowStartStr = windowStart.toISOString().split('T')[0]
+
+  const [{ data: profile }, { data: pendingLeaves }, { data: collabRows }] = await Promise.all([
     admin.from('users').select('joined_at').eq('id', ctx.userId).single(),
     // A leave still awaiting admin approval must not be treated as "no leave at
     // all" — it only becomes an attendance_logs placeholder once approved (see
@@ -701,8 +709,15 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
     // otherwise looks identical to never having applied for one.
     admin.from('leaves').select('from_date, to_date')
       .eq('user_id', ctx.userId).eq('company_id', ctx.companyId).eq('status', 'pending'),
+    // Confirmed collaboration credits count as real recorded work even though they
+    // never touch this member's own work_entries — see hasFiledUpdate.
+    admin.from('collaboration_confirmations').select('date')
+      .eq('collaborator_id', ctx.userId).eq('company_id', ctx.companyId)
+      .in('status', ['confirmed', 'edited_confirmed'])
+      .gte('date', windowStartStr),
   ])
   const joinedAt = (profile as { joined_at?: string | null } | null)?.joined_at ?? ''
+  const collabDates = new Set((collabRows ?? []).map(r => (r as { date: string }).date))
 
   const pendingLeaveDates = new Set<string>()
   for (const lv of (pendingLeaves ?? []) as { from_date: string; to_date: string }[]) {
@@ -778,7 +793,7 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
       if (noLeaveStreakOpen) noLeaveDates.push(dateStr)
     } else {
       noLeaveStreakOpen = false // had some attendance today — streak of "nothing at all" stops here
-      if ((hadClockIn || halfDayUnclaimed) && !hasFiledUpdate(update)) {
+      if ((hadClockIn || halfDayUnclaimed) && !hasFiledUpdate(update, collabDates.has(dateStr))) {
         missingUpdateDate = dateStr
         missingUpdateHadClockIn = hadClockIn
       }
@@ -924,8 +939,9 @@ export async function editAttendanceTimes(
     if (editGapHours > 18) {
       return { success: false, error: `That's a ${Math.round(editGapHours)}-hour gap — no real work day runs that long. Please double-check the times, or ask your admin to correct this if it genuinely spans more than one day.` }
     }
-    // 13-18h: ask once before saving rather than accepting a likely typo silently.
-    if (editGapHours > 13 && !confirmed) {
+    // 12-18h: ask once before saving rather than accepting a likely typo silently.
+    // Matches the live Log Out button's threshold (attendance-client.tsx).
+    if (editGapHours > 12 && !confirmed) {
       return {
         success: false,
         needsConfirm: true,

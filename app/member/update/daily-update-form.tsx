@@ -6,7 +6,7 @@ import Image from "next/image"
 import {
   Camera, Film, Plus, Trash2, CheckCircle2,
   Loader2, SendHorizonal, Clock, BookOpen, Coffee,
-  ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal, Calendar, X,
+  ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal, Calendar, X, Lock,
 } from "lucide-react"
 import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
 import { buildClientOptions } from "@/lib/utils/client-options"
@@ -543,7 +543,7 @@ function clampDate(v: string) { if (!v) return v; const [yr = '', mo = '', dy = 
 
 export default function DailyUpdateForm({
   projects, sheetClientNames = [], pastClientNames = [], userName, team, workLayout, enabledBlocks, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
-  todayClockedIn = true, requiresClockIn = false, defaultDate, activeLeavesList = [], collabWindows = [],
+  todayClockedIn = true, requiresClockIn = false, defaultDate, lockedDate, activeLeavesList = [], collabWindows = [],
 }: {
   projects: Project[]; sheetClientNames?: string[]; pastClientNames?: string[]; userName: string; team?: string | null
   workLayout?: 'media' | 'non_media' | 'freelance_media'
@@ -551,6 +551,9 @@ export default function DailyUpdateForm({
   existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
   teamMembers?: TeamMember[]; approvedLeaveDates?: string[]
   todayClockedIn?: boolean; requiresClockIn?: boolean; defaultDate?: string
+  // When set, there's an older unfiled day pending — the date picker locks to exactly
+  // this date so it can't be switched away to dodge it (GF011, 2026-07-18).
+  lockedDate?: string
   activeLeavesList?: ActiveLeave[]
   collabWindows?: CollabWindow[]
 }) {
@@ -585,6 +588,7 @@ export default function DailyUpdateForm({
 
   function handleDateChange(date: string) {
     if (date > todayStr) return
+    if (lockedDate && date !== lockedDate) return
     setSelectedDate(date)
 
     let found: Record<string, unknown> | null = null
@@ -1402,6 +1406,7 @@ export default function DailyUpdateForm({
   // ── Submit: learning ─────────────────────────────────────────────────────
   function handleLearningSubmit() {
     setLearningError(null)
+    if (requiresClockIn && !todayClockedIn && selectedDate === todayStr) { setLearningError("Please clock in on the Attendance page before submitting today's work log."); return }
     for (let i = 0; i < learningBlocks.length; i++) {
       const b = learningBlocks[i]
       const hasAny = b.client.trim() || b.topic.trim() || calcLearningHours(b.from, b.to) > 0
@@ -1470,6 +1475,7 @@ export default function DailyUpdateForm({
 
   function handleBreakSubmit() {
     setError(null)
+    if (requiresClockIn && !todayClockedIn && selectedDate === todayStr) { setError("Please clock in on the Attendance page before submitting today's work log."); return }
     const breaks = isMediaTeam ? mediaBreaks : nonMediaBreaks
     if (breaks.length === 0) { setError("Add at least one break."); return }
     for (let i = 0; i < breaks.length; i++) {
@@ -1637,11 +1643,19 @@ export default function DailyUpdateForm({
             <p style={{ fontSize:13, fontWeight:800, color: isPastDate ? "#D97706" : "#111827", margin:0 }}>{dateLabel}</p>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            {isPastDate && <button onClick={() => handleDateChange(todayStr)} style={{ fontSize:11, fontWeight:700, padding:"5px 12px", borderRadius:8, border:"1.5px solid #DE1A1A", background:"rgba(222,26,26,0.06)", color:"#DE1A1A", cursor:"pointer" }}>Back to Today</button>}
-            <label style={{ fontSize:11, fontWeight:700, color:"#6B7280", display:"flex", alignItems:"center", gap:6, cursor:"pointer" }}>
-              <span style={{ whiteSpace:"nowrap" }}>{isPastDate ? "Change date" : "Pick past date"}</span>
-              <input type="date" value={selectedDate} max={todayStr} min="2025-01-01" onChange={e => e.target.value && handleDateChange(e.target.value)} style={{ fontSize:12, fontWeight:600, color:"#374151", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }} />
-            </label>
+            {lockedDate ? (
+              <span style={{ fontSize:11, fontWeight:700, padding:"5px 12px", borderRadius:8, background:"rgba(217,119,6,0.1)", color:"#D97706", display:"flex", alignItems:"center", gap:6 }}>
+                <Lock size={11} /> Locked to this day until filed
+              </span>
+            ) : (
+              <>
+                {isPastDate && <button onClick={() => handleDateChange(todayStr)} style={{ fontSize:11, fontWeight:700, padding:"5px 12px", borderRadius:8, border:"1.5px solid #DE1A1A", background:"rgba(222,26,26,0.06)", color:"#DE1A1A", cursor:"pointer" }}>Back to Today</button>}
+                <label style={{ fontSize:11, fontWeight:700, color:"#6B7280", display:"flex", alignItems:"center", gap:6, cursor:"pointer" }}>
+                  <span style={{ whiteSpace:"nowrap" }}>{isPastDate ? "Change date" : "Pick past date"}</span>
+                  <input type="date" value={selectedDate} max={todayStr} min="2025-01-01" onChange={e => e.target.value && handleDateChange(e.target.value)} style={{ fontSize:12, fontWeight:600, color:"#374151", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }} />
+                </label>
+              </>
+            )}
           </div>
         </div>
 

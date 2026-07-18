@@ -8,7 +8,7 @@ import {
   Search, Plus, Shield, UserCheck,
   MoreVertical, Phone, CalendarDays, X, Pencil,
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
-  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy, Check, Users,
+  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy, Check, Users, Sparkles,
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
@@ -1558,14 +1558,25 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
 
       {/* ── Header ── */}
       <div style={{
+        borderRadius: 24, overflow: "hidden", position: "relative",
         background: "linear-gradient(135deg, #DE1A1A 0%, #9B1C1C 60%, #450A0A 100%)",
-        borderRadius: 20, padding: "22px 28px",
-        boxShadow: "0 8px 32px rgba(222,26,26,0.25)",
+        boxShadow: "0 8px 32px rgba(222,26,26,0.35)",
       }}>
-        <div className="flex items-center gap-4 flex-wrap">
+        {/* Decorative circles */}
+        <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
+        <div style={{ position: "absolute", bottom: -30, right: 220, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
+        <div style={{ position: "absolute", top: 10, right: 380, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
+
+        <div className="flex items-center gap-4 flex-wrap" style={{ padding: "22px 28px", position: "relative", zIndex: 1 }}>
           <div style={{ flex: "0 0 auto" }}>
-            <h1 className="text-[26px] font-black text-white leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>Team</h1>
-            <p className="text-[12px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>Manage your employees and their access</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
+                <Sparkles size={16} style={{ color: "#FFD700" }} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
+            </div>
+            <h1 className="text-[32px] font-black text-white leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>Team</h1>
+            <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Manage your employees and their access</p>
           </div>
 
           {/* Search */}
@@ -1580,13 +1591,18 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-3 ml-auto">
             <button
               onClick={() => { setEditMember(null); setSheetOpen(true) }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all"
               style={{ background: "#FFFFFF", color: "#DE1A1A", boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }}>
               <Plus size={14} /> Add Member
             </button>
+
+            {/* Illustration — fixed flex item (not absolutely positioned) so it never overlaps the search bar or button; stacks in the same order on every breakpoint */}
+            <div style={{ position: "relative", width: "clamp(56px,10vw,96px)", height: "clamp(72px,13vw,124px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
+              <Image src="/brand/team-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
+            </div>
           </div>
         </div>
       </div>

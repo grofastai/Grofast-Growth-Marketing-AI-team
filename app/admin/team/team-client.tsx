@@ -1567,9 +1567,9 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
         <div style={{ position: "absolute", bottom: -30, right: 220, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", top: 10, right: 380, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
 
-        <div className="flex flex-col sm:grid sm:grid-cols-[auto_1fr_auto] sm:items-center gap-4" style={{ padding: "22px 20px", position: "relative", zIndex: 1 }}>
+        <div className="flex flex-col sm:grid sm:grid-cols-[auto_1fr_auto] sm:items-center gap-3" style={{ padding: "12px 22px", position: "relative", zIndex: 1 }}>
           <div style={{ minWidth: 0 }}>
-            <div className="hidden sm:flex" style={{ alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <div className="hidden sm:flex" style={{ alignItems: "center", gap: 10, marginBottom: 6 }}>
               <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
                 <Sparkles size={16} style={{ color: "#FFD700" }} />
               </div>
@@ -1581,7 +1581,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
 
           {/* Center: illustration — its own grid column (1fr) on desktop, so it's centered in the space between the text and the button and fills the gap instead of leaving it empty; a normal-sized row of its own on mobile (not squeezed beside the button) so it never overlaps anything */}
           <div className="flex justify-center">
-            <div style={{ position: "relative", width: "clamp(80px,11vw,170px)", height: "clamp(102px,14vw,218px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
+            <div style={{ position: "relative", width: "clamp(92px,13vw,182px)", height: "clamp(118px,16.5vw,234px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
               <Image src="/brand/team-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
             </div>
           </div>

@@ -401,9 +401,9 @@ export default function LeavesClient({
       )}
 
       {/* ── Header Banner ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{
-        background: gradBg, borderRadius: 22, padding: "20px 20px", marginBottom: 22,
-        boxShadow: "0 10px 40px rgba(180,0,0,0.38)", position: "relative", overflow: "hidden", gap: 16,
+      <div className="flex flex-col sm:grid sm:grid-cols-[auto_1fr_auto] sm:items-center" style={{
+        background: gradBg, borderRadius: 22, padding: "22px 20px", marginBottom: 22,
+        boxShadow: "0 10px 40px rgba(180,0,0,0.38)", position: "relative", overflow: "hidden", gap: 14,
       }}>
         <div style={{ position: "absolute", top: -50, right: 80, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -40, left: -20, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
@@ -415,8 +415,20 @@ export default function LeavesClient({
           <h1 style={{ fontSize: 24, fontWeight: 900, color: "#FFFFFF", fontFamily: "var(--font-jakarta)", margin: "0 0 4px" }}>Leave Requests</h1>
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: 0 }}>Review and manage team leave applications</p>
         </div>
+
+        {/* Center: illustration — its own grid column (1fr) on desktop so it sits centered between the text and KPI grid and can never overlap either; the white background of the source photo is faded out with a mask so it blends into the banner instead of showing as a hard rectangle */}
+        <div className="flex justify-center">
+          <div style={{
+            position: "relative", width: "clamp(150px,20vw,220px)", height: "clamp(150px,19vw,210px)", flexShrink: 0,
+            WebkitMaskImage: "radial-gradient(ellipse at center, black 55%, transparent 100%)",
+            maskImage: "radial-gradient(ellipse at center, black 55%, transparent 100%)",
+          }}>
+            <Image src="/brand/leave/leave-request-hero.png" alt="" fill style={{ objectFit: "contain" }} />
+          </div>
+        </div>
+
         {/* 6 KPI boxes in 3×2 grid */}
-        <div className="grid grid-cols-3 lg:grid-cols-6 mx-auto lg:mx-0" style={{ gap: 8, position: "relative", zIndex: 1, width: "100%", maxWidth: 420 }}>
+        <div className="grid grid-cols-3 lg:grid-cols-6 mx-auto sm:mx-0" style={{ gap: 8, position: "relative", zIndex: 1, width: "100%", maxWidth: 420 }}>
           {[
             { label: "Full Day",  value: fullDayCount,  color: "#FCA5A5" },
             { label: "WFH",       value: wfhCount,       color: "#6EE7B7" },

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Search, Filter, Clock, Users, AlertCircle, TrendingUp, Bell, Star, X, ChevronRight, Camera, Film, BookOpen, Coffee, GraduationCap, Mic, Image as ImageIcon, FileText, Code2, CalendarClock } from "lucide-react"
+import { Clock, Users, AlertCircle, TrendingUp, Bell, Star, X, ChevronRight, Camera, Film, BookOpen, Coffee, GraduationCap, Mic, Image as ImageIcon, FileText, Code2, CalendarClock } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 import { calcNetWorkHours } from "@/lib/utils/work-hours"
 import { PageHero } from "@/components/admin/PageHero"
@@ -51,20 +51,6 @@ function fmtHours(h: unknown): string {
   if (hrs && mins) return `${hrs}h ${mins}m`
   if (hrs) return `${hrs}h`
   return `${mins}m`
-}
-
-function getDescription(u: Update): string {
-  const entries = (Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
-  const first = entries.find(e => e.task_type !== "break")
-  if (first) {
-    const title = (first.title || first.task_name || first.description) as string | undefined
-    if (title) return title
-    const client = (first.client_name || first._brand || first._custom_client || first.client) as string | undefined
-    if (client) return `Worked on ${client}`
-  }
-  if (u.notes) return u.notes
-  if (u.attendance_status === "leave") return "On approved leave"
-  return "Submitted daily update"
 }
 
 function getTeamBadge(team: string | null | undefined): { label: string; bg: string; color: string } {
@@ -422,7 +408,6 @@ export default function ActivitiesClient({
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  const [search, setSearch] = useState("")
   const [customFrom, setCustomFrom] = useState(from)
   const [customTo, setCustomTo]     = useState(to)
   const [showCustom, setShowCustom] = useState(false)
@@ -548,15 +533,13 @@ export default function ActivitiesClient({
     return sorted[0] ?? null
   }, [updates])
 
-  // ── Filtered people list (grouped) ────────────────────────────────────────
+  // ── People list (grouped) ────────────────────────────────────────────────
   const filteredPeople = useMemo(() => {
-    const q = search.toLowerCase()
     const people: Array<{ userId: string; user: NonNullable<Update["users"]>; userUpdates: Update[]; totalHours: number; entryCount: number; time: string }> = []
 
     for (const [userId, userUpdates] of groupedByUser) {
       const user = Array.isArray(userUpdates[0]?.users) ? userUpdates[0].users[0] : userUpdates[0]?.users
       if (!user) continue
-      if (q && !user.name.toLowerCase().includes(q) && !userUpdates.some(u => getDescription(u).toLowerCase().includes(q))) continue
       const totalHours = userUpdates.reduce((s, u) => s + getUpdateHours(u), 0)
       const allEntries = userUpdates.flatMap(u => Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
       const entryCount = allEntries.filter(e => e.task_type !== "break").length
@@ -565,7 +548,7 @@ export default function ActivitiesClient({
     }
 
     return people.sort((a, b) => (b.userUpdates[0]?.created_at ?? "") .localeCompare(a.userUpdates[0]?.created_at ?? ""))
-  }, [groupedByUser, search])
+  }, [groupedByUser])
 
   const displayDate = useMemo(() => {
     try {
@@ -590,40 +573,17 @@ export default function ActivitiesClient({
           maxContentWidth={420}
           illustration={
             /* Mobile: right-anchored and flush with the bottom (no negative offset, so overflow:hidden
-               can't crop mid-figure). The "Keep it up" card that used to sit in this same corner has
-               been removed, so this is now clear space; md+: original centered placement. */
-            <div className="absolute right-2 bottom-2 top-auto md:left-[54%] md:right-auto md:top-1/2 md:bottom-auto md:-translate-x-1/2 md:-translate-y-1/2" style={{ zIndex: 1, pointerEvents: "none" }}>
+               can't crop mid-figure). md+: centered, nudged down a touch (top-[58%] instead of top-1/2)
+               and capped shorter than before so it sits with breathing room instead of clipping flush
+               against the banner's top/bottom edges now that the search row below it is gone and the
+               banner itself is shorter. */
+            <div className="absolute right-2 bottom-2 top-auto md:left-[54%] md:right-auto md:top-[58%] md:bottom-auto md:-translate-x-1/2 md:-translate-y-1/2" style={{ zIndex: 1, pointerEvents: "none" }}>
               <img
                 src="/brand/activities-hero.png"
                 alt=""
-                className="h-[clamp(64px,20vw,110px)] md:h-[clamp(120px,36vw,300px)]"
+                className="h-[clamp(64px,20vw,110px)] md:h-[clamp(84px,18vw,140px)]"
                 style={{ width: "auto", objectFit: "contain", userSelect: "none" }}
               />
-            </div>
-          }
-          belowSubtitle={
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <div style={{ position: "relative", flex: 1, maxWidth: 280 }}>
-                <Search size={14} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.45)", pointerEvents: "none" }} />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search members, updates..."
-                  style={{
-                    width: "100%", boxSizing: "border-box", height: 44,
-                    padding: "0 14px 0 38px", border: "1px solid rgba(255,255,255,0.18)",
-                    borderRadius: 14, background: "rgba(255,255,255,0.09)", backdropFilter: "blur(10px)",
-                    color: "#fff", fontSize: 13, outline: "none",
-                  }}
-                />
-              </div>
-              <button style={{
-                width: 44, height: 44, borderRadius: 14, background: "rgba(255,255,255,0.12)",
-                border: "1px solid rgba(255,255,255,0.18)", cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-              }}>
-                <Filter size={16} color="rgba(255,255,255,0.75)" />
-              </button>
             </div>
           }
           rightSlot={
@@ -637,26 +597,28 @@ export default function ActivitiesClient({
         />
       </div>
 
-      {/* ── 5 KPI Cards ── */}
+      {/* ── 5 KPI Cards — bright/dark gradient fill per metric, matches the Insights page's stat-tile treatment instead of the flat white cards these used to be ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" style={{ gap: 14, marginBottom: 20 }}>
         {[
-          { label: "Total Updates", value: stats.totalUpdates, sub: "Today", icon: <TrendingUp size={18} color="#E31E24" />, iconBg: "rgba(227,30,36,0.1)" },
-          { label: "Present",       value: stats.present,      sub: "Members", icon: <Users size={18} color="#16A34A" />, iconBg: "rgba(22,163,74,0.1)" },
-          { label: "On Leave",      value: stats.onLeave,      sub: "Member",  icon: <AlertCircle size={18} color="#F59E0B" />, iconBg: "rgba(245,158,11,0.1)" },
-          { label: "Total Hours",   value: fmtHours(stats.totalHours), sub: "Logged", icon: <Clock size={18} color="#6366F1" />, iconBg: "rgba(99,102,241,0.1)" },
-          { label: "Not Updated",   value: stats.notUpdated,   sub: "Members", icon: <Bell size={18} color="#E31E24" />, iconBg: "rgba(227,30,36,0.1)" },
+          { label: "Total Updates", value: stats.totalUpdates, sub: "Today", icon: <TrendingUp size={18} color="#fff" />, gradient: "linear-gradient(135deg, #E31E24, #7F1D1D)", shadow: "rgba(227,30,36,0.35)" },
+          { label: "Present",       value: stats.present,      sub: "Members", icon: <Users size={18} color="#fff" />, gradient: "linear-gradient(135deg, #22C55E, #15803D)", shadow: "rgba(22,163,74,0.35)" },
+          { label: "On Leave",      value: stats.onLeave,      sub: "Member",  icon: <AlertCircle size={18} color="#fff" />, gradient: "linear-gradient(135deg, #F59E0B, #B45309)", shadow: "rgba(245,158,11,0.35)" },
+          { label: "Total Hours",   value: fmtHours(stats.totalHours), sub: "Logged", icon: <Clock size={18} color="#fff" />, gradient: "linear-gradient(135deg, #6366F1, #3730A3)", shadow: "rgba(99,102,241,0.35)" },
+          { label: "Not Updated",   value: stats.notUpdated,   sub: "Members", icon: <Bell size={18} color="#fff" />, gradient: "linear-gradient(135deg, #F43F5E, #9F1239)", shadow: "rgba(244,63,94,0.35)" },
         ].map(card => (
           <div key={card.label} style={{
-            background: "#fff", borderRadius: 16, padding: "18px 20px",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)",
+            background: card.gradient, borderRadius: 16, padding: "18px 20px",
+            boxShadow: `0 4px 20px ${card.shadow}`,
             display: "flex", alignItems: "center", justifyContent: "space-between",
+            position: "relative", overflow: "hidden",
           }}>
-            <div>
-              <div style={{ fontSize: 11, color: "#1E3A5F", fontWeight: 600, marginBottom: 4 }}>{card.label}</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: "#111827", lineHeight: 1 }}>{card.value}</div>
-              <div style={{ fontSize: 11, color: "#1E3A5F", marginTop: 3 }}>{card.sub}</div>
+            <div style={{ position: "absolute", top: -18, right: -18, width: 72, height: 72, borderRadius: "50%", background: "rgba(255,255,255,0.15)", pointerEvents: "none" }} />
+            <div style={{ position: "relative" }}>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", fontWeight: 600, marginBottom: 4 }}>{card.label}</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{card.value}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", marginTop: 3 }}>{card.sub}</div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: card.iconBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", flexShrink: 0 }}>
               {card.icon}
             </div>
           </div>

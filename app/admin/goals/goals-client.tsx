@@ -364,8 +364,8 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
         <div style={{ position: "absolute", top: 10, right: 280, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between flex-wrap" style={{ padding: "20px 20px", gap: 16, position: "relative", zIndex: 1 }}>
-          {/* Left */}
-          <div>
+          {/* Left — relative wrapper so the illustration can pin to its top-right corner instead of sitting in its own row below the buttons, which used to inflate the banner's height past every other tab's */}
+          <div style={{ position: "relative", minWidth: 0, paddingRight: "calc(clamp(56px,9vw,90px) + 14px)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
               <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
                 <Sparkles size={16} style={{ color: "#FFD700" }} />
@@ -389,6 +389,11 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF" }}>{s.label}</span>
                 </div>
               ))}
+            </div>
+
+            {/* Illustration — pinned to the top-right corner of the text block instead of its own row after the buttons, so the banner stays the same compact size as every other tab's */}
+            <div style={{ position: "absolute", top: 0, right: 0, width: "clamp(56px,9vw,90px)", height: "clamp(56px,9vw,90px)", pointerEvents: "none", filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.25))" }}>
+              <Image src="/brand/task-assign/taskboardhero.png" alt="" fill style={{ objectFit: "contain" }} />
             </div>
           </div>
 
@@ -419,11 +424,6 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
             }}>
               <Plus size={16} /> Create Task
             </button>
-
-            {/* Illustration — fixed flex item (not absolutely positioned) so it never overlaps the buttons or text; stacks in the same order on every breakpoint */}
-            <div style={{ position: "relative", width: "clamp(64px,14vw,110px)", height: "clamp(64px,14vw,110px)", flexShrink: 0, alignSelf: "center", filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.25))" }}>
-              <Image src="/brand/task-assign/taskboardhero.png" alt="" fill style={{ objectFit: "contain" }} />
-            </div>
           </div>
         </div>
       </div>

@@ -160,11 +160,22 @@ const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
   posted:        { label: "Posted",        accent: "#22C55E" },
   cancelled:     { label: "Cancelled",     accent: "#EF4444" },
 }
+// Darkens a #RRGGBB hex color by blending it toward black — computed in JS instead of the
+// CSS color-mix() function, which silently drops the whole declaration (no fallback, no
+// partial degrade) on browsers that don't support it, e.g. older Android WebViews. That was
+// making every gradient/accent built with color-mix() render with no color at all on mobile.
+function darken(hex: string, keepPct: number): string {
+  const n = parseInt(hex.replace("#", ""), 16)
+  const r = Math.round(((n >> 16) & 255) * keepPct)
+  const g = Math.round(((n >> 8) & 255) * keepPct)
+  const b = Math.round((n & 255) * keepPct)
+  return `rgb(${r}, ${g}, ${b})`
+}
 // Advance-button fill — same bright-to-dark two-stop language as MODE_ACCENT.grad and
 // OVERVIEW_TILE_GRADIENTS, just derived from each status's accent instead of a hardcoded pair.
 function statusButtonGradient(status: ContentStatus): string {
   const accent = STATUS_CFG[status].accent
-  return `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 60%, #000))`
+  return `linear-gradient(135deg, ${accent}, ${darken(accent, 0.6)})`
 }
 // The production board's column order — differs by content type only in its first column
 // (shoot/ads-video video enters at Ready to Edit; posters enter at Design).
@@ -462,7 +473,7 @@ function ContentCardInner({
   // Every "who/when" tag on the card (shot by, voiced by, edited by, ads-video source,
   // scheduled slot, corrections) shades off this same accent instead of its own unrelated
   // hue, so nothing on the card fights the card's own color.
-  const typeAccentDark = `color-mix(in srgb, ${typeAccent} 70%, #000)`
+  const typeAccentDark = darken(typeAccent, 0.7)
   const age = (item.status === "ready_to_edit" || item.status === "design") ? daysAgo(originDate(item))
     : item.status === "edited" ? daysAgo(item.edited_date) : null
   const stale = age !== null && age >= 3
@@ -680,7 +691,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
   const next = NEXT_STATUS[item.status]
 
   const accent = STATUS_CFG[item.status].accent
-  const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
+  const accentDark = darken(accent, 0.7)
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
       style={{
@@ -775,8 +786,8 @@ function DroppableColumn({ status, isOver, children }: { status: ContentStatus; 
       style={{
         border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF",
         background: isOver
-          ? `linear-gradient(165deg, ${accent} 0%, color-mix(in srgb, ${accent} 40%, #000) 100%)`
-          : `linear-gradient(165deg, ${accent} 0%, color-mix(in srgb, ${accent} 55%, #000) 100%)`,
+          ? `linear-gradient(165deg, ${accent} 0%, ${darken(accent, 0.4)} 100%)`
+          : `linear-gradient(165deg, ${accent} 0%, ${darken(accent, 0.55)} 100%)`,
         minHeight: 200,
       }}>
       {children}
@@ -804,8 +815,8 @@ function KanbanColumn({ id, accent, isOver, children }: { id: string; accent: st
       style={{
         border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF",
         background: isOver
-          ? `linear-gradient(165deg, ${accent} 0%, color-mix(in srgb, ${accent} 40%, #000) 100%)`
-          : `linear-gradient(165deg, ${accent} 0%, color-mix(in srgb, ${accent} 55%, #000) 100%)`,
+          ? `linear-gradient(165deg, ${accent} 0%, ${darken(accent, 0.4)} 100%)`
+          : `linear-gradient(165deg, ${accent} 0%, ${darken(accent, 0.55)} 100%)`,
         minHeight: 200,
       }}>
       {children}
@@ -818,7 +829,7 @@ function KanbanColumnHeader({ label, count, accent }: { label: string; count: nu
     <div className="flex items-center justify-between px-4 py-3 rounded-t-2xl" style={{ background: "#FFFFFF", borderBottom: "1px solid #E8E9EF" }}>
       <div className="flex items-center gap-2">
         <span className="text-[13px] font-black" style={{ color: "#111111" }}>{label}</span>
-        <span className="w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center" style={{ background: `color-mix(in srgb, ${accent} 80%, #000)`, color: "#fff" }}>{count}</span>
+        <span className="w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center" style={{ background: darken(accent, 0.8), color: "#fff" }}>{count}</span>
       </div>
     </div>
   )
@@ -1016,7 +1027,7 @@ function ShootTitleList({ titles, accent }: { titles: ShootTitleRef[]; accent: s
   const COLLAPSED = 3
   const shown = expanded ? titles : titles.slice(0, COLLAPSED)
   const hidden = titles.length - shown.length
-  const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
+  const accentDark = darken(accent, 0.7)
 
   return (
     <div style={{ marginTop: 8 }}>
@@ -1062,7 +1073,7 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
   // Every colored element on this card is a shade of the shoot's own status color —
   // a Completed (green) card shouldn't have blue crew badges fighting its own theme.
   const accent = SHOOT_STATUS_CFG[shoot.status].color
-  const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
+  const accentDark = darken(accent, 0.7)
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 select-none"
       style={{
@@ -1156,7 +1167,7 @@ function AdCardInner({ ad, expanded, isDragging, onToggleExpand, onLogPerformanc
   }
 
   const accent = AD_STATUS_CFG[ad.status].color
-  const accentDark = `color-mix(in srgb, ${accent} 70%, #000)`
+  const accentDark = darken(accent, 0.7)
   const stripeColor = underperforming ? "#EF4444" : accent
   return (
     <div className="rounded-2xl mb-2.5 select-none" style={{
@@ -3293,9 +3304,13 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               </button>
             ))}
           </div>
-          <div className="md:hidden">
+          {/* Colored panel matches the active tab's status accent, same gradient language as the desktop columns below, so mobile isn't just a plain white list */}
+          <div className="md:hidden rounded-2xl p-3" style={{
+            background: `linear-gradient(165deg, ${STATUS_CFG[activeMobileCol].accent} 0%, ${darken(STATUS_CFG[activeMobileCol].accent, 0.55)} 100%)`,
+            minHeight: 140,
+          }}>
             {colItems(activeMobileCol).length === 0 ? (
-              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No items</p>
+              <KanbanEmptyCell isOver={false} />
             ) : colItems(activeMobileCol).map(item => (
               <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
             ))}
@@ -3346,16 +3361,23 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           </div>
 
           <div className="md:hidden flex flex-col gap-3">
-            {ADS_VIDEO_ORDER.map(status => (
-              <div key={status}>
-                <p className="text-[11px] font-black mb-2" style={{ color: "#111111" }}>{STATUS_CFG[status].label} ({adsVideoColItems(status).length})</p>
-                {adsVideoColItems(status).length === 0 ? (
-                  <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "16px 0" }}>No items</p>
-                ) : adsVideoColItems(status).map(item => (
-                  <AdsVideoCardInner key={item.id} item={item} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} />
-                ))}
-              </div>
-            ))}
+            {/* Each status section is its own colored panel — same accent + white header strip as the desktop columns below, instead of a plain black-text heading on white */}
+            {ADS_VIDEO_ORDER.map(status => {
+              const cfg = STATUS_CFG[status]
+              const list = adsVideoColItems(status)
+              return (
+                <div key={status} className="rounded-2xl overflow-hidden" style={{ background: `linear-gradient(165deg, ${cfg.accent} 0%, ${darken(cfg.accent, 0.55)} 100%)` }}>
+                  <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.accent} />
+                  <div className="p-3">
+                    {list.length === 0 ? (
+                      <KanbanEmptyCell isOver={false} />
+                    ) : list.map(item => (
+                      <AdsVideoCardInner key={item.id} item={item} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           <div className="hidden md:block">
@@ -3621,9 +3643,13 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               )
             })}
           </div>
-          <div className="md:hidden">
+          {/* Colored panel matches the active tab's status accent, same gradient language as the desktop columns below, so mobile isn't just a plain white list */}
+          <div className="md:hidden rounded-2xl p-3" style={{
+            background: `linear-gradient(165deg, ${AD_STATUS_CFG[activeAdCol].color} 0%, ${darken(AD_STATUS_CFG[activeAdCol].color, 0.55)} 100%)`,
+            minHeight: 140,
+          }}>
             {filteredAds.filter(a => a.status === activeAdCol).length === 0 ? (
-              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No ads</p>
+              <KanbanEmptyCell isOver={false} />
             ) : filteredAds.filter(a => a.status === activeAdCol).map(ad => (
               <AdCardInner key={ad.id} ad={ad} expanded={expandedAd === ad.id}
                 onToggleExpand={id => setExpandedAd(expandedAd === id ? null : id)}
@@ -3707,9 +3733,13 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               )
             })}
           </div>
-          <div className="md:hidden">
+          {/* Colored panel matches the active tab's status accent, same gradient language as the desktop columns below, so mobile isn't just a plain white list */}
+          <div className="md:hidden rounded-2xl p-3" style={{
+            background: `linear-gradient(165deg, ${SHOOT_STATUS_CFG[activeShootCol].color} 0%, ${darken(SHOOT_STATUS_CFG[activeShootCol].color, 0.55)} 100%)`,
+            minHeight: 140,
+          }}>
             {filteredShoots.filter(s => s.status === activeShootCol).length === 0 ? (
-              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No shoots</p>
+              <KanbanEmptyCell isOver={false} />
             ) : filteredShoots.filter(s => s.status === activeShootCol).map(shoot => (
               <ShootCardInner key={shoot.id} shoot={shoot} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={setEditShootFor} onDelete={handleDeleteShoot} />
             ))}

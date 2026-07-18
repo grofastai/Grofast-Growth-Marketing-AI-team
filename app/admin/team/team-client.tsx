@@ -8,7 +8,7 @@ import {
   Search, Plus, Shield, UserCheck,
   MoreVertical, Phone, CalendarDays, X, Pencil,
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
-  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy, Check, Users,
+  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy, Check, Users, Sparkles,
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
@@ -1548,7 +1548,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
     // Total Members' art is a wide group shot, not a single character, so `contain`
     // fits it to the box width and it sprawls left over the count. Give it a smaller
     // box so it reads the same size as the single-character cards beside it.
-    { label: "Total Members", value: stats.total, sub: "All accounts", img: "/brand/team-total-members.png", bg: "linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%)", border: "rgba(236,72,153,0.15)", num: "#EC4899", role: "ALL", imgClass: "w-[50px] h-[50px] sm:w-28 sm:h-24 lg:w-[155px] lg:h-[135px]" },
+    { label: "Total Members", value: stats.total, sub: "All accounts", img: "/brand/team-total-members.png", bg: "linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%)", border: "rgba(236,72,153,0.15)", num: "#EC4899", role: "ALL", imgClass: "w-[62px] h-[62px] sm:w-28 sm:h-24 lg:w-[155px] lg:h-[135px]" },
     { label: "Admin Accounts", value: stats.admins, sub: "Admin access", img: "/brand/team-admins.png", bg: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "rgba(139,92,246,0.15)", num: "#7C3AED", role: "ADMIN" },
     { label: "Team Members", value: stats.teamMembers, sub: "Member accounts", img: "/brand/team-active-members.png", bg: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "rgba(34,197,94,0.15)", num: "#16A34A", role: "MEMBER" },
   ]
@@ -1558,34 +1558,41 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
 
       {/* ── Header ── */}
       <div style={{
+        borderRadius: 24, overflow: "hidden", position: "relative",
         background: "linear-gradient(135deg, #DE1A1A 0%, #9B1C1C 60%, #450A0A 100%)",
-        borderRadius: 20, padding: "22px 28px",
-        boxShadow: "0 8px 32px rgba(222,26,26,0.25)",
+        boxShadow: "0 8px 32px rgba(222,26,26,0.35)",
       }}>
-        <div className="flex items-center gap-4 flex-wrap">
-          <div style={{ flex: "0 0 auto" }}>
-            <h1 className="text-[26px] font-black text-white leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>Team</h1>
-            <p className="text-[12px] mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>Manage your employees and their access</p>
+        {/* Decorative circles */}
+        <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
+        <div style={{ position: "absolute", bottom: -30, right: 220, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
+        <div style={{ position: "absolute", top: 10, right: 380, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
+
+        <div className="flex flex-col sm:grid sm:grid-cols-[auto_1fr_auto] sm:items-center gap-4" style={{ padding: "22px 20px", position: "relative", zIndex: 1 }}>
+          <div style={{ minWidth: 0 }}>
+            <div className="hidden sm:flex" style={{ alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
+                <Sparkles size={16} style={{ color: "#FFD700" }} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
+            </div>
+            <h1 className="text-[26px] sm:text-[32px] font-black text-white leading-tight truncate" style={{ fontFamily: "var(--font-jakarta)" }}>Team</h1>
+            <p className="text-[13px] mt-1 truncate" style={{ color: "rgba(255,255,255,0.65)" }}>Manage your employees and their access</p>
           </div>
 
-          {/* Search */}
-          <div className="relative flex-1 min-w-[160px] sm:min-w-[220px] max-w-[380px] mx-auto">
-            <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "rgba(255,255,255,0.45)" }} />
-            <input
-              value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search members…"
-              className="w-full rounded-xl pl-9 pr-4 py-2.5 text-[13px] outline-none"
-              style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#FFFFFF", fontFamily: "inherit" }}
-            />
+          {/* Center: illustration — its own grid column (1fr) on desktop, so it's centered in the space between the text and the button and fills the gap instead of leaving it empty; a normal-sized row of its own on mobile (not squeezed beside the button) so it never overlaps anything */}
+          <div className="flex justify-center">
+            <div style={{ position: "relative", width: "clamp(80px,11vw,170px)", height: "clamp(102px,14vw,218px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
+              <Image src="/brand/team-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
+            </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2 ml-auto">
+          {/* Right: Add Member button */}
+          <div className="flex items-center gap-2 sm:gap-3 self-start sm:self-center" style={{ flexShrink: 0 }}>
             <button
               onClick={() => { setEditMember(null); setSheetOpen(true) }}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all"
+              className="flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap"
               style={{ background: "#FFFFFF", color: "#DE1A1A", boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }}>
-              <Plus size={14} /> Add Member
+              <Plus size={14} /> <span>Add Member</span>
             </button>
           </div>
         </div>
@@ -1600,7 +1607,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
               onClick={() => { setRoleFilter(isActive ? "ALL" : s.role); setSearch("") }}
               style={{
                 background: s.bg, border: `2px solid ${isActive ? s.num : s.border}`, borderRadius: 18,
-                padding: "20px 18px 0 22px", overflow: "hidden", position: "relative", minHeight: 148,
+                padding: "20px 18px 0 22px", overflow: "hidden", position: "relative", minHeight: 154,
                 cursor: "pointer", transition: "all 0.15s",
                 boxShadow: isActive ? `0 4px 20px ${s.num}33` : "none",
               }}>
@@ -1611,11 +1618,11 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                 </div>
               )}
               {/* Illustration */}
-              <div className={`absolute right-0 bottom-0 pointer-events-none ${s.imgClass ?? "w-[60px] h-[60px] sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px]"}`}>
+              <div className={`absolute right-0 bottom-0 pointer-events-none ${s.imgClass ?? "w-[72px] h-[72px] sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px]"}`}>
                 <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
               </div>
               {/* Text */}
-              <div style={{ position: "relative", zIndex: 1 }} className="max-w-[52%] sm:max-w-[60%] lg:max-w-[55%]">
+              <div style={{ position: "relative", zIndex: 1 }} className="max-w-[50%] sm:max-w-[60%] lg:max-w-[55%]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: s.num, opacity: 0.85 }}>{s.label}</p>
                 <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: s.num }}>{s.value}</p>
                 <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#5C3D1F" }}>{s.sub}</p>
@@ -1643,10 +1650,10 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                   FILTERED
                 </div>
               )}
-              <div className="absolute right-0 bottom-0 w-[60px] h-[60px] sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
+              <div className="absolute right-0 bottom-0 w-[72px] h-[72px] sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
                 <Image src="/brand/team-freelancers.png" alt="Freelancers" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
               </div>
-              <div style={{ position: "relative", zIndex: 1 }} className="max-w-[52%] sm:max-w-[60%] lg:max-w-[55%]">
+              <div style={{ position: "relative", zIndex: 1 }} className="max-w-[50%] sm:max-w-[60%] lg:max-w-[55%]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "#F97316", opacity: 0.85 }}>Freelancers</p>
                 <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: "#F97316" }}>{stats.freelancers}</p>
                 <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#5C3D1F" }}>Freelance team</p>
@@ -1910,12 +1917,22 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
           ) : (
           <>
           {/* Table header row */}
-          <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
             <div>
               <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Employee Directory</h3>
               <p className="text-[12px]" style={{ color: "#5C3D1F" }}>{filtered.length} of {regularMembers.length} members</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+            {/* Search — moved out of the header banner */}
+            <div className="relative flex-1 sm:flex-none sm:w-[200px]">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#9CA3AF" }} />
+              <input
+                value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search members…"
+                className="w-full rounded-lg pl-8 pr-3 py-2 text-[12px] outline-none"
+                style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}
+              />
+            </div>
             {/* Tab filters */}
             <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
               {([

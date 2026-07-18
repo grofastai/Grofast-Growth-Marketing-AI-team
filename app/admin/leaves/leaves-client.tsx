@@ -401,22 +401,34 @@ export default function LeavesClient({
       )}
 
       {/* ── Header Banner ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{
-        background: gradBg, borderRadius: 22, padding: "20px 20px", marginBottom: 22,
-        boxShadow: "0 10px 40px rgba(180,0,0,0.38)", position: "relative", overflow: "hidden", gap: 16,
+      <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto] sm:items-center" style={{
+        background: gradBg, borderRadius: 22, padding: "22px 20px", marginBottom: 22,
+        boxShadow: "0 10px 40px rgba(180,0,0,0.38)", position: "relative", overflow: "hidden", gap: 14,
       }}>
         <div style={{ position: "absolute", top: -50, right: 80, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -40, left: -20, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
-        <div style={{ position: "relative", zIndex: 1 }}>
+        {/* Text — relative wrapper so the illustration can pin to its top-right corner with no separate row/gap; right padding reserves the illustration's width so the title/badge wrap onto a new line instead of running under it */}
+        <div style={{ position: "relative", zIndex: 1, minWidth: 0, paddingRight: "calc(clamp(64px,9vw,96px) + 14px)" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 20, padding: "5px 14px", marginBottom: 10 }}>
             <span style={{ fontSize: 13 }}>⭐</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#FFF" }}>Leave Management</span>
           </div>
           <h1 style={{ fontSize: 24, fontWeight: 900, color: "#FFFFFF", fontFamily: "var(--font-jakarta)", margin: "0 0 4px" }}>Leave Requests</h1>
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: 0 }}>Review and manage team leave applications</p>
+
+          {/* Illustration — pinned to the top-right corner of the text block instead of its own centered row, so it stays small and doesn't inflate the banner's height; the white background of the source photo is faded out with a mask so it blends into the banner instead of showing as a hard rectangle */}
+          <div style={{
+            position: "absolute", top: 0, right: 0, width: "clamp(64px,9vw,96px)", height: "clamp(64px,8.5vw,92px)",
+            WebkitMaskImage: "radial-gradient(ellipse at center, black 55%, transparent 100%)",
+            maskImage: "radial-gradient(ellipse at center, black 55%, transparent 100%)",
+            pointerEvents: "none",
+          }}>
+            <Image src="/brand/leave/leave-request-hero.png" alt="" fill style={{ objectFit: "contain" }} />
+          </div>
         </div>
+
         {/* 6 KPI boxes in 3×2 grid */}
-        <div className="grid grid-cols-3 lg:grid-cols-6 mx-auto lg:mx-0" style={{ gap: 8, position: "relative", zIndex: 1, width: "100%", maxWidth: 420 }}>
+        <div className="grid grid-cols-3 lg:grid-cols-6 mx-auto sm:mx-0" style={{ gap: 8, position: "relative", zIndex: 1, width: "100%", maxWidth: 420 }}>
           {[
             { label: "Full Day",  value: fullDayCount,  color: "#FCA5A5" },
             { label: "WFH",       value: wfhCount,       color: "#6EE7B7" },

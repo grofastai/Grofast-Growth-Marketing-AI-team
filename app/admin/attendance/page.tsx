@@ -201,8 +201,8 @@ export default async function AttendancePage({
         <div style={{ position: "absolute", top: 10, right: 360, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{ padding: "20px 20px 22px", gap: 16, position: "relative", zIndex: 1 }}>
-          {/* Left */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Left — relative wrapper so the illustration can sit directly to the right of the text without its own row/gap; right padding reserves the illustration's width so title/date/chips wrap onto a new line instead of running under it */}
+          <div style={{ position: "relative", flex: 1, minWidth: 0, paddingRight: "calc(clamp(64px,9vw,100px) + 14px)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
               <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
                 <Sparkles size={16} style={{ color: "#FFD700" }} />
@@ -213,8 +213,8 @@ export default async function AttendancePage({
               Attendance
             </h1>
             <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", margin: 0 }}>{displayDate}</p>
-            {/* Mini stat chips */}
-            <div style={{ display: "flex", gap: 8, marginTop: 14, overflowX: "auto", flexWrap: "nowrap" }}>
+            {/* Mini stat chips — wraps onto a new line if it doesn't fit beside the illustration, instead of overlapping or scrolling under it */}
+            <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
               {[
                 { icon: <CheckCircle2 size={12} />, label: `${presentCount} Present` },
                 { icon: <Clock size={12} />, label: `${lateEntries.length} Late` },
@@ -225,6 +225,11 @@ export default async function AttendancePage({
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", whiteSpace: "nowrap" }}>{s.label}</span>
                 </div>
               ))}
+            </div>
+
+            {/* Illustration — pinned to the top-right corner of the text block, vertically spanning its full height (objectFit:contain centers it within), so it sits flush against the text with no extra row or gap */}
+            <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: "clamp(64px,9vw,100px)", pointerEvents: "none", filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
+              <Image src="/brand/attendance-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
             </div>
           </div>
 
@@ -242,7 +247,7 @@ export default async function AttendancePage({
         {statCards.map(s => (
           <div key={s.label} style={{
             background: "#FFFFFF", borderRadius: 20,
-            border: `1px solid ${s.accent}22`,
+            border: `1.5px solid ${s.accent}55`,
             padding: "clamp(12px,3vw,20px) clamp(12px,3vw,20px) 14px",
             boxShadow: `0 4px 20px ${s.accent}18`,
             position: "relative", overflow: "hidden",

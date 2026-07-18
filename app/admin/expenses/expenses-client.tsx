@@ -535,7 +535,7 @@ export default function ExpensesClient({
           <div style={{ position: "absolute", top: -50, right: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
           <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
-          <div className="flex items-start justify-between gap-4 pr-[70px] md:pr-[180px] xl:pr-[240px]" style={{ position: "relative", zIndex: 2 }}>
+          <div className="flex items-start justify-between gap-4 pr-[130px] md:pr-[200px] xl:pr-[260px]" style={{ position: "relative", zIndex: 2 }}>
             <div style={{ maxWidth: "60%" }}>
               <div className="flex items-center gap-1.5 mb-2" style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontWeight: 600 }}>
                 <span>Admin Dashboard</span>
@@ -551,10 +551,10 @@ export default function ExpensesClient({
               <button onClick={() => goMonth(1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#fff" }}>›</button>
             </div>
           </div>
-          {/* Illustration — centered inside the reserved gutter (the same width the text row's padding leaves empty), so it can never overlap the text/pill row; visible at every breakpoint now, just narrower on mobile */}
-          <div className="flex w-[70px] md:w-[180px] xl:w-[240px] items-center justify-center" style={{ position: "absolute", right: 0, top: 0, bottom: 0, zIndex: 1, pointerEvents: "none" }}>
+          {/* Illustration — anchored to the bottom-right of the reserved gutter (the same width the text row's padding leaves empty), so it can never overlap the text/pill row; sized off its own container (not vw, which scales off the full viewport and blew it up past the card's clipped edge) */}
+          <div className="flex w-[130px] md:w-[200px] xl:w-[260px] items-end justify-end" style={{ position: "absolute", right: 0, top: 0, bottom: 0, zIndex: 1, pointerEvents: "none" }}>
             <Image src="/brand/expenses/expenses-hero-boy.png" alt="" width={500} height={500}
-              style={{ width: "clamp(64px,18vw,220px)", height: "auto", display: "block" }} priority />
+              style={{ width: "100%", height: "auto", display: "block" }} priority />
           </div>
         </div>
 

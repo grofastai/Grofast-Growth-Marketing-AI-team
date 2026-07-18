@@ -186,7 +186,7 @@ export default function FlMediaClient({
             offset + a gap) via calc(), instead of Tailwind's coarse base/lg breakpoint pair —
             the image's width scales continuously with vw, so a two-tier gutter under-reserved
             space at in-between viewport widths and let the month-nav pill overlap it. */}
-        <div className="min-h-[130px] lg:min-h-[190px]" style={{ padding: "20px 24px 18px", paddingRight: "calc(clamp(108px,20vw,252px) + 20px + 20px)", background: "linear-gradient(135deg, #7F0000 0%, #B01230 50%, #DC143C 100%)", boxShadow: "0 4px 24px rgba(176,18,48,0.3)", position: "relative", overflow: "hidden", flexShrink: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div className="min-h-[140px] lg:min-h-[240px]" style={{ padding: "20px 24px 18px", paddingRight: "calc(clamp(140px,26vw,320px) + 20px + 20px)", background: "linear-gradient(135deg, #7F0000 0%, #B01230 50%, #DC143C 100%)", boxShadow: "0 4px 24px rgba(176,18,48,0.3)", position: "relative", overflow: "hidden", flexShrink: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           {/* Decorative circles */}
           <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
           <div style={{ position: "absolute", bottom: -30, left: 120, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
@@ -200,7 +200,7 @@ export default function FlMediaClient({
               narrower two-panel layout — sized by width instead, which keeps it prominent
               without overrunning the available space. */}
           <img src="/brand/freelancer-media-production-character.png" alt="" aria-hidden="true"
-            style={{ position: "absolute", bottom: 6, right: 20, width: "clamp(108px,20vw,252px)", height: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.35))", zIndex: 1 }} />
+            style={{ position: "absolute", bottom: 6, right: 20, width: "clamp(140px,26vw,320px)", height: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.35))", zIndex: 1 }} />
           <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
               {selectedMember && (

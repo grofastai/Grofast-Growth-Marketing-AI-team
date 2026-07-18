@@ -11,12 +11,18 @@ interface Props {
   missingUpdateDate: string
   noLeave: boolean
   noLeaveDate: string
+  noLeaveDateLatest: string
+  noLeaveCount: number
 }
 
 function fmtDate(d: string) {
   return new Date(d + "T12:00:00").toLocaleDateString("en-IN", {
     weekday: "long", day: "numeric", month: "long",
   })
+}
+
+function fmtShort(d: string) {
+  return new Date(d + "T12:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "long" })
 }
 
 type Theme = { from: string; to: string; solid: string; soft: string; border: string }
@@ -40,7 +46,10 @@ function GateIcon({ theme, children }: { theme: Theme; children: React.ReactNode
   )
 }
 
-function DatePill({ theme, date }: { theme: Theme; date: string }) {
+function DatePill({ theme, date, dateTo, count }: { theme: Theme; date: string; dateTo?: string; count?: number }) {
+  const label = count && count > 1 && dateTo
+    ? `${fmtShort(date)} – ${fmtShort(dateTo)} · ${count} days`
+    : fmtDate(date)
   return (
     <div style={{ display: "flex", justifyContent: "center", margin: "0 0 18px" }}>
       <span style={{
@@ -49,7 +58,7 @@ function DatePill({ theme, date }: { theme: Theme; date: string }) {
         padding: "7px 18px", borderRadius: 999,
         boxShadow: `0 1px 0 rgba(255,255,255,0.35) inset, 0 4px 12px -2px ${theme.to}88`,
       }}>
-        📅 {fmtDate(date)}
+        📅 {label}
       </span>
     </div>
   )
@@ -124,7 +133,7 @@ function GateCard({ children }: { children: React.ReactNode }) {
   )
 }
 
-export default function MemberGate({ forgotLogout, forgotLogoutDate, missingUpdate, missingUpdateDate, noLeave, noLeaveDate }: Props) {
+export default function MemberGate({ forgotLogout, forgotLogoutDate, missingUpdate, missingUpdateDate, noLeave, noLeaveDate, noLeaveDateLatest, noLeaveCount }: Props) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -146,9 +155,11 @@ export default function MemberGate({ forgotLogout, forgotLogoutDate, missingUpda
         <h2 style={{ fontSize: 19, fontWeight: 900, color: "#111", textAlign: "center", margin: "0 0 10px" }}>
           Contact Admin
         </h2>
-        <DatePill theme={theme} date={noLeaveDate} />
+        <DatePill theme={theme} date={noLeaveDate} dateTo={noLeaveDateLatest} count={noLeaveCount} />
         <MessageBox theme={theme}>
-          You did not log in on this day and have no approved (or pending) leave on file for it. Only your admin can resolve this — please contact them.
+          {noLeaveCount > 1
+            ? `No login and no leave applied for these ${noLeaveCount} days. Only your admin can fix this.`
+            : "No login and no leave applied for this day. Only your admin can fix this."}
         </MessageBox>
         <SignOutButton />
         <p style={{ fontSize: 11, color: "#D1D5DB", textAlign: "center", marginTop: 12 }}>

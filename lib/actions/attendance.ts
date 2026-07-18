@@ -149,8 +149,13 @@ export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ s
     // no approved leave, not even a pending leave request. There's no self-service fix
     // for this (unlike a missed logout or an unfiled update), so it goes straight to
     // "contact admin" instead of pointing at a page they can't actually resolve it on.
+    // Covers the whole unbroken streak (not just one date) so a multi-day gap reads as
+    // one clear range instead of hiding how far back it actually goes.
     if (issues.noLeave) {
-      return { success: false, error: `You did not log in on ${issues.noLeaveDate} and have no approved (or pending) leave on file for that day. Contact your admin — you cannot log in again until this is resolved.` }
+      const label = issues.noLeaveCount > 1
+        ? `${formatGateDate(issues.noLeaveDate)} – ${formatGateDate(issues.noLeaveDateLatest)} (${issues.noLeaveCount} days)`
+        : formatGateDate(issues.noLeaveDate)
+      return { success: false, error: `No login and no leave on file for ${label}. Contact your admin.` }
     }
     if (issues.missingUpdate) {
       return { success: false, error: `You haven't submitted your Daily Update for ${issues.missingUpdateDate} — submit it before logging in again.` }
@@ -683,6 +688,8 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
   missingUpdateHadClockIn: boolean
   noLeave: boolean
   noLeaveDate: string
+  noLeaveDateLatest: string
+  noLeaveCount: number
 }> {
   const admin = adminSupabase()
 
@@ -710,7 +717,11 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
   let forgotLogoutDate = ''
   let missingUpdateDate = ''
   let missingUpdateHadClockIn = false
-  let noLeaveDate = ''
+  // Collects every no-attendance-no-leave day in the unbroken run immediately before
+  // today (newest first, since we walk backward) — so the gate can tell the member
+  // "3 days" instead of just showing one date and hiding that it's actually a streak.
+  const noLeaveDates: string[] = []
+  let noLeaveStreakOpen = true
   let forgotLogoutSettled = false
 
   // nowISTShifted() gives a Date whose UTC getters read as IST wall-clock time — use the
@@ -741,7 +752,7 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
     // rest of the day the member still owes.
     const excused = !!holiday || attLog?.status === 'leave' || attLog?.status === 'absent'
       || (!attLog && pendingLeaveDates.has(dateStr))
-    if (excused) continue // full day off/holiday/pending-leave — skip entirely, keep walking back for BOTH checks
+    if (excused) { noLeaveStreakOpen = false; continue } // full day off/holiday/pending-leave — skip entirely, keep walking back for BOTH checks; a clean day also ends the no-leave streak
 
     const hadClockIn = attLog?.status === 'present' && !!attLog?.clock_in
     // A half-day leave placeholder that was never upgraded to 'present' means the member
@@ -764,12 +775,20 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
     // we see LAST ends up being the OLDEST one — that's what gets reported, so the
     // member fixes days in the order they happened rather than jumping around.
     if (noAttendanceAtAll) {
-      noLeaveDate = dateStr
-    } else if ((hadClockIn || halfDayUnclaimed) && !hasFiledUpdate(update)) {
-      missingUpdateDate = dateStr
-      missingUpdateHadClockIn = hadClockIn
+      if (noLeaveStreakOpen) noLeaveDates.push(dateStr)
+    } else {
+      noLeaveStreakOpen = false // had some attendance today — streak of "nothing at all" stops here
+      if ((hadClockIn || halfDayUnclaimed) && !hasFiledUpdate(update)) {
+        missingUpdateDate = dateStr
+        missingUpdateHadClockIn = hadClockIn
+      }
     }
   }
+
+  // noLeaveDates was filled newest→oldest (we walk backward from yesterday), so the
+  // last entry is the oldest day in the streak and the first is the most recent.
+  const noLeaveDate = noLeaveDates[noLeaveDates.length - 1] ?? ''
+  const noLeaveDateLatest = noLeaveDates[0] ?? ''
 
   return {
     forgotLogout: !!forgotLogoutDate,
@@ -777,8 +796,10 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
     missingUpdate: !!missingUpdateDate,
     missingUpdateDate,
     missingUpdateHadClockIn,
-    noLeave: !!noLeaveDate,
+    noLeave: noLeaveDates.length > 0,
     noLeaveDate,
+    noLeaveDateLatest,
+    noLeaveCount: noLeaveDates.length,
   }
 }
 
@@ -789,12 +810,14 @@ export async function getYesterdayGateStatus(): Promise<{
   missingUpdateDate: string
   noLeave: boolean
   noLeaveDate: string
+  noLeaveDateLatest: string
+  noLeaveCount: number
 }> {
   const ctxResult = await getUserContext()
   const fallback = {
     forgotLogout: false, forgotLogoutDate: '',
     missingUpdate: false, missingUpdateDate: '',
-    noLeave: false, noLeaveDate: '',
+    noLeave: false, noLeaveDate: '', noLeaveDateLatest: '', noLeaveCount: 0,
   }
   if ('error' in ctxResult) return fallback
   // Walks back past leave/blank days to the real last working day for BOTH checks (the

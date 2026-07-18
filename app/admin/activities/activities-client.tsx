@@ -597,26 +597,28 @@ export default function ActivitiesClient({
         />
       </div>
 
-      {/* ── 5 KPI Cards ── */}
+      {/* ── 5 KPI Cards — bright/dark gradient fill per metric, matches the Insights page's stat-tile treatment instead of the flat white cards these used to be ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" style={{ gap: 14, marginBottom: 20 }}>
         {[
-          { label: "Total Updates", value: stats.totalUpdates, sub: "Today", icon: <TrendingUp size={18} color="#E31E24" />, iconBg: "rgba(227,30,36,0.1)" },
-          { label: "Present",       value: stats.present,      sub: "Members", icon: <Users size={18} color="#16A34A" />, iconBg: "rgba(22,163,74,0.1)" },
-          { label: "On Leave",      value: stats.onLeave,      sub: "Member",  icon: <AlertCircle size={18} color="#F59E0B" />, iconBg: "rgba(245,158,11,0.1)" },
-          { label: "Total Hours",   value: fmtHours(stats.totalHours), sub: "Logged", icon: <Clock size={18} color="#6366F1" />, iconBg: "rgba(99,102,241,0.1)" },
-          { label: "Not Updated",   value: stats.notUpdated,   sub: "Members", icon: <Bell size={18} color="#E31E24" />, iconBg: "rgba(227,30,36,0.1)" },
+          { label: "Total Updates", value: stats.totalUpdates, sub: "Today", icon: <TrendingUp size={18} color="#fff" />, gradient: "linear-gradient(135deg, #E31E24, #7F1D1D)", shadow: "rgba(227,30,36,0.35)" },
+          { label: "Present",       value: stats.present,      sub: "Members", icon: <Users size={18} color="#fff" />, gradient: "linear-gradient(135deg, #22C55E, #15803D)", shadow: "rgba(22,163,74,0.35)" },
+          { label: "On Leave",      value: stats.onLeave,      sub: "Member",  icon: <AlertCircle size={18} color="#fff" />, gradient: "linear-gradient(135deg, #F59E0B, #B45309)", shadow: "rgba(245,158,11,0.35)" },
+          { label: "Total Hours",   value: fmtHours(stats.totalHours), sub: "Logged", icon: <Clock size={18} color="#fff" />, gradient: "linear-gradient(135deg, #6366F1, #3730A3)", shadow: "rgba(99,102,241,0.35)" },
+          { label: "Not Updated",   value: stats.notUpdated,   sub: "Members", icon: <Bell size={18} color="#fff" />, gradient: "linear-gradient(135deg, #F43F5E, #9F1239)", shadow: "rgba(244,63,94,0.35)" },
         ].map(card => (
           <div key={card.label} style={{
-            background: "#fff", borderRadius: 16, padding: "18px 20px",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)",
+            background: card.gradient, borderRadius: 16, padding: "18px 20px",
+            boxShadow: `0 4px 20px ${card.shadow}`,
             display: "flex", alignItems: "center", justifyContent: "space-between",
+            position: "relative", overflow: "hidden",
           }}>
-            <div>
-              <div style={{ fontSize: 11, color: "#1E3A5F", fontWeight: 600, marginBottom: 4 }}>{card.label}</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: "#111827", lineHeight: 1 }}>{card.value}</div>
-              <div style={{ fontSize: 11, color: "#1E3A5F", marginTop: 3 }}>{card.sub}</div>
+            <div style={{ position: "absolute", top: -18, right: -18, width: 72, height: 72, borderRadius: "50%", background: "rgba(255,255,255,0.15)", pointerEvents: "none" }} />
+            <div style={{ position: "relative" }}>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", fontWeight: 600, marginBottom: 4 }}>{card.label}</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{card.value}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", marginTop: 3 }}>{card.sub}</div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: card.iconBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", flexShrink: 0 }}>
               {card.icon}
             </div>
           </div>

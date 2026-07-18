@@ -22,7 +22,6 @@ const HEAD_BG   = '#F9FAFB'
 const RED       = '#de1a1a'
 
 const JAKARTA = 'var(--font-jakarta)'
-const BEBAS   = 'var(--font-bebas)'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -122,7 +121,7 @@ function StatCard({ label, value, accent }: { label: string; value: string; acce
     }}>
       <div style={{ position: 'absolute', top: -16, right: -16, width: 64, height: 64, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', pointerEvents: 'none' }} />
       <p style={{
-        fontFamily: BEBAS, fontSize: 'clamp(22px,2.6vw,28px)', fontWeight: 900, margin: 0,
+        fontFamily: JAKARTA, fontSize: 'clamp(22px,2.6vw,28px)', fontWeight: 900, margin: 0,
         color: '#FFFFFF', lineHeight: 1, letterSpacing: '0.01em', position: 'relative',
       }}>
         {value}
@@ -331,7 +330,7 @@ export default function InsightsClient({
                     </PieChart>
                   </ResponsiveContainer>
                   <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                    <span style={{ fontFamily: BEBAS, fontSize: 22, fontWeight: 900, color: INK, lineHeight: 1 }}>{fmtRupee(totalCostAll)}</span>
+                    <span style={{ fontFamily: JAKARTA, fontSize: 22, fontWeight: 900, color: INK, lineHeight: 1 }}>{fmtRupee(totalCostAll)}</span>
                     <span style={{ fontSize: 10, color: MUTED, fontWeight: 600, marginTop: 3 }}>Total Spend</span>
                   </div>
                 </div>
@@ -838,23 +837,23 @@ export default function InsightsClient({
                       <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
                         <div>
                           <p style={{ fontSize: 9, color: DIM, margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Cost</p>
-                          <p style={{ fontFamily: BEBAS, fontSize: 15, fontWeight: 900, color: RED, margin: 0 }}>{fmtRupee(m.totalCost)}</p>
+                          <p style={{ fontFamily: JAKARTA, fontSize: 15, fontWeight: 900, color: RED, margin: 0 }}>{fmtRupee(m.totalCost)}</p>
                         </div>
                         {m.wastedCost > 0 && (
                           <div>
                             <p style={{ fontSize: 9, color: DIM, margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Gap</p>
-                            <p style={{ fontFamily: BEBAS, fontSize: 15, fontWeight: 900, color: SEMANTIC.danger, margin: 0 }}>{fmtRupee(m.wastedCost)}</p>
+                            <p style={{ fontFamily: JAKARTA, fontSize: 15, fontWeight: 900, color: SEMANTIC.danger, margin: 0 }}>{fmtRupee(m.wastedCost)}</p>
                           </div>
                         )}
                         {m.overtimeValue > 0 && (
                           <div>
                             <p style={{ fontSize: 9, color: DIM, margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Overtime Value</p>
-                            <p style={{ fontFamily: BEBAS, fontSize: 15, fontWeight: 900, color: SEMANTIC.success, margin: 0 }}>+{fmtRupee(m.overtimeValue)}</p>
+                            <p style={{ fontFamily: JAKARTA, fontSize: 15, fontWeight: 900, color: SEMANTIC.success, margin: 0 }}>+{fmtRupee(m.overtimeValue)}</p>
                           </div>
                         )}
                         <div>
                           <p style={{ fontSize: 9, color: DIM, margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Salary</p>
-                          <p style={{ fontFamily: BEBAS, fontSize: 15, fontWeight: 900, color: INK, margin: 0 }}>{fmtRupee(m.monthlySalary)}</p>
+                          <p style={{ fontFamily: JAKARTA, fontSize: 15, fontWeight: 900, color: INK, margin: 0 }}>{fmtRupee(m.monthlySalary)}</p>
                         </div>
                       </div>
                     </div>

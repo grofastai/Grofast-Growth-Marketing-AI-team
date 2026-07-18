@@ -504,7 +504,7 @@ export default function DocumentsClient({
           eyebrowIcon={<span style={{ fontSize: 14 }}>📄</span>}
           title="Documents"
           subtitle="Manage employee documents securely in one place"
-          maxContentWidth="46%"
+          maxContentWidth={460}
           illustration={
             <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "56%", zIndex: 1, opacity: 0.9 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}

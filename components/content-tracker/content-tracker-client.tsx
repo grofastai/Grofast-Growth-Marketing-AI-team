@@ -3304,9 +3304,13 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               </button>
             ))}
           </div>
-          <div className="md:hidden">
+          {/* Colored panel matches the active tab's status accent, same gradient language as the desktop columns below, so mobile isn't just a plain white list */}
+          <div className="md:hidden rounded-2xl p-3" style={{
+            background: `linear-gradient(165deg, ${STATUS_CFG[activeMobileCol].accent} 0%, ${darken(STATUS_CFG[activeMobileCol].accent, 0.55)} 100%)`,
+            minHeight: 140,
+          }}>
             {colItems(activeMobileCol).length === 0 ? (
-              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No items</p>
+              <KanbanEmptyCell isOver={false} />
             ) : colItems(activeMobileCol).map(item => (
               <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
             ))}
@@ -3357,16 +3361,23 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
           </div>
 
           <div className="md:hidden flex flex-col gap-3">
-            {ADS_VIDEO_ORDER.map(status => (
-              <div key={status}>
-                <p className="text-[11px] font-black mb-2" style={{ color: "#111111" }}>{STATUS_CFG[status].label} ({adsVideoColItems(status).length})</p>
-                {adsVideoColItems(status).length === 0 ? (
-                  <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "16px 0" }}>No items</p>
-                ) : adsVideoColItems(status).map(item => (
-                  <AdsVideoCardInner key={item.id} item={item} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} />
-                ))}
-              </div>
-            ))}
+            {/* Each status section is its own colored panel — same accent + white header strip as the desktop columns below, instead of a plain black-text heading on white */}
+            {ADS_VIDEO_ORDER.map(status => {
+              const cfg = STATUS_CFG[status]
+              const list = adsVideoColItems(status)
+              return (
+                <div key={status} className="rounded-2xl overflow-hidden" style={{ background: `linear-gradient(165deg, ${cfg.accent} 0%, ${darken(cfg.accent, 0.55)} 100%)` }}>
+                  <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.accent} />
+                  <div className="p-3">
+                    {list.length === 0 ? (
+                      <KanbanEmptyCell isOver={false} />
+                    ) : list.map(item => (
+                      <AdsVideoCardInner key={item.id} item={item} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           <div className="hidden md:block">
@@ -3632,9 +3643,13 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               )
             })}
           </div>
-          <div className="md:hidden">
+          {/* Colored panel matches the active tab's status accent, same gradient language as the desktop columns below, so mobile isn't just a plain white list */}
+          <div className="md:hidden rounded-2xl p-3" style={{
+            background: `linear-gradient(165deg, ${AD_STATUS_CFG[activeAdCol].color} 0%, ${darken(AD_STATUS_CFG[activeAdCol].color, 0.55)} 100%)`,
+            minHeight: 140,
+          }}>
             {filteredAds.filter(a => a.status === activeAdCol).length === 0 ? (
-              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No ads</p>
+              <KanbanEmptyCell isOver={false} />
             ) : filteredAds.filter(a => a.status === activeAdCol).map(ad => (
               <AdCardInner key={ad.id} ad={ad} expanded={expandedAd === ad.id}
                 onToggleExpand={id => setExpandedAd(expandedAd === id ? null : id)}
@@ -3718,9 +3733,13 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               )
             })}
           </div>
-          <div className="md:hidden">
+          {/* Colored panel matches the active tab's status accent, same gradient language as the desktop columns below, so mobile isn't just a plain white list */}
+          <div className="md:hidden rounded-2xl p-3" style={{
+            background: `linear-gradient(165deg, ${SHOOT_STATUS_CFG[activeShootCol].color} 0%, ${darken(SHOOT_STATUS_CFG[activeShootCol].color, 0.55)} 100%)`,
+            minHeight: 140,
+          }}>
             {filteredShoots.filter(s => s.status === activeShootCol).length === 0 ? (
-              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "24px 0" }}>No shoots</p>
+              <KanbanEmptyCell isOver={false} />
             ) : filteredShoots.filter(s => s.status === activeShootCol).map(shoot => (
               <ShootCardInner key={shoot.id} shoot={shoot} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={setEditShootFor} onDelete={handleDeleteShoot} />
             ))}

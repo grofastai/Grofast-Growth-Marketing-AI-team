@@ -180,19 +180,23 @@ export default function FlMediaClient({
       {/* ── Right panel ─────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
-        {/* Premium reddish header */}
-        <div className="pr-[60px] lg:pr-[150px]" style={{ padding: "20px 24px 18px", background: "linear-gradient(135deg, #7F0000 0%, #B01230 50%, #DC143C 100%)", boxShadow: "0 4px 24px rgba(176,18,48,0.3)", position: "relative", overflow: "hidden", flexShrink: 0 }}>
+        {/* Premium reddish header — grown taller (matches the other freelancer team banners'
+            min-height) so the now-larger character has headroom instead of getting clipped */}
+        <div className="pr-[125px] lg:pr-[280px] min-h-[130px] lg:min-h-[190px]" style={{ padding: "20px 24px 18px", background: "linear-gradient(135deg, #7F0000 0%, #B01230 50%, #DC143C 100%)", boxShadow: "0 4px 24px rgba(176,18,48,0.3)", position: "relative", overflow: "hidden", flexShrink: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           {/* Decorative circles */}
           <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
           <div style={{ position: "absolute", bottom: -30, left: 120, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
-          {/* Media production character — fixed (viewport-relative, not %/maxHeight of the
-              parent) size so it physically can't outgrow this auto-height header; the
-              month-nav pill's backdrop-filter blur breaks this container's overflow:hidden
-              clipping for sibling elements in Chromium, so a parent-relative size is unsafe.
-              Visible at every breakpoint now (was lg-only), scaled down on mobile to fit the
-              narrower reserved gutter above. */}
+          {/* Media production character — sized to match the other freelancer team banners'
+              prominence. Still a fixed (viewport-relative, not %/maxHeight-of-parent) size —
+              the month-nav pill's backdrop-filter blur breaks this container's overflow:hidden
+              clipping for sibling elements in Chromium, so a parent-relative size is unsafe;
+              the header's own min-height above (not clipping) is what keeps it from overflowing.
+              This source image is landscape (1536x1024, 1.5:1) rather than the portrait crops
+              the other teams use, so matching height would make it implausibly wide for this
+              narrower two-panel layout — sized by width instead, which keeps it prominent
+              without overrunning the available space. */}
           <img src="/brand/freelancer-media-production-character.png" alt="" aria-hidden="true"
-            style={{ position: "absolute", bottom: 6, right: 20, height: "clamp(40px,9vw,60px)", width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.35))", zIndex: 1 }} />
+            style={{ position: "absolute", bottom: 6, right: 20, width: "clamp(108px,20vw,252px)", height: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.35))", zIndex: 1 }} />
           <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
               {selectedMember && (

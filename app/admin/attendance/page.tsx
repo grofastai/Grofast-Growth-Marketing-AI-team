@@ -200,9 +200,9 @@ export default async function AttendancePage({
         <div style={{ position: "absolute", bottom: -30, right: 200, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", top: 10, right: 360, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{ padding: "20px 20px 22px", gap: 16, position: "relative", zIndex: 1 }}>
+        <div className="flex flex-col sm:grid sm:grid-cols-[auto_1fr_auto] sm:items-center" style={{ padding: "20px 20px 22px", gap: 16, position: "relative", zIndex: 1 }}>
           {/* Left */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
               <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
                 <Sparkles size={16} style={{ color: "#FFD700" }} />
@@ -228,14 +228,17 @@ export default async function AttendancePage({
             </div>
           </div>
 
-          {/* Right: date nav + illustration */}
-          <div className="flex items-center gap-3 mt-3 sm:mt-0" style={{ flexShrink: 0 }}>
+          {/* Center: illustration — its own grid column (1fr) sized to whatever space is left between the text and the date nav, so it's centered in the banner's open middle area and can never collide with either side regardless of content length */}
+          <div className="flex justify-center">
+            <div style={{ position: "relative", width: "clamp(70px,9vw,96px)", height: "clamp(105px,13.5vw,144px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
+              <Image src="/brand/attendance-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
+            </div>
+          </div>
+
+          {/* Right: date nav */}
+          <div className="flex items-center gap-3 mt-3 sm:mt-0 sm:justify-self-end" style={{ flexShrink: 0 }}>
             <div style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: "4px 6px" }}>
               <AttendanceDateNav selectedDate={selectedDate} today={today} />
-            </div>
-            {/* Illustration — in-flow flex item (not absolutely positioned) so it never overlaps the date nav or text; stacks in the same order on every breakpoint */}
-            <div style={{ position: "relative", width: "clamp(44px,12vw,88px)", height: "clamp(66px,18vw,132px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
-              <Image src="/brand/attendance-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
             </div>
           </div>
         </div>

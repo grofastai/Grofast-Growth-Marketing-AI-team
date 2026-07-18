@@ -228,10 +228,14 @@ export default async function AttendancePage({
             </div>
           </div>
 
-          {/* Right: date nav */}
+          {/* Right: date nav + illustration */}
           <div className="flex items-center gap-3 mt-3 sm:mt-0" style={{ flexShrink: 0 }}>
             <div style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: "4px 6px" }}>
               <AttendanceDateNav selectedDate={selectedDate} today={today} />
+            </div>
+            {/* Illustration — in-flow flex item (not absolutely positioned) so it never overlaps the date nav or text; stacks in the same order on every breakpoint */}
+            <div style={{ position: "relative", width: "clamp(44px,12vw,88px)", height: "clamp(66px,18vw,132px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
+              <Image src="/brand/attendance-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
             </div>
           </div>
         </div>

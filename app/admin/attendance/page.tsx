@@ -246,7 +246,7 @@ export default async function AttendancePage({
         {statCards.map(s => (
           <div key={s.label} style={{
             background: "#FFFFFF", borderRadius: 20,
-            border: `1px solid ${s.accent}22`,
+            border: `1.5px solid ${s.accent}55`,
             padding: "clamp(12px,3vw,20px) clamp(12px,3vw,20px) 14px",
             boxShadow: `0 4px 20px ${s.accent}18`,
             position: "relative", overflow: "hidden",

@@ -41,7 +41,7 @@ export function DrawerPanel({
             <X size={16} style={{ color: "#6B7280" }} />
           </button>
         </div>
-        <div className="flex-1 overflow-auto px-5 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5">{children}</div>
       </div>
     </div>
   )

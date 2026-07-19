@@ -947,7 +947,7 @@ export default function MemberTasksClient({
     <div className="flex" style={{ background: "#F8F9FB", minHeight: "100vh" }}>
 
       {/* ═══ MAIN ════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 min-w-0 overflow-auto p-4 md:p-5 xl:p-6">
+      <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-4 md:p-5 xl:p-6">
 
         {/* ── Hero Banner ── */}
         <div style={{

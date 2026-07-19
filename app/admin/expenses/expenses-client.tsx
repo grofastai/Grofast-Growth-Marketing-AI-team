@@ -298,9 +298,41 @@ function CommonExpenseModalBody({ selectedMonth, overheadDivisor, editing, onClo
 
 // ── Travel Tab ────────────────────────────────────────────────────────────────
 
-function TravelTab({ shoots, savedTravel }: {
+// Raised "3D" pill select — used centered in the Client Direct / Travel tab headers
+// so admins can jump straight to one client's rows without leaving that tab.
+function HeaderClientFilter({ value, onChange, options }: {
+  value: string
+  onChange: (v: string) => void
+  options: string[]
+}) {
+  return (
+    <div
+      className="rounded-xl"
+      style={{
+        background: "linear-gradient(180deg,#ffffff,#F3F4F6)",
+        border: "1px solid #E5E7EB",
+        boxShadow: "0 1px 0 rgba(255,255,255,0.9) inset, 0 6px 14px rgba(59,130,246,0.16), 0 2px 4px rgba(0,0,0,0.06)",
+      }}
+    >
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="px-4 py-2 rounded-xl text-[12px] font-bold outline-none cursor-pointer"
+        style={{ background: "transparent", color: "#3B82F6", border: "none" }}
+      >
+        <option value="all">All Clients</option>
+        {options.map(name => <option key={name} value={name}>{name}</option>)}
+      </select>
+    </div>
+  )
+}
+
+function TravelTab({ shoots, savedTravel, clientFilter, onClientFilterChange, clientOptions }: {
   shoots: ShootRow[]
   savedTravel: Record<string, number>
+  clientFilter: string
+  onClientFilterChange: (v: string) => void
+  clientOptions: string[]
 }) {
   const [localAmounts, setLocal] = useState<Record<string, string>>(() => {
     const m: Record<string, string> = {}
@@ -328,20 +360,27 @@ function TravelTab({ shoots, savedTravel }: {
   return (
     <FlatCard className="overflow-hidden">
       <div className="flex items-center justify-between gap-2 px-6 py-4" style={{ borderBottom: "1px solid #EDEDED" }}>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1">
           <Car size={15} style={{ color: "#3B82F6" }} />
           <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Travel</span>
         </div>
-        {totalEntered > 0 && (
-          <span className="text-[12px]" style={{ color: "#6B1D3A" }}>
-            Total entered: <strong style={{ color: "#3B82F6" }}>₹{Math.round(totalEntered).toLocaleString("en-IN")}</strong>
-          </span>
-        )}
+        <div className="flex-1 flex justify-center">
+          <HeaderClientFilter value={clientFilter} onChange={onClientFilterChange} options={clientOptions} />
+        </div>
+        <div className="flex-1 flex justify-end">
+          {totalEntered > 0 && (
+            <span className="text-[12px] whitespace-nowrap" style={{ color: "#6B1D3A" }}>
+              Total entered: <strong style={{ color: "#3B82F6" }}>₹{Math.round(totalEntered).toLocaleString("en-IN")}</strong>
+            </span>
+          )}
+        </div>
       </div>
       {shoots.length === 0 ? (
         <div className="flex flex-col items-center py-16">
           <Car size={32} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[13px]" style={{ color: "#6B1D3A" }}>No shoots logged this month</p>
+          <p className="text-[13px]" style={{ color: "#6B1D3A" }}>
+            {clientFilter === "all" ? "No shoots logged this month" : "No shoots for this client this month"}
+          </p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -528,6 +567,25 @@ export default function ExpensesClient({
       .filter(r => !search.trim() || r.name.toLowerCase().includes(search.trim().toLowerCase()))
   }, [clientSummaryRows, clientFilter, search])
 
+  // Same client filter + search, applied to the raw Client Direct rows so that tab
+  // can also be narrowed down to one client instead of always showing the whole month.
+  const filteredClientExpenses = useMemo(() => {
+    return clientExpenses
+      .filter(e => clientFilter === "all" || e.client_name === clientFilter)
+      .filter(e => !search.trim() || e.client_name.toLowerCase().includes(search.trim().toLowerCase()))
+  }, [clientExpenses, clientFilter, search])
+  const filteredClientDirectTotal = useMemo(
+    () => filteredClientExpenses.reduce((s, e) => s + e.amount, 0),
+    [filteredClientExpenses]
+  )
+
+  // Same client filter + search, applied to Travel's raw shoot rows.
+  const filteredShootRows = useMemo(() => {
+    return shootRows
+      .filter(r => clientFilter === "all" || r.clientName === clientFilter)
+      .filter(r => !search.trim() || r.clientName.toLowerCase().includes(search.trim().toLowerCase()))
+  }, [shootRows, clientFilter, search])
+
   const viewDetailsRow = useMemo(
     () => clientSummaryRows.find(r => r.name === viewDetailsClient) ?? null,
     [clientSummaryRows, viewDetailsClient]
@@ -708,15 +766,25 @@ export default function ExpensesClient({
         {activeTab === "direct" && (
           <FlatCard className="overflow-hidden">
             <div className="flex items-center justify-between gap-2 px-6 py-4" style={{ borderBottom: "1px solid #EDEDED" }}>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-1">
                 <Receipt size={15} style={{ color: "#3B82F6" }} />
                 <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Client Direct</span>
               </div>
+              <div className="flex-1 flex justify-center">
+                <HeaderClientFilter value={clientFilter} onChange={setClientFilter} options={clientSummaryRows.map(r => r.name)} />
+              </div>
+              <div className="flex-1 flex justify-end">
+                <span className="text-[12px] whitespace-nowrap" style={{ color: "#6B1D3A" }}>
+                  {clientFilter === "all" ? "Total" : "Total (filtered)"}: <strong style={{ color: "#3B82F6" }}>{fmtRupee(filteredClientDirectTotal)}</strong>
+                </span>
+              </div>
             </div>
-            {clientExpenses.length === 0 ? (
+            {filteredClientExpenses.length === 0 ? (
               <div className="flex flex-col items-center py-12">
                 <AlertCircle size={28} style={{ color: "#E5E7EB" }} className="mb-2" />
-                <p className="text-[13px]" style={{ color: "#6B1D3A" }}>No client expenses this month</p>
+                <p className="text-[13px]" style={{ color: "#6B1D3A" }}>
+                  {clientExpenses.length === 0 ? "No client expenses this month" : "No expenses for this client this month"}
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -732,8 +800,8 @@ export default function ExpensesClient({
                     </tr>
                   </thead>
                   <tbody>
-                    {clientExpenses.map((e, i) => (
-                      <tr key={e.id} style={{ borderBottom: i < clientExpenses.length - 1 ? "1px solid #F5F5F5" : "none" }}>
+                    {filteredClientExpenses.map((e, i) => (
+                      <tr key={e.id} style={{ borderBottom: i < filteredClientExpenses.length - 1 ? "1px solid #F5F5F5" : "none" }}>
                         <td className="px-6 py-3 text-[12px] font-bold uppercase whitespace-nowrap" style={{ color: "#6B1D3A" }}>{fmtDate(e.date)}</td>
                         <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>{e.client_name}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
@@ -765,8 +833,10 @@ export default function ExpensesClient({
                   </tbody>
                   <tfoot>
                     <tr style={{ background: "#FAFAFA", borderTop: "2px solid #EDEDED" }}>
-                      <td colSpan={4} className="px-6 py-3 text-[11px] font-black uppercase tracking-wider" style={{ color: "#6B1D3A" }}>Total</td>
-                      <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#3B82F6" }}>{fmtRupee(totalClientDirect)}</td>
+                      <td colSpan={4} className="px-6 py-3 text-[11px] font-black uppercase tracking-wider" style={{ color: "#6B1D3A" }}>
+                        {clientFilter === "all" ? "Total" : "Total (filtered)"}
+                      </td>
+                      <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#3B82F6" }}>{fmtRupee(filteredClientDirectTotal)}</td>
                       <td />
                     </tr>
                   </tfoot>
@@ -861,7 +931,13 @@ export default function ExpensesClient({
 
         {/* Travel */}
         {activeTab === "travel" && (
-          <TravelTab shoots={shootRows} savedTravel={savedTravel} />
+          <TravelTab
+            shoots={filteredShootRows}
+            savedTravel={savedTravel}
+            clientFilter={clientFilter}
+            onClientFilterChange={setClientFilter}
+            clientOptions={clientSummaryRows.map(r => r.name)}
+          />
         )}
 
         {/* Client & Brand Cost Summary — table */}

@@ -1682,7 +1682,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
           {roleFilter === "FREELANCER" ? (
             <>
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
+              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
                 <div>
                   <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Freelancers</h3>
                   <p className="text-[12px]" style={{ color: "#5C3D1F" }}>{freelancers.length + loginFreelancerMembers.length} freelancer{freelancers.length + loginFreelancerMembers.length !== 1 ? "s" : ""}</p>

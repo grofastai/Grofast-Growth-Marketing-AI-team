@@ -78,6 +78,16 @@
 }
 
 /* ── Base ──────────────────────────────────────────────── */
+html, body {
+  /* Safety net: pages should never scroll horizontally. Without this, a single
+     fixed-width row anywhere on a page (a button group, a stat-card row, a
+     control bar) can force the whole viewport wider than the screen instead
+     of just that one row — dragging the header/nav along with it on mobile.
+     Individual elements that need their own horizontal scroll (tables, tab
+     strips) still work fine since they declare their own overflow-x: auto. */
+  overflow-x: hidden;
+}
+
 body {
   background-color: #EDEEF2;
   color: #111827;

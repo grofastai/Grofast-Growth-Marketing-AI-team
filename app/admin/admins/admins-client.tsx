@@ -175,11 +175,11 @@ export default function AdminsClient({
   }
 
   return (
-    <div style={{ background: "#F5F6FA", minHeight: "100vh", padding: "24px 20px" }}>
+    <div className="p-4 sm:p-6" style={{ background: "#F5F6FA", minHeight: "100vh" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
+        <div className="flex flex-wrap items-center justify-between gap-3" style={{ marginBottom: 28 }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(222,26,26,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -215,27 +215,29 @@ export default function AdminsClient({
               const isMe = a.id === currentUserId
               const isActive = a.status === "active"
               return (
-                <div key={a.id} style={{ background: "#FFFFFF", borderRadius: 16, border: "1px solid #E5E7EB", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, opacity: isActive ? 1 : 0.6, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                <div key={a.id} className="flex flex-col sm:flex-row sm:items-center" style={{ background: "#FFFFFF", borderRadius: 16, border: "1px solid #E5E7EB", padding: "16px 20px", gap: 14, opacity: isActive ? 1 : 0.6, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
 
-                  {/* Avatar */}
-                  <div style={{ width: 48, height: 48, borderRadius: 14, background: ADMIN_CFG.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: `1.5px solid ${ADMIN_CFG.color}22` }}>
-                    {a.passport_photo_url ? (
-                      <img src={a.passport_photo_url} alt={a.name} style={{ width: "100%", height: "100%", borderRadius: 14, objectFit: "cover" }} />
-                    ) : (
-                      <span style={{ fontSize: 16, fontWeight: 900, color: ADMIN_CFG.color }}>{initials(a.name)}</span>
-                    )}
-                  </div>
-
-                  {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                      <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{a.name}</span>
-                      {isMe && <span style={{ fontSize: 10, fontWeight: 700, color: "#1B4332", background: "#F3F4F6", padding: "2px 7px", borderRadius: 4 }}>You</span>}
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: ADMIN_CFG.bg, color: ADMIN_CFG.color }}>Admin</span>
-                      {!isActive && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "rgba(239,68,68,0.08)", color: "#EF4444" }}>Disabled</span>}
+                  <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1, minWidth: 0 }}>
+                    {/* Avatar */}
+                    <div style={{ width: 48, height: 48, borderRadius: 14, background: ADMIN_CFG.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: `1.5px solid ${ADMIN_CFG.color}22` }}>
+                      {a.passport_photo_url ? (
+                        <img src={a.passport_photo_url} alt={a.name} style={{ width: "100%", height: "100%", borderRadius: 14, objectFit: "cover" }} />
+                      ) : (
+                        <span style={{ fontSize: 16, fontWeight: 900, color: ADMIN_CFG.color }}>{initials(a.name)}</span>
+                      )}
                     </div>
-                    <p style={{ fontSize: 12, color: "#1B4332", margin: 0 }}>{a.email ?? "—"}</p>
-                    <p style={{ fontSize: 11, color: "#1B4332", margin: "2px 0 0" }}>Joined {new Date(a.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{a.name}</span>
+                        {isMe && <span style={{ fontSize: 10, fontWeight: 700, color: "#1B4332", background: "#F3F4F6", padding: "2px 7px", borderRadius: 4 }}>You</span>}
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: ADMIN_CFG.bg, color: ADMIN_CFG.color }}>Admin</span>
+                        {!isActive && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "rgba(239,68,68,0.08)", color: "#EF4444" }}>Disabled</span>}
+                      </div>
+                      <p style={{ fontSize: 12, color: "#1B4332", margin: 0 }}>{a.email ?? "—"}</p>
+                      <p style={{ fontSize: 11, color: "#1B4332", margin: "2px 0 0" }}>Joined {new Date(a.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+                    </div>
                   </div>
 
                   {/* Actions */}

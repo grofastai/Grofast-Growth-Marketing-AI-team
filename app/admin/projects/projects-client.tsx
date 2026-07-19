@@ -127,7 +127,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
   return (
     <>
       <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }} onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-[440px] z-50 flex flex-col"
+      <div className="fixed right-0 top-0 h-full w-full sm:w-[440px] z-50 flex flex-col"
         style={{ background: "#0D0D0D", borderLeft: "1px solid rgba(255,255,255,0.08)" }}>
         <style>{`.ps-input::placeholder{color:rgba(255,255,255,0.2)}.ps-input:focus{border-color:rgba(222,26,26,0.4)!important}`}</style>
 

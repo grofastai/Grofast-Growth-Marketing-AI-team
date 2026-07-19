@@ -78,6 +78,21 @@
 }
 
 /* ── Base ──────────────────────────────────────────────── */
+html {
+  /* Safety net: pages should never scroll horizontally. Without this, a single
+     fixed-width row anywhere on a page (a button group, a stat-card row, a
+     control bar) can force the whole viewport wider than the screen instead
+     of just that one row — dragging the header/nav along with it on mobile.
+     Individual elements that need their own horizontal scroll (tables, tab
+     strips) still work fine since they declare their own overflow-x: auto.
+     Deliberately NOT on body: iOS Safari/WebKit has a well-known bug where
+     setting overflow on body breaks position:fixed elements' relationship to
+     the real viewport, shrinking the visible app (header/bottom-nav included)
+     to a narrower box with blank space beside it. This app runs as an
+     installed Apple PWA, so that WebKit quirk applies here directly. */
+  overflow-x: hidden;
+}
+
 body {
   background-color: #EDEEF2;
   color: #111827;

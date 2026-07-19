@@ -947,7 +947,7 @@ export default function MemberTasksClient({
     <div className="flex" style={{ background: "#F8F9FB", minHeight: "100vh" }}>
 
       {/* ═══ MAIN ════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 min-w-0 overflow-auto p-4 md:p-5 xl:p-6">
+      <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-4 md:p-5 xl:p-6">
 
         {/* ── Hero Banner ── */}
         <div style={{
@@ -1063,7 +1063,7 @@ export default function MemberTasksClient({
             })}
           </div>
 
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 w-full md:w-auto md:flex-shrink-0" style={{ scrollbarWidth: "none" }}>
             {/* Search — moved out of the header banner */}
             <div className="relative flex-shrink-0">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#9CA3AF" }} />

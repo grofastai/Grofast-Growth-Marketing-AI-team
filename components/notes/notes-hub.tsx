@@ -28,6 +28,7 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
   const [sort, setSort] = useState<'newest' | 'oldest' | 'edited'>('newest')
   const [activeId, setActiveId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [newNoteDate, setNewNoteDate] = useState<string | null>(null)
   const [calendar, setCalendar] = useState(false)
   const [saving, setSaving] = useState(false)
   // Mobile navigation: 'folders' | 'notes' | 'editor'
@@ -41,15 +42,17 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
   }, [initialNotes, view, folderId, q, folders, viewer.id])
 
   const active = creating ? null : (initialNotes.find(n => n.id === activeId) ?? null)
+  const editorNote = creating ? { ...EMPTY_NOTE, reminder_at: newNoteDate ? `${newNoteDate}T09:00:00` : null } : active
   const canEdit = active
     ? canEditNote({ user_id: active.user_id, scope: active.scope }, viewer)
     : true
 
-  const handleSave = useCallback(async (p: { title: string; body: unknown; scope: NoteScope; folder_id: string | null }) => {
+  const handleSave = useCallback(async (p: { title: string; body: unknown; scope: NoteScope; folder_id: string | null; reminder_at: string | null }) => {
     setSaving(true)
     try {
       const input = {
         title: p.title, content: '', body: p.body, scope: p.scope, folder_id: p.folder_id,
+        reminder_at: p.reminder_at,
         note_type: 'text' as const, items: [], labels: [],
       }
       if (active) {
@@ -71,7 +74,10 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
     }
   }, [active, router])
 
-  const handleNew = () => { setCreating(true); setActiveId(null); setMobileStep('editor') }
+  const handleNew = () => { setCreating(true); setActiveId(null); setNewNoteDate(null); setMobileStep('editor') }
+  const handleNewAtDate = (dateKey: string) => {
+    setCreating(true); setActiveId(null); setNewNoteDate(dateKey); setCalendar(false); setMobileStep('editor')
+  }
   const handleSelect = (id: string) => { setCreating(false); setActiveId(id); setMobileStep('editor') }
 
   const handleNewFolder = async (name: string, scope: NoteScope) => {
@@ -142,7 +148,7 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
             onNewFolder={handleNewFolder} onDeleteFolder={handleDeleteFolder} isAdmin={isAdmin} />
         </div>
         {calendar ? (
-          <CalendarView notes={visible} onSelect={id => { setCalendar(false); handleSelect(id) }} />
+          <CalendarView notes={visible} onSelect={id => { setCalendar(false); handleSelect(id) }} onNewAtDate={handleNewAtDate} />
         ) : (
           <>
             {/* Notes list — full width on mobile step 2, fixed width on desktop */}
@@ -161,8 +167,8 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
                 <button className="md:hidden flex items-center gap-2 px-4 py-3 text-[13px] font-bold text-gray-600 border-b border-gray-100 bg-white flex-shrink-0"
                   onClick={() => setMobileStep('notes')}>← Notes</button>
               )}
-              <NoteEditor key={active?.id ?? (creating ? 'new' : 'none')}
-                note={active ?? (creating ? EMPTY_NOTE : null)} folders={folders} canEdit={canEdit} isAdmin={isAdmin}
+              <NoteEditor key={active?.id ?? (creating ? `new-${newNoteDate ?? ''}` : 'none')}
+                note={editorNote} folders={folders} canEdit={canEdit} isAdmin={isAdmin}
                 teamMembers={teamMembers} onSave={handleSave} onShare={() => active && setSharing(active.id)} saving={saving} />
             </div>
           </>

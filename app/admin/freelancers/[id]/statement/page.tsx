@@ -104,7 +104,14 @@ export default async function StatementPage({
             .no-print { display: none !important; }
             @page { margin: 15mm; }
           }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 2px solid #DE1A1A; padding-bottom: 20px; }
+          @media (max-width: 640px) {
+            body { padding: 16px; }
+            .meta-grid { grid-template-columns: 1fr; }
+            .title { font-size: 22px; }
+          }
+          .table-wrap { overflow-x: auto; margin-bottom: 24px; }
+          .table-wrap table { margin-bottom: 0; min-width: 480px; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 2px solid #DE1A1A; padding-bottom: 20px; flex-wrap: wrap; gap: 12px; }
           .logo { font-size: 22px; font-weight: 900; color: #DE1A1A; }
           .logo span { color: #111827; }
           .header-right { text-align: right; }
@@ -180,26 +187,28 @@ export default async function StatementPage({
         {(entries ?? []).length === 0 ? (
           <div className="empty">No approved work entries for this month.</div>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Title</th>
-                <th>Client</th>
-                <th className="amount">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(entries ?? []).map((e: { id: string; date: string; title?: string; client_name?: string; amount?: number }) => (
-                <tr key={e.id}>
-                  <td>{fmtDate(e.date)}</td>
-                  <td>{e.title ?? "—"}</td>
-                  <td>{e.client_name ?? "—"}</td>
-                  <td className="amount">{fmt(e.amount ?? 0)}</td>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Title</th>
+                  <th>Client</th>
+                  <th className="amount">Amount</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(entries ?? []).map((e: { id: string; date: string; title?: string; client_name?: string; amount?: number }) => (
+                  <tr key={e.id}>
+                    <td>{fmtDate(e.date)}</td>
+                    <td>{e.title ?? "—"}</td>
+                    <td>{e.client_name ?? "—"}</td>
+                    <td className="amount">{fmt(e.amount ?? 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {/* Payments */}
@@ -207,26 +216,28 @@ export default async function StatementPage({
         {(payments ?? []).length === 0 ? (
           <div className="empty">No payments recorded for this month.</div>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Method</th>
-                <th>Reference</th>
-                <th className="amount">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(payments ?? []).map((p: { id: string; paid_date: string; payment_method: string; reference_number?: string; amount?: number }) => (
-                <tr key={p.id}>
-                  <td>{fmtDate(p.paid_date)}</td>
-                  <td><span className="method-badge">{p.payment_method.toUpperCase()}</span></td>
-                  <td>{p.reference_number ?? "—"}</td>
-                  <td className="amount">{fmt(p.amount ?? 0)}</td>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Method</th>
+                  <th>Reference</th>
+                  <th className="amount">Amount</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(payments ?? []).map((p: { id: string; paid_date: string; payment_method: string; reference_number?: string; amount?: number }) => (
+                  <tr key={p.id}>
+                    <td>{fmtDate(p.paid_date)}</td>
+                    <td><span className="method-badge">{p.payment_method.toUpperCase()}</span></td>
+                    <td>{p.reference_number ?? "—"}</td>
+                    <td className="amount">{fmt(p.amount ?? 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {/* Summary */}

@@ -387,13 +387,13 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     <div style={{ display: "flex", background: "#F5F6FA", minHeight: "100vh" }}>
 
       {/* ════ MAIN CONTENT ═══════════════════════════════════════════════════ */}
-      <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
+      <div style={{ flex: 1, minWidth: 0, overflowY: "auto", overflowX: "hidden" }}>
 
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
         <div className="px-4 md:px-7 pt-5">
         <div style={{
           background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
-          position: "relative", overflow: "hidden", height: "clamp(160px,35vw,260px)",
+          position: "relative", overflow: "hidden", height: "clamp(192px,35vw,260px)",
           borderRadius: 20,
           boxShadow: "0 8px 32px rgba(180,0,0,0.35)",
         }}>
@@ -600,7 +600,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                         </div>
 
                         {/* Card */}
-                        <div style={{ flex: 1, background: "#FAFBFC", borderRadius: 16, border: "1px solid #EBEDF2", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", flexWrap: "wrap", minWidth: 0 }}>
+                        <div className="flex flex-col sm:flex-row sm:items-center" style={{ flex: 1, background: "#FAFBFC", borderRadius: 16, border: "1px solid #EBEDF2", padding: "14px 16px", justifyContent: "space-between", gap: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.04)", minWidth: 0 }}>
                           {/* Left info */}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>

@@ -2364,7 +2364,9 @@ export default function DailyUpdateForm({
                 <SectionHead icon={<span style={{ fontSize:16 }}>📝</span>} label="Scripting" count={scriptings.length} color="#EAB308" />
                 {scriptings.length === 0 ? (
                   <div onClick={addScripting} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(234,179,8,0.35)", background:"rgba(234,179,8,0.03)", cursor:"pointer" }}>
-                    <span style={{ fontSize:36 }}>📝</span>
+                    <div style={{ position:"relative", width:180, height:140 }}>
+                      <Image src="/brand/scripting-illustration.png" alt="Scripting" fill style={{ objectFit:"contain" }} />
+                    </div>
                     <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No scripts logged yet</p>
                     <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#EAB308", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(234,179,8,0.35)" }}>+ Add Scripting</span>
                   </div>

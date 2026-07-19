@@ -2483,7 +2483,9 @@ export default function DailyUpdateForm({
                 <SectionHead icon={<span style={{ fontSize:16 }}>💻</span>} label="Development" count={developments.length} color="#6366F1" />
                 {developments.length === 0 ? (
                   <div onClick={addDevelopment} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(99,102,241,0.35)", background:"rgba(99,102,241,0.03)", cursor:"pointer" }}>
-                    <span style={{ fontSize:36 }}>💻</span>
+                    <div style={{ position:"relative", width:180, height:140 }}>
+                      <Image src="/brand/development-illustration.png" alt="Development" fill style={{ objectFit:"contain" }} />
+                    </div>
                     <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No development logged yet</p>
                     <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#6366F1", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(99,102,241,0.35)" }}>+ Add Development</span>
                   </div>
@@ -3238,7 +3240,9 @@ export default function DailyUpdateForm({
               {/* Media breaks */}
               {isMediaTeam && (mediaBreaks.length === 0 ? (
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 24px", border:"2px dashed rgba(245,158,11,0.3)", borderRadius:16, background:"#FFFBEB" }}>
-                  <span style={{ fontSize:36, marginBottom:12 }}>☕</span>
+                  <div style={{ position:"relative", width:180, height:140, marginBottom:12 }}>
+                    <Image src="/brand/break-illustration.png" alt="Break" fill style={{ objectFit:"contain" }} />
+                  </div>
                   <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No breaks logged yet</p>
                   <p style={{ fontSize:12, color:"#9CA3AF", margin:"0 0 16px", textAlign:"center" }}>Click &quot;Add First Break&quot; to log a break.</p>
                   <button onClick={addMediaBreak}
@@ -3277,7 +3281,9 @@ export default function DailyUpdateForm({
               {/* Non-media breaks — own state, same pattern as media breaks */}
               {!isMediaTeam && (nonMediaBreaks.length === 0 ? (
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 24px", border:"2px dashed rgba(245,158,11,0.3)", borderRadius:16, background:"#FFFBEB" }}>
-                  <span style={{ fontSize:36, marginBottom:12 }}>☕</span>
+                  <div style={{ position:"relative", width:180, height:140, marginBottom:12 }}>
+                    <Image src="/brand/break-illustration.png" alt="Break" fill style={{ objectFit:"contain" }} />
+                  </div>
                   <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No breaks logged yet</p>
                   <p style={{ fontSize:12, color:"#9CA3AF", margin:"0 0 16px", textAlign:"center" }}>Click &quot;Add First Break&quot; to log a break.</p>
                   <button onClick={addNonMediaBreak}
@@ -3331,7 +3337,9 @@ export default function DailyUpdateForm({
               </div>
               {!learningStarted && !learningDone ? (
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 24px", border:"2px dashed #D1FAE5", borderRadius:16, background:"#F0FDF4" }}>
-                  <span style={{ fontSize:36, marginBottom:12 }}>📚</span>
+                  <div style={{ position:"relative", width:180, height:140, marginBottom:12 }}>
+                    <Image src="/brand/learning-illustration.png" alt="Learning" fill style={{ objectFit:"contain" }} />
+                  </div>
                   <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No learning logged yet</p>
                   <p style={{ fontSize:12, color:"#9CA3AF", margin:"0 0 16px", textAlign:"center" }}>Click &quot;Add Learning&quot; to log what you learned today.</p>
                   <button onClick={() => setLearningStarted(true)}
@@ -3439,7 +3447,9 @@ export default function DailyUpdateForm({
               <SectionHead icon={<span style={{ fontSize:16 }}>🗓️</span>} label="Other" count={others.length} color="#6B7280" />
               {others.length === 0 ? (
                 <div onClick={addOther} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(107,114,128,0.3)", background:"rgba(107,114,128,0.03)", cursor:"pointer" }}>
-                  <span style={{ fontSize:36 }}>🗓️</span>
+                  <div style={{ position:"relative", width:180, height:140 }}>
+                    <Image src="/brand/others-illustration.png" alt="Other" fill style={{ objectFit:"contain" }} />
+                  </div>
                   <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No other activity logged yet</p>
                   <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#6B7280", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(107,114,128,0.3)" }}>+ Add Other</span>
                 </div>

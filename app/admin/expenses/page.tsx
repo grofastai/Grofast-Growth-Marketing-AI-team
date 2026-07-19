@@ -12,6 +12,12 @@ import {
   type FreelancerWorkEntry,
   type CollabConfirmationRow,
 } from "@/lib/clients-deliverables"
+import { hourlyRateOnDate } from "@/lib/salary"
+import { calcNetWorkHours } from "@/lib/utils/work-hours"
+
+// Same monthly target used by Team Insights' Team Utilization widget — kept identical
+// so the two pages can never quietly disagree on what "a full month" means.
+const MONTHLY_TARGET_HRS = 25 * 8.5 // 212.5h
 
 function adminClient() {
   return createClient(
@@ -79,7 +85,7 @@ export default async function AdminExpensesPage({
       .order("date", { ascending: false }),
     admin
       .from("users")
-      .select("id, name, employee_id, hourly_rate, monthly_salary, team")
+      .select("id, name, employee_id, hourly_rate, monthly_salary, team, is_management, employment_type, role")
       .eq("company_id", cid)
       .eq("status", "active"),
     admin
@@ -169,6 +175,34 @@ export default async function AdminExpensesPage({
     employeeCostByClient[clientName] = result.totalCost
   }
 
+  // "Productivity Gap" cost — same wastedCost formula as Team Insights' Team Utilization
+  // widget (untracked hours × hourly rate against a fixed 212.5h/month target), but
+  // company-wide (not per-client) since idle time isn't attributable to any one client.
+  // Deliberately excludes management (is_management) and freelancers (employment_type
+  // !== 'regular') — those two never appear in the Team Utilization table either, since
+  // management's real value isn't hour-logged the same way regular staff's is.
+  type GapWorkEntry = { task_type?: string; start_time?: string; end_time?: string; duration_hours?: number }
+  const gapEligibleUsers = ((usersRaw ?? []) as (MemberUser & { is_management?: boolean; employment_type?: string; role?: string })[])
+    .filter(u => u.role === "MEMBER" && u.is_management !== true && u.employment_type === "regular")
+  const gapHoursByUser: Record<string, number> = {}
+  for (const row of (updatesRaw ?? []) as UpdateRow[]) {
+    if (row.date < monthStart || row.date > monthEnd) continue
+    if (!gapEligibleUsers.some(u => u.id === row.user_id)) continue
+    const entries = (row.work_entries ?? []) as GapWorkEntry[]
+    gapHoursByUser[row.user_id] = (gapHoursByUser[row.user_id] ?? 0) + calcNetWorkHours(entries as Parameters<typeof calcNetWorkHours>[0])
+  }
+  for (const c of (collabRaw ?? []) as CollabConfirmationRow[]) {
+    if (c.date < monthStart || c.date > monthEnd) continue
+    if (!gapEligibleUsers.some(u => u.id === c.collaborator_id)) continue
+    gapHoursByUser[c.collaborator_id] = (gapHoursByUser[c.collaborator_id] ?? 0) + (c.confirmed_hours ?? 0)
+  }
+  let productivityGapCost = 0
+  for (const u of gapEligibleUsers) {
+    const tracked = gapHoursByUser[u.id] ?? 0
+    const untracked = Math.max(0, MONTHLY_TARGET_HRS - tracked)
+    productivityGapCost += untracked * hourlyRateOnDate(u, monthStart, salaryHistoryRaw ?? [])
+  }
+
   const directExpenseNames = new Set(
     ((clientExpensesRaw ?? []) as { client_name: string }[]).map(e => e.client_name)
   )
@@ -205,6 +239,7 @@ export default async function AdminExpensesPage({
       commonExpenses={commonExpensesRaw ?? []}
       activeClients={activeClients.map(c => ({ name: c.name }))}
       commonParticipation={commonParticipation}
+      productivityGapCost={productivityGapCost}
       selectedMonth={monthParam}
       employeeCostByClient={employeeCostByClient}
     />

@@ -442,8 +442,10 @@ function TravelTab({ shoots, savedTravel, clientFilter, onClientFilterChange, cl
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
+const PRODUCTIVITY_GAP_NAME = "Productivity Gap"
+
 export default function ExpensesClient({
-  updates, users, clientExpenses, commonExpenses, activeClients, commonParticipation, selectedMonth, employeeCostByClient,
+  updates, users, clientExpenses, commonExpenses, activeClients, commonParticipation, selectedMonth, employeeCostByClient, productivityGapCost,
 }: {
   updates: UpdateRow[]
   users: MemberUser[]
@@ -453,6 +455,7 @@ export default function ExpensesClient({
   commonParticipation: CommonParticipant[]
   selectedMonth: string
   employeeCostByClient: Record<string, number>
+  productivityGapCost: number
 }) {
   const router = useRouter()
   const [modal, setModal]             = useState<"client" | "common" | null>(null)
@@ -572,8 +575,13 @@ export default function ExpensesClient({
       // nothing happen this month at all — showing them is pure clutter, not signal.
       // Every real past client (any actual work or expense that month) still shows.
       .filter(r => r.total > 0)
+      // Productivity Gap is a pseudo "client" row — idle salary cost from regular
+      // staff (management/freelancers excluded) with no client to attribute it to.
+      // Direct/Common are forced to 0: it isn't a real direct expense or common share,
+      // only the Employee column carries a real number here.
+      .concat(productivityGapCost > 0 ? [{ name: PRODUCTIVITY_GAP_NAME, empCost: productivityGapCost, direct: 0, overhead: 0, total: productivityGapCost }] : [])
       .sort((a, b) => b.total - a.total)
-  }, [clientExpenses, activeClients, perClientOverhead, employeeCostByClient, includedNames])
+  }, [clientExpenses, activeClients, perClientOverhead, employeeCostByClient, includedNames, productivityGapCost])
 
   const activeClientNames = useMemo(() => new Set(activeClients.map(c => c.name)), [activeClients])
 
@@ -973,7 +981,7 @@ export default function ExpensesClient({
                     <tr><td colSpan={6} className="px-6 py-10 text-center text-[13px]" style={{ color: "#6B1D3A" }}>No clients match this filter</td></tr>
                   ) : filteredSummaryRows.map((row, i) => {
                     const color = avatarColor(row.name)
-                    const isActive = activeClientNames.has(row.name) || INTERNAL_BRAND_NAMES.has(row.name.toUpperCase())
+                    const isActive = row.name === PRODUCTIVITY_GAP_NAME || activeClientNames.has(row.name) || INTERNAL_BRAND_NAMES.has(row.name.toUpperCase())
                     return (
                       <tr key={row.name} style={{ borderBottom: i < filteredSummaryRows.length - 1 ? "1px solid #F5F5F5" : "none" }}>
                         <td className="px-6 py-3">

@@ -7,7 +7,7 @@ import {
   IndianRupee, Plus, Trash2, Pencil,
   Car, Megaphone, Monitor, Building2,
   Receipt, Layers, CheckCircle2, AlertCircle,
-  ChevronRight, Search, MoreVertical, TrendingUp, Users,
+  ChevronRight, ChevronDown, Search, MoreVertical, TrendingUp, Users,
 } from "lucide-react"
 import { FlatCard } from "@/components/ui/FlatCard"
 import { SegmentedControl } from "@/components/ui/SegmentedControl"
@@ -307,22 +307,24 @@ function HeaderClientFilter({ value, onChange, options }: {
 }) {
   return (
     <div
-      className="rounded-xl"
+      className="relative flex items-center gap-1.5 pl-3 pr-7 py-2 rounded-xl"
       style={{
         background: "linear-gradient(180deg,#ffffff,#F3F4F6)",
         border: "1px solid #E5E7EB",
         boxShadow: "0 1px 0 rgba(255,255,255,0.9) inset, 0 6px 14px rgba(59,130,246,0.16), 0 2px 4px rgba(0,0,0,0.06)",
       }}
     >
+      <Users size={12} style={{ color: "#3B82F6", flexShrink: 0 }} />
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="px-4 py-2 rounded-xl text-[12px] font-bold outline-none cursor-pointer"
+        className="appearance-none text-[12px] font-bold outline-none cursor-pointer max-w-[140px]"
         style={{ background: "transparent", color: "#3B82F6", border: "none" }}
       >
         <option value="all">All Clients</option>
         {options.map(name => <option key={name} value={name}>{name}</option>)}
       </select>
+      <ChevronDown size={12} style={{ color: "#3B82F6", position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
     </div>
   )
 }
@@ -360,20 +362,11 @@ function TravelTab({ shoots, savedTravel, clientFilter, onClientFilterChange, cl
   return (
     <FlatCard className="overflow-hidden">
       <div className="flex items-center justify-between gap-2 px-6 py-4" style={{ borderBottom: "1px solid #EDEDED" }}>
-        <div className="flex items-center gap-2 flex-1">
+        <div className="flex items-center gap-2">
           <Car size={15} style={{ color: "#3B82F6" }} />
           <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Travel</span>
         </div>
-        <div className="flex-1 flex justify-center">
-          <HeaderClientFilter value={clientFilter} onChange={onClientFilterChange} options={clientOptions} />
-        </div>
-        <div className="flex-1 flex justify-end">
-          {totalEntered > 0 && (
-            <span className="text-[12px] whitespace-nowrap" style={{ color: "#6B1D3A" }}>
-              Total entered: <strong style={{ color: "#3B82F6" }}>₹{Math.round(totalEntered).toLocaleString("en-IN")}</strong>
-            </span>
-          )}
-        </div>
+        <HeaderClientFilter value={clientFilter} onChange={onClientFilterChange} options={clientOptions} />
       </div>
       {shoots.length === 0 ? (
         <div className="flex flex-col items-center py-16">
@@ -429,6 +422,17 @@ function TravelTab({ shoots, savedTravel, clientFilter, onClientFilterChange, cl
                 )
               })}
             </tbody>
+            <tfoot>
+              <tr style={{ background: "#FAFAFA", borderTop: "2px solid #EDEDED" }}>
+                <td colSpan={5} className="px-6 py-3 text-[11px] font-black uppercase tracking-wider" style={{ color: "#6B1D3A" }}>
+                  {clientFilter === "all" ? "Total" : "Total (filtered)"}
+                </td>
+                <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#3B82F6" }}>
+                  ₹{Math.round(totalEntered).toLocaleString("en-IN")}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
@@ -522,6 +526,18 @@ export default function ExpensesClient({
     for (const e of clientExpenses) set.add(e.client_name)
     return Array.from(set).sort()
   }, [activeClients, clientExpenses])
+
+  // Each tab's filter only lists clients that actually have a row in that tab —
+  // the shared clientSummaryRows list (employee cost + roster + direct expenses merged)
+  // was showing clients here with nothing to filter to, landing on an empty table.
+  const directClientNames = useMemo(
+    () => Array.from(new Set(clientExpenses.map(e => e.client_name))).sort(),
+    [clientExpenses]
+  )
+  const travelClientNames = useMemo(
+    () => Array.from(new Set(shootRows.map(r => r.clientName))).sort(),
+    [shootRows]
+  )
 
   const totalClientDirect = useMemo(() => clientExpenses.reduce((s, e) => s + e.amount, 0), [clientExpenses])
   const totalCommon       = useMemo(() => commonExpenses.reduce((s, e) => s + e.amount, 0), [commonExpenses])
@@ -766,18 +782,11 @@ export default function ExpensesClient({
         {activeTab === "direct" && (
           <FlatCard className="overflow-hidden">
             <div className="flex items-center justify-between gap-2 px-6 py-4" style={{ borderBottom: "1px solid #EDEDED" }}>
-              <div className="flex items-center gap-2 flex-1">
+              <div className="flex items-center gap-2">
                 <Receipt size={15} style={{ color: "#3B82F6" }} />
                 <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Client Direct</span>
               </div>
-              <div className="flex-1 flex justify-center">
-                <HeaderClientFilter value={clientFilter} onChange={setClientFilter} options={clientSummaryRows.map(r => r.name)} />
-              </div>
-              <div className="flex-1 flex justify-end">
-                <span className="text-[12px] whitespace-nowrap" style={{ color: "#6B1D3A" }}>
-                  {clientFilter === "all" ? "Total" : "Total (filtered)"}: <strong style={{ color: "#3B82F6" }}>{fmtRupee(filteredClientDirectTotal)}</strong>
-                </span>
-              </div>
+              <HeaderClientFilter value={clientFilter} onChange={setClientFilter} options={directClientNames} />
             </div>
             {filteredClientExpenses.length === 0 ? (
               <div className="flex flex-col items-center py-12">
@@ -936,7 +945,7 @@ export default function ExpensesClient({
             savedTravel={savedTravel}
             clientFilter={clientFilter}
             onClientFilterChange={setClientFilter}
-            clientOptions={clientSummaryRows.map(r => r.name)}
+            clientOptions={travelClientNames}
           />
         )}
 

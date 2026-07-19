@@ -9,7 +9,7 @@ import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
 import Mention from '@tiptap/extension-mention'
 import { useEffect, useState } from 'react'
-import { AtSign, Share2 } from 'lucide-react'
+import { AtSign, Share2, CalendarDays, X } from 'lucide-react'
 import { TiptapToolbar } from './tiptap-toolbar'
 import { MentionPicker } from './mention-picker'
 import { VoiceRecorder } from './voice-recorder'
@@ -34,13 +34,14 @@ const EXT = [
 export function NoteEditor({ note, folders, canEdit, isAdmin, teamMembers, onSave, onShare, saving }: {
   note: HubNote | null; folders: Folder[]; canEdit: boolean; isAdmin: boolean
   teamMembers: TeamMember[]
-  onSave: (p: { title: string; body: unknown; scope: NoteScope; folder_id: string | null }) => void | Promise<void>
+  onSave: (p: { title: string; body: unknown; scope: NoteScope; folder_id: string | null; reminder_at: string | null }) => void | Promise<void>
   onShare: () => void
   saving: boolean
 }) {
   const [title, setTitle] = useState(note?.title ?? '')
   const [scope, setScope] = useState<NoteScope>(note?.scope ?? 'private')
   const [folderId, setFolderId] = useState<string | null>(note?.folder_id ?? null)
+  const [reminderDate, setReminderDate] = useState(note?.reminder_at ? note.reminder_at.slice(0, 10) : '')
   const [showMention, setShowMention] = useState(false)
   const [saved, setSaved] = useState(false)
   const editor = useEditor({
@@ -61,7 +62,10 @@ export function NoteEditor({ note, folders, canEdit, isAdmin, teamMembers, onSav
   )
 
   const save = async () => {
-    await onSave({ title, body: editor?.getJSON() ?? { type: 'doc', content: [] }, scope, folder_id: folderId })
+    await onSave({
+      title, body: editor?.getJSON() ?? { type: 'doc', content: [] }, scope, folder_id: folderId,
+      reminder_at: reminderDate ? `${reminderDate}T09:00:00` : null,
+    })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -81,6 +85,18 @@ export function NoteEditor({ note, folders, canEdit, isAdmin, teamMembers, onSav
           <option value="">No folder</option>
           {folders.map(f => <option key={f.id} value={f.id}>{f.icon} {f.name}</option>)}
         </select>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, padding: '4px 8px', borderRadius: 8, border: '1px solid #E5E7EB', color: '#6B7280' }}>
+          <CalendarDays size={13} style={{ color: reminderDate ? '#DE1A1A' : '#9CA3AF', flexShrink: 0 }} />
+          <input type="date" value={reminderDate} disabled={!canEdit} onChange={e => setReminderDate(e.target.value)}
+            title="Show this note on the Calendar for a specific date"
+            style={{ border: 'none', outline: 'none', fontSize: 12, color: reminderDate ? '#111827' : '#9CA3AF', background: 'transparent', fontWeight: 600 }} />
+          {reminderDate && canEdit && (
+            <button type="button" onClick={() => setReminderDate('')} title="Remove date"
+              style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#9CA3AF', display: 'flex', alignItems: 'center' }}>
+              <X size={12} />
+            </button>
+          )}
+        </div>
         {(['private', 'team', 'sop'] as NoteScope[]).map(s => {
           const locked = s === 'sop' && !isAdmin
           return (

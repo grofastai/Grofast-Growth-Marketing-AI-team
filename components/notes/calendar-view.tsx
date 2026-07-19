@@ -7,7 +7,7 @@ import type { HubNote } from './types'
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
-export function CalendarView({ notes, onSelect }: { notes: HubNote[]; onSelect: (id: string) => void }) {
+export function CalendarView({ notes, onSelect, onNewAtDate }: { notes: HubNote[]; onSelect: (id: string) => void; onNewAtDate: (dateKey: string) => void }) {
   const today = new Date()
   const [y, setY] = useState(today.getFullYear())
   const [m, setM] = useState(today.getMonth())
@@ -30,11 +30,12 @@ export function CalendarView({ notes, onSelect }: { notes: HubNote[]; onSelect: 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 6 }}>
         {DOW.map(d => <div key={d} style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textAlign: 'center', padding: 4 }}>{d}</div>)}
         {weeks.flat().map((d, i) => (
-          <div key={i} style={{ minHeight: 78, border: '1px solid #F1F1F4', borderRadius: 10, padding: 6, background: d ? '#fff' : '#FAFAFB' }}>
+          <div key={i} onClick={() => d && onNewAtDate(key(d))} title={d ? 'Click to add a note on this date' : undefined}
+            style={{ minHeight: 78, border: '1px solid #F1F1F4', borderRadius: 10, padding: 6, background: d ? '#fff' : '#FAFAFB', cursor: d ? 'pointer' : 'default' }}>
             {d && <>
               <div style={{ fontSize: 11, color: key(d) === key(today) ? '#DE1A1A' : '#6B7280', fontWeight: key(d) === key(today) ? 800 : 600 }}>{d.getDate()}</div>
               {(buckets[key(d)] ?? []).map(id => (
-                <div key={id} onClick={() => onSelect(id)} title={titleOf(id)}
+                <div key={id} onClick={e => { e.stopPropagation(); onSelect(id) }} title={titleOf(id)}
                   style={{ marginTop: 3, fontSize: 10, background: 'rgba(222,26,26,0.1)', color: '#DE1A1A', borderRadius: 5, padding: '2px 4px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {titleOf(id)}
                 </div>

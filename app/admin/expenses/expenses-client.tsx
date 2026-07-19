@@ -442,7 +442,7 @@ function TravelTab({ shoots, savedTravel, clientFilter, onClientFilterChange, cl
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-const PRODUCTIVITY_GAP_NAME = "Productivity Gap"
+const PRODUCTIVITY_GAP_NAME = "PRODUCTIVITY GAP"
 
 export default function ExpensesClient({
   updates, users, clientExpenses, commonExpenses, activeClients, commonParticipation, selectedMonth, employeeCostByClient, productivityGapCost,
@@ -556,7 +556,7 @@ export default function ExpensesClient({
     for (const name of Object.keys(employeeCostByClient)) allNames.add(name)
     for (const c of activeClients) if (c.name) allNames.add(c.name)
     for (const n of Object.keys(directMap)) allNames.add(n)
-    return Array.from(allNames).map(name => {
+    const rows = Array.from(allNames).map(name => {
       const empCost = employeeCostByClient[name] ?? 0
       const direct  = directMap[name] ?? 0
       // Only clients checked in the Common tab's list share this month's overhead —
@@ -575,12 +575,15 @@ export default function ExpensesClient({
       // nothing happen this month at all — showing them is pure clutter, not signal.
       // Every real past client (any actual work or expense that month) still shows.
       .filter(r => r.total > 0)
-      // Productivity Gap is a pseudo "client" row — idle salary cost from regular
-      // staff (management/freelancers excluded) with no client to attribute it to.
-      // Direct/Common are forced to 0: it isn't a real direct expense or common share,
-      // only the Employee column carries a real number here.
-      .concat(productivityGapCost > 0 ? [{ name: PRODUCTIVITY_GAP_NAME, empCost: productivityGapCost, direct: 0, overhead: 0, total: productivityGapCost }] : [])
       .sort((a, b) => b.total - a.total)
+
+    // Productivity Gap is a pseudo "client" row — idle salary cost from regular staff
+    // (management/freelancers excluded) with no client to attribute it to. Pinned first
+    // (not sorted in by value) since it's negative/waste data, not a real client's cost.
+    // Direct/Common are forced to 0: only the Employee column carries a real number here.
+    return productivityGapCost > 0
+      ? [{ name: PRODUCTIVITY_GAP_NAME, empCost: productivityGapCost, direct: 0, overhead: 0, total: productivityGapCost }, ...rows]
+      : rows
   }, [clientExpenses, activeClients, perClientOverhead, employeeCostByClient, includedNames, productivityGapCost])
 
   const activeClientNames = useMemo(() => new Set(activeClients.map(c => c.name)), [activeClients])
@@ -980,16 +983,22 @@ export default function ExpensesClient({
                   {filteredSummaryRows.length === 0 ? (
                     <tr><td colSpan={6} className="px-6 py-10 text-center text-[13px]" style={{ color: "#6B1D3A" }}>No clients match this filter</td></tr>
                   ) : filteredSummaryRows.map((row, i) => {
-                    const color = avatarColor(row.name)
-                    const isActive = row.name === PRODUCTIVITY_GAP_NAME || activeClientNames.has(row.name) || INTERNAL_BRAND_NAMES.has(row.name.toUpperCase())
+                    const isGapRow = row.name === PRODUCTIVITY_GAP_NAME
+                    const color = isGapRow ? "#DC2626" : avatarColor(row.name)
+                    const isActive = !isGapRow && (activeClientNames.has(row.name) || INTERNAL_BRAND_NAMES.has(row.name.toUpperCase()))
                     return (
-                      <tr key={row.name} style={{ borderBottom: i < filteredSummaryRows.length - 1 ? "1px solid #F5F5F5" : "none" }}>
+                      <tr key={row.name} style={{
+                        borderBottom: i < filteredSummaryRows.length - 1 ? "1px solid #F5F5F5" : "none",
+                        background: isGapRow ? "rgba(220,38,38,0.05)" : undefined,
+                        borderLeft: isGapRow ? "3px solid #DC2626" : undefined,
+                      }}>
                         <td className="px-6 py-3">
                           <div className="flex items-center gap-2.5">
                             <div className="rounded-full flex items-center justify-center flex-shrink-0" style={{ width: 32, height: 32, background: `${color}18`, color, fontSize: 11, fontWeight: 900 }}>{getInitials(row.name)}</div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="text-[13px] font-bold break-words" style={{ color: "#111111" }}>{row.name}</span>
+                                <span className="text-[13px] font-bold break-words" style={{ color: isGapRow ? "#DC2626" : "#111111" }}>{row.name}</span>
+                                {isGapRow && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>Unproductive</span>}
                                 {isActive && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(16,185,129,0.1)", color: "#10B981" }}>Active</span>}
                               </div>
                             </div>

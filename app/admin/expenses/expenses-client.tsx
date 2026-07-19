@@ -219,7 +219,7 @@ function ClientExpenseModalBody({ clients, selectedMonth, editing, onClose }: {
         <button onClick={save} disabled={isPending}
           className="w-full py-3 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-60"
           style={{ background: done ? "rgba(22,163,74,0.1)" : "rgba(222,26,26,0.08)", color: done ? "#16A34A" : "#de1a1a", border: `1.5px solid ${done ? "rgba(22,163,74,0.2)" : "rgba(222,26,26,0.15)"}` }}>
-          {done ? <><CheckCircle2 size={14} /> Saved!</> : isPending ? "Saving…" : <><Plus size={14} /> Add Expense</>}
+          {done ? <><CheckCircle2 size={14} /> Saved!</> : isPending ? "Saving…" : editing ? <><Pencil size={14} /> Save Changes</> : <><Plus size={14} /> Add Expense</>}
         </button>
       </div>
   )
@@ -290,7 +290,7 @@ function CommonExpenseModalBody({ selectedMonth, overheadDivisor, editing, onClo
         <button onClick={save} disabled={isPending}
           className="w-full py-3 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-60"
           style={{ background: done ? "rgba(22,163,74,0.1)" : "rgba(222,26,26,0.08)", color: done ? "#16A34A" : "#de1a1a", border: `1.5px solid ${done ? "rgba(22,163,74,0.2)" : "rgba(222,26,26,0.15)"}` }}>
-          {done ? <><CheckCircle2 size={14} /> Saved!</> : isPending ? "Saving…" : <><Plus size={14} /> Add Expense</>}
+          {done ? <><CheckCircle2 size={14} /> Saved!</> : isPending ? "Saving…" : editing ? <><Pencil size={14} /> Save Changes</> : <><Plus size={14} /> Add Expense</>}
         </button>
       </div>
   )
@@ -825,12 +825,8 @@ export default function ExpensesClient({
                         <td className="px-6 py-3 text-[12px] font-bold uppercase whitespace-nowrap" style={{ color: "#6B1D3A" }}>{fmtDate(e.date)}</td>
                         <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>{e.client_name}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          {e.type !== "other" ? (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase"
-                              style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>{e.type}</span>
-                          ) : (
-                            <span style={{ color: "#003b49" }}>—</span>
-                          )}
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase"
+                            style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>{e.type}</span>
                         </td>
                         <td className="px-4 py-3 text-[12px] font-semibold uppercase" style={{ color: "#800080" }}>
                           {e.shoot_title ? e.shoot_title : ""}{e.notes ? (e.shoot_title ? ` · ${e.notes}` : e.notes) : (!e.shoot_title ? "—" : "")}

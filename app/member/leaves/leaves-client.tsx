@@ -387,7 +387,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     <div style={{ display: "flex", background: "#F5F6FA", minHeight: "100vh" }}>
 
       {/* ════ MAIN CONTENT ═══════════════════════════════════════════════════ */}
-      <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
+      <div style={{ flex: 1, minWidth: 0, overflowY: "auto", overflowX: "hidden" }}>
 
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
         <div className="px-4 md:px-7 pt-5">

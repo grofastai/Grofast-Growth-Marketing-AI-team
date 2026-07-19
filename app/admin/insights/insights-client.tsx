@@ -247,7 +247,7 @@ export default function InsightsClient({
   })
 
   return (
-    <div style={{ background: PAGE_BG, minHeight: '100vh', padding: '24px 28px 60px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ background: PAGE_BG, minHeight: '100vh', padding: 'clamp(16px,4vw,24px) clamp(16px,4vw,28px) 60px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* ── HERO — same red-gradient banner used by Leaves/Attendance/Goals ─ */}
       <div style={{
@@ -265,7 +265,7 @@ export default function InsightsClient({
               </div>
               <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Admin Report</span>
             </div>
-            <h1 style={{ fontSize: 32, fontWeight: 900, color: '#FFFFFF', margin: '0 0 4px', fontFamily: JAKARTA, lineHeight: 1 }}>
+            <h1 style={{ fontSize: 'clamp(22px,5.5vw,32px)', fontWeight: 900, color: '#FFFFFF', margin: '0 0 4px', fontFamily: JAKARTA, lineHeight: 1.15 }}>
               Team Insights
             </h1>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', margin: 0 }}>{monthLabel(month)}</p>
@@ -629,8 +629,8 @@ export default function InsightsClient({
 
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between" style={{ gap: 8, paddingBottom: 16, marginBottom: 20, borderBottom: '1px solid #F1F5F9' }}>
             <div>
-              <h3 style={{ fontSize: 26, fontWeight: 700, color: '#0F172A', margin: 0, letterSpacing: '-0.01em' }}>Clients Worked</h3>
-              <p style={{ fontSize: 15, fontWeight: 500, color: '#64748B', margin: '4px 0 0' }}>Hours logged this month</p>
+              <h3 style={{ fontSize: 'clamp(20px,4.5vw,26px)', fontWeight: 700, color: '#0F172A', margin: 0, letterSpacing: '-0.01em' }}>Clients Worked</h3>
+              <p style={{ fontSize: 'clamp(13px,2.8vw,15px)', fontWeight: 500, color: '#64748B', margin: '4px 0 0' }}>Hours logged this month</p>
             </div>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#64748B', flexShrink: 0 }}>{monthLabel(month)}</span>
           </div>
@@ -677,8 +677,8 @@ export default function InsightsClient({
 
                 <div className="flex flex-col lg:flex-row" style={{ gap: 28 }}>
                   {/* Donut — 25% */}
-                  <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', width: 220 }}>
-                    <div style={{ position: 'relative', width: 220, height: 220 }}>
+                  <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', width: 'clamp(180px,55vw,220px)' }}>
+                    <div style={{ position: 'relative', width: 'clamp(180px,55vw,220px)', height: 'clamp(180px,55vw,220px)' }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie data={chartData} dataKey={metricKey} nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={106} strokeWidth={2} stroke={CARD}>
@@ -783,7 +783,7 @@ export default function InsightsClient({
                   {isExpanded && (
                     <div style={{ padding: '0 0 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {/* Days / expected / overtime / gap — the numbers that used to live in a separate table */}
-                      <div className="grid grid-cols-4" style={{ gap: 8, padding: '10px 12px', background: '#F9FAFB', borderRadius: 10 }}>
+                      <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 8, padding: '10px 12px', background: '#F9FAFB', borderRadius: 10 }}>
                         <div>
                           <p style={{ fontSize: 9, color: DIM, margin: 0, textTransform: 'uppercase', fontWeight: 700 }}>Days In</p>
                           <p style={{ fontSize: 13, fontWeight: 800, color: INK, margin: '2px 0 0' }}>{m.workingDays}</p>

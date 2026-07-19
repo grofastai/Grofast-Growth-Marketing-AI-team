@@ -721,13 +721,15 @@ export default function PayrollClient({
         body{font-family:Arial,sans-serif;padding:32px;color:#111}
         h1{font-size:20px;margin:0 0 4px}
         p.sub{color: #000000;margin:0 0 20px;font-size:13px}
-        table{width:100%;border-collapse:collapse;font-size:12px}
+        .table-wrap{overflow-x:auto}
+        table{width:100%;border-collapse:collapse;font-size:12px;min-width:640px}
         th,td{padding:8px 10px;border-bottom:1px solid #E5E7EB;text-align:left}
         th{background:#F9FAFB;font-weight:700;color: #000000}
-        .totals{display:flex;gap:24px;margin-bottom:20px}
-        .totals div{background:#F9FAFB;border-radius:10px;padding:10px 16px}
+        .totals{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:20px}
+        .totals div{background:#F9FAFB;border-radius:10px;padding:10px 16px;flex:1 1 140px}
         .totals strong{display:block;font-size:16px}
         @media print{ body{padding:0} }
+        @media (max-width:640px){ body{padding:16px} }
       </style></head>
       <body>
         <h1>Payroll Report — ${monthName}</h1>
@@ -738,10 +740,12 @@ export default function PayrollClient({
           <div>Total Deductions<strong>${fmt(totalDed)}</strong></div>
           <div>Total Net Payroll<strong>${fmt(totalFinal)}</strong></div>
         </div>
-        <table>
-          <thead><tr><th>Name</th><th>ID</th><th>Base</th><th>Deduction</th><th>OT Pay</th><th>Bonus</th><th>Advance</th><th>Net Pay</th><th>Status</th></tr></thead>
-          <tbody>${tableRows}</tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>ID</th><th>Base</th><th>Deduction</th><th>OT Pay</th><th>Bonus</th><th>Advance</th><th>Net Pay</th><th>Status</th></tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>
       </body></html>`)
     win.document.close()
   }

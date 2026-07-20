@@ -827,6 +827,27 @@ export default function HistoryClient({
         else if (e.task_type === "other_activity") { otherActivityH += e.duration_hours ?? 0 }
       }
     }
+
+    // Confirmed collaboration hours — someone else's entry, this member's hours.
+    // Without this, a member whose entire contribution is collaborating on other
+    // people's shoots (never submitting an own entry) shows 0 for every stat here,
+    // even though the hours are real, confirmed, and already counted for cost purposes.
+    for (const c of collabConfirms) {
+      if (c.status !== "confirmed" && c.status !== "edited_confirmed") continue
+      if (selectedMonth && monthLabel(c.date) !== selectedMonth) continue
+      const hrs = c.confirmed_hours ?? 0
+      if (hrs <= 0) continue
+      const tt = c.entry_snapshot?.task_type
+      if (tt === "shoot") { shootH += hrs; shootCount++; totalTasks++ }
+      else if (tt === "edit") { editH += hrs; editCount++; totalTasks++ }
+      else if (tt === "voiceover") { voiceoverH += hrs; voiceoverCount++; totalTasks++ }
+      else if (tt === "poster") { posterH += hrs; posterCount++; totalTasks++ }
+      else if (tt === "scripting") { scriptingH += hrs; scriptingCount++; totalTasks++ }
+      else if (tt === "development") { developmentH += hrs; developmentCount++; totalTasks++ }
+      else if (tt === "other_activity") { otherActivityH += hrs; totalTasks++ }
+      else { otherH += hrs; worklogCount++; totalTasks++ }
+    }
+
     // Also count clock-in dates in the selected month that have no daily_update record
     const updateDates = new Set(monthFiltered.map(u => u.date))
     const monthPrefix = selectedMonth
@@ -881,7 +902,7 @@ export default function HistoryClient({
     const avgDivisor = isFreelancerMedia ? daysSubmitted : presentDays
     const avgH = avgDivisor > 0 ? Math.round((workForAvg / avgDivisor) * 10) / 10 : 0
     return { totalHours, totalOT, totalTasks, presentDays, absentDays, leaveDays, holidayDays, totalLearning, totalBreak, travelH, shootH, editH, otherH, shootCount, editCount, worklogCount, voiceoverCount, voiceoverH, posterCount, posterH, scriptingH, scriptingCount, developmentH, developmentCount, otherActivityH, mediaWorkH, nonMediaWorkH, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity, daysSubmitted }
-  }, [filtered, attendanceDates, selectedMonth, monthFiltered, approvedLeaves, companyLeaves])
+  }, [filtered, attendanceDates, selectedMonth, monthFiltered, approvedLeaves, companyLeaves, collabConfirms])
 
   // Which work types this person has EVER logged (scoped to `updates`, i.e. this
   // calendar year — matches the page's own fetch window) — decides which summary

@@ -686,7 +686,7 @@ export async function updateLeaveStatus(
       const dateStr = curr.toISOString().split('T')[0]
       const { data: existing } = await admin
         .from('attendance_logs')
-        .select('id, clock_in')
+        .select('id, status')
         .eq('company_id', leave.company_id)
         .eq('user_id', leave.user_id)
         .eq('date', dateStr)
@@ -700,6 +700,19 @@ export async function updateLeaveStatus(
           status:     attStatus,
         })
         if (attErr) console.error('[leave approval] attendance insert:', attErr.message)
+      } else if (leave.leave_type === 'full_day' && existing.status !== 'leave') {
+        // A full-day leave always wins over a stray same-day clock-in (e.g. clocked in,
+        // had an emergency, applied for leave right after — GF013/Rubashree incident:
+        // her attendance row stayed status='present' with no Daily Update filed, and
+        // the "Daily Update Missing" gate blocked her even though the leave for that
+        // date was approved). half_day is intentionally left alone here — it only
+        // excuses its own slot, the member still owes the rest of the day.
+        const { error: attErr } = await admin.from('attendance_logs').update({
+          status: 'leave', clock_in: null, clock_out: null, work_type: null,
+          break_in: null, break_out: null, break_total_mins: 0, break_sessions: [],
+          paused_seconds: 0, session_paused_at: null,
+        }).eq('id', existing.id)
+        if (attErr) console.error('[leave approval] attendance override:', attErr.message)
       }
       // For full_day leave: delete any empty daily_update row so the 🌴 leave card shows in history
       if (leave.leave_type === 'full_day') {

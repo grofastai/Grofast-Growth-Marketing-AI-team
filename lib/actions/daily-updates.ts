@@ -70,12 +70,32 @@ async function syncCollaborationConfirmations(
       const pids = e.participant_ids as string[] | undefined
       return Array.isArray(pids) && pids.some(pid => pid !== submitterId)
     })
-    const newlyTagged: { collaboratorId: string; title: unknown }[] = []
+
+    // Management team doesn't use the app day-to-day, so a tag sitting "pending" forever
+    // means their real contributed hours never reach cost/hours anywhere until someone
+    // remembers to go confirm on their behalf — see personal_stats_missing_collab_hours /
+    // future_features memory. Auto-confirming for them still leaves Edit Time / Remove
+    // available afterward, same as anyone else.
+    const allCollaboratorIds = Array.from(new Set(
+      tagged.flatMap(e => ((e.participant_ids as string[]) || []).filter(pid => pid !== submitterId))
+    ))
+    const managementIds = new Set(
+      allCollaboratorIds.length
+        ? ((await admin.from('users').select('id').in('id', allCollaboratorIds).eq('is_management', true)).data ?? [])
+            .map((u: { id: string }) => u.id)
+        : []
+    )
+
+    const newlyTagged: { collaboratorId: string; title: unknown; autoConfirmed: boolean }[] = []
     for (const e of tagged) {
       const entryId = (e.id as string) || ''
       if (!entryId) continue
       const collaborators = ((e.participant_ids as string[]) || []).filter(pid => pid !== submitterId)
       for (const collaboratorId of collaborators) {
+        const isManagement = managementIds.has(collaboratorId)
+        const startTime = (e.start_time as string) || null
+        const endTime   = (e.end_time as string) || null
+        const durationHours = (e.duration_hours as number) || null
         // ignoreDuplicates + select('id') means an empty return = this pairing already
         // existed (preserve its confirmed/rejected status) rather than a fresh tag —
         // only genuinely new taggings should notify the collaborator.
@@ -86,10 +106,16 @@ async function syncCollaborationConfirmations(
           submitter_id:             submitterId,
           collaborator_id:          collaboratorId,
           date,
-          status:                   'pending',
-          original_start_time:      (e.start_time as string) || null,
-          original_end_time:        (e.end_time as string) || null,
-          original_duration_hours:  (e.duration_hours as number) || null,
+          status:                   isManagement ? 'confirmed' : 'pending',
+          original_start_time:      startTime,
+          original_end_time:        endTime,
+          original_duration_hours:  durationHours,
+          ...(isManagement ? {
+            confirmed_start_time: startTime,
+            confirmed_end_time:   endTime,
+            confirmed_hours:      durationHours,
+            auto_confirmed:       true,
+          } : {}),
           entry_snapshot:           {
             title:       e.title,
             task_type:   e.task_type,
@@ -100,7 +126,7 @@ async function syncCollaborationConfirmations(
           ignoreDuplicates: true, // preserve existing confirmed/rejected status
         }).select('id')
         if (upserted?.length) {
-          newlyTagged.push({ collaboratorId, title: e.title })
+          newlyTagged.push({ collaboratorId, title: e.title, autoConfirmed: isManagement })
         } else {
           // Not a fresh tag — a confirmation row already existed for this task+person.
           // While it's still pending (nobody has decided yet), keep everything —
@@ -151,8 +177,12 @@ async function syncCollaborationConfirmations(
         companyId,
         userId: t.collaboratorId,
         type: 'collab_tagged',
-        title: `${submitter?.name ?? 'A teammate'} tagged you as a collaborator`,
-        body: `${date}${t.title ? ` — "${t.title}"` : ''}. Confirm or reject on your History page.`,
+        title: t.autoConfirmed
+          ? `${submitter?.name ?? 'A teammate'} tagged you as a collaborator — auto-confirmed`
+          : `${submitter?.name ?? 'A teammate'} tagged you as a collaborator`,
+        body: t.autoConfirmed
+          ? `${date}${t.title ? ` — "${t.title}"` : ''}. Already confirmed for you — edit the time or remove yourself on your History page if this isn't right.`
+          : `${date}${t.title ? ` — "${t.title}"` : ''}. Confirm or reject on your History page.`,
         link: '/member/history',
       })))
     }

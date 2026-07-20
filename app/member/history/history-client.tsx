@@ -1546,8 +1546,10 @@ export default function HistoryClient({
                             const showEnd   = entryConf?.confirmed_end_time   ?? pe.end_time
                             const dur = entryConf?.confirmed_hours ?? (calcDurationFromTimes(showStart, showEnd) ?? (pe.duration_hours ?? 0))
                             const loading = entryConf ? collabLoading === entryConf.id : false
+                            const isEditingConf = entryConf && collabEditId === entryConf.id
                             return (
-                              <div key={pi} style={{ display:"flex", gap:10, padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none", alignItems:"flex-start" }}>
+                              <div key={pi} style={{ padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none" }}>
+                              <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
                                 <div style={{ width:30, height:30, borderRadius:8, background:cfg.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                                   <Icon size={13} style={{ color:cfg.color }}/>
                                 </div>
@@ -1566,19 +1568,43 @@ export default function HistoryClient({
                                   </div>
                                 </div>
                                 {entryConf && (
-                                  <button title="Remove yourself from this collaboration" disabled={loading}
-                                    onClick={async () => {
-                                      if (!(await confirm("Remove yourself from this confirmed collaboration? The submitter will be notified, and these hours will no longer count toward your total."))) return
-                                      setCollabLoading(entryConf.id)
-                                      const r = await rejectCollaboration(entryConf.id, "Removed after confirming — please recheck")
-                                      if (r.success) setCollabConfirms(prev => prev.filter(c => c.id !== entryConf.id))
-                                      else showToast(r.error ?? "Failed to remove. Try again.")
-                                      setCollabLoading(null)
-                                    }}
-                                    style={{ width: 26, height: 26, borderRadius: 7, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1, flexShrink: 0 }}>
-                                    <Trash2 size={11} style={{ color: "#EF4444" }}/>
-                                  </button>
+                                  <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                                    <button title="Edit your collaboration time"
+                                      onClick={() => { if (isEditingConf) { setCollabEditId(null) } else { setCollabEditId(entryConf.id); setCollabEditStart(entryConf.confirmed_start_time ?? entryConf.original_start_time ?? ""); setCollabEditEnd(entryConf.confirmed_end_time ?? entryConf.original_end_time ?? "") } }}
+                                      style={{ width: 26, height: 26, borderRadius: 7, background: isEditingConf ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                                      <Pencil size={11} style={{ color: "#6366F1" }}/>
+                                    </button>
+                                    <button title="Remove yourself from this collaboration" disabled={loading}
+                                      onClick={async () => {
+                                        if (!(await confirm("Remove yourself from this confirmed collaboration? The submitter will be notified, and these hours will no longer count toward your total."))) return
+                                        setCollabLoading(entryConf.id)
+                                        const r = await rejectCollaboration(entryConf.id, "Removed after confirming — please recheck")
+                                        if (r.success) setCollabConfirms(prev => prev.filter(c => c.id !== entryConf.id))
+                                        else showToast(r.error ?? "Failed to remove. Try again.")
+                                        setCollabLoading(null)
+                                      }}
+                                      style={{ width: 26, height: 26, borderRadius: 7, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
+                                      <Trash2 size={11} style={{ color: "#EF4444" }}/>
+                                    </button>
+                                  </div>
                                 )}
+                              </div>
+                              {isEditingConf && entryConf && (
+                                <div style={{ marginTop: 10, padding: "12px", borderRadius: 10, background: "rgba(99,102,241,0.06)", border: "1.5px solid rgba(99,102,241,0.2)" }}>
+                                  <p style={{ fontSize: 11, fontWeight: 700, color: "#6366F1", margin: "0 0 8px" }}>Edit Your Collaboration Time</p>
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                                    <div><label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 3 }}>Your Start Time</label><input type="time" value={collabEditStart} onChange={e => setCollabEditStart(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#111111", outline: "none", background: "#fff", boxSizing: "border-box" }} /></div>
+                                    <div><label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 3 }}>Your End Time</label><input type="time" value={collabEditEnd} onChange={e => setCollabEditEnd(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#111111", outline: "none", background: "#fff", boxSizing: "border-box" }} /></div>
+                                  </div>
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <button onClick={() => setCollabEditId(null)} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#F3F4F6", color: "#6B7280", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}>Cancel</button>
+                                    <button disabled={loading} onClick={async () => { setCollabLoading(entryConf.id); const r = await editCollaborationTime(entryConf.id, collabEditStart, collabEditEnd); if (r.success) setCollabConfirms(prev => prev.map(c => c.id === entryConf.id ? { ...c, status: 'edited_confirmed' as const, confirmed_start_time: collabEditStart, confirmed_end_time: collabEditEnd } : c)); setCollabLoading(null); setCollabEditId(null) }}
+                                      style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#6366F1", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
+                                      {loading ? "Saving…" : "Save My Time"}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                               </div>
                             )
                           })}

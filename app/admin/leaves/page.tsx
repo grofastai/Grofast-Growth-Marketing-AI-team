@@ -121,6 +121,8 @@ export default async function LeavesPage({
     .select("id, name, employee_id, team")
     .eq("company_id", cid)
     .eq("status", "active")
+    .eq("role", "MEMBER")
+    .eq("is_freelancer_login", false)
     .order("name")
 
   const total = Math.max(1, memberCount ?? 0)

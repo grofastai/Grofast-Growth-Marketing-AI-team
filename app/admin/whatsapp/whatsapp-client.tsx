@@ -237,7 +237,7 @@ export default function WhatsAppDiagnosticClient({
       <div style={{ background: "#FFFFFF", borderRadius: 16, border: "1px solid #EBEDF2", padding: "16px 20px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
         <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 4px" }}>Send Test Message</p>
         <p style={{ fontSize: 11, color: "#37474F", margin: "0 0 12px" }}>
-          Send a test using the <code>grofast_daily_reminder</code> template to any number. Enter as 10-digit Indian number or with country code.
+          Send a test using the <code>grofast_daily_reminder_v2</code> template to any number. Enter as 10-digit Indian number or with country code.
         </p>
         <div className="flex flex-col sm:flex-row" style={{ gap: 10 }}>
           <input

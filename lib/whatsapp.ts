@@ -1,4 +1,4 @@
-import type { NotificationEvent, NotificationPayload, MissingUpdatePayload, LeaveSubmittedPayload, LeaveStatusPayload, LateArrivalPayload, UnderperformancePayload } from '@/lib/notifications/types'
+import type { NotificationEvent, NotificationPayload, MissingUpdatePayload, LeaveSubmittedPayload, LeaveStatusPayload } from '@/lib/notifications/types'
 
 export function formatPhone(raw: string): string {
   const digits = raw.replace(/\D/g, '')
@@ -83,7 +83,7 @@ interface TemplateEntry {
 
 export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
   'daily_update.missing': {
-    name: 'grofast_missed_update',
+    name: 'grofast_missed_update_v2',
     resolvePhone: (p) => (p as MissingUpdatePayload).employee_phone ?? null,
     buildParams: (p) => {
       const mp = p as MissingUpdatePayload
@@ -92,7 +92,7 @@ export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
   },
 
   'leave.submitted': {
-    name: 'grofast_leave_request',
+    name: 'grofast_leave_request_v2',
     resolvePhone: (p) => (p as LeaveSubmittedPayload).admin_phone ?? null,
     buildParams: (p) => {
       const lp = p as LeaveSubmittedPayload
@@ -108,7 +108,7 @@ export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
   },
 
   'wfh.submitted': {
-    name: 'grofast_wfh_request',
+    name: 'grofast_wfh_request_v2',
     resolvePhone: (p) => (p as LeaveSubmittedPayload).admin_phone ?? null,
     buildParams: (p) => {
       const lp = p as LeaveSubmittedPayload
@@ -124,7 +124,7 @@ export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
   },
 
   'shoot.submitted': {
-    name: 'grofast_shoot_request',
+    name: 'grofast_shoot_request_v2',
     resolvePhone: (p) => (p as LeaveSubmittedPayload).admin_phone ?? null,
     buildParams: (p) => {
       const lp = p as LeaveSubmittedPayload
@@ -140,20 +140,20 @@ export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
   },
 
   'leave.approved': {
-    name: 'grofast_leave_approved',
+    name: 'grofast_leave_approved_v2',
     resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
     buildParams: (p) => {
       const lp = p as LeaveStatusPayload
-      return [lp.employee_name, lp.from_date, lp.to_date]
+      return [lp.employee_name, lp.from_date, lp.to_date, lp.detail]
     },
   },
 
   'leave.rejected': {
-    name: 'grofast_leave_rejected',
+    name: 'grofast_leave_rejected_v2',
     resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
     buildParams: (p) => {
       const lp = p as LeaveStatusPayload
-      return [lp.employee_name, lp.from_date, lp.to_date]
+      return [lp.employee_name, lp.from_date, lp.to_date, lp.detail]
     },
   },
 
@@ -162,7 +162,7 @@ export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
     resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
     buildParams: (p) => {
       const lp = p as LeaveStatusPayload
-      return [lp.employee_name, lp.from_date]
+      return [lp.employee_name, lp.from_date, lp.detail]
     },
   },
 
@@ -171,7 +171,7 @@ export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
     resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
     buildParams: (p) => {
       const lp = p as LeaveStatusPayload
-      return [lp.employee_name, lp.from_date]
+      return [lp.employee_name, lp.from_date, lp.detail]
     },
   },
 
@@ -211,23 +211,12 @@ export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
     },
   },
 
-  'attendance.late': {
-    name: 'grofast_late_arrival',
-    resolvePhone: (p) => (p as LateArrivalPayload).admin_phone ?? null,
-    buildParams: (p) => {
-      const lp = p as LateArrivalPayload
-      return [lp.employee_name, lp.employee_id, lp.clock_in_time]
-    },
-  },
-
-  'hours.underperformance': {
-    name: 'grofast_underperformance',
-    resolvePhone: (p) => (p as UnderperformancePayload).admin_phone ?? null,
-    buildParams: (p) => {
-      const up = p as UnderperformancePayload
-      return [up.employee_name, up.employee_id, String(up.working_hours), String(up.expected_hours), up.date]
-    },
-  },
+  // 'attendance.late' and 'hours.underperformance' intentionally have no entry —
+  // grofast_late_arrival_v2 / grofast_underperformance were removed by request
+  // (not one of the 4 asks). sendNotificationViaTemplate no-ops for events with
+  // no TEMPLATE_MAP entry, so the in-app bell notification still fires normally;
+  // only the WhatsApp send is skipped. Re-add here (and recreate the Meta
+  // template) if these are wanted again later.
 }
 
 export async function sendNotificationViaTemplate(payload: NotificationPayload): Promise<void> {

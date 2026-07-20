@@ -35,6 +35,10 @@ export interface LeaveStatusPayload {
   from_date: string
   to_date: string
   status: 'approved' | 'rejected'
+  // Human-readable leave-type detail (e.g. "Permission · 10:00 AM–12:00 PM",
+  // "Half Day (morning) · 9:00 AM–1:00 PM") — see lib/leave-approval-effects.ts
+  // formatLeaveDetail. Empty string is fine for wfh/shoot (dates say it all).
+  detail: string
 }
 
 export interface DailyUpdatePayload {

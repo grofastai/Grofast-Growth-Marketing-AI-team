@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertNotification, insertManyNotifications } from './notifications'
+import { formatLeaveDetail } from '@/lib/leave-approval-effects'
 import { z } from 'zod'
 
 function createAdminClient() {
@@ -744,6 +745,7 @@ export async function updateLeaveStatus(
       from_date:      leave.from_date,
       to_date:        leave.to_date,
       status,
+      detail:         formatLeaveDetail(leave),
     }).catch(console.error)
   }
 

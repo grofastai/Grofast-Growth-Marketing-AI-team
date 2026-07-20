@@ -36,7 +36,7 @@ function getCompanyId(request: NextRequest): string | null {
 
 // Vercel Cron calls this at 6:30 PM IST (30 13 * * * UTC).
 // Also callable manually with x-webhook-secret + ?company_id=UUID.
-// Sends grofast_daily_reminder to active members who haven't submitted today.
+// Sends grofast_daily_reminder_v2 to active members who haven't submitted today.
 export async function GET(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
 
   await Promise.all(
     pending.map(async (m: any) => {
-      const ok = await sendWhatsAppTemplate(formatPhone(m.phone), 'grofast_daily_reminder', [m.name])
+      const ok = await sendWhatsAppTemplate(formatPhone(m.phone), 'grofast_daily_reminder_v2', [m.name])
       if (ok) sent++
       else { failed++; failedNames.push(m.name) }
     })

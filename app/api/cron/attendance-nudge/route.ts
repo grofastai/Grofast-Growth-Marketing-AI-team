@@ -6,6 +6,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 import { todayIST } from '@/lib/utils/ist-date'
+import { filterAlreadyNotifiedToday, markNotifiedToday } from '@/lib/cron/dedup'
+
+const NOTIF_TYPE = 'whatsapp_attendance_nudge_sent'
 
 function adminSupabase() {
   return createClient(
@@ -25,7 +28,11 @@ function isAuthorized(request: NextRequest): boolean {
   return false
 }
 
-// Runs at 04:30 UTC = 10:00 AM IST.
+// Fires across a short window around 9:40 AM IST (see vercel.json) — Vercel Hobby
+// cron can't be trusted to fire at an exact minute, so several entries cover the
+// window instead of one, and filterAlreadyNotifiedToday/markNotifiedToday below
+// stop that from turning into repeat nudges for anyone still unmarked at the next
+// firing (see lib/cron/dedup.ts).
 // Finds active employees with no attendance today and no approved leave, then sends WhatsApp nudge.
 export async function GET(request: NextRequest) {
   if (!isAuthorized(request)) {
@@ -37,7 +44,7 @@ export async function GET(request: NextRequest) {
 
   const { data: employees, error: empError } = await admin
     .from('users')
-    .select('id, name, phone')
+    .select('id, name, phone, company_id')
     .eq('role', 'MEMBER')
     .eq('status', 'active')
     .not('phone', 'is', null)
@@ -71,15 +78,18 @@ export async function GET(request: NextRequest) {
   const alreadyMarked = new Set((existing ?? []).map((r: any) => r.user_id))
   const onLeaveSet = new Set((onLeave ?? []).map((r: any) => r.user_id))
 
-  const toNudge = employees.filter(
+  const candidates = employees.filter(
     (e: any) => e.phone && !alreadyMarked.has(e.id) && !onLeaveSet.has(e.id)
   )
+  const alreadyNotified = await filterAlreadyNotifiedToday(admin, NOTIF_TYPE, candidates.map((e: any) => e.id))
+  const toNudge = candidates.filter((e: any) => !alreadyNotified.has(e.id))
 
   const dateLabel = new Date().toLocaleDateString('en-IN', {
     day: 'numeric', month: 'long', timeZone: 'Asia/Kolkata',
   })
 
   let sent = 0
+  const notifiedRows: Array<{ userId: string; companyId: string }> = []
   await Promise.all(
     toNudge.map(async (emp: any) => {
       const ok = await sendWhatsAppTemplate(
@@ -95,9 +105,10 @@ export async function GET(request: NextRequest) {
         console.error(`[attendance-nudge] failed to send to ${emp.name} (${formatPhone(emp.phone)}):`, err)
         return false
       })
-      if (ok) sent++
+      if (ok) { sent++; notifiedRows.push({ userId: emp.id, companyId: emp.company_id }) }
     })
   )
+  await markNotifiedToday(admin, NOTIF_TYPE, notifiedRows)
 
   console.log(`[attendance-nudge] date=${today} checked=${toNudge.length} sent=${sent}`)
   return NextResponse.json({ checked: toNudge.length, sent, date: today })

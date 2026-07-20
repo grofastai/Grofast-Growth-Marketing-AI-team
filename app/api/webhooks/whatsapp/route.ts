@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
-import { autoInsertLeaveHistory } from '@/lib/leave-approval-effects'
+import { sendNotificationViaTemplate } from '@/lib/whatsapp'
+import { autoInsertLeaveHistory, formatLeaveDetail } from '@/lib/leave-approval-effects'
 import { findUnresolvedLogoutDate, formatGateDate } from '@/lib/attendance-gate'
 import { todayIST } from '@/lib/utils/ist-date'
 
@@ -253,19 +253,27 @@ async function handleLeaveAction(leaveId: string, action: 'approve' | 'reject') 
     link:       '/member/leaves',
   }).then(({ error: e }) => { if (e) console.error('[whatsapp-webhook] notification insert:', e.message) })
 
-  // WhatsApp message to employee
+  // WhatsApp message to employee — routed through the same TEMPLATE_MAP the
+  // in-app approval flow uses (lib/actions/leaves.ts) so both approval paths
+  // (WhatsApp button reply vs admin app "Approve" click) send identical
+  // templates/params instead of silently diverging. This used to lump half_day
+  // in with full_day here (missing grofast_half_day_approved entirely) and never
+  // included permission/half_day time details in either path.
   const employeePhone = leave.users?.phone
   const employeeName  = leave.users?.name ?? 'Employee'
   if (employeePhone) {
     const leaveType = leave.leave_type ?? 'full_day'
-    const templateName = status === 'approved'
-      ? leaveType === 'wfh' ? 'grofast_wfh_approved' : leaveType === 'shoot_day' ? 'grofast_shoot_approved' : 'grofast_leave_approved'
-      : leaveType === 'wfh' ? 'grofast_wfh_rejected' : leaveType === 'shoot_day' ? 'grofast_shoot_rejected' : 'grofast_leave_rejected'
-    await sendWhatsAppTemplate(
-      formatPhone(employeePhone),
-      templateName,
-      [employeeName, leave.from_date, leave.to_date]
-    )
+    const approvedEvent = leaveType === 'wfh' ? 'wfh.approved' : leaveType === 'shoot_day' ? 'shoot.approved' : leaveType === 'half_day' ? 'half_day.approved' : 'leave.approved'
+    const rejectedEvent = leaveType === 'wfh' ? 'wfh.rejected' : leaveType === 'shoot_day' ? 'shoot.rejected' : leaveType === 'half_day' ? 'half_day.rejected' : 'leave.rejected'
+    await sendNotificationViaTemplate({
+      event:          status === 'approved' ? approvedEvent : rejectedEvent,
+      employee_name:  employeeName,
+      employee_phone: employeePhone,
+      from_date:      leave.from_date,
+      to_date:        leave.to_date,
+      status,
+      detail:         formatLeaveDetail(leave),
+    })
   }
 }
 

@@ -122,9 +122,9 @@ export async function runWhatsAppDiagnostic(): Promise<WhatsAppDiagnosticResult>
     metaApi: metaResult,
     members: { total, withPhone, withoutPhone: total - withPhone, sample },
     templates: {
-      dailyReminder: 'grofast_daily_reminder',
-      missedUpdate: 'grofast_missed_update',
-      adminSummary: 'grofast_admin_missed_summary',
+      dailyReminder: 'grofast_daily_reminder_v2',
+      missedUpdate: 'grofast_missed_update_v2',
+      adminSummary: 'grofast_admin_missed_summary_v2',
       lang: templateLang,
     },
     cronSchedule: {
@@ -166,7 +166,7 @@ export async function sendTestWhatsApp(toPhone: string): Promise<{ ok: boolean; 
         to: formatted,
         type: 'template',
         template: {
-          name: 'grofast_daily_reminder',
+          name: 'grofast_daily_reminder_v2',
           language: { code: lang },
           components: [{
             type: 'body',

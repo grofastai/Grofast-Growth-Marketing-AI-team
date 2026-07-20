@@ -17,6 +17,41 @@ export type LeaveForApproval = {
   half_day_period: string | null
 }
 
+function fmtTimeStr(t?: string | null): string | null {
+  if (!t) return null
+  const [h, m] = t.split(':').map(Number)
+  const period = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`
+}
+
+// Mirrors the detail line shown on the admin Leaves page (app/admin/leaves/leaves-client.tsx
+// fmtTimeStr usage) so the WhatsApp approval message matches what admin sees in the app —
+// permission and half_day previously sent no time at all (GF-whatsapp-templates incident).
+export function formatLeaveDetail(leave: LeaveForApproval): string {
+  const type = leave.leave_type ?? 'full_day'
+
+  if (type === 'permission') {
+    const from = fmtTimeStr(leave.permission_time)
+    const to = fmtTimeStr(leave.permission_end_time)
+    if (from && to) return `Permission · ${from}–${to}`
+    if (from) return `Permission · ${from}`
+    return 'Permission'
+  }
+
+  if (type === 'half_day') {
+    const from = fmtTimeStr(leave.half_day_from_time)
+    const to = fmtTimeStr(leave.half_day_to_time)
+    const period = leave.half_day_period ? ` (${leave.half_day_period})` : ''
+    if (from && to) return `Half Day${period} · ${from}–${to}`
+    return `Half Day${period}`
+  }
+
+  if (type === 'wfh') return 'Work From Home'
+  if (type === 'shoot_day') return 'Shoot Day'
+  return 'Full Day Leave'
+}
+
 async function upsertWorkEntry(
   admin: AdminClient,
   companyId: string,

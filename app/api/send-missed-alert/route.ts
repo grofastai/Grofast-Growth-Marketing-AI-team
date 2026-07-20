@@ -36,7 +36,7 @@ function getCompanyId(request: NextRequest): string | null {
 
 // Vercel Cron calls this at 9:00 PM IST (30 15 * * * UTC).
 // Also callable manually with x-webhook-secret + ?company_id=UUID.
-// Sends grofast_missed_update to active members who never submitted today.
+// Sends grofast_missed_update_v2 to active members who never submitted today.
 export async function GET(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
 
   await Promise.all(
     missed.map(async (m: any) => {
-      const ok = await sendWhatsAppTemplate(formatPhone(m.phone), 'grofast_missed_update', [m.name, dateLabel])
+      const ok = await sendWhatsAppTemplate(formatPhone(m.phone), 'grofast_missed_update_v2', [m.name, dateLabel])
       if (ok) sent++
       else { failed++; failedNames.push(m.name) }
     })
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
       const displayNames = missed.length > 10 ? `${names} and ${missed.length - 10} more` : names
       adminNotified = await sendWhatsAppTemplate(
         formatPhone(adminUser.phone),
-        'grofast_admin_missed_summary',
+        'grofast_admin_missed_summary_v2',
         [String(missed.length), dateLabel, displayNames]
       )
     }

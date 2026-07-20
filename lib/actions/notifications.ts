@@ -14,7 +14,12 @@ function adminSupabase() {
 
 // The `notifications` table is shared with a legacy WhatsApp send-log (007/008).
 // Those rows have no title/body and must never appear in the in-app bell list.
-const LOG_ONLY_TYPES = ['whatsapp_onboarding', 'whatsapp_daily_alert', 'whatsapp_blast']
+// The whatsapp_*_sent types are dedupe markers for wide-window crons (see
+// lib/cron/dedup.ts) — same reasoning, no title/body, must stay out of the bell.
+const LOG_ONLY_TYPES = [
+  'whatsapp_onboarding', 'whatsapp_daily_alert', 'whatsapp_blast',
+  'whatsapp_attendance_nudge_sent', 'whatsapp_logout_nudge_sent', 'whatsapp_holiday_reminder_sent',
+]
 
 export interface NotificationRow {
   id: string

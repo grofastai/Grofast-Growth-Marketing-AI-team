@@ -219,6 +219,11 @@ function fmtTravel(h: number) {
 }
 
 const DRAFT_KEY = "gf_daily_update_draft"
+// Remembers the last gate-locked date the member has already been shown the
+// "this is a past date, not today" popup for — so a new locked date (e.g. the
+// gate moving from one unfiled day to the next after the first is filed) pops
+// up again, but re-opening/refreshing on the SAME locked date doesn't nag twice.
+const LOCKED_POPUP_SEEN_KEY = "gf_locked_gap_popup_seen"
 function getTodayStr() { return new Date().toLocaleDateString("en-CA") }
 function loadDraft(): TimeBlock[] {
   try {
@@ -586,6 +591,19 @@ export default function DailyUpdateForm({
   const dateLabel = new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
   const isToday = selectedDate === todayStr
   const isPastDate = !isToday
+
+  // One-time popup for a gate-locked date — see LOCKED_POPUP_SEEN_KEY above.
+  const [showLockedPopup, setShowLockedPopup] = useState(false)
+  useEffect(() => {
+    if (!lockedDate) { setShowLockedPopup(false); return }
+    let seen: string | null = null
+    try { seen = localStorage.getItem(LOCKED_POPUP_SEEN_KEY) } catch { /* ignore */ }
+    setShowLockedPopup(seen !== lockedDate)
+  }, [lockedDate])
+  function dismissLockedPopup() {
+    if (lockedDate) { try { localStorage.setItem(LOCKED_POPUP_SEEN_KEY, lockedDate) } catch { /* ignore */ } }
+    setShowLockedPopup(false)
+  }
 
   function handleDateChange(date: string) {
     if (date > todayStr) return
@@ -1950,6 +1968,26 @@ export default function DailyUpdateForm({
           </label>
         </div>
       </div>
+
+      {/* ── LOCKED PAST-DATE POPUP (shown once per newly-locked date) ────── */}
+      {showLockedPopup && lockedDate && (
+        <div style={{ position:"fixed", inset:0, zIndex:10000, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(10,8,6,0.5)", padding:"0 22px" }}>
+          <div style={{ background:"#fff", borderRadius:20, padding:"22px 20px 18px", textAlign:"center", width:"100%", maxWidth:320, boxShadow:"0 24px 60px rgba(0,0,0,0.35)", animation:"gf-pop 0.3s cubic-bezier(0.34,1.56,0.64,1)" }}>
+            <style>{`@keyframes gf-pop{from{opacity:0;transform:scale(0.7)}to{opacity:1;transform:scale(1)}}`}</style>
+            <div style={{ width:52, height:52, borderRadius:16, margin:"0 auto 12px", background:"linear-gradient(135deg,#F59E0B,#B45309)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <p style={{ fontSize:15, fontWeight:900, margin:"0 0 6px", color:"#111827" }}>This is {dateLabel.split(",")[0]}, not today</p>
+            <p style={{ fontSize:12, color:"#6B7280", lineHeight:1.55, margin:"0 0 16px" }}>
+              You have no work logged for {dateLabel}. Fill it in to unlock today&apos;s update.
+            </p>
+            <button onClick={dismissLockedPopup}
+              style={{ width:"100%", padding:11, borderRadius:11, border:"none", background:"#DE1A1A", color:"#fff", fontWeight:800, fontSize:13, cursor:"pointer" }}>
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── SUCCESS POPUP (all dates, all tabs) ─────────────────────────── */}
       {successPopup && (

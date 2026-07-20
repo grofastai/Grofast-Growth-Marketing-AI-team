@@ -414,9 +414,14 @@ export async function submitDailyUpdate(
     const calcEditCount  = combinedEntries.filter(e => e.task_type === 'edit' && !(e as Record<string,unknown>).is_rework).length
     const calcLearnHours = Math.round(combinedEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
 
-    const existingParticipants = (existingRecord as Record<string, unknown>).participant_ids as string[] ?? []
-    const entryParticipants = d.work_entries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)
-    const mergedParticipants = Array.from(new Set([...existingParticipants, ...(d.participant_ids ?? []), ...entryParticipants]))
+    // Recomputed from scratch off the FINAL entry set (combinedEntries), never unioned
+    // with the old column value — a straight union can only ever grow, so a collaborator
+    // removed from every entry stayed listed here forever, and their day kept wrongly
+    // showing up as "collaborated" for them even after the tag was gone everywhere else.
+    // d.participant_ids is the Learning tab's own tag (no per-entry array of its own),
+    // always taken fresh from this submission, same reasoning.
+    const entryParticipants = combinedEntries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)
+    const mergedParticipants = Array.from(new Set([...(d.participant_ids ?? []), ...entryParticipants]))
     const updatePayload: Record<string, unknown> = {
       work_entries:    combinedEntries,
       working_hours:   calcWorkHours || null,
@@ -646,12 +651,14 @@ export async function updatePastDailyUpdate(
   ) / 10
 
   // Keep the record-level participant_ids in sync with whatever entries carry a tag —
-  // the History page's "who's tagged in me" query filters on this top-level column,
-  // so if it drifts out of sync the collaborator's copy silently disappears. Merge with
-  // (never drop) the existing column value since it may also hold learning-tab tags.
-  const existingParticipants = (record as Record<string, unknown> | null)?.participant_ids as string[] ?? []
+  // the History page's "who's tagged in me" query filters on this top-level column, so
+  // if it drifts out of sync the collaborator's copy silently disappears. Recomputed
+  // from scratch off finalEntries (the actual final set after this edit) rather than
+  // unioned with the old column value — a union can only ever grow, so removing
+  // someone's tag from every entry never removed them from this column, and their day
+  // kept wrongly showing as "collaborated" for them forever.
   const entryParticipants = finalEntries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)
-  const mergedParticipants = Array.from(new Set([...existingParticipants, ...entryParticipants]))
+  const mergedParticipants = Array.from(new Set(entryParticipants))
 
   const { error } = await admin
     .from('daily_updates')
@@ -781,10 +788,10 @@ export async function addEntryToDate(
     entry,
   ]
 
-  // Merge with (never drop) the existing column value — see updatePastDailyUpdate above.
-  const existingParticipants = (existing as Record<string, unknown> | null)?.participant_ids as string[] ?? []
+  // Recomputed from scratch off allEntries (the actual final set for this date) — see
+  // updatePastDailyUpdate above for why unioning with the old column value is wrong.
   const entryParticipants = allEntries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)
-  const mergedParticipants = Array.from(new Set([...existingParticipants, ...entryParticipants]))
+  const mergedParticipants = Array.from(new Set(entryParticipants))
 
   const aggregates = {
     work_entries: allEntries,

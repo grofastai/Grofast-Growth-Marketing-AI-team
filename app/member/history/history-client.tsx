@@ -444,6 +444,12 @@ export default function HistoryClient({
 
   const pendingCount = useMemo(() => collabConfirms.filter(c => c.status === 'pending').length, [collabConfirms])
 
+  // Same reasoning as the server-side filter in page.tsx: an entry's own participant_ids
+  // can drift out of sync with an already-created confirmation (edited/re-tagged after the
+  // fact) — trusting participant_ids alone silently hid an otherwise-legitimate, still-open
+  // collaboration from the collaborator's own timeline.
+  const myConfirmedEntryIds = useMemo(() => new Set(collabConfirms.map(c => c.entry_id)), [collabConfirms])
+
   // Jump-to-pending: clicking the banner clears any month/date filter that could be
   // hiding the pending item, then scrolls to + briefly highlights the actual card.
   const [scrollToConfirmId, setScrollToConfirmId] = useState<string | null>(null)
@@ -1516,7 +1522,7 @@ export default function HistoryClient({
                     {item.pus.map(pu => {
                       const submitter = members.find(m => m.id === pu.user_id)
                       const allEnt = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
-                      const puEntries = userId ? allEnt.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : []
+                      const puEntries = userId ? allEnt.filter(e => (Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) || (e.id && myConfirmedEntryIds.has(e.id))) : []
                       if (puEntries.length === 0) return null
                       return (
                         <div key={pu.id} style={{ padding:"12px 18px", borderTop:"1px dashed rgba(99,102,241,0.15)" }}>
@@ -1837,7 +1843,7 @@ export default function HistoryClient({
               const collabForDate = (participatedByDate.get(u.date) ?? []).flatMap(pu => {
                 const submitter = members.find(m => m.id === pu.user_id)
                 const allEnts = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
-                const puEnts = userId ? allEnts.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : []
+                const puEnts = userId ? allEnts.filter(e => (Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) || (e.id && myConfirmedEntryIds.has(e.id))) : []
                 return puEnts.map(entry => ({ type: 'collab' as const, entry, submitter, puId: pu.id }))
               })
               // Half day / permission / WFH / shoot-day leave — shown in its actual chronological

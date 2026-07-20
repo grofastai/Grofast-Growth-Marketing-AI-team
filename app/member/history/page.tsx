@@ -214,6 +214,14 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   // Drop any entry this member already rejected, and drop the whole participated
   // row if nothing tagging this member survives — otherwise a rejected collab tag
   // keeps showing as "Collaborated" and wrongly wins priority over a real leave day.
+  // A confirmation record is the real source of truth for "this collaboration belongs to
+  // me" — an entry's own participant_ids can go stale (edited/re-tagged after the
+  // confirmation was created) while the confirmation itself still correctly points at this
+  // entry_id. Trusting participant_ids alone silently hid the whole day, pending-confirmation
+  // card and all, whenever that drift happened.
+  const myConfirmationEntryIds = new Set(
+    ((confirmationsResult.data ?? []) as { entry_id: string }[]).map(c => c.entry_id)
+  )
   const participatedUpdates = ((participatedResult.data ?? []) as unknown as ParticipatedUpdate[])
     .map(pu => ({
       ...pu,
@@ -222,7 +230,10 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
       ),
     }))
     .filter(pu =>
-      pu.work_entries.some(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(effectiveUserId))
+      pu.work_entries.some(e =>
+        (Array.isArray(e.participant_ids) && e.participant_ids.includes(effectiveUserId)) ||
+        (e.id && myConfirmationEntryIds.has(e.id))
+      )
     )
   const members = (membersResult.data ?? []) as MemberInfo[]
   const attendanceDates = Array.from(clockedInDates)

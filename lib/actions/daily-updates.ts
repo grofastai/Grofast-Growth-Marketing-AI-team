@@ -70,12 +70,32 @@ async function syncCollaborationConfirmations(
       const pids = e.participant_ids as string[] | undefined
       return Array.isArray(pids) && pids.some(pid => pid !== submitterId)
     })
-    const newlyTagged: { collaboratorId: string; title: unknown }[] = []
+
+    // Management team doesn't use the app day-to-day, so a tag sitting "pending" forever
+    // means their real contributed hours never reach cost/hours anywhere until someone
+    // remembers to go confirm on their behalf — see personal_stats_missing_collab_hours /
+    // future_features memory. Auto-confirming for them still leaves Edit Time / Remove
+    // available afterward, same as anyone else.
+    const allCollaboratorIds = Array.from(new Set(
+      tagged.flatMap(e => ((e.participant_ids as string[]) || []).filter(pid => pid !== submitterId))
+    ))
+    const managementIds = new Set(
+      allCollaboratorIds.length
+        ? ((await admin.from('users').select('id').in('id', allCollaboratorIds).eq('is_management', true)).data ?? [])
+            .map((u: { id: string }) => u.id)
+        : []
+    )
+
+    const newlyTagged: { collaboratorId: string; title: unknown; autoConfirmed: boolean }[] = []
     for (const e of tagged) {
       const entryId = (e.id as string) || ''
       if (!entryId) continue
       const collaborators = ((e.participant_ids as string[]) || []).filter(pid => pid !== submitterId)
       for (const collaboratorId of collaborators) {
+        const isManagement = managementIds.has(collaboratorId)
+        const startTime = (e.start_time as string) || null
+        const endTime   = (e.end_time as string) || null
+        const durationHours = (e.duration_hours as number) || null
         // ignoreDuplicates + select('id') means an empty return = this pairing already
         // existed (preserve its confirmed/rejected status) rather than a fresh tag —
         // only genuinely new taggings should notify the collaborator.
@@ -86,10 +106,16 @@ async function syncCollaborationConfirmations(
           submitter_id:             submitterId,
           collaborator_id:          collaboratorId,
           date,
-          status:                   'pending',
-          original_start_time:      (e.start_time as string) || null,
-          original_end_time:        (e.end_time as string) || null,
-          original_duration_hours:  (e.duration_hours as number) || null,
+          status:                   isManagement ? 'confirmed' : 'pending',
+          original_start_time:      startTime,
+          original_end_time:        endTime,
+          original_duration_hours:  durationHours,
+          ...(isManagement ? {
+            confirmed_start_time: startTime,
+            confirmed_end_time:   endTime,
+            confirmed_hours:      durationHours,
+            auto_confirmed:       true,
+          } : {}),
           entry_snapshot:           {
             title:       e.title,
             task_type:   e.task_type,
@@ -100,7 +126,7 @@ async function syncCollaborationConfirmations(
           ignoreDuplicates: true, // preserve existing confirmed/rejected status
         }).select('id')
         if (upserted?.length) {
-          newlyTagged.push({ collaboratorId, title: e.title })
+          newlyTagged.push({ collaboratorId, title: e.title, autoConfirmed: isManagement })
         } else {
           // Not a fresh tag — a confirmation row already existed for this task+person.
           // While it's still pending (nobody has decided yet), keep everything —
@@ -151,8 +177,12 @@ async function syncCollaborationConfirmations(
         companyId,
         userId: t.collaboratorId,
         type: 'collab_tagged',
-        title: `${submitter?.name ?? 'A teammate'} tagged you as a collaborator`,
-        body: `${date}${t.title ? ` — "${t.title}"` : ''}. Confirm or reject on your History page.`,
+        title: t.autoConfirmed
+          ? `${submitter?.name ?? 'A teammate'} tagged you as a collaborator — auto-confirmed`
+          : `${submitter?.name ?? 'A teammate'} tagged you as a collaborator`,
+        body: t.autoConfirmed
+          ? `${date}${t.title ? ` — "${t.title}"` : ''}. Already confirmed for you — edit the time or remove yourself on your History page if this isn't right.`
+          : `${date}${t.title ? ` — "${t.title}"` : ''}. Confirm or reject on your History page.`,
         link: '/member/history',
       })))
     }
@@ -384,9 +414,14 @@ export async function submitDailyUpdate(
     const calcEditCount  = combinedEntries.filter(e => e.task_type === 'edit' && !(e as Record<string,unknown>).is_rework).length
     const calcLearnHours = Math.round(combinedEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
 
-    const existingParticipants = (existingRecord as Record<string, unknown>).participant_ids as string[] ?? []
-    const entryParticipants = d.work_entries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)
-    const mergedParticipants = Array.from(new Set([...existingParticipants, ...(d.participant_ids ?? []), ...entryParticipants]))
+    // Recomputed from scratch off the FINAL entry set (combinedEntries), never unioned
+    // with the old column value — a straight union can only ever grow, so a collaborator
+    // removed from every entry stayed listed here forever, and their day kept wrongly
+    // showing up as "collaborated" for them even after the tag was gone everywhere else.
+    // d.participant_ids is the Learning tab's own tag (no per-entry array of its own),
+    // always taken fresh from this submission, same reasoning.
+    const entryParticipants = combinedEntries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)
+    const mergedParticipants = Array.from(new Set([...(d.participant_ids ?? []), ...entryParticipants]))
     const updatePayload: Record<string, unknown> = {
       work_entries:    combinedEntries,
       working_hours:   calcWorkHours || null,
@@ -616,12 +651,14 @@ export async function updatePastDailyUpdate(
   ) / 10
 
   // Keep the record-level participant_ids in sync with whatever entries carry a tag —
-  // the History page's "who's tagged in me" query filters on this top-level column,
-  // so if it drifts out of sync the collaborator's copy silently disappears. Merge with
-  // (never drop) the existing column value since it may also hold learning-tab tags.
-  const existingParticipants = (record as Record<string, unknown> | null)?.participant_ids as string[] ?? []
+  // the History page's "who's tagged in me" query filters on this top-level column, so
+  // if it drifts out of sync the collaborator's copy silently disappears. Recomputed
+  // from scratch off finalEntries (the actual final set after this edit) rather than
+  // unioned with the old column value — a union can only ever grow, so removing
+  // someone's tag from every entry never removed them from this column, and their day
+  // kept wrongly showing as "collaborated" for them forever.
   const entryParticipants = finalEntries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)
-  const mergedParticipants = Array.from(new Set([...existingParticipants, ...entryParticipants]))
+  const mergedParticipants = Array.from(new Set(entryParticipants))
 
   const { error } = await admin
     .from('daily_updates')
@@ -751,10 +788,10 @@ export async function addEntryToDate(
     entry,
   ]
 
-  // Merge with (never drop) the existing column value — see updatePastDailyUpdate above.
-  const existingParticipants = (existing as Record<string, unknown> | null)?.participant_ids as string[] ?? []
+  // Recomputed from scratch off allEntries (the actual final set for this date) — see
+  // updatePastDailyUpdate above for why unioning with the old column value is wrong.
   const entryParticipants = allEntries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)
-  const mergedParticipants = Array.from(new Set([...existingParticipants, ...entryParticipants]))
+  const mergedParticipants = Array.from(new Set(entryParticipants))
 
   const aggregates = {
     work_entries: allEntries,

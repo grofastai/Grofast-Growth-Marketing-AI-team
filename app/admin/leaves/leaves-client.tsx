@@ -4,7 +4,7 @@ import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { useState, useTransition } from "react"
 import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, UserCheck, Home, XOctagon, Paperclip, Plus, Trash2, Pencil, X, AlertTriangle, ChevronLeft, ChevronRight, ChevronDown, ListFilter } from "lucide-react"
-import { updateLeaveStatus } from "@/lib/actions/leaves"
+import { updateLeaveStatus, adminApplyLeaveOnBehalf } from "@/lib/actions/leaves"
 import { addCompanyLeave, updateCompanyLeave, deleteCompanyLeave } from "@/lib/actions/company-leaves"
 import { todayIST } from "@/lib/utils/ist-date"
 
@@ -50,6 +50,7 @@ interface LeavesClientProps {
   onLeaveToday: { name: string }[]
   pendingCount: number
   companyLeaves: CompanyLeave[]
+  members: { id: string; name: string; employee_id: string; team: string | null }[]
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -268,7 +269,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 export default function LeavesClient({
   leaves, mode, upcomingLeaves, availabilityPct,
   availableCount, onLeaveCountToday, awayCountToday, onLeaveToday,
-  pendingCount, companyLeaves,
+  pendingCount, companyLeaves, members,
 }: LeavesClientProps) {
   const router   = useRouter()
   const pathname = usePathname()
@@ -308,6 +309,67 @@ export default function LeavesClient({
   const rejectedCount = dateFilteredLeaves.filter(l => l.status === "rejected").length
   const [actionId, setActionId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+
+  // Apply Team Leave — admin applying leave/permission/WFH/shoot-day directly on a
+  // member's behalf, including past dates, auto-approved (no separate pending step,
+  // since applying it here IS the approval).
+  const [showApplyModal, setShowApplyModal]     = useState(false)
+  const [applyUserId, setApplyUserId]           = useState("")
+  const [applyLeaveType, setApplyLeaveType]     = useState<"full_day" | "half_day" | "permission" | "wfh" | "shoot_day">("full_day")
+  const [applyFromDate, setApplyFromDate]       = useState("")
+  const [applyToDate, setApplyToDate]           = useState("")
+  const [applyHalfPeriod, setApplyHalfPeriod]   = useState<"morning" | "afternoon">("morning")
+  const [applyHalfFrom, setApplyHalfFrom]       = useState("")
+  const [applyHalfTo, setApplyHalfTo]           = useState("")
+  const [applyPermFrom, setApplyPermFrom]       = useState("")
+  const [applyPermTo, setApplyPermTo]           = useState("")
+  const [applyReason, setApplyReason]           = useState("")
+  const [applyPending, setApplyPending]         = useState(false)
+  const [applyError, setApplyError]             = useState<string | null>(null)
+
+  function resetApplyForm() {
+    setApplyUserId(""); setApplyLeaveType("full_day"); setApplyFromDate(""); setApplyToDate("")
+    setApplyHalfPeriod("morning"); setApplyHalfFrom(""); setApplyHalfTo("")
+    setApplyPermFrom(""); setApplyPermTo(""); setApplyReason(""); setApplyError(null)
+  }
+
+  async function submitApplyLeave() {
+    setApplyError(null)
+    if (!applyUserId) { setApplyError("Select an employee."); return }
+    if (!applyFromDate) { setApplyError("Select a date."); return }
+    if (!applyReason.trim()) { setApplyError("Enter a reason."); return }
+    const isSingleDay = applyLeaveType === "half_day" || applyLeaveType === "permission" || applyLeaveType === "shoot_day"
+    const toDate = isSingleDay ? applyFromDate : (applyToDate || applyFromDate)
+    if (applyLeaveType === "half_day" && (!applyHalfFrom || !applyHalfTo)) { setApplyError("Set half day From/To time."); return }
+    if (applyLeaveType === "permission" && (!applyPermFrom || !applyPermTo)) { setApplyError("Set permission time."); return }
+
+    setApplyPending(true)
+    const permHours = applyPermFrom && applyPermTo ? (() => {
+      const [fh, fm] = applyPermFrom.split(":").map(Number)
+      const [th, tm] = applyPermTo.split(":").map(Number)
+      const diff = (th * 60 + tm) - (fh * 60 + fm)
+      return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 1
+    })() : 1
+
+    const result = await adminApplyLeaveOnBehalf({
+      userId: applyUserId,
+      leaveType: applyLeaveType,
+      fromDate: applyFromDate,
+      toDate,
+      reason: applyReason.trim(),
+      halfDayPeriod: applyHalfPeriod,
+      halfDayFromTime: applyHalfFrom,
+      halfDayToTime: applyHalfTo,
+      permissionTime: applyPermFrom,
+      permissionEndTime: applyPermTo,
+      permissionHours: permHours,
+    })
+    setApplyPending(false)
+    if (!result.success) { setApplyError(result.error ?? "Failed to apply leave."); return }
+    setShowApplyModal(false)
+    resetApplyForm()
+    router.refresh()
+  }
 
   // Holiday management state
   const [holidayDate, setHolidayDate] = useState("")
@@ -524,6 +586,15 @@ export default function LeavesClient({
                 )}
               </>
             )}
+
+            <button onClick={() => setShowApplyModal(true)} style={{
+              padding: "8px 18px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
+              whiteSpace: "nowrap", border: "none", flexShrink: 0, marginLeft: "auto",
+              background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#FFFFFF",
+              boxShadow: "0 4px 16px rgba(180,0,0,0.3)", display: "flex", alignItems: "center", gap: 6,
+            }}>
+              <Plus size={13} strokeWidth={2.5} /> Apply Team Leave
+            </button>
           </div>
 
           {/* ── Holidays Tab UI ─────────────────────────────────────────── */}
@@ -790,6 +861,122 @@ export default function LeavesClient({
 
         </div>
       </div>
+
+      {/* ── Apply Team Leave modal ──────────────────────────────────────── */}
+      {showApplyModal && (
+        <div onClick={() => { setShowApplyModal(false); resetApplyForm() }} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(17,24,39,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, padding: "22px 22px 20px", width: "100%", maxWidth: 440, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>Apply Team Leave</p>
+                <p style={{ fontSize: 11, color: "#6B7280", margin: "2px 0 0" }}>Applies as admin — auto-approved immediately, past dates allowed.</p>
+              </div>
+              <button onClick={() => { setShowApplyModal(false); resetApplyForm() }} style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "#F3F4F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <X size={15} color="#6B7280" />
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Employee *</label>
+                <select value={applyUserId} onChange={e => setApplyUserId(e.target.value)}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none" }}>
+                  <option value="">Select employee…</option>
+                  {members.map(m => <option key={m.id} value={m.id}>{m.name} ({m.employee_id})</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Leave Type *</label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                  {([
+                    { key: "full_day",   label: "Full Day",   emoji: "☀️" },
+                    { key: "half_day",   label: "Half Day",   emoji: "🌤️" },
+                    { key: "permission", label: "Permission", emoji: "⏰" },
+                    { key: "wfh",        label: "WFH",         emoji: "🏠" },
+                    { key: "shoot_day",  label: "Shoot Day",  emoji: "📷" },
+                  ] as { key: typeof applyLeaveType; label: string; emoji: string }[]).map(({ key, label, emoji }) => (
+                    <button key={key} type="button" onClick={() => setApplyLeaveType(key)}
+                      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "10px 0", borderRadius: 12, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", ...(applyLeaveType === key ? { background: "#DE1A1A", color: "#fff" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
+                      <span style={{ fontSize: 17 }}>{emoji}</span>{label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {(applyLeaveType === "full_day") && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>From *</label>
+                    <input type="date" min="2025-01-01" value={applyFromDate} onChange={e => setApplyFromDate(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
+                  <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>To *</label>
+                    <input type="date" min={applyFromDate || "2025-01-01"} value={applyToDate} onChange={e => setApplyToDate(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
+                </div>
+              )}
+
+              {(applyLeaveType === "half_day" || applyLeaveType === "permission" || applyLeaveType === "shoot_day" || applyLeaveType === "wfh") && (
+                <div style={applyLeaveType === "wfh" ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } : {}}>
+                  <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>{applyLeaveType === "wfh" ? "From *" : "Date *"}</label>
+                    <input type="date" min="2025-01-01" value={applyFromDate} onChange={e => setApplyFromDate(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
+                  {applyLeaveType === "wfh" && (
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>To *</label>
+                      <input type="date" min={applyFromDate || "2025-01-01"} value={applyToDate} onChange={e => setApplyToDate(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
+                  )}
+                </div>
+              )}
+
+              {applyLeaveType === "half_day" && (
+                <>
+                  <div>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Period</label>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      {(["morning", "afternoon"] as const).map(p => (
+                        <button key={p} type="button" onClick={() => setApplyHalfPeriod(p)}
+                          style={{ padding: "8px 0", borderRadius: 10, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", textTransform: "capitalize", ...(applyHalfPeriod === p ? { background: "#DE1A1A", color: "#fff" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>From</label>
+                      <input type="time" value={applyHalfFrom} onChange={e => setApplyHalfFrom(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
+                    <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>To</label>
+                      <input type="time" value={applyHalfTo} onChange={e => setApplyHalfTo(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
+                  </div>
+                </>
+              )}
+
+              {applyLeaveType === "permission" && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Leave From</label>
+                    <input type="time" value={applyPermFrom} onChange={e => setApplyPermFrom(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
+                  <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Return By</label>
+                    <input type="time" value={applyPermTo} onChange={e => setApplyPermTo(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
+                </div>
+              )}
+
+              <div>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Reason *</label>
+                <textarea value={applyReason} onChange={e => setApplyReason(e.target.value)} rows={2} placeholder="Explain the reason…"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", resize: "none", boxSizing: "border-box" }} />
+              </div>
+
+              {applyError && (
+                <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>⚠️ {applyError}</p>
+              )}
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button type="button" onClick={() => { setShowApplyModal(false); resetApplyForm() }}
+                  style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
+                <button type="button" disabled={applyPending} onClick={submitApplyLeave}
+                  style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: applyPending ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  {applyPending && <Loader2 size={13} className="animate-spin" />} Apply & Approve
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

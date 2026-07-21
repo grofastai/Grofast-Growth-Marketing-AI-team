@@ -116,6 +116,15 @@ export default async function LeavesPage({
     admin.from("company_leaves").select("id, date, name").eq("company_id", cid).order("date"),
   ])
 
+  const { data: members } = await admin
+    .from("users")
+    .select("id, name, employee_id, team")
+    .eq("company_id", cid)
+    .eq("status", "active")
+    .eq("role", "MEMBER")
+    .eq("is_freelancer_login", false)
+    .order("name")
+
   const total = Math.max(1, memberCount ?? 0)
   const onLeave = onLeaveCount ?? 0
   const away = awayTodayCount ?? 0
@@ -139,6 +148,7 @@ export default async function LeavesPage({
       onLeaveToday={onLeaveToday}
       pendingCount={pendingCount ?? 0}
       companyLeaves={(companyLeaves ?? []) as { id: string; date: string; name: string }[]}
+      members={(members ?? []) as { id: string; name: string; employee_id: string; team: string | null }[]}
     />
   )
 }

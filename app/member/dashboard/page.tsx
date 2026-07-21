@@ -108,7 +108,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     db.from("daily_updates").select("date, working_hours, attendance_status, learning_hours, shoot_count, editing_count, work_entries").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
     adminClient().from("leaves").select("from_date, to_date, leave_type").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
     db.from("attendance_logs").select("work_type, status, date, break_total_mins, clock_in, clock_out").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
-    db.from("collaboration_confirmations").select("date, confirmed_hours").eq("collaborator_id", effectiveUserId).in("status", ["confirmed", "edited_confirmed"]).gte("date", monthStart).lte("date", monthEnd),
+    db.from("collaboration_confirmations").select("date, confirmed_hours, entry_snapshot").eq("collaborator_id", effectiveUserId).in("status", ["confirmed", "edited_confirmed"]).gte("date", monthStart).lte("date", monthEnd),
     // Ever-logged type detection (all-time, not month-scoped) — decides which
     // dashboard cards show at all; the VALUES on those cards still come from
     // monthlyUpdates above. A card appears once a person has ever used a type,
@@ -123,7 +123,22 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const monthlyUpdates = (monthlyUpdatesRaw ?? []) as unknown as MonthlyUpdate[]
   const approvedLeaves = (approvedLeavesRaw ?? []) as unknown as LeaveRow[]
   const monthlyAttLogs = (monthlyAttLogsRaw ?? []) as unknown as MonthlyAttLog[]
-  const collabConfirms = (collabConfirmsRaw ?? []) as { date: string; confirmed_hours: number | null }[]
+  const collabConfirms = (collabConfirmsRaw ?? []) as { date: string; confirmed_hours: number | null; entry_snapshot: { task_type?: string } | null }[]
+  // Confirmed collab hours by task_type — someone else's entry, this member's confirmed
+  // hours. Without this, a member whose whole contribution is collaborating on other
+  // people's shoots (never submitting an own entry) shows 0 shoots/edits/hours below,
+  // even though the hours are real and already counted for client cost purposes.
+  const collabByTaskType: Record<string, number> = {}
+  for (const c of collabConfirms) {
+    const tt = c.entry_snapshot?.task_type
+    const hrs = c.confirmed_hours ?? 0
+    if (!tt || hrs <= 0) continue
+    collabByTaskType[tt] = (collabByTaskType[tt] ?? 0) + hrs
+  }
+  const collabShootHrs  = collabByTaskType["shoot"] ?? 0
+  const collabEditHrs   = collabByTaskType["edit"] ?? 0
+  const collabShootCount = collabConfirms.filter(c => c.entry_snapshot?.task_type === "shoot" && (c.confirmed_hours ?? 0) > 0).length
+  const collabEditCount  = collabConfirms.filter(c => c.entry_snapshot?.task_type === "edit" && (c.confirmed_hours ?? 0) > 0).length
 
   // All-time distinct task_types this person has ever logged (drives which dashboard cards appear)
   const everTypes = new Set<string>()
@@ -217,7 +232,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
     if (entries.length > 0) return s + entries.filter(e => e.task_type === 'shoot').length
     return s + (u.shoot_count ?? 0)
-  }, 0)
+  }, 0) + collabShootCount
   // UNIQUE COUNT RULE: skip is_rework=true for edit/voiceover/poster — revisions are not new unique deliverables.
   // Dual-source for edit: new records use work_entries (filter is_rework); old records (work_entries=null) fall back
   // to editing_count column — safe because revisions didn't exist when those old records were created.
@@ -225,7 +240,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
     if (entries.length > 0) return s + entries.filter(e => e.task_type === 'edit' && !(e as unknown as Record<string,unknown>).is_rework).length
     return s + (u.editing_count ?? 0)
-  }, 0)
+  }, 0) + collabEditCount
   const totalLearningHrs = Math.round(monthlyUpdates.reduce((s, u) => {
     const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
     if (entries.length > 0) return s + entries.filter(e => e.task_type === 'learning').reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
@@ -266,8 +281,10 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
       else if (e.task_type === "shoot") { flShootCount++; flShootHrs += entryDurH(e) }
     }
   }
-  flEditHrs  = Math.round(flEditHrs  * 10) / 10
-  flShootHrs = Math.round(flShootHrs * 10) / 10
+  flEditCount  += collabEditCount
+  flShootCount += collabShootCount
+  flEditHrs  = Math.round((flEditHrs  + collabEditHrs)  * 10) / 10
+  flShootHrs = Math.round((flShootHrs + collabShootHrs) * 10) / 10
   const flTotalVideos = flEditCount + flShootCount
   const flWorkingHrs  = totalMonthHrs // edit+shoot+learning+collab, merged per day
   const flAvgEdit     = flEditCount  > 0 ? Math.round((flEditHrs / flEditCount) * 10) / 10 : 0
@@ -284,8 +301,10 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
         else if (e.task_type === "edit") { mediaEditHrs += e.duration_hours ?? 0; if (!(e as unknown as Record<string,unknown>).is_rework) mediaEditCount++ }
       }
     }
-    mediaShootHrs = Math.round(mediaShootHrs * 10) / 10
-    mediaEditHrs  = Math.round(mediaEditHrs  * 10) / 10
+    mediaShootCount += collabShootCount
+    mediaEditCount  += collabEditCount
+    mediaShootHrs = Math.round((mediaShootHrs + collabShootHrs) * 10) / 10
+    mediaEditHrs  = Math.round((mediaEditHrs  + collabEditHrs)  * 10) / 10
   }
 
   // Non-media right-panel: per-type counts + hours this month, keyed by task_type.
@@ -303,6 +322,14 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
         if (!(e as unknown as Record<string,unknown>).is_rework) nmTypeStats[tt].count++
         nmTypeStats[tt].hours += e.duration_hours ?? 0
       }
+    }
+    for (const c of collabConfirms) {
+      const tt = c.entry_snapshot?.task_type
+      const hrs = c.confirmed_hours ?? 0
+      if (!tt || tt === "break" || tt === "learning" || hrs <= 0) continue
+      if (!nmTypeStats[tt]) nmTypeStats[tt] = { count: 0, hours: 0 }
+      nmTypeStats[tt].count++
+      nmTypeStats[tt].hours += hrs
     }
     for (const k of Object.keys(nmTypeStats)) nmTypeStats[k].hours = Math.round(nmTypeStats[k].hours * 10) / 10
   }

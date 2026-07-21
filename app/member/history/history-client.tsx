@@ -444,6 +444,12 @@ export default function HistoryClient({
 
   const pendingCount = useMemo(() => collabConfirms.filter(c => c.status === 'pending').length, [collabConfirms])
 
+  // Same reasoning as the server-side filter in page.tsx: an entry's own participant_ids
+  // can drift out of sync with an already-created confirmation (edited/re-tagged after the
+  // fact) — trusting participant_ids alone silently hid an otherwise-legitimate, still-open
+  // collaboration from the collaborator's own timeline.
+  const myConfirmedEntryIds = useMemo(() => new Set(collabConfirms.map(c => c.entry_id)), [collabConfirms])
+
   // Jump-to-pending: clicking the banner clears any month/date filter that could be
   // hiding the pending item, then scrolls to + briefly highlights the actual card.
   const [scrollToConfirmId, setScrollToConfirmId] = useState<string | null>(null)
@@ -827,6 +833,27 @@ export default function HistoryClient({
         else if (e.task_type === "other_activity") { otherActivityH += e.duration_hours ?? 0 }
       }
     }
+
+    // Confirmed collaboration hours — someone else's entry, this member's hours.
+    // Without this, a member whose entire contribution is collaborating on other
+    // people's shoots (never submitting an own entry) shows 0 for every stat here,
+    // even though the hours are real, confirmed, and already counted for cost purposes.
+    for (const c of collabConfirms) {
+      if (c.status !== "confirmed" && c.status !== "edited_confirmed") continue
+      if (selectedMonth && monthLabel(c.date) !== selectedMonth) continue
+      const hrs = c.confirmed_hours ?? 0
+      if (hrs <= 0) continue
+      const tt = c.entry_snapshot?.task_type
+      if (tt === "shoot") { shootH += hrs; shootCount++; totalTasks++ }
+      else if (tt === "edit") { editH += hrs; editCount++; totalTasks++ }
+      else if (tt === "voiceover") { voiceoverH += hrs; voiceoverCount++; totalTasks++ }
+      else if (tt === "poster") { posterH += hrs; posterCount++; totalTasks++ }
+      else if (tt === "scripting") { scriptingH += hrs; scriptingCount++; totalTasks++ }
+      else if (tt === "development") { developmentH += hrs; developmentCount++; totalTasks++ }
+      else if (tt === "other_activity") { otherActivityH += hrs; totalTasks++ }
+      else { otherH += hrs; worklogCount++; totalTasks++ }
+    }
+
     // Also count clock-in dates in the selected month that have no daily_update record
     const updateDates = new Set(monthFiltered.map(u => u.date))
     const monthPrefix = selectedMonth
@@ -881,7 +908,7 @@ export default function HistoryClient({
     const avgDivisor = isFreelancerMedia ? daysSubmitted : presentDays
     const avgH = avgDivisor > 0 ? Math.round((workForAvg / avgDivisor) * 10) / 10 : 0
     return { totalHours, totalOT, totalTasks, presentDays, absentDays, leaveDays, holidayDays, totalLearning, totalBreak, travelH, shootH, editH, otherH, shootCount, editCount, worklogCount, voiceoverCount, voiceoverH, posterCount, posterH, scriptingH, scriptingCount, developmentH, developmentCount, otherActivityH, mediaWorkH, nonMediaWorkH, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity, daysSubmitted }
-  }, [filtered, attendanceDates, selectedMonth, monthFiltered, approvedLeaves, companyLeaves])
+  }, [filtered, attendanceDates, selectedMonth, monthFiltered, approvedLeaves, companyLeaves, collabConfirms])
 
   // Which work types this person has EVER logged (scoped to `updates`, i.e. this
   // calendar year — matches the page's own fetch window) — decides which summary
@@ -1495,7 +1522,7 @@ export default function HistoryClient({
                     {item.pus.map(pu => {
                       const submitter = members.find(m => m.id === pu.user_id)
                       const allEnt = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
-                      const puEntries = userId ? allEnt.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : []
+                      const puEntries = userId ? allEnt.filter(e => (Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) || (e.id && myConfirmedEntryIds.has(e.id))) : []
                       if (puEntries.length === 0) return null
                       return (
                         <div key={pu.id} style={{ padding:"12px 18px", borderTop:"1px dashed rgba(99,102,241,0.15)" }}>
@@ -1519,8 +1546,10 @@ export default function HistoryClient({
                             const showEnd   = entryConf?.confirmed_end_time   ?? pe.end_time
                             const dur = entryConf?.confirmed_hours ?? (calcDurationFromTimes(showStart, showEnd) ?? (pe.duration_hours ?? 0))
                             const loading = entryConf ? collabLoading === entryConf.id : false
+                            const isEditingConf = entryConf && collabEditId === entryConf.id
                             return (
-                              <div key={pi} style={{ display:"flex", gap:10, padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none", alignItems:"flex-start" }}>
+                              <div key={pi} style={{ padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none" }}>
+                              <div style={{ display:"flex", gap:10, alignItems:"flex-start" }}>
                                 <div style={{ width:30, height:30, borderRadius:8, background:cfg.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                                   <Icon size={13} style={{ color:cfg.color }}/>
                                 </div>
@@ -1539,19 +1568,43 @@ export default function HistoryClient({
                                   </div>
                                 </div>
                                 {entryConf && (
-                                  <button title="Remove yourself from this collaboration" disabled={loading}
-                                    onClick={async () => {
-                                      if (!(await confirm("Remove yourself from this confirmed collaboration? The submitter will be notified, and these hours will no longer count toward your total."))) return
-                                      setCollabLoading(entryConf.id)
-                                      const r = await rejectCollaboration(entryConf.id, "Removed after confirming — please recheck")
-                                      if (r.success) setCollabConfirms(prev => prev.filter(c => c.id !== entryConf.id))
-                                      else showToast(r.error ?? "Failed to remove. Try again.")
-                                      setCollabLoading(null)
-                                    }}
-                                    style={{ width: 26, height: 26, borderRadius: 7, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1, flexShrink: 0 }}>
-                                    <Trash2 size={11} style={{ color: "#EF4444" }}/>
-                                  </button>
+                                  <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                                    <button title="Edit your collaboration time"
+                                      onClick={() => { if (isEditingConf) { setCollabEditId(null) } else { setCollabEditId(entryConf.id); setCollabEditStart(entryConf.confirmed_start_time ?? entryConf.original_start_time ?? ""); setCollabEditEnd(entryConf.confirmed_end_time ?? entryConf.original_end_time ?? "") } }}
+                                      style={{ width: 26, height: 26, borderRadius: 7, background: isEditingConf ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                                      <Pencil size={11} style={{ color: "#6366F1" }}/>
+                                    </button>
+                                    <button title="Remove yourself from this collaboration" disabled={loading}
+                                      onClick={async () => {
+                                        if (!(await confirm("Remove yourself from this confirmed collaboration? The submitter will be notified, and these hours will no longer count toward your total."))) return
+                                        setCollabLoading(entryConf.id)
+                                        const r = await rejectCollaboration(entryConf.id, "Removed after confirming — please recheck")
+                                        if (r.success) setCollabConfirms(prev => prev.filter(c => c.id !== entryConf.id))
+                                        else showToast(r.error ?? "Failed to remove. Try again.")
+                                        setCollabLoading(null)
+                                      }}
+                                      style={{ width: 26, height: 26, borderRadius: 7, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
+                                      <Trash2 size={11} style={{ color: "#EF4444" }}/>
+                                    </button>
+                                  </div>
                                 )}
+                              </div>
+                              {isEditingConf && entryConf && (
+                                <div style={{ marginTop: 10, padding: "12px", borderRadius: 10, background: "rgba(99,102,241,0.06)", border: "1.5px solid rgba(99,102,241,0.2)" }}>
+                                  <p style={{ fontSize: 11, fontWeight: 700, color: "#6366F1", margin: "0 0 8px" }}>Edit Your Collaboration Time</p>
+                                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                                    <div><label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 3 }}>Your Start Time</label><input type="time" value={collabEditStart} onChange={e => setCollabEditStart(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#111111", outline: "none", background: "#fff", boxSizing: "border-box" }} /></div>
+                                    <div><label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 3 }}>Your End Time</label><input type="time" value={collabEditEnd} onChange={e => setCollabEditEnd(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#111111", outline: "none", background: "#fff", boxSizing: "border-box" }} /></div>
+                                  </div>
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <button onClick={() => setCollabEditId(null)} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#F3F4F6", color: "#6B7280", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}>Cancel</button>
+                                    <button disabled={loading} onClick={async () => { setCollabLoading(entryConf.id); const r = await editCollaborationTime(entryConf.id, collabEditStart, collabEditEnd); if (r.success) setCollabConfirms(prev => prev.map(c => c.id === entryConf.id ? { ...c, status: 'edited_confirmed' as const, confirmed_start_time: collabEditStart, confirmed_end_time: collabEditEnd } : c)); setCollabLoading(null); setCollabEditId(null) }}
+                                      style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#6366F1", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
+                                      {loading ? "Saving…" : "Save My Time"}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                               </div>
                             )
                           })}
@@ -1816,7 +1869,7 @@ export default function HistoryClient({
               const collabForDate = (participatedByDate.get(u.date) ?? []).flatMap(pu => {
                 const submitter = members.find(m => m.id === pu.user_id)
                 const allEnts = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
-                const puEnts = userId ? allEnts.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : []
+                const puEnts = userId ? allEnts.filter(e => (Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) || (e.id && myConfirmedEntryIds.has(e.id))) : []
                 return puEnts.map(entry => ({ type: 'collab' as const, entry, submitter, puId: pu.id }))
               })
               // Half day / permission / WFH / shoot-day leave — shown in its actual chronological

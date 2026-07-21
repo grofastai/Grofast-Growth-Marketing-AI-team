@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useMemo, useTransition } from "react"
+import { useState, useMemo, useEffect, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   IndianRupee, Plus, Trash2, Pencil,
   Car, Megaphone, Monitor, Building2,
   Receipt, Layers, CheckCircle2, AlertCircle,
-  ChevronRight, ChevronDown, Search, MoreVertical, TrendingUp, Users,
+  ChevronRight, ChevronDown, Search, MoreVertical, TrendingUp, Users, Copy, Loader2,
 } from "lucide-react"
 import { FlatCard } from "@/components/ui/FlatCard"
 import { SegmentedControl } from "@/components/ui/SegmentedControl"
@@ -19,6 +19,10 @@ import {
   deleteClientExpense,
   upsertCommonExpense,
   deleteCommonExpense,
+  getCommonExpensesForMonth,
+  copyCommonExpensesToMonth,
+  getClientExpensesForMonth,
+  copyClientExpensesToMonth,
 } from "@/lib/actions/client-expenses"
 import { setCommonExpenseParticipation } from "@/lib/actions/clients"
 import { todayIST } from "@/lib/utils/ist-date"
@@ -296,6 +300,146 @@ function CommonExpenseModalBody({ selectedMonth, overheadDivisor, editing, onClo
   )
 }
 
+// ── Copy Expenses Modal (shared by Client Direct + Common/Shared) ─────────────
+// Copies rows from a picked source month straight into the target month as a
+// starting point — amounts often drift month to month (fuel, filing fees), so
+// this deliberately doesn't try to be "smart" about what changed. The admin
+// edits each copied row afterward with the exact same pencil icon used for any
+// other row. No duplicate-detection on purpose — the admin already knows
+// what's been re-entered by hand for that month and owns catching that.
+type CopyKind = "common" | "client"
+type CopyRow = {
+  id: string
+  amount: number
+  // Common: name/notes. Client: client_name/date/type/shoot_title.
+  name?: string
+  client_name?: string
+  date?: string
+  type?: string
+  notes?: string | null
+  shoot_title?: string | null
+}
+
+function monthLabel(ym: string) {
+  const [y, m] = ym.split("-").map(Number)
+  return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+}
+function shiftMonth(ym: string, delta: number) {
+  const [y, m] = ym.split("-").map(Number)
+  const d = new Date(y, m - 1 + delta, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+}
+
+function CopyExpensesModalBody({ kind, targetMonth, onDone, onClose }: {
+  kind: CopyKind
+  targetMonth: string
+  onDone: () => void
+  onClose: () => void
+}) {
+  const [sourceMonth, setSourceMonth] = useState(shiftMonth(targetMonth, -1))
+  const [rows, setRows] = useState<CopyRow[]>([])
+  const [loadingRows, setLoadingRows] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [copying, setCopying] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState<number | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoadingRows(true); setError(null); setSelected(new Set())
+    const fetcher = kind === "common" ? getCommonExpensesForMonth(sourceMonth) : getClientExpensesForMonth(sourceMonth)
+    fetcher.then(data => {
+      if (cancelled) return
+      setRows(data as CopyRow[])
+      setLoadingRows(false)
+    })
+    return () => { cancelled = true }
+  }, [kind, sourceMonth])
+
+  function toggle(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  function toggleAll() {
+    setSelected(prev => prev.size === rows.length ? new Set() : new Set(rows.map(r => r.id)))
+  }
+
+  async function runCopy() {
+    setCopying(true); setError(null)
+    const ids = Array.from(selected)
+    const result = kind === "common"
+      ? await copyCommonExpensesToMonth(ids, targetMonth)
+      : await copyClientExpensesToMonth(ids, targetMonth)
+    setCopying(false)
+    if (!result.success) { setError(result.error ?? "Failed to copy."); return }
+    setDone(result.count ?? ids.length)
+    setTimeout(onDone, 1200)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6B1D3A" }}>Copy from</label>
+        <input type="month" value={sourceMonth} onChange={e => e.target.value && setSourceMonth(e.target.value)}
+          className="mt-1 w-full rounded-xl px-3 py-2.5 text-[13px] outline-none"
+          style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }} />
+        <p className="text-[11px] mt-1.5" style={{ color: "#8B5CF6" }}>
+          Copying into <b>{monthLabel(targetMonth)}</b>
+        </p>
+      </div>
+
+      {loadingRows ? (
+        <div className="flex justify-center py-8"><Loader2 className="animate-spin" size={20} style={{ color: "#8B5CF6" }} /></div>
+      ) : rows.length === 0 ? (
+        <p className="text-[13px] py-6 text-center" style={{ color: "#6B1D3A" }}>No expenses found for {monthLabel(sourceMonth)}.</p>
+      ) : (
+        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #E5E7EB" }}>
+          <div className="flex items-center justify-between px-3 py-2" style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
+            <label className="flex items-center gap-2 text-[11px] font-bold cursor-pointer" style={{ color: "#6B1D3A" }}>
+              <input type="checkbox" checked={selected.size === rows.length && rows.length > 0} onChange={toggleAll} />
+              Select all ({rows.length})
+            </label>
+            <span className="text-[11px] font-bold" style={{ color: "#8B5CF6" }}>{selected.size} selected</span>
+          </div>
+          <div style={{ maxHeight: 320, overflowY: "auto" }}>
+            {rows.map(r => (
+              <label key={r.id} className="flex items-center gap-3 px-3 py-2.5 cursor-pointer"
+                style={{ borderBottom: "1px solid #F5F5F5" }}>
+                <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] font-bold truncate" style={{ color: "#111111" }}>
+                    {kind === "common" ? r.name : r.client_name}
+                  </p>
+                  <p className="text-[10.5px] truncate" style={{ color: "#6B1D3A" }}>
+                    {kind === "common" ? (r.notes || "—") : `${fmtDate(r.date ?? "")}${r.shoot_title ? ` · ${r.shoot_title}` : ""}`}
+                  </p>
+                </div>
+                <span className="text-[12px] font-black whitespace-nowrap" style={{ color: "#111111" }}>{fmtRupee(r.amount)}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {error && <p className="text-[12px] font-semibold px-3 py-2 rounded-lg" style={{ background: "rgba(222,26,26,0.06)", color: "#DE1A1A" }}>{error}</p>}
+      {done !== null && <p className="text-[12px] font-semibold px-3 py-2 rounded-lg" style={{ background: "rgba(22,163,74,0.08)", color: "#16A34A" }}>✓ Copied {done} expense{done !== 1 ? "s" : ""} into {monthLabel(targetMonth)}</p>}
+
+      <div className="flex gap-3">
+        <button onClick={onClose} className="flex-1 py-3 rounded-xl text-[13px] font-bold" style={{ background: "#F3F4F6", color: "#6B7280" }}>Cancel</button>
+        <button onClick={runCopy} disabled={selected.size === 0 || copying}
+          className="flex-1 py-3 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50"
+          style={{ background: "linear-gradient(135deg,#8B5CF6,#6D28D9)" }}>
+          {copying ? <Loader2 size={14} className="animate-spin" /> : <Copy size={14} />}
+          Copy {selected.size > 0 ? selected.size : ""} to {monthLabel(targetMonth).split(" ")[0]}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Travel Tab ────────────────────────────────────────────────────────────────
 
 // Raised "3D" pill select — used centered in the Client Direct / Travel tab headers
@@ -459,6 +603,7 @@ export default function ExpensesClient({
 }) {
   const router = useRouter()
   const [modal, setModal]             = useState<"client" | "common" | null>(null)
+  const [copyModal, setCopyModal]     = useState<"client" | "common" | null>(null)
   const [editingClient, setEditClient] = useState<ClientExpense | null>(null)
   const [editingCommon, setEditCommon] = useState<CommonExpense | null>(null)
   const [isPending, start]             = useTransition()
@@ -797,7 +942,14 @@ export default function ExpensesClient({
                 <Receipt size={15} style={{ color: "#3B82F6" }} />
                 <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Client Direct</span>
               </div>
-              <HeaderClientFilter value={clientFilter} onChange={setClientFilter} options={directClientNames} />
+              <div className="flex items-center gap-2">
+                <button onClick={() => setCopyModal("client")}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold whitespace-nowrap"
+                  style={{ background: "rgba(139,92,246,0.08)", color: "#8B5CF6", border: "1px solid rgba(139,92,246,0.2)" }}>
+                  <Copy size={12} /> Copy Expenses
+                </button>
+                <HeaderClientFilter value={clientFilter} onChange={setClientFilter} options={directClientNames} />
+              </div>
             </div>
             {filteredClientExpenses.length === 0 ? (
               <div className="flex flex-col items-center py-12">
@@ -870,6 +1022,12 @@ export default function ExpensesClient({
                 <Layers size={15} style={{ color: "#8B5CF6" }} />
                 <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#8B5CF6" }}>Common / Shared</span>
               </div>
+              <div className="flex items-center gap-2">
+              <button onClick={() => setCopyModal("common")}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold whitespace-nowrap"
+                style={{ background: "rgba(139,92,246,0.08)", color: "#8B5CF6", border: "1px solid rgba(139,92,246,0.2)" }}>
+                <Copy size={12} /> Copy Expenses
+              </button>
               <button onClick={() => setShowParticipation(true)}
                 className="flex items-center gap-2 transition-all duration-100 active:translate-y-[3px] shadow-[0_4px_0_#6D28D9] active:shadow-[0_0px_0_#6D28D9] hover:brightness-105"
                 style={{
@@ -885,6 +1043,7 @@ export default function ExpensesClient({
                   {includedNames.size}/{commonParticipation.length}
                 </span>
               </button>
+              </div>
             </div>
             {commonExpenses.length === 0 ? (
               <div className="flex flex-col items-center py-12">
@@ -1074,6 +1233,23 @@ export default function ExpensesClient({
             overheadDivisor={overheadDivisor}
             editing={editingCommon ?? undefined}
             onClose={() => { setModal(null); setEditCommon(null) }}
+          />
+        )}
+      </DrawerPanel>
+
+      {/* Copy Expenses drawer — Client Direct or Common/Shared, picked by which
+          "Copy Expenses" button opened it */}
+      <DrawerPanel
+        open={copyModal !== null}
+        onClose={() => setCopyModal(null)}
+        header={<span className="text-[14px] font-black" style={{ color: "#111111" }}>Copy Expenses — {copyModal === "common" ? "Common / Shared" : "Client Direct"}</span>}
+      >
+        {copyModal && (
+          <CopyExpensesModalBody
+            kind={copyModal}
+            targetMonth={selectedMonth}
+            onClose={() => setCopyModal(null)}
+            onDone={() => { setCopyModal(null); router.refresh() }}
           />
         )}
       </DrawerPanel>

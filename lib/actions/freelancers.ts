@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import { logFreelancerActivity } from "./freelancer-activity"
 import { normalizePhone } from "@/lib/utils/phone"
 import { todayIST } from "@/lib/utils/ist-date"
+import { setFreelancerPositions } from "./positions"
 
 function adminClient() {
   return createClient(
@@ -13,6 +14,15 @@ function adminClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
+}
+
+// Teams are now an admin-managed table (see 104_teams_positions_tables.sql) —
+// resolves the matching row so team_id can be dual-written alongside the
+// legacy `team` text column until the rest of the app reads team_id directly.
+async function resolveTeamId(admin: ReturnType<typeof adminClient>, companyId: string, teamName: string | null | undefined): Promise<string | null> {
+  if (!teamName) return null
+  const { data } = await admin.from("teams").select("id").eq("company_id", companyId).eq("name", teamName).maybeSingle()
+  return (data as { id: string } | null)?.id ?? null
 }
 
 async function getCompanyId(): Promise<string | null> {
@@ -53,6 +63,7 @@ export type FreelancerInput = {
   title?: string
   team?: string
   position?: string
+  positionIds?: string[]
   email?: string
   date_of_birth?: string | null
   joined_at?: string | null
@@ -128,11 +139,14 @@ export async function createFreelancer(input: FreelancerInput): Promise<{ succes
     if (dup) return { success: false, error: `This phone number is already used by "${dup.name}".` }
   }
 
+  const team_id = await resolveTeamId(admin, companyId, input.team)
+
   const { data, error } = await admin.from("freelancers").insert({
     company_id: companyId,
     name: input.name,
     type: input.type,
     team: input.team || null,
+    team_id,
     position: input.position || null,
     email: input.email || null,
     date_of_birth: input.date_of_birth || null,
@@ -159,6 +173,7 @@ export async function createFreelancer(input: FreelancerInput): Promise<{ succes
     // Always include the creating user in assignments so they see it on their page
     const allAssignees = [...new Set([...(input.assignedMemberIds ?? []), userId])]
     await saveAssignments(admin, data.id, allAssignees, companyId)
+    if (input.positionIds) await setFreelancerPositions(data.id, input.positionIds)
   }
   revalidatePath("/admin/freelancers")
   revalidatePath("/admin/team")
@@ -184,10 +199,13 @@ export async function updateFreelancer(id: string, input: FreelancerInput): Prom
     if (dup) return { success: false, error: `This phone number is already used by "${dup.name}".` }
   }
 
+  const team_id = await resolveTeamId(admin, companyId, input.team)
+
   const { error } = await admin.from("freelancers").update({
     name: input.name,
     type: input.type,
     team: input.team || null,
+    team_id,
     phone: input.phone || null,
     upi_id: input.upi_id || null,
     gender: input.gender || null,
@@ -209,6 +227,7 @@ export async function updateFreelancer(id: string, input: FreelancerInput): Prom
   if (input.assignedMemberIds !== undefined) {
     await saveAssignments(admin, id, input.assignedMemberIds, companyId)
   }
+  if (input.positionIds) await setFreelancerPositions(id, input.positionIds)
   revalidatePath("/admin/freelancers")
   revalidatePath("/admin/team")
   revalidatePath("/member/freelancers")

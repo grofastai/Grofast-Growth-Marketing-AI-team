@@ -177,7 +177,8 @@ type CreateTrackerShootInput = {
   title: string
   shoot_type: 'ads_shoot' | 'branding_shoot'
   shot_date: string
-  shot_time: string
+  shot_time_from: string
+  shot_time_to: string
   notes?: string
 }
 
@@ -195,14 +196,16 @@ export async function createTrackerShoot(
   if (!input.title.trim()) return { success: false, error: 'Shoot title is required' }
   if (!input.shoot_type) return { success: false, error: 'Shoot type is required' }
   if (!input.shot_date) return { success: false, error: 'Shot date is required' }
-  if (!input.shot_time) return { success: false, error: 'Shot time is required' }
+  if (!input.shot_time_from) return { success: false, error: 'From time is required' }
+  if (!input.shot_time_to) return { success: false, error: 'To time is required' }
 
   const company_id = await getCompanyId(user.id)
   if (!company_id) return { success: false, error: 'Profile not found' }
 
   const admin = adminSupabase()
-  const start_time = `${input.shot_date}T${input.shot_time}:00+05:30`
-  const end_time = new Date(new Date(start_time).getTime() + 2 * 60 * 60 * 1000).toISOString()
+  const start_time = `${input.shot_date}T${input.shot_time_from}:00+05:30`
+  const end_time = `${input.shot_date}T${input.shot_time_to}:00+05:30`
+  if (start_time >= end_time) return { success: false, error: 'To time must be after From time' }
 
   const { data: shoot, error } = await admin.from('shoots').insert({
     company_id,
@@ -342,7 +345,7 @@ export async function completeShootWithTitles(
 // "edit details" action silently undo a completion.
 export async function updateTrackerShoot(
   shootId: string,
-  input: { client: string; title: string; shoot_type?: 'ads_shoot' | 'branding_shoot'; shot_date: string; shot_time: string; notes?: string }
+  input: { client: string; title: string; shoot_type?: 'ads_shoot' | 'branding_shoot'; shot_date: string; shot_time_from: string; shot_time_to: string; notes?: string }
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -351,11 +354,13 @@ export async function updateTrackerShoot(
   if (!input.client.trim()) return { success: false, error: 'Client is required' }
   if (!input.title.trim()) return { success: false, error: 'Shoot title is required' }
   if (!input.shot_date) return { success: false, error: 'Shot date is required' }
-  if (!input.shot_time) return { success: false, error: 'Shot time is required' }
+  if (!input.shot_time_from) return { success: false, error: 'From time is required' }
+  if (!input.shot_time_to) return { success: false, error: 'To time is required' }
 
   const admin = adminSupabase()
-  const start_time = `${input.shot_date}T${input.shot_time}:00+05:30`
-  const end_time = new Date(new Date(start_time).getTime() + 2 * 60 * 60 * 1000).toISOString()
+  const start_time = `${input.shot_date}T${input.shot_time_from}:00+05:30`
+  const end_time = `${input.shot_date}T${input.shot_time_to}:00+05:30`
+  if (start_time >= end_time) return { success: false, error: 'To time must be after From time' }
 
   const { error } = await admin.from('shoots').update({
     client: input.client.trim(),
@@ -395,11 +400,11 @@ export async function updateShootCrew(
   return { success: true }
 }
 
-// Spins a real shoot off an Ads Video item that's in Voice Over — e.g. the client wants
-// to speak the script on camera instead of using a recorded voice-over. The linked
-// content_item stays at "voiceover" until this shoot is actually completed (see
-// completeShootWithTitles/updateShootStatus), so nothing lands in Ready to Edit with no
-// footage yet.
+// Spins a real shoot off an Ads Video item that's still in Scripting — e.g. the client
+// wants to speak the script on camera instead of using a recorded voice-over, so there's
+// no need to record one at all. The linked content_item stays at "scripting" until this
+// shoot is actually completed (see completeShootWithTitles/updateShootStatus), so nothing
+// lands in Ready to Edit with no footage yet.
 export async function moveScriptToShoot(
   input: MoveScriptToShootInput
 ): Promise<{ success: boolean; error?: string; shootId?: string }> {
@@ -416,10 +421,11 @@ export async function moveScriptToShoot(
     .eq('id', parsed.data.content_item_id)
     .single()
   if (!item) return { success: false, error: 'Content item not found' }
-  if (item.status !== 'voiceover') return { success: false, error: 'Only items in Voice Over can be moved to a shoot' }
+  if (item.status !== 'scripting') return { success: false, error: 'Only items in Scripting can be moved to a shoot' }
 
-  const start_time = `${parsed.data.shot_date}T${parsed.data.shot_time}:00+05:30`
-  const end_time = new Date(new Date(start_time).getTime() + 2 * 60 * 60 * 1000).toISOString()
+  const start_time = `${parsed.data.shot_date}T${parsed.data.shot_time_from}:00+05:30`
+  const end_time = `${parsed.data.shot_date}T${parsed.data.shot_time_to}:00+05:30`
+  if (start_time >= end_time) return { success: false, error: 'To time must be after From time' }
 
   const { data: shoot, error } = await admin.from('shoots').insert({
     company_id: item.company_id,

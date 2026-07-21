@@ -33,6 +33,10 @@ describe('isValidPipelineTransition', () => {
     expect(isValidPipelineTransition('ready_to_edit', 'cancelled')).toBe(true)
     expect(isValidPipelineTransition('design', 'cancelled')).toBe(true)
   })
+  it('allows cancelling an Ads Video script before it reaches a shoot or edit', () => {
+    expect(isValidPipelineTransition('scripting', 'cancelled')).toBe(true)
+    expect(isValidPipelineTransition('voiceover', 'cancelled')).toBe(true)
+  })
   it('rejects cancelling from any other stage', () => {
     expect(isValidPipelineTransition('edited', 'cancelled')).toBe(false)
     expect(isValidPipelineTransition('on_review', 'cancelled')).toBe(false)

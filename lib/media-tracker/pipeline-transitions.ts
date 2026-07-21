@@ -9,8 +9,10 @@ export type ContentPipelineStatus =
 export type ContentSource = 'shoot' | 'ads_video' | 'poster'
 
 const TRANSITIONS: Record<ContentPipelineStatus, ContentPipelineStatus[]> = {
-  scripting: ['voiceover'],
-  voiceover: ['ready_to_edit'],
+  // A script (or its voice-over) can turn out unusable — client pulls the ask, wrong
+  // direction — before it ever reaches a shoot or edit, same as footage/a design can.
+  scripting: ['voiceover', 'cancelled'],
+  voiceover: ['ready_to_edit', 'cancelled'],
   // Editing is no longer a tracked stage — an item goes straight from its entry point
   // (Ready to Edit for video, Design for posters) to Edited, with the editor recorded
   // at that point instead of at a separate "starting the edit" step.

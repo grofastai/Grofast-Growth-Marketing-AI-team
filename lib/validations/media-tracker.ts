@@ -125,13 +125,14 @@ export const updateAdsVideoScriptSchema = z.object({
 })
 export type UpdateAdsVideoScriptInput = z.infer<typeof updateAdsVideoScriptSchema>
 
-// Spinning a real shoot off an Ads Video item that's in Voice Over — e.g. the client
+// Spinning a real shoot off an Ads Video item that's still in Scripting — e.g. the client
 // wants to speak the script on camera instead of using a recorded voice-over.
 export const moveScriptToShootSchema = z.object({
   content_item_id: z.string().uuid(),
   shoot_type:       z.enum(SHOOT_TYPES),
   shot_date:        z.string().min(1, 'Shot date is required'),
-  shot_time:        z.string().min(1, 'Shot time is required'),
+  shot_time_from:   z.string().min(1, 'From time is required'),
+  shot_time_to:     z.string().min(1, 'To time is required'),
   notes:            z.string().optional(),
 })
 export type MoveScriptToShootInput = z.infer<typeof moveScriptToShootSchema>

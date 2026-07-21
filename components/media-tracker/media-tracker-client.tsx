@@ -737,6 +737,9 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete, onMo
 }) {
   const cardMenu: CardMenuItem[] = [
     { label: "Edit details", icon: Pencil, onClick: () => onEdit(item) },
+    // A script/voice-over can turn out unusable before it ever reaches a shoot or edit —
+    // kept as a record instead of deleted outright, same as Ready to Edit/Design.
+    { label: "Cancel", icon: XCircle, onClick: () => onAdvance(item, "cancelled"), danger: true },
     { label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true },
   ]
   const next = NEXT_STATUS[item.status]
@@ -817,7 +820,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete, onMo
           {item.status === "voiceover" ? <>Send to Ready to Edit <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
         </button>
       )}
-      {item.status === "voiceover" && (
+      {item.status === "scripting" && (
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onMoveToShoot(item)}
@@ -1434,7 +1437,6 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
         <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "10px 12px", borderRadius: 10, background: alreadyPosted ? "rgba(34,197,94,0.06)" : "#F9FAFB", border: `1.5px solid ${alreadyPosted ? "rgba(34,197,94,0.3)" : "#E5E7EB"}` }}>
           <input type="checkbox" checked={alreadyPosted} onChange={e => setAlreadyPosted(e.target.checked)} style={{ width: 15, height: 15, accentColor: "#22C55E" }} />
           <span style={{ fontSize: 12, fontWeight: 700, color: alreadyPosted ? "#16A34A" : "#374151" }}>Already posted</span>
-          <span style={{ fontSize: 10, color: "#374151", fontWeight: 600 }}>— skip the pipeline, log it straight as Posted</span>
         </label>
 
         {alreadyPosted && (
@@ -1753,15 +1755,21 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
 }
 
 // ── Add Platform Post modal ──────────────────────────────────────────────────
-function AddPlatformModal({ item, members, currentUserId, onClose, onAdded }: {
-  item: ContentItem; members: Member[]; currentUserId: string
+function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded }: {
+  item: ContentItem; kind: "branding" | "ads"; members: Member[]; currentUserId: string
   onClose: () => void; onAdded: (posts: ContentPost[]) => void
 }) {
   const already = useMemo(() => new Set(item.posts.map(p => p.platform)), [item.posts])
+  // "Mark as Posted" only offers organic platforms, "Mark as Ads" only offers the ad
+  // destinations — matches which of posted_branding/posted_ads this ends up counted under.
+  const selectablePlatforms = useMemo(
+    () => (Object.keys(PLATFORM_CFG) as Platform[]).filter(p => kind === "ads" ? ADS_PLATFORM_SET.has(p) : !ADS_PLATFORM_SET.has(p)),
+    [kind]
+  )
   // Prefill from what was scheduled at "Ready to Post" — you already picked the platforms
   // and date then, so don't make anyone pick them twice. Still editable in case it changed.
   const [platforms, setPlatforms] = useState<Platform[]>(
-    () => (item.ready_platforms ?? []).filter(p => !already.has(p))
+    () => (item.ready_platforms ?? []).filter(p => !already.has(p) && selectablePlatforms.includes(p))
   )
   const [postedDate, setPostedDate] = useState(
     item.scheduled_post_date || todayIST()
@@ -1804,12 +1812,12 @@ function AddPlatformModal({ item, members, currentUserId, onClose, onAdded }: {
   }
 
   return (
-    <Modal title={`Post "${item.title}"`} onClose={onClose}>
+    <Modal title={kind === "ads" ? `Mark "${item.title}" as Ads` : `Post "${item.title}"`} onClose={onClose}>
       <div className="flex flex-col gap-3">
         <div>
           <label style={LABEL}>Platforms * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
+            {selectablePlatforms.map(p => {
               const cfg = PLATFORM_CFG[p]
               const Icon = cfg.icon
               const done = already.has(p)
@@ -1848,7 +1856,7 @@ function AddPlatformModal({ item, members, currentUserId, onClose, onAdded }: {
         </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>
-          {saving ? "Saving…" : `Confirm Posted${platforms.length > 0 ? ` (${platforms.length})` : ""}`}
+          {saving ? "Saving…" : `${kind === "ads" ? "Confirm Ads" : "Confirm Posted"}${platforms.length > 0 ? ` (${platforms.length})` : ""}`}
         </PrimaryButton>
       </div>
     </Modal>
@@ -2069,7 +2077,8 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   const [title, setTitle] = useState("")
   const [shootType, setShootType] = useState<ShootType | "">("")
   const [shotDate, setShotDate] = useState(todayIST())
-  const [shotTime, setShotTime] = useState("")
+  const [fromTime, setFromTime] = useState("")
+  const [toTime, setToTime] = useState("")
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -2078,10 +2087,12 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
     if (!client) { setError("Client is required"); return }
     if (!title.trim()) { setError("Shoot title is required"); return }
     if (!shootType) { setError("Shoot type is required"); return }
-    if (!shotTime) { setError("Shot time is required"); return }
+    if (!fromTime) { setError("From time is required"); return }
+    if (!toTime) { setError("To time is required"); return }
     setSaving(true); setError(null)
     const res = await createTrackerShoot({
-      client, title: title.trim(), shoot_type: shootType, shot_date: shotDate, shot_time: shotTime, notes: notes.trim() || undefined,
+      client, title: title.trim(), shoot_type: shootType, shot_date: shotDate,
+      shot_time_from: fromTime, shot_time_to: toTime, notes: notes.trim() || undefined,
     })
     setSaving(false)
     if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
@@ -2089,8 +2100,8 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
       id: res.id,
       client,
       legacyTitle: title.trim(),
-      start_time: `${shotDate}T${shotTime}:00`,
-      end_time: null,
+      start_time: `${shotDate}T${fromTime}:00`,
+      end_time: `${shotDate}T${toTime}:00`,
       created_at: new Date().toISOString(),
       notes: notes.trim() || null,
       status: "scheduled",
@@ -2109,9 +2120,6 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
           <label style={LABEL}>Shoot Title *</label>
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)}
             placeholder="e.g. SKB Silks Diwali Shoot" />
-          <p className="text-[10px]" style={{ color: "#6B7280", margin: "5px 0 0" }}>
-            The video titles are captured later, when you mark the shoot Done.
-          </p>
         </div>
         <div>
           <label style={LABEL}>Shoot Type *</label>
@@ -2128,14 +2136,18 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
             })}
           </div>
         </div>
+        <div>
+          <label style={LABEL}>Shot Date *</label>
+          <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
-            <label style={LABEL}>Shot Date *</label>
-            <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+            <label style={LABEL}>From Time *</label>
+            <input type="time" style={FIELD} value={fromTime} onChange={e => setFromTime(e.target.value)} />
           </div>
           <div>
-            <label style={LABEL}>Time *</label>
-            <input type="time" style={FIELD} value={shotTime} onChange={e => setShotTime(e.target.value)} />
+            <label style={LABEL}>To Time *</label>
+            <input type="time" style={FIELD} value={toTime} onChange={e => setToTime(e.target.value)} />
           </div>
         </div>
         <div>
@@ -2238,10 +2250,6 @@ function ReadyToPostModal({ item, onClose, onScheduled }: {
   return (
     <Modal title="Ready to Post" onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-          <strong style={{ color: "#111827" }}>{item.title}</strong> — where and when is this going out?
-          It&apos;ll queue up on the Posted tab until you mark it Posted.
-        </p>
         <div>
           <label style={LABEL}>Platforms * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -2371,8 +2379,8 @@ function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
   )
 }
 
-// ── Move to Shoot modal — spins a real shoot off a Voice Over item, e.g. when the
-// client wants to speak the script on camera instead of using a recorded voice-over ──
+// ── Move to Shoot modal — spins a real shoot off a Scripting item, e.g. when the
+// client wants to speak the script on camera instead of recording a voice-over at all ──
 function MoveToShootModal({ item, onClose, onMoved }: {
   item: ContentItem
   onClose: () => void
@@ -2380,17 +2388,20 @@ function MoveToShootModal({ item, onClose, onMoved }: {
 }) {
   const [shootType, setShootType] = useState<ShootType | "">("")
   const [shotDate, setShotDate] = useState(todayIST())
-  const [shotTime, setShotTime] = useState("")
+  const [fromTime, setFromTime] = useState("")
+  const [toTime, setToTime] = useState("")
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function submit() {
     if (!shootType) { setError("Shoot type is required"); return }
-    if (!shotTime) { setError("Shot time is required"); return }
+    if (!fromTime) { setError("From time is required"); return }
+    if (!toTime) { setError("To time is required"); return }
     setSaving(true); setError(null)
     const res = await moveScriptToShoot({
-      content_item_id: item.id, shoot_type: shootType, shot_date: shotDate, shot_time: shotTime, notes: notes.trim() || undefined,
+      content_item_id: item.id, shoot_type: shootType, shot_date: shotDate,
+      shot_time_from: fromTime, shot_time_to: toTime, notes: notes.trim() || undefined,
     })
     setSaving(false)
     if (!res.success || !res.shootId) { setError(res.error ?? "Failed to save"); return }
@@ -2398,8 +2409,8 @@ function MoveToShootModal({ item, onClose, onMoved }: {
       id: res.shootId,
       client: item.client_name,
       legacyTitle: item.title,
-      start_time: `${shotDate}T${shotTime}:00`,
-      end_time: null,
+      start_time: `${shotDate}T${fromTime}:00`,
+      end_time: `${shotDate}T${toTime}:00`,
       created_at: new Date().toISOString(),
       notes: notes.trim() || null,
       status: "scheduled",
@@ -2415,7 +2426,7 @@ function MoveToShootModal({ item, onClose, onMoved }: {
       <div className="flex flex-col gap-3">
         <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
           <strong style={{ color: "#111827" }}>{item.title}</strong> needs to be shot instead of voiced over. This schedules
-          a real shoot — it'll show up on the Shoots board too. The script stays in Voice Over until the shoot is marked Done.
+          a real shoot — it'll show up on the Shoots board too. The script stays in Scripting until the shoot is marked Done.
         </p>
         <div>
           <label style={LABEL}>Shoot Type *</label>
@@ -2432,14 +2443,18 @@ function MoveToShootModal({ item, onClose, onMoved }: {
             })}
           </div>
         </div>
+        <div>
+          <label style={LABEL}>Shot Date *</label>
+          <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
-            <label style={LABEL}>Shot Date *</label>
-            <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+            <label style={LABEL}>From Time *</label>
+            <input type="time" style={FIELD} value={fromTime} onChange={e => setFromTime(e.target.value)} />
           </div>
           <div>
-            <label style={LABEL}>Time *</label>
-            <input type="time" style={FIELD} value={shotTime} onChange={e => setShotTime(e.target.value)} />
+            <label style={LABEL}>To Time *</label>
+            <input type="time" style={FIELD} value={toTime} onChange={e => setToTime(e.target.value)} />
           </div>
         </div>
         <div>
@@ -2644,8 +2659,12 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
   const [title, setTitle] = useState(shoot.legacyTitle)
   const [shootType, setShootType] = useState<ShootType | "">(shoot.shoot_type ?? "")
   const [shotDate, setShotDate] = useState(shoot.start_time.split("T")[0])
-  const [shotTime, setShotTime] = useState(() => {
+  const [fromTime, setFromTime] = useState(() => {
     const t = shoot.start_time.split("T")[1]
+    return t ? t.slice(0, 5) : ""
+  })
+  const [toTime, setToTime] = useState(() => {
+    const t = shoot.end_time?.split("T")[1]
     return t ? t.slice(0, 5) : ""
   })
   const [notes, setNotes] = useState(shoot.notes ?? "")
@@ -2655,18 +2674,19 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
   async function submit() {
     if (!client) { setError("Client is required"); return }
     if (!title.trim()) { setError("Shoot title is required"); return }
-    if (!shotTime) { setError("Shot time is required"); return }
+    if (!fromTime) { setError("From time is required"); return }
+    if (!toTime) { setError("To time is required"); return }
     setSaving(true); setError(null)
     const res = await updateTrackerShoot(shoot.id, {
       client, title: title.trim(), shoot_type: shootType || undefined, shot_date: shotDate,
-      shot_time: shotTime, notes: notes.trim() || undefined,
+      shot_time_from: fromTime, shot_time_to: toTime, notes: notes.trim() || undefined,
     })
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to save"); return }
     onSaved({
       client,
       legacyTitle: title.trim(),
-      start_time: `${shotDate}T${shotTime}:00`,
+      start_time: `${shotDate}T${fromTime}:00`,
       notes: notes.trim() || null,
     })
   }
@@ -2694,14 +2714,18 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
             })}
           </div>
         </div>
+        <div>
+          <label style={LABEL}>Shot Date *</label>
+          <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
-            <label style={LABEL}>Shot Date *</label>
-            <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+            <label style={LABEL}>From Time *</label>
+            <input type="time" style={FIELD} value={fromTime} onChange={e => setFromTime(e.target.value)} />
           </div>
           <div>
-            <label style={LABEL}>Time *</label>
-            <input type="time" style={FIELD} value={shotTime} onChange={e => setShotTime(e.target.value)} />
+            <label style={LABEL}>To Time *</label>
+            <input type="time" style={FIELD} value={toTime} onChange={e => setToTime(e.target.value)} />
           </div>
         </div>
         <div>
@@ -2834,7 +2858,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   // Top-level mode (Video / Poster / Ads) with sub-tabs beneath it. Posters aren't shot,
   // so the Shoots sub-tab only exists in Video mode.
   const [mode, setMode] = useState<TrackerMode>("overview")
-  const [subTab, setSubTab] = useState<"shoots" | "adsvideo" | "pipeline" | "log">("shoots")
+  const [subTab, setSubTab] = useState<"shoots" | "adsvideo" | "pipeline" | "log" | "adlog">("shoots")
   // Derived rather than reset via an effect — avoids a cascading-render setState-in-effect.
   // Posters have neither Shoots nor Ads Video, so both fall back to Pipeline.
   const tab = mode === "poster" && (subTab === "shoots" || subTab === "adsvideo") ? "pipeline" : subTab
@@ -2848,6 +2872,9 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const [overCol, setOverCol] = useState<string | null>(null)
   const [showNewContent, setShowNewContent] = useState(false)
   const [platformModalItem, setPlatformModalItem] = useState<ContentItem | null>(null)
+  // Which button opened the platform picker — filters which platforms it offers and which
+  // flag (posted_branding vs posted_ads) the resulting post ends up counted under.
+  const [platformModalKind, setPlatformModalKind] = useState<"branding" | "ads">("branding")
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null)
   const [showNewAd, setShowNewAd] = useState(false)
   const [revisionModalAd, setRevisionModalAd] = useState<Ad | null>(null)
@@ -2969,7 +2996,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   function adsVideoColItems(status: ContentStatus) { return adsVideoItems.filter(i => i.status === status) }
 
   function advance(item: ContentItem, next: ContentStatus) {
-    if (next === "posted") { setPlatformModalItem(item); return }
+    if (next === "posted") { setPlatformModalKind("branding"); setPlatformModalItem(item); return }
     // Ready to Post asks where and when it's going out — used both for the normal forward
     // path and for approving out of On Review.
     if (next === "ready_to_post") { setReadyToPostItem(item); return }
@@ -3130,7 +3157,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         ? [{ key: "adsvideo", label: "Ads Video", icon: Sparkles, count: activeAdsVideo.length }]
         : []),
       { key: "pipeline", label: "Ready to Edit", icon: Layers, count: ofMode.filter(i => pipelineOrder.includes(i.status) && i.status !== "cancelled").length },
-      { key: "log", label: "Posted", icon: History, count: ofMode.filter(i => i.status === "posted").length },
+      { key: "log", label: "Branding", icon: History, count: ofMode.filter(i => i.posted_branding).length },
+      { key: "adlog", label: "Advertisement", icon: Megaphone, count: ofMode.filter(i => i.posted_ads).length },
     ]
   }, [mode, items, shoots, contentTypeForMode, pipelineOrder])
 
@@ -3143,30 +3171,39 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     return { readyToEdit, edited, readyToPost, posted, totalPosts }
   }, [items])
 
-  // The "what's due next" queue — items scheduled into Ready to Post, soonest first.
+  // Branding and Advertisement are the same board shape, split by which of the two
+  // independent flags they track — Branding tab -&gt; posted_branding, Advertisement tab -&gt;
+  // posted_ads. An item can appear in BOTH tabs' "ready" queue at once (e.g. branding-posted
+  // already but still awaiting its ads post).
+  const logKind: "branding" | "ads" = tab === "adlog" ? "ads" : "branding"
+  const isDoneForKind = (i: ContentItem) => logKind === "branding" ? i.posted_branding : i.posted_ads
+
+  // The "what's due next" queue — items scheduled into Ready to Post (or already posted the
+  // OTHER kind), soonest first, that still need THIS kind's post.
   const readyQueue = useMemo(
     () => items
-      .filter(i => i.status === "ready_to_post" && i.content_type === contentTypeForMode && i.scheduled_post_date)
+      .filter(i => (i.status === "ready_to_post" || i.status === "posted") && !isDoneForKind(i)
+        && i.content_type === contentTypeForMode && i.scheduled_post_date)
       .sort((a, b) => {
         const byDate = (a.scheduled_post_date ?? "").localeCompare(b.scheduled_post_date ?? "")
         if (byDate !== 0) return byDate
         // No time set sorts last within the day — a specific slot is more urgent than "sometime".
         return (a.scheduled_post_time ?? "99:99").localeCompare(b.scheduled_post_time ?? "99:99")
       }),
-    [items, contentTypeForMode]
+    [items, contentTypeForMode, logKind]
   )
 
   // Posting log — one row per content item (not per platform); platforms shown as badges within the row
   const postedItems = useMemo(
-    () => items.filter(i => i.posts.length > 0 && i.content_type === contentTypeForMode),
-    [items, contentTypeForMode]
+    () => items.filter(i => isDoneForKind(i) && i.content_type === contentTypeForMode),
+    [items, contentTypeForMode, logKind]
   )
   const logClientOptions = allClientOptions
   const logMonthOptions = allMonthOptions
 
-  // Per-client KPI strip: Posted / Unposted (edited, awaiting a platform) / Unedited (not yet edited)
-  // — bucketed by whichever date is relevant to that item's current stage, so "All Time" vs a
-  // specific month both mean something for items that haven't reached posting yet.
+  // Per-client KPI strip: Posted / Unposted (edited, awaiting THIS kind's post) / Unedited (not yet
+  // edited) — bucketed by whichever date is relevant to that item's current stage, so "All Time"
+  // vs a specific month both mean something for items that haven't reached posting yet.
   const clientKPIs = useMemo(() => {
     const inMonth = (d: string | null) => logMonthFilter === "all" || (!!d && d.slice(0, 7) === logMonthFilter)
     const map = new Map<string, { posted: number; unposted: number; unedited: number }>()
@@ -3175,10 +3212,11 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       if (item.status === "cancelled") continue
       if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0 })
       const rec = map.get(item.client_name)!
-      if (item.status === "posted") {
-        if (logMonthFilter === "all" || item.posts.some(p => p.posted_date.slice(0, 7) === logMonthFilter)) rec.posted++
-      } else if (item.status === "edited") {
-        if (inMonth(item.edited_date)) rec.unposted++
+      if (isDoneForKind(item)) {
+        const relevant = item.posts.filter(p => logKind === "ads" ? ADS_PLATFORM_SET.has(p.platform) : !ADS_PLATFORM_SET.has(p.platform))
+        if (logMonthFilter === "all" || relevant.some(p => p.posted_date.slice(0, 7) === logMonthFilter)) rec.posted++
+      } else if (item.status === "posted" || item.status === "edited") {
+        if (inMonth(item.edited_date ?? item.scheduled_post_date)) rec.unposted++
       } else {
         if (inMonth(item.shot_date)) rec.unedited++
       }
@@ -3187,7 +3225,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       .map(([client, v]) => ({ client, ...v, total: v.posted + v.unposted + v.unedited }))
       .filter(r => r.total > 0)
       .sort((a, b) => b.total - a.total)
-  }, [items, logMonthFilter, contentTypeForMode])
+  }, [items, logMonthFilter, contentTypeForMode, logKind])
 
   const logRows = useMemo(() => {
     let rows = postedItems
@@ -3566,7 +3604,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             {colItems(activeMobileCol).length === 0 ? (
               <KanbanEmptyCell isOver={false} />
             ) : colItems(activeMobileCol).map(item => (
-              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
+              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={item => { setPlatformModalKind("branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
             ))}
           </div>
 
@@ -3583,7 +3621,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                         {list.length === 0 ? (
                           <KanbanEmptyCell isOver={overCol === status} />
                         ) : list.map(item => (
-                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={setPlatformModalItem} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
+                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={item => { setPlatformModalKind("branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
                         ))}
                       </div>
                     </DroppableColumn>
@@ -3668,9 +3706,9 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         </div>
       )}
 
-      {(mode === "video" || mode === "poster") && tab === "log" && (
+      {(mode === "video" || mode === "poster") && (tab === "log" || tab === "adlog") && (
         <div className="flex flex-col gap-4">
-          {/* Upcoming queue — what's scheduled but hasn't gone out yet, soonest first. */}
+          {/* Upcoming queue — what's scheduled but hasn't gone out yet for THIS kind, soonest first. */}
           {readyQueue.length > 0 && (
             <div style={{ background: "#fff", border: "1px solid #BAE6FD", borderRadius: 18, overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6", background: "rgba(14,165,233,0.05)" }}>
@@ -3703,10 +3741,15 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                           </span>
                         )
                       })}
-                      <button onClick={() => setPlatformModalItem(item)}
+                      <button onClick={() => { setPlatformModalKind("branding"); setPlatformModalItem(item) }}
                         className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
                         style={{ border: "none", background: "rgba(34,197,94,0.1)", color: "#16A34A", cursor: "pointer" }}>
-                        Mark Posted
+                        Mark as Posted
+                      </button>
+                      <button onClick={() => { setPlatformModalKind("ads"); setPlatformModalItem(item) }}
+                        className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                        style={{ border: "none", background: "rgba(217,119,6,0.1)", color: "#D97706", cursor: "pointer" }}>
+                        Mark as Ads
                       </button>
                     </div>
                   </div>
@@ -3717,7 +3760,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
 
           <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs — {logKind === "ads" ? "Advertisement" : "Branding"}</span>
               <select value={logMonthFilter} onChange={e => setLogMonthFilter(e.target.value)}
                 style={{ ...FIELD, width: "auto", cursor: "pointer", padding: "5px 10px", fontSize: 11 }}>
                 <option value="all">All Time</option>
@@ -3731,7 +3774,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: "#F9FAFB" }}>
-                      {["Client", "Posted", "Unposted", "Unedited"].map(h => (
+                      {["Client", logKind === "ads" ? "Ads Posted" : "Posted", "Unposted", "Unedited"].map(h => (
                         <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                       ))}
                     </tr>
@@ -4042,7 +4085,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           onCreated={item => { setItems(prev => [item, ...prev]); setShowNewContent(false) }} />
       )}
       {platformModalItem && (
-        <AddPlatformModal item={platformModalItem} members={members} currentUserId={currentUserId}
+        <AddPlatformModal item={platformModalItem} kind={platformModalKind} members={members} currentUserId={currentUserId}
           onClose={() => setPlatformModalItem(null)} onAdded={handlePostAdded} />
       )}
       {editingItem && (

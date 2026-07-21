@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { isValidShootTransition, type ShootStatus } from '@/lib/shoots/status-transitions'
+import { moveScriptToShootSchema, type MoveScriptToShootInput } from '@/lib/validations/content-tracker'
 
 function adminSupabase() {
   return createClient(
@@ -87,7 +88,7 @@ export async function updateShootStatus(
   const admin = adminSupabase()
   const { data: shoot } = await admin
     .from('shoots')
-    .select('id, status, client, start_time, notes, company_id')
+    .select('id, status, client, start_time, notes, company_id, source_content_item_id')
     .eq('id', id)
     .single()
   if (!shoot) return { success: false, error: 'Shoot not found' }
@@ -100,6 +101,22 @@ export async function updateShootStatus(
   if (error) return { success: false, error: error.message }
 
   let createdItems: CreatedShootItem[] | undefined
+
+  // A shoot spun off an Ads Video script via "Move to Shoot" has no shoot_titles of its
+  // own — completing it just advances the linked content_item straight to Ready to Edit
+  // instead of minting a new one.
+  if (status === 'completed' && shoot.source_content_item_id) {
+    const shotDate = shoot.start_time.split('T')[0]
+    await admin.from('content_items').update({
+      status: 'ready_to_edit', shot_by: user.id, shot_date: shotDate, updated_at: new Date().toISOString(),
+    }).eq('id', shoot.source_content_item_id)
+
+    revalidatePath('/admin/shoots')
+    revalidatePath('/member/shoots')
+    revalidatePath('/admin/content-tracker')
+    revalidatePath('/member/content-tracker')
+    return { success: true, createdItems: [] }
+  }
 
   if (status === 'completed') {
     const { data: titles } = await admin
@@ -158,8 +175,9 @@ export async function updateShootStatus(
 type CreateTrackerShootInput = {
   client: string
   title: string
+  shoot_type: 'ads_shoot' | 'branding_shoot'
   shot_date: string
-  shot_time?: string
+  shot_time: string
   notes?: string
 }
 
@@ -175,14 +193,15 @@ export async function createTrackerShoot(
 
   if (!input.client.trim()) return { success: false, error: 'Client is required' }
   if (!input.title.trim()) return { success: false, error: 'Shoot title is required' }
+  if (!input.shoot_type) return { success: false, error: 'Shoot type is required' }
   if (!input.shot_date) return { success: false, error: 'Shot date is required' }
+  if (!input.shot_time) return { success: false, error: 'Shot time is required' }
 
   const company_id = await getCompanyId(user.id)
   if (!company_id) return { success: false, error: 'Profile not found' }
 
   const admin = adminSupabase()
-  const time = input.shot_time || '09:00'
-  const start_time = `${input.shot_date}T${time}:00+05:30`
+  const start_time = `${input.shot_date}T${input.shot_time}:00+05:30`
   const end_time = new Date(new Date(start_time).getTime() + 2 * 60 * 60 * 1000).toISOString()
 
   const { data: shoot, error } = await admin.from('shoots').insert({
@@ -192,6 +211,7 @@ export async function createTrackerShoot(
     location: '',
     start_time,
     end_time,
+    shoot_type: input.shoot_type,
     notes: input.notes?.trim() || null,
     created_by: user.id,
     status: 'scheduled',
@@ -207,22 +227,25 @@ export async function createTrackerShoot(
 
 // Completing a shoot is where the video titles are captured — one shoot_titles row and
 // one content_items row (status: shot) per video that actually came out of the shoot.
+// The actual from/to time is re-entered here too, since a shoot can run longer than
+// scheduled — it overwrites the shoot's start/end time as the authoritative final time.
 export async function completeShootWithTitles(
   shootId: string,
   titles: string[],
-  goingBy?: string[]
+  goingBy: string[] | undefined,
+  actualTime: { from: string; to: string }
 ): Promise<{ success: boolean; error?: string; createdItems?: CreatedShootItem[] }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
 
-  const cleanTitles = titles.map(t => t.trim()).filter(Boolean)
-  if (cleanTitles.length === 0) return { success: false, error: 'Add at least one video title' }
+  if (!actualTime?.from) return { success: false, error: 'Start time is required' }
+  if (!actualTime?.to) return { success: false, error: 'End time is required' }
 
   const admin = adminSupabase()
   const { data: shoot } = await admin
     .from('shoots')
-    .select('id, status, client, start_time, notes, company_id')
+    .select('id, status, client, start_time, notes, company_id, source_content_item_id')
     .eq('id', shootId)
     .single()
   if (!shoot) return { success: false, error: 'Shoot not found' }
@@ -232,6 +255,32 @@ export async function completeShootWithTitles(
   }
 
   const shotDate = shoot.start_time.split('T')[0]
+  const finalStart = `${shotDate}T${actualTime.from}:00+05:30`
+  const finalEnd = `${shotDate}T${actualTime.to}:00+05:30`
+  if (finalStart >= finalEnd) return { success: false, error: 'End time must be after start time' }
+
+  // Spun off an Ads Video script via "Move to Shoot" — no shoot_titles/new content_items
+  // here, just advance the already-linked item and record the actual shoot time.
+  if (shoot.source_content_item_id) {
+    const { error: itemError } = await admin.from('content_items').update({
+      status: 'ready_to_edit', shot_by: user.id, shot_date: shotDate, updated_at: new Date().toISOString(),
+    }).eq('id', shoot.source_content_item_id)
+    if (itemError) return { success: false, error: itemError.message }
+
+    const completeUpdates: Record<string, unknown> = { status: 'completed', start_time: finalStart, end_time: finalEnd }
+    if (goingBy && goingBy.length > 0) completeUpdates.going_by = goingBy
+    const { error: statusError } = await admin.from('shoots').update(completeUpdates).eq('id', shootId)
+    if (statusError) return { success: false, error: statusError.message }
+
+    revalidatePath('/admin/shoots')
+    revalidatePath('/member/shoots')
+    revalidatePath('/admin/content-tracker')
+    revalidatePath('/member/content-tracker')
+    return { success: true, createdItems: [] }
+  }
+
+  const cleanTitles = titles.map(t => t.trim()).filter(Boolean)
+  if (cleanTitles.length === 0) return { success: false, error: 'Add at least one video title' }
 
   const { data: insertedTitles, error: titlesError } = await admin.from('shoot_titles').insert(
     cleanTitles.map(title => ({
@@ -275,7 +324,7 @@ export async function completeShootWithTitles(
 
   // Crew is captured here, at completion — the only point in the shoot's lifecycle
   // where "who went" is known.
-  const completeUpdates: Record<string, unknown> = { status: 'completed' }
+  const completeUpdates: Record<string, unknown> = { status: 'completed', start_time: finalStart, end_time: finalEnd }
   if (goingBy && goingBy.length > 0) completeUpdates.going_by = goingBy
 
   const { error: statusError } = await admin.from('shoots').update(completeUpdates).eq('id', shootId)
@@ -293,7 +342,7 @@ export async function completeShootWithTitles(
 // "edit details" action silently undo a completion.
 export async function updateTrackerShoot(
   shootId: string,
-  input: { client: string; title: string; shot_date: string; shot_time?: string; notes?: string }
+  input: { client: string; title: string; shoot_type?: 'ads_shoot' | 'branding_shoot'; shot_date: string; shot_time: string; notes?: string }
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -302,10 +351,10 @@ export async function updateTrackerShoot(
   if (!input.client.trim()) return { success: false, error: 'Client is required' }
   if (!input.title.trim()) return { success: false, error: 'Shoot title is required' }
   if (!input.shot_date) return { success: false, error: 'Shot date is required' }
+  if (!input.shot_time) return { success: false, error: 'Shot time is required' }
 
   const admin = adminSupabase()
-  const time = input.shot_time || '09:00'
-  const start_time = `${input.shot_date}T${time}:00+05:30`
+  const start_time = `${input.shot_date}T${input.shot_time}:00+05:30`
   const end_time = new Date(new Date(start_time).getTime() + 2 * 60 * 60 * 1000).toISOString()
 
   const { error } = await admin.from('shoots').update({
@@ -313,6 +362,7 @@ export async function updateTrackerShoot(
     title: input.title.trim(),
     start_time,
     end_time,
+    ...(input.shoot_type ? { shoot_type: input.shoot_type } : {}),
     notes: input.notes?.trim() || null,
   }).eq('id', shootId)
   if (error) return { success: false, error: error.message }
@@ -343,6 +393,54 @@ export async function updateShootCrew(
   revalidatePath('/admin/content-tracker')
   revalidatePath('/member/content-tracker')
   return { success: true }
+}
+
+// Spins a real shoot off an Ads Video item that's in Voice Over — e.g. the client wants
+// to speak the script on camera instead of using a recorded voice-over. The linked
+// content_item stays at "voiceover" until this shoot is actually completed (see
+// completeShootWithTitles/updateShootStatus), so nothing lands in Ready to Edit with no
+// footage yet.
+export async function moveScriptToShoot(
+  input: MoveScriptToShootInput
+): Promise<{ success: boolean; error?: string; shootId?: string }> {
+  const parsed = moveScriptToShootSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: item } = await admin.from('content_items')
+    .select('id, company_id, client_name, title, status')
+    .eq('id', parsed.data.content_item_id)
+    .single()
+  if (!item) return { success: false, error: 'Content item not found' }
+  if (item.status !== 'voiceover') return { success: false, error: 'Only items in Voice Over can be moved to a shoot' }
+
+  const start_time = `${parsed.data.shot_date}T${parsed.data.shot_time}:00+05:30`
+  const end_time = new Date(new Date(start_time).getTime() + 2 * 60 * 60 * 1000).toISOString()
+
+  const { data: shoot, error } = await admin.from('shoots').insert({
+    company_id: item.company_id,
+    title: item.title,
+    client: item.client_name,
+    location: '',
+    start_time,
+    end_time,
+    shoot_type: parsed.data.shoot_type,
+    source_content_item_id: item.id,
+    notes: parsed.data.notes?.trim() || null,
+    created_by: user.id,
+    status: 'scheduled',
+  }).select('id').single()
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/shoots')
+  revalidatePath('/member/shoots')
+  revalidatePath('/admin/content-tracker')
+  revalidatePath('/member/content-tracker')
+  return { success: true, shootId: shoot.id }
 }
 
 export async function deleteShoot(id: string): Promise<{ success: boolean; error?: string }> {

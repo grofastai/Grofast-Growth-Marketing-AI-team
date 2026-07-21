@@ -8,11 +8,12 @@ export const CONTENT_TYPES    = ['video', 'poster'] as const
 export const CONTENT_SOURCES  = ['shoot', 'ads_video', 'poster'] as const
 // "ads" is a valid posting destination, not just a script's intended use — an Ads
 // Video can be scheduled/posted straight to Ads with no organic platform attached.
-export const PLATFORMS        = ['instagram', 'youtube', 'facebook', 'linkedin', 'gmb', 'ads'] as const
-export const USE_FOR_OPTIONS  = ['ads', 'instagram', 'youtube', 'facebook', 'linkedin', 'gmb'] as const
+export const PLATFORMS        = ['instagram', 'youtube', 'facebook', 'linkedin', 'gmb', 'ads', 'meta_ads', 'google_ads', 'other'] as const
+export const USE_FOR_OPTIONS  = ['ads', 'instagram', 'youtube', 'facebook', 'linkedin', 'gmb', 'meta_ads', 'google_ads', 'other'] as const
 export const PRIORITY_LEVELS  = ['low', 'medium', 'high', 'urgent'] as const
 export const TARGETING_TYPES  = ['broad', 'interest', 'lookalike', 'retargeting'] as const
 export const AD_STATUSES      = ['active', 'paused', 'testing', 'stopped'] as const
+export const SHOOT_TYPES      = ['ads_shoot', 'branding_shoot'] as const
 
 export const createContentItemSchema = z.object({
   client_name:  z.string().min(1, 'Client is required'),
@@ -96,6 +97,7 @@ export const createAdsVideoScriptSchema = z.object({
   hook_count:  z.number().int().min(0).default(0),
   use_for:     z.array(z.enum(USE_FOR_OPTIONS)).min(1, 'Pick at least one'),
   priority:    z.enum(PRIORITY_LEVELS).default('medium'),
+  scripted_by: z.string().uuid('Pick who scripted this'),
   notes:       z.string().optional(),
 })
 export type CreateAdsVideoScriptInput = z.infer<typeof createAdsVideoScriptSchema>
@@ -118,9 +120,21 @@ export const updateAdsVideoScriptSchema = z.object({
   hook_count:      z.number().int().min(0).default(0),
   use_for:         z.array(z.enum(USE_FOR_OPTIONS)).min(1, 'Pick at least one'),
   priority:        z.enum(PRIORITY_LEVELS).default('medium'),
+  scripted_by:     z.string().uuid('Pick who scripted this'),
   notes:           z.string().optional(),
 })
 export type UpdateAdsVideoScriptInput = z.infer<typeof updateAdsVideoScriptSchema>
+
+// Spinning a real shoot off an Ads Video item that's in Voice Over — e.g. the client
+// wants to speak the script on camera instead of using a recorded voice-over.
+export const moveScriptToShootSchema = z.object({
+  content_item_id: z.string().uuid(),
+  shoot_type:       z.enum(SHOOT_TYPES),
+  shot_date:        z.string().min(1, 'Shot date is required'),
+  shot_time:        z.string().min(1, 'Shot time is required'),
+  notes:            z.string().optional(),
+})
+export type MoveScriptToShootInput = z.infer<typeof moveScriptToShootSchema>
 
 // Moving an item to "Ready to Post" schedules it: which platforms, which day, what time.
 export const markReadyToPostSchema = z.object({

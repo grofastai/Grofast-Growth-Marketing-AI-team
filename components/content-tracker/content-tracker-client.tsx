@@ -24,7 +24,7 @@ import {
   createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, markReadyToPost, requestCorrection,
   createAdsVideoScript, recordVoiceOver, updateAdsVideoScript,
 } from "@/lib/actions/content-tracker"
-import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, type CreatedShootItem } from "@/lib/actions/shoots"
+import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
 import { isValidPipelineTransition } from "@/lib/content-tracker/pipeline-transitions"
 import { computeOverview, type AttentionItem } from "@/lib/content-tracker/overview"
@@ -32,7 +32,7 @@ import { computeOverview, type AttentionItem } from "@/lib/content-tracker/overv
 // ── Types ────────────────────────────────────────────────────────────────────
 // "ads" is a real posting destination — an Ads Video can be scheduled/posted straight
 // to Ads with no organic platform attached, so it lives in Platform, not just UseFor.
-type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb" | "ads"
+type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb" | "ads" | "meta_ads" | "google_ads" | "other"
 type UseFor = Platform
 type Priority = "low" | "medium" | "high" | "urgent"
 type ContentSource = "shoot" | "ads_video" | "poster"
@@ -41,6 +41,7 @@ type ContentStatus =
   | "edited" | "on_review" | "ready_to_post" | "posted" | "cancelled"
 type TargetingType = "broad" | "interest" | "lookalike" | "retargeting"
 type AdStatus = "active" | "paused" | "testing" | "stopped"
+type ShootType = "ads_shoot" | "branding_shoot"
 
 type Person = { id: string; name: string } | null
 
@@ -83,6 +84,10 @@ export type ContentItem = {
   priority: Priority | null
   voiceover_date: string | null
   reviewed_at: string | null
+  // Derived from posts — see addContentPost/deleteContentPost. Independent of status:
+  // an item can be posted_branding, posted_ads, or both at once.
+  posted_branding: boolean
+  posted_ads: boolean
   shotByUser?: Person
   editedByUser?: Person
   scriptedByUser?: Person
@@ -125,9 +130,14 @@ export type Shoot = {
   client: string
   legacyTitle: string
   start_time: string
+  end_time: string | null
   created_at: string
   notes: string | null
   status: ShootStatus
+  shoot_type: ShootType | null
+  // Set when this shoot was spun off an Ads Video item via "Move to Shoot" — completing
+  // it advances that linked item straight to Ready to Edit instead of creating new titles.
+  source_content_item_id: string | null
   goingByUsers: { id: string; name: string }[]
   titles: ShootTitleRef[]
 }
@@ -196,15 +206,27 @@ const NEXT_STATUS: Partial<Record<ContentStatus, ContentStatus>> = {
 }
 
 const PLATFORM_CFG: Record<Platform, { label: string; color: string; icon: typeof Camera }> = {
-  instagram: { label: "Instagram", color: "#E1306C", icon: Camera },
-  youtube:   { label: "YouTube",   color: "#DE1A1A", icon: PlaySquare },
-  facebook:  { label: "Facebook",  color: "#1877F2", icon: ThumbsUp },
-  linkedin:  { label: "LinkedIn",  color: "#0A66C2", icon: Building2 },
-  gmb:       { label: "GMB",       color: "#1E8E3E", icon: Store },
-  ads:       { label: "Ads",       color: "#D97706", icon: Megaphone },
+  instagram:  { label: "Instagram",  color: "#E1306C", icon: Camera },
+  youtube:    { label: "YouTube",    color: "#DE1A1A", icon: PlaySquare },
+  facebook:   { label: "Facebook",   color: "#1877F2", icon: ThumbsUp },
+  linkedin:   { label: "LinkedIn",   color: "#0A66C2", icon: Building2 },
+  gmb:        { label: "GMB",        color: "#1E8E3E", icon: Store },
+  ads:        { label: "Ads",        color: "#D97706", icon: Megaphone },
+  meta_ads:   { label: "Meta Ads",   color: "#0866FF", icon: Target },
+  google_ads: { label: "Google Ads", color: "#EA4335", icon: Target },
+  other:      { label: "Other",      color: "#6B7280", icon: MoreVertical },
+}
+
+const SHOOT_TYPE_CFG: Record<ShootType, { label: string; color: string }> = {
+  ads_shoot:      { label: "Ads Shoot",      color: "#D97706" },
+  branding_shoot: { label: "Branding Shoot", color: "#0D9488" },
 }
 
 const USE_FOR_CFG: Record<UseFor, { label: string; color: string; icon: typeof Camera }> = PLATFORM_CFG
+
+// Mirrors ADS_PLATFORMS in lib/actions/content-tracker.ts — used only for optimistic
+// local state right after a backfill create; the server always recomputes the real value.
+const ADS_PLATFORM_SET = new Set<Platform>(["ads", "meta_ads", "google_ads"])
 
 const PRIORITY_CFG: Record<Priority, { label: string; color: string }> = {
   low:    { label: "Low",    color: "#6B7280" },
@@ -258,6 +280,16 @@ const FILTER_FIELD: React.CSSProperties = {
 function initials(name?: string | null) {
   if (!name) return "?"
   return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
+}
+// Team-member names render in caps everywhere in this feature — display-only, never
+// mutates the stored name.
+function upper(name?: string | null) {
+  return name ? name.toUpperCase() : ""
+}
+// HH:MM in IST, for pre-filling a <input type="time"> from a stored timestamptz.
+function toISTTimeString(iso?: string | null): string {
+  if (!iso) return ""
+  return new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false })
 }
 function fmtDate(d?: string | null) {
   if (!d) return "—"
@@ -360,11 +392,14 @@ const OVERVIEW_TILE_GRADIENTS = {
   ads: "linear-gradient(135deg,#D97706,#92400E)",
 }
 
+// "Ads" (the Active/Testing/Paused/Stopped campaign board) is deliberately left out of
+// this list — it's moving to its own dedicated sidebar item in future work. The mode,
+// its accent, and its render block all stay intact below; this is the only line that
+// makes it unreachable from the nav.
 const NAV_MODES: { key: TrackerMode; label: string; icon: typeof Layers }[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "video", label: "Video", icon: Video },
   { key: "poster", label: "Poster", icon: ImageIcon },
-  { key: "ads", label: "Ads", icon: Megaphone },
 ]
 
 // Two levels, two different visual languages: the mode rail is a solid switch on dark,
@@ -558,6 +593,21 @@ function ContentCardInner({
         </div>
       )}
 
+      {(item.posted_branding || item.posted_ads) && (
+        <div className="flex flex-wrap items-center gap-1 mb-2.5">
+          {item.posted_branding && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.12)", color: "#16A34A" }}>
+              Branding ✓
+            </span>
+          )}
+          {item.posted_ads && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(217,119,6,0.12)", color: "#D97706" }}>
+              Ads ✓
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center gap-2 mb-2">
         {item.shotByUser && (
           <div className="flex items-center gap-1" title={`Shot by ${item.shotByUser.name}`}>
@@ -583,7 +633,7 @@ function ContentCardInner({
               style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.editedByUser.name)}
             </span>
-            {item.editedByUser.name}
+            {upper(item.editedByUser.name)}
           </span>
         ) : item.editedByUser ? (
           <div className="flex items-center gap-1" title={`Edited by ${item.editedByUser.name}`}>
@@ -677,12 +727,13 @@ function ContentCardInner({
 // ── Ads Video card — the Scripting/Voice Over board's card, distinct from
 // ContentCardInner because its fields (hooks, use-for, priority) don't apply once an
 // item reaches the shared Ready to Edit board (which reuses ContentCardInner).
-function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
+function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete, onMoveToShoot }: {
   item: ContentItem
   isDragging?: boolean
   onAdvance: (item: ContentItem, next: ContentStatus) => void
   onEdit: (item: ContentItem) => void
   onDelete: (id: string) => void
+  onMoveToShoot: (item: ContentItem) => void
 }) {
   const cardMenu: CardMenuItem[] = [
     { label: "Edit details", icon: Pencil, onClick: () => onEdit(item) },
@@ -740,12 +791,20 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
         })}
       </div>
 
+      {item.scriptedByUser && (
+        <div className="flex items-center gap-1.5 mb-1.5" title={`Scripted by ${item.scriptedByUser.name}`}>
+          <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#374151", color: "#fff" }}>
+            {initials(item.scriptedByUser.name)}
+          </div>
+          <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{upper(item.scriptedByUser.name)}</span>
+        </div>
+      )}
       {item.voiceoverBy && (
         <div className="flex items-center gap-1.5 mb-3" title={`Voiced by ${item.voiceoverBy.name}`}>
           <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: accentDark, color: "#fff" }}>
             {initials(item.voiceoverBy.name)}
           </div>
-          <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{item.voiceoverBy.name}</span>
+          <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{upper(item.voiceoverBy.name)}</span>
         </div>
       )}
 
@@ -756,6 +815,15 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete }: {
           className="w-full py-2 rounded-xl text-[10px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1.5"
           style={{ background: statusButtonGradient(next), color: "#fff", marginTop: item.voiceoverBy ? 0 : 4 }}>
           {item.status === "voiceover" ? <>Send to Ready to Edit <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
+        </button>
+      )}
+      {item.status === "voiceover" && (
+        <button
+          onPointerDown={e => e.stopPropagation()}
+          onClick={() => onMoveToShoot(item)}
+          className="w-full py-2 rounded-xl text-[10px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1.5"
+          style={{ background: "#fff", color: "#374151", border: "1.5px solid #E5E7EB", marginTop: 6 }}>
+          <Camera size={10} /> Move to Shoot
         </button>
       )}
     </div>
@@ -1117,7 +1185,7 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
                     style={{ background: accentDark, color: "#fff" }}>
                     {initials(u.name)}
                   </span>
-                  {u.name}
+                  {upper(u.name)}
                 </span>
               ))}
             </div>
@@ -1339,6 +1407,8 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
       source: contentType === "poster" ? "poster" : "shoot",
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: null, use_for: [], priority: null, voiceover_date: null, reviewed_at: null,
+      posted_branding: alreadyPosted && postedPlatforms.some(p => !ADS_PLATFORM_SET.has(p)),
+      posted_ads: alreadyPosted && postedPlatforms.some(p => ADS_PLATFORM_SET.has(p)),
       shot_date: shotDate, edited_date: alreadyPosted ? postedDate : null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({ id: `${res.id}-${i}`, content_item_id: res.id!, platform, posted_date: postedDate, post_link: null })) : [],
     })
@@ -1399,8 +1469,9 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
 }
 
 // ── New Ads Video modal — Scripting stage ────────────────────────────────────
-function NewAdsVideoModal({ clients, pastClients, onClose, onCreated }: {
+function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClose, onCreated }: {
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  members: Member[]; currentUserId: string
   onClose: () => void; onCreated: (item: ContentItem) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
@@ -1409,9 +1480,10 @@ function NewAdsVideoModal({ clients, pastClients, onClose, onCreated }: {
   )
   const [client, setClient] = useState("")
   const [title, setTitle] = useState("")
-  const [hookCount, setHookCount] = useState(1)
+  const [hookCount, setHookCount] = useState<number | "">(1)
   const [useFor, setUseFor] = useState<UseFor[]>([])
   const [priority, setPriority] = useState<Priority>("medium")
+  const [scriptedBy, setScriptedBy] = useState(currentUserId)
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -1423,15 +1495,19 @@ function NewAdsVideoModal({ clients, pastClients, onClose, onCreated }: {
   async function submit() {
     if (!client || !title.trim()) { setError("Client and title are required"); return }
     if (useFor.length === 0) { setError("Pick at least one \"use for\""); return }
+    if (!scriptedBy) { setError("Pick who scripted this"); return }
     setSaving(true); setError(null)
-    const res = await createAdsVideoScript({ client_name: client, title: title.trim(), hook_count: hookCount, use_for: useFor, priority, notes: notes.trim() || undefined })
+    const finalHookCount = hookCount === "" ? 0 : hookCount
+    const res = await createAdsVideoScript({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: useFor, priority, scripted_by: scriptedBy, notes: notes.trim() || undefined })
     setSaving(false)
     if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
+    const scriptedByUser = members.find(m => m.id === scriptedBy) ?? null
     onCreated({
       id: res.id, client_name: client, title: title.trim(), content_type: "video", source: "ads_video",
       status: "scripting", shot_date: null, edited_date: null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
-      hook_count: hookCount, use_for: useFor, priority, voiceover_date: null, reviewed_at: null, posts: [],
+      hook_count: finalHookCount, use_for: useFor, priority, voiceover_date: null, reviewed_at: null,
+      posted_branding: false, posted_ads: false, scriptedByUser, posts: [],
     })
   }
 
@@ -1445,7 +1521,15 @@ function NewAdsVideoModal({ clients, pastClients, onClose, onCreated }: {
         </div>
         <div>
           <label style={LABEL}>How many hooks?</label>
-          <input type="number" min={0} style={FIELD} value={hookCount} onChange={e => setHookCount(Math.max(0, Number(e.target.value)))} />
+          <input type="number" min={0} style={FIELD} value={hookCount} onChange={e => setHookCount(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))} />
+        </div>
+        <div>
+          <label style={LABEL}>Scripted By *</label>
+          <select style={{ ...FIELD, cursor: "pointer" }} value={scriptedBy} onChange={e => setScriptedBy(e.target.value)}>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>{upper(m.name)}{m.id === currentUserId ? " (me)" : ""}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label style={LABEL}>Use For * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
@@ -1481,11 +1565,12 @@ function NewAdsVideoModal({ clients, pastClients, onClose, onCreated }: {
 }
 
 // ── Edit Ads Video modal — same field set as creation, pre-filled ───────────
-function EditAdsVideoModal({ item, clients, pastClients, onClose, onSaved }: {
+function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId, onClose, onSaved }: {
   item: ContentItem
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  members: Member[]; currentUserId: string
   onClose: () => void
-  onSaved: (updates: { client_name: string; title: string; hook_count: number; use_for: UseFor[]; priority: Priority; notes: string }) => void
+  onSaved: (updates: { client_name: string; title: string; hook_count: number; use_for: UseFor[]; priority: Priority; scriptedByUser: Person; notes: string }) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
@@ -1493,9 +1578,10 @@ function EditAdsVideoModal({ item, clients, pastClients, onClose, onSaved }: {
   )
   const [client, setClient] = useState(item.client_name)
   const [title, setTitle] = useState(item.title)
-  const [hookCount, setHookCount] = useState(item.hook_count ?? 0)
+  const [hookCount, setHookCount] = useState<number | "">(item.hook_count ?? 0)
   const [useFor, setUseFor] = useState<UseFor[]>(item.use_for)
   const [priority, setPriority] = useState<Priority>(item.priority ?? "medium")
+  const [scriptedBy, setScriptedBy] = useState(item.scriptedByUser?.id ?? currentUserId)
   const [notes, setNotes] = useState(item.notes || "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -1507,11 +1593,14 @@ function EditAdsVideoModal({ item, clients, pastClients, onClose, onSaved }: {
   async function submit() {
     if (!client || !title.trim()) { setError("Client and title are required"); return }
     if (useFor.length === 0) { setError("Pick at least one \"use for\""); return }
+    if (!scriptedBy) { setError("Pick who scripted this"); return }
     setSaving(true); setError(null)
-    const res = await updateAdsVideoScript({ content_item_id: item.id, client_name: client, title: title.trim(), hook_count: hookCount, use_for: useFor, priority, notes: notes.trim() || undefined })
+    const finalHookCount = hookCount === "" ? 0 : hookCount
+    const res = await updateAdsVideoScript({ content_item_id: item.id, client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: useFor, priority, scripted_by: scriptedBy, notes: notes.trim() || undefined })
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to save"); return }
-    onSaved({ client_name: client, title: title.trim(), hook_count: hookCount, use_for: useFor, priority, notes: notes.trim() })
+    const scriptedByUser = members.find(m => m.id === scriptedBy) ?? null
+    onSaved({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: useFor, priority, scriptedByUser, notes: notes.trim() })
   }
 
   return (
@@ -1524,7 +1613,15 @@ function EditAdsVideoModal({ item, clients, pastClients, onClose, onSaved }: {
         </div>
         <div>
           <label style={LABEL}>How many hooks?</label>
-          <input type="number" min={0} style={FIELD} value={hookCount} onChange={e => setHookCount(Math.max(0, Number(e.target.value)))} />
+          <input type="number" min={0} style={FIELD} value={hookCount} onChange={e => setHookCount(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))} />
+        </div>
+        <div>
+          <label style={LABEL}>Scripted By *</label>
+          <select style={{ ...FIELD, cursor: "pointer" }} value={scriptedBy} onChange={e => setScriptedBy(e.target.value)}>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>{upper(m.name)}{m.id === currentUserId ? " (me)" : ""}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label style={LABEL}>Use For * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
@@ -1736,7 +1833,7 @@ function AddPlatformModal({ item, members, currentUserId, onClose, onAdded }: {
             <label style={LABEL}>Posted By *</label>
             <select style={{ ...FIELD, cursor: "pointer" }} value={postedBy} onChange={e => setPostedBy(e.target.value)}>
               {members.map(m => (
-                <option key={m.id} value={m.id}>{m.name}{m.id === currentUserId ? " (me)" : ""}</option>
+                <option key={m.id} value={m.id}>{upper(m.name)}{m.id === currentUserId ? " (me)" : ""}</option>
               ))}
             </select>
           </div>
@@ -1970,6 +2067,7 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   )
   const [client, setClient] = useState("")
   const [title, setTitle] = useState("")
+  const [shootType, setShootType] = useState<ShootType | "">("")
   const [shotDate, setShotDate] = useState(todayIST())
   const [shotTime, setShotTime] = useState("")
   const [notes, setNotes] = useState("")
@@ -1979,9 +2077,11 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   async function submit() {
     if (!client) { setError("Client is required"); return }
     if (!title.trim()) { setError("Shoot title is required"); return }
+    if (!shootType) { setError("Shoot type is required"); return }
+    if (!shotTime) { setError("Shot time is required"); return }
     setSaving(true); setError(null)
     const res = await createTrackerShoot({
-      client, title: title.trim(), shot_date: shotDate, shot_time: shotTime || undefined, notes: notes.trim() || undefined,
+      client, title: title.trim(), shoot_type: shootType, shot_date: shotDate, shot_time: shotTime, notes: notes.trim() || undefined,
     })
     setSaving(false)
     if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
@@ -1989,10 +2089,13 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
       id: res.id,
       client,
       legacyTitle: title.trim(),
-      start_time: `${shotDate}T${shotTime || "09:00"}:00`,
+      start_time: `${shotDate}T${shotTime}:00`,
+      end_time: null,
       created_at: new Date().toISOString(),
       notes: notes.trim() || null,
       status: "scheduled",
+      shoot_type: shootType,
+      source_content_item_id: null,
       goingByUsers: [],
       titles: [],
     })
@@ -2010,13 +2113,28 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
             The video titles are captured later, when you mark the shoot Done.
           </p>
         </div>
+        <div>
+          <label style={LABEL}>Shoot Type *</label>
+          <div style={{ display: "flex", gap: 6 }}>
+            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
+              const cfg = SHOOT_TYPE_CFG[t]
+              const on = shootType === t
+              return (
+                <button key={t} type="button" onClick={() => setShootType(t)}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {cfg.label} {on && <Check size={10} />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
             <label style={LABEL}>Shot Date *</label>
             <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
           </div>
           <div>
-            <label style={LABEL}>Time <span style={{ fontWeight: 600, textTransform: "none" }}>(optional)</span></label>
+            <label style={LABEL}>Time *</label>
             <input type="time" style={FIELD} value={shotTime} onChange={e => setShotTime(e.target.value)} />
           </div>
         </div>
@@ -2074,7 +2192,7 @@ function RequestCorrectionModal({ item, members, onClose, onRequested }: {
             <label style={LABEL}>Back to</label>
             <select style={{ ...FIELD, cursor: "pointer" }} value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
               <option value="">— Keep current editor —</option>
-              {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              {members.map(m => <option key={m.id} value={m.id}>{upper(m.name)}</option>)}
             </select>
           </div>
         )}
@@ -2191,7 +2309,7 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
           <label style={LABEL}>Editor *</label>
           <select style={{ ...FIELD, cursor: "pointer" }} value={editorId} onChange={e => setEditorId(e.target.value)}>
             {members.map(m => (
-              <option key={m.id} value={m.id}>{m.name}{m.id === currentUserId ? " (me)" : ""}</option>
+              <option key={m.id} value={m.id}>{upper(m.name)}{m.id === currentUserId ? " (me)" : ""}</option>
             ))}
           </select>
         </div>
@@ -2238,7 +2356,7 @@ function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
           <div>
             <label style={LABEL}>Voice Artist *</label>
             <select style={{ ...FIELD, cursor: "pointer" }} value={voiceoverId} onChange={e => setVoiceoverId(e.target.value)}>
-              {freelancers.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              {freelancers.map(f => <option key={f.id} value={f.id}>{upper(f.name)}</option>)}
             </select>
           </div>
         )}
@@ -2248,6 +2366,88 @@ function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
         </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving || freelancers.length === 0}>{saving ? "Saving…" : "Confirm Voice Over"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Move to Shoot modal — spins a real shoot off a Voice Over item, e.g. when the
+// client wants to speak the script on camera instead of using a recorded voice-over ──
+function MoveToShootModal({ item, onClose, onMoved }: {
+  item: ContentItem
+  onClose: () => void
+  onMoved: (shoot: Shoot) => void
+}) {
+  const [shootType, setShootType] = useState<ShootType | "">("")
+  const [shotDate, setShotDate] = useState(todayIST())
+  const [shotTime, setShotTime] = useState("")
+  const [notes, setNotes] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    if (!shootType) { setError("Shoot type is required"); return }
+    if (!shotTime) { setError("Shot time is required"); return }
+    setSaving(true); setError(null)
+    const res = await moveScriptToShoot({
+      content_item_id: item.id, shoot_type: shootType, shot_date: shotDate, shot_time: shotTime, notes: notes.trim() || undefined,
+    })
+    setSaving(false)
+    if (!res.success || !res.shootId) { setError(res.error ?? "Failed to save"); return }
+    onMoved({
+      id: res.shootId,
+      client: item.client_name,
+      legacyTitle: item.title,
+      start_time: `${shotDate}T${shotTime}:00`,
+      end_time: null,
+      created_at: new Date().toISOString(),
+      notes: notes.trim() || null,
+      status: "scheduled",
+      shoot_type: shootType,
+      source_content_item_id: item.id,
+      goingByUsers: [],
+      titles: [],
+    })
+  }
+
+  return (
+    <Modal title="Move to Shoot" onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+          <strong style={{ color: "#111827" }}>{item.title}</strong> needs to be shot instead of voiced over. This schedules
+          a real shoot — it'll show up on the Shoots board too. The script stays in Voice Over until the shoot is marked Done.
+        </p>
+        <div>
+          <label style={LABEL}>Shoot Type *</label>
+          <div style={{ display: "flex", gap: 6 }}>
+            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
+              const cfg = SHOOT_TYPE_CFG[t]
+              const on = shootType === t
+              return (
+                <button key={t} type="button" onClick={() => setShootType(t)}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {cfg.label} {on && <Check size={10} />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Shot Date *</label>
+            <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
+          </div>
+          <div>
+            <label style={LABEL}>Time *</label>
+            <input type="time" style={FIELD} value={shotTime} onChange={e => setShotTime(e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Notes</label>
+          <textarea style={{ ...FIELD, minHeight: 50, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Schedule Shoot"}</PrimaryButton>
       </div>
     </Modal>
   )
@@ -2263,6 +2463,10 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
 }) {
   const [titleInput, setTitleInput] = useState("")
   const [titles, setTitles] = useState<string[]>([])
+  // Actual shoot time is re-entered here, at completion — it can run longer than
+  // scheduled, and this is saved as the final/authoritative shoot time.
+  const [fromTime, setFromTime] = useState(toISTTimeString(shoot.start_time) || "09:00")
+  const [toTime, setToTime] = useState(toISTTimeString(shoot.end_time))
   // Crew is captured here, at completion — pre-filled from any crew already recorded
   // (e.g. backfilled via "Who went") so the common path is just "confirm".
   const [crew, setCrew] = useState<string[]>(() => {
@@ -2271,6 +2475,8 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const isLinked = !!shoot.source_content_item_id
 
   function addTitle() {
     const t = titleInput.trim()
@@ -2283,9 +2489,11 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
   }
 
   async function submit() {
-    if (titles.length === 0) { setError("Add at least one video title"); return }
+    if (!isLinked && titles.length === 0) { setError("Add at least one video title"); return }
+    if (!fromTime) { setError("Start time is required"); return }
+    if (!toTime) { setError("End time is required"); return }
     setSaving(true); setError(null)
-    const res = await completeShootWithTitles(shoot.id, titles, crew)
+    const res = await completeShootWithTitles(shoot.id, titles, crew, { from: fromTime, to: toTime })
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to complete shoot"); return }
     onCompleted(res.createdItems ?? [], members.filter(m => crew.includes(m.id)))
@@ -2294,31 +2502,51 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
   return (
     <Modal title={`Shoot Done — ${shoot.legacyTitle}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-          What videos came out of this shoot? Each one becomes a card in the Pipeline at <strong>Shot</strong>.
-        </p>
-        <div>
-          <label style={LABEL}>Video Titles *</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input style={FIELD} value={titleInput} onChange={e => setTitleInput(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTitle() } }}
-              placeholder="e.g. Sports Day Highlights" />
-            <button type="button" onClick={addTitle}
-              style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#DE1A1A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-              Add
-            </button>
-          </div>
-          {titles.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-              {titles.map(t => (
-                <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: "rgba(222,26,26,0.08)", border: "1.5px solid rgba(222,26,26,0.25)", fontSize: 12, fontWeight: 600, color: "#de1a1a" }}>
-                  {t}
-                  <button type="button" onClick={() => setTitles(prev => prev.filter(x => x !== t))}
-                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#de1a1a", fontSize: 14, fontWeight: 700 }}>×</button>
-                </span>
-              ))}
+        {!isLinked && (
+          <>
+            <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+              What videos came out of this shoot? Each one becomes a card in the Pipeline at <strong>Shot</strong>.
+            </p>
+            <div>
+              <label style={LABEL}>Video Titles *</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input style={FIELD} value={titleInput} onChange={e => setTitleInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTitle() } }}
+                  placeholder="e.g. Sports Day Highlights" />
+                <button type="button" onClick={addTitle}
+                  style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#DE1A1A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                  Add
+                </button>
+              </div>
+              {titles.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                  {titles.map(t => (
+                    <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: "rgba(222,26,26,0.08)", border: "1.5px solid rgba(222,26,26,0.25)", fontSize: 12, fontWeight: 600, color: "#de1a1a" }}>
+                      {t}
+                      <button type="button" onClick={() => setTitles(prev => prev.filter(x => x !== t))}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#de1a1a", fontSize: 14, fontWeight: 700 }}>×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </>
+        )}
+        {isLinked && (
+          <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
+            This shoot came from an Ads Video script — completing it moves <strong>{shoot.legacyTitle}</strong> straight to Ready to Edit.
+          </p>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Actual Start Time *</label>
+            <input type="time" style={FIELD} value={fromTime} onChange={e => setFromTime(e.target.value)} />
+          </div>
+          <div>
+            <label style={LABEL}>Actual End Time *</label>
+            <input type="time" style={FIELD} value={toTime} onChange={e => setToTime(e.target.value)} />
+          </div>
         </div>
 
         {members.length > 0 && (
@@ -2330,7 +2558,7 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
                 return (
                   <button key={m.id} type="button" onClick={() => toggleCrew(m.id)}
                     style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                    {on && <Check size={11} />} {m.name}{m.id === currentUserId ? " (me)" : ""}
+                    {on && <Check size={11} />} {upper(m.name)}{m.id === currentUserId ? " (me)" : ""}
                   </button>
                 )
               })}
@@ -2386,7 +2614,7 @@ function EditCrewModal({ shoot, members, currentUserId, onClose, onSaved }: {
               return (
                 <button key={m.id} type="button" onClick={() => toggle(m.id)}
                   style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {on && <Check size={11} />} {m.name}{m.id === currentUserId ? " (me)" : ""}
+                  {on && <Check size={11} />} {upper(m.name)}{m.id === currentUserId ? " (me)" : ""}
                 </button>
               )
             })}
@@ -2414,6 +2642,7 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
   )
   const [client, setClient] = useState(shoot.client)
   const [title, setTitle] = useState(shoot.legacyTitle)
+  const [shootType, setShootType] = useState<ShootType | "">(shoot.shoot_type ?? "")
   const [shotDate, setShotDate] = useState(shoot.start_time.split("T")[0])
   const [shotTime, setShotTime] = useState(() => {
     const t = shoot.start_time.split("T")[1]
@@ -2426,17 +2655,18 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
   async function submit() {
     if (!client) { setError("Client is required"); return }
     if (!title.trim()) { setError("Shoot title is required"); return }
+    if (!shotTime) { setError("Shot time is required"); return }
     setSaving(true); setError(null)
     const res = await updateTrackerShoot(shoot.id, {
-      client, title: title.trim(), shot_date: shotDate,
-      shot_time: shotTime || undefined, notes: notes.trim() || undefined,
+      client, title: title.trim(), shoot_type: shootType || undefined, shot_date: shotDate,
+      shot_time: shotTime, notes: notes.trim() || undefined,
     })
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to save"); return }
     onSaved({
       client,
       legacyTitle: title.trim(),
-      start_time: `${shotDate}T${shotTime || "09:00"}:00`,
+      start_time: `${shotDate}T${shotTime}:00`,
       notes: notes.trim() || null,
     })
   }
@@ -2449,13 +2679,28 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
           <label style={LABEL}>Shoot Title *</label>
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
         </div>
+        <div>
+          <label style={LABEL}>Shoot Type</label>
+          <div style={{ display: "flex", gap: 6 }}>
+            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
+              const cfg = SHOOT_TYPE_CFG[t]
+              const on = shootType === t
+              return (
+                <button key={t} type="button" onClick={() => setShootType(t)}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {cfg.label} {on && <Check size={10} />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
             <label style={LABEL}>Shot Date *</label>
             <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
           </div>
           <div>
-            <label style={LABEL}>Time</label>
+            <label style={LABEL}>Time *</label>
             <input type="time" style={FIELD} value={shotTime} onChange={e => setShotTime(e.target.value)} />
           </div>
         </div>
@@ -2613,6 +2858,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
   const [completeShootFor, setCompleteShootFor] = useState<Shoot | null>(null)
   const [markEditedItem, setMarkEditedItem] = useState<ContentItem | null>(null)
   const [voiceOverItem, setVoiceOverItem] = useState<ContentItem | null>(null)
+  const [moveToShootFor, setMoveToShootFor] = useState<ContentItem | null>(null)
   const [readyToPostItem, setReadyToPostItem] = useState<ContentItem | null>(null)
   const [correctionItem, setCorrectionItem] = useState<ContentItem | null>(null)
   const [editCrewFor, setEditCrewFor] = useState<Shoot | null>(null)
@@ -3009,16 +3255,24 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
     })
   }
 
-  function handleShootCompleted(shootId: string, created: CreatedShootItem[], crew: Member[]) {
+  function handleShootCompleted(shoot: Shoot, created: CreatedShootItem[], crew: Member[]) {
     const newItems: ContentItem[] = created.map(ci => ({
       id: ci.id, client_name: ci.client_name, title: ci.title, content_type: "video", source: "shoot",
       status: "ready_to_edit", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: null, use_for: [], priority: null, voiceover_date: null, reviewed_at: null,
+      posted_branding: false, posted_ads: false,
       created_at: new Date().toISOString(), posts: [],
     }))
-    setItems(prev => [...newItems, ...prev])
-    setShoots(prev => prev.map(s => s.id === shootId ? {
+    setItems(prev => {
+      // A shoot spun off an Ads Video item via "Move to Shoot" has no new content_items —
+      // completing it just advances the already-linked item to Ready to Edit.
+      if (shoot.source_content_item_id) {
+        return prev.map(i => i.id === shoot.source_content_item_id ? { ...i, status: "ready_to_edit" } : i)
+      }
+      return [...newItems, ...prev]
+    })
+    setShoots(prev => prev.map(s => s.id === shoot.id ? {
       ...s,
       status: "completed",
       goingByUsers: crew.length > 0 ? crew : s.goingByUsers,
@@ -3372,7 +3626,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                     {list.length === 0 ? (
                       <KanbanEmptyCell isOver={false} />
                     ) : list.map(item => (
-                      <AdsVideoCardInner key={item.id} item={item} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} />
+                      <AdsVideoCardInner key={item.id} item={item} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} onMoveToShoot={setMoveToShootFor} />
                     ))}
                   </div>
                 </div>
@@ -3394,7 +3648,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                           <KanbanEmptyCell isOver={adsVideoOverCol === status} />
                         ) : list.map(item => (
                           <KanbanCard key={item.id} id={item.id}>
-                            <AdsVideoCardInner item={item} isDragging={adsVideoDragId === item.id} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} />
+                            <AdsVideoCardInner item={item} isDragging={adsVideoDragId === item.id} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} onMoveToShoot={setMoveToShootFor} />
                           </KanbanCard>
                         ))}
                       </div>
@@ -3405,7 +3659,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
               <DragOverlay>
                 {draggedAdsVideo ? (
                   <div style={{ width: 260, opacity: 0.95, transform: "rotate(2deg)" }}>
-                    <AdsVideoCardInner item={draggedAdsVideo} onAdvance={() => {}} onEdit={() => {}} onDelete={() => {}} />
+                    <AdsVideoCardInner item={draggedAdsVideo} onAdvance={() => {}} onEdit={() => {}} onDelete={() => {}} onMoveToShoot={() => {}} />
                   </div>
                 ) : null}
               </DragOverlay>
@@ -3584,7 +3838,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
                                 style={{ background: "#16A34A", color: "#fff" }}>
                                 {initials(u.name)}
                               </span>
-                              {u.name}
+                              {upper(u.name)}
                             </span>
                           ))}
                           {item.posts.every(p => !p.postedByUser) && (
@@ -3832,7 +4086,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       {completeShootFor && (
         <CompleteShootModal shoot={completeShootFor} members={members} currentUserId={currentUserId}
           onClose={() => setCompleteShootFor(null)}
-          onCompleted={(created, crew) => handleShootCompleted(completeShootFor.id, created, crew)} />
+          onCompleted={(created, crew) => handleShootCompleted(completeShootFor, created, crew)} />
       )}
       {deleteShootFor && (
         <DeleteShootModal shoot={deleteShootFor} onClose={() => setDeleteShootFor(null)}
@@ -3860,7 +4114,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       )}
       {showNewAdsVideo && (
         <NewAdsVideoModal
-          clients={clients} pastClients={pastClients}
+          clients={clients} pastClients={pastClients} members={members} currentUserId={currentUserId}
           onClose={() => setShowNewAdsVideo(false)}
           onCreated={item => { setItems(prev => [item, ...prev]); setShowNewAdsVideo(false) }}
         />
@@ -3874,12 +4128,19 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       )}
       {editAdsVideoFor && (
         <EditAdsVideoModal
-          item={editAdsVideoFor} clients={clients} pastClients={pastClients}
+          item={editAdsVideoFor} clients={clients} pastClients={pastClients} members={members} currentUserId={currentUserId}
           onClose={() => setEditAdsVideoFor(null)}
           onSaved={updates => {
             setItems(prev => prev.map(i => i.id === editAdsVideoFor.id ? { ...i, ...updates, notes: updates.notes || null } : i))
             setEditAdsVideoFor(null)
           }}
+        />
+      )}
+      {moveToShootFor && (
+        <MoveToShootModal
+          item={moveToShootFor}
+          onClose={() => setMoveToShootFor(null)}
+          onMoved={shoot => { setShoots(prev => [shoot, ...prev]); setMoveToShootFor(null) }}
         />
       )}
       {readyToPostItem && (

@@ -23,6 +23,22 @@ function revalidateTracker() {
   revalidatePath('/member/content-tracker')
 }
 
+// Ads-destination platforms vs organic/branding platforms — drives the two independent
+// posted_ads/posted_branding flags on content_items (see addContentPost/deleteContentPost).
+const ADS_PLATFORMS = new Set(['ads', 'meta_ads', 'google_ads'])
+
+// Recomputes posted_ads/posted_branding from the current content_item_posts rows and
+// persists them. Derived rather than manually toggled so they can never drift from the
+// actual per-platform posting log.
+async function syncPostedFlags(ctx: { admin: ReturnType<typeof adminSupabase> }, contentItemId: string) {
+  const { data: posts } = await ctx.admin.from('content_item_posts')
+    .select('platform').eq('content_item_id', contentItemId)
+  const platforms = new Set((posts ?? []).map(p => p.platform as string))
+  const posted_ads = [...platforms].some(p => ADS_PLATFORMS.has(p))
+  const posted_branding = [...platforms].some(p => !ADS_PLATFORMS.has(p))
+  await ctx.admin.from('content_items').update({ posted_ads, posted_branding }).eq('id', contentItemId)
+}
+
 async function currentUser() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -74,6 +90,7 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
     }))
     const { error: postsError } = await ctx.admin.from('content_item_posts').insert(rows)
     if (postsError) return { success: false, error: postsError.message }
+    await syncPostedFlags(ctx, data.id)
   }
 
   revalidateTracker()
@@ -262,6 +279,7 @@ export async function addContentPost(input: AddContentPostInput): Promise<{ succ
     .update({ status: 'posted', updated_at: new Date().toISOString() })
     .eq('id', parsed.data.content_item_id)
     .eq('company_id', ctx.companyId)
+  await syncPostedFlags(ctx, parsed.data.content_item_id)
 
   revalidateTracker()
   return { success: true, id: data.id }
@@ -288,6 +306,7 @@ export async function deleteContentPost(id: string, contentItemId: string): Prom
       .eq('id', contentItemId)
       .eq('company_id', ctx.companyId)
   }
+  await syncPostedFlags(ctx, contentItemId)
 
   revalidateTracker()
   return { success: true }
@@ -444,7 +463,7 @@ export async function createAdsVideoScript(input: CreateAdsVideoScriptInput): Pr
     hook_count:   parsed.data.hook_count,
     use_for:      parsed.data.use_for,
     priority:     parsed.data.priority,
-    scripted_by:  ctx.id,
+    scripted_by:  parsed.data.scripted_by,
     notes:        parsed.data.notes || null,
     created_by:   ctx.id,
   }).select('id').single()
@@ -495,6 +514,7 @@ export async function updateAdsVideoScript(input: UpdateAdsVideoScriptInput): Pr
     hook_count:  parsed.data.hook_count,
     use_for:     parsed.data.use_for,
     priority:    parsed.data.priority,
+    scripted_by: parsed.data.scripted_by,
     notes:       parsed.data.notes || null,
     updated_at:  new Date().toISOString(),
   }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)

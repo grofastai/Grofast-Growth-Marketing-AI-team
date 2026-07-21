@@ -18,6 +18,7 @@ import { createFreelancer, updateFreelancer, toggleFreelancerStatus, assignAllFr
 import { addManagerToAllFreelancers, removeManagerFromAllFreelancers } from "@/lib/actions/freelancer-manager"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
 import { addTeam, updateTeam, toggleTeamActive, deleteTeam, getTeamMemberCounts, type TeamRow, type TeamScope } from "@/lib/actions/teams"
+import { hexToRgba } from "@/lib/utils/team-colors"
 import { addPosition, renamePosition, togglePositionActive, deletePosition, getPositionAssignmentCounts, type PositionRow } from "@/lib/actions/positions"
 
 type FreelancerBasic = {
@@ -54,6 +55,15 @@ const FL_TYPE_CFG: Record<string, { label: string; color: string; bg: string; em
   "Freelance Marketing & Operations":   { label: "Marketing & Ops", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  emoji: "📊" },
   "Freelance AI Development & Creative Production": { label: "AI & Creative Production", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🖥️" },
   "Freelance Media Production":         { label: "Media Production", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  emoji: "🎥" },
+}
+
+// Same DB-first pattern as teamColor()/teamShort() — a renamed or brand-new
+// freelancer team gets its real color/emoji/name instead of falling straight
+// to the generic grey "other" config.
+function resolveFlTypeCfg(teamKey: string, teams: TeamRow[]): { label: string; color: string; bg: string; emoji: string } {
+  const row = teams.find(t => t.name === teamKey)
+  if (row) return { label: row.name, color: row.color ?? "#6B7280", bg: hexToRgba(row.color ?? "#6B7280", 0.08), emoji: row.emoji ?? "👤" }
+  return FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
 }
 
 function getFreelancerTeamKey(f: FreelancerBasic): string {
@@ -161,8 +171,13 @@ const FIELD: React.CSSProperties = {
   fontFamily: "inherit",
 }
 
-function teamColor(team: string | null): { bg: string; color: string } {
+// Looks up the color from the admin-managed teams table first (so a rename or
+// a brand-new team always gets its real color), and only falls back to the old
+// hardcoded matching for legacy data that somehow has no matching teams row.
+function teamColor(team: string | null, teams: TeamRow[] = []): { bg: string; color: string } {
   if (!team) return { bg: "#F3F4F6", color: "#6B7280" }
+  const row = teams.find(t => t.name === team)
+  if (row?.color) return { bg: hexToRgba(row.color, 0.1), color: row.color }
   if (team === "Media Production Team" || team === "Freelance Media Production" || team === "Media Team" || team === "Media") return { bg: "rgba(236,72,153,0.1)", color: "#EC4899" }
   if (team === "Creative Studio" || team === "Creative Team" || team === "Creative") return { bg: "rgba(245,158,11,0.1)", color: "#F59E0B" }
   if (team === "Software Development & Automation" || team === "Freelance Software Development & Automation") return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
@@ -176,7 +191,11 @@ function teamColor(team: string | null): { bg: string; color: string } {
   return { bg: "#F3F4F6", color: "#6B7280" }
 }
 
-function teamShort(team: string | null) {
+// Unlike teamColor(), this one was never actually broken by a rename — its
+// final fallback already returns the raw (current, correct) team name for
+// anything it doesn't have a hand-picked abbreviation for. `teams` param kept
+// only so both functions share the same call signature at their call sites.
+function teamShort(team: string | null, _teams: TeamRow[] = []) {
   if (!team) return "—"
   if (team === "Media Production Team" || team === "Media Team" || team === "Media") return "Media Production"
   if (team === "Creative Studio" || team === "Creative Team" || team === "Creative") return "Creative Studio"
@@ -2058,7 +2077,7 @@ export default function TeamClient({
                       {loginFreelancerMembers.map((m, i) => {
                         const initials = m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
                         const teamKey = m.team ?? "other"
-                        const teamCfg = FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
+                        const teamCfg = resolveFlTypeCfg(teamKey, teams)
                         return (
                           <tr key={m.id} style={{ borderBottom: i < loginFreelancerMembers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
                             <td className="px-5 py-3">
@@ -2182,7 +2201,7 @@ export default function TeamClient({
                       </td></tr>
                     ) : freelancers.map((f, i) => {
                       const teamKey = getFreelancerTeamKey(f)
-                      const teamCfg = FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
+                      const teamCfg = resolveFlTypeCfg(teamKey, teams)
                       const joinedSource = f.first_work_date ?? f.created_at
                       const added = joinedSource
                         ? new Date(joinedSource).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
@@ -2316,7 +2335,7 @@ export default function TeamClient({
               </thead>
               <tbody>
                 {filtered.map((member, i) => {
-                  const tc = teamColor(member.team)
+                  const tc = teamColor(member.team, teams)
                   return (
                     <tr key={member.id}
                       style={{ borderBottom: i < filtered.length - 1 ? "1px solid #F9FAFB" : "none" }}
@@ -2577,7 +2596,7 @@ export default function TeamClient({
                 <p className="text-center text-[12px] py-6" style={{ color: "#5C3D1F" }}>No team members yet</p>
               ) : (
                 recentActivity.map((m) => {
-                  const tc = teamColor(m.team)
+                  const tc = teamColor(m.team, teams)
                   return (
                     <div key={m.id} className="flex items-center gap-3 py-1">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
@@ -2695,7 +2714,7 @@ export default function TeamClient({
                 <tbody>
                   {pastFreelancers.map((f, i) => {
                     const teamKey = getFreelancerTeamKey(f)
-                    const teamCfg = FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
+                    const teamCfg = resolveFlTypeCfg(teamKey, teams)
                     const initials = f.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
                     return (
                       <tr key={f.id} style={{ borderBottom: i < pastFreelancers.length - 1 ? "1px solid #F9FAFB" : "none", opacity: 0.65 }}>

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Users, TrendingUp, BarChart3 } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts'
 import type { MemberUtilization, ClientHour, InsightsKPIs, SpendCategory } from './page'
+import type { TeamRow } from '@/lib/actions/teams'
+import { hexToRgba } from '@/lib/utils/team-colors'
 
 // ── design tokens — matches the shared admin design system (red-gradient hero
 // banner, white cards, Jakarta/Bebas type) used by Leaves/Attendance/Goals/Team,
@@ -46,8 +48,10 @@ const TEAM_BADGE: Record<string, { bg: string; color: string }> = {
   'ai development & creative production':    { bg: 'rgba(139,92,246,0.12)', color: '#8B5CF6' },
   'ai development & media':                  { bg: 'rgba(139,92,246,0.12)', color: '#8B5CF6' },
 }
-function teamBadge(team: string | null) {
+function teamBadge(team: string | null, teams: TeamRow[] = []) {
   if (!team) return { bg: 'rgba(0,0,0,0.06)', color: MUTED }
+  const row = teams.find(t => t.name === team)
+  if (row?.color) return { bg: hexToRgba(row.color, 0.12), color: row.color }
   return TEAM_BADGE[team.toLowerCase().trim()] ?? { bg: 'rgba(0,0,0,0.06)', color: '#6B7280' }
 }
 
@@ -190,7 +194,7 @@ export type AllMember = {
 }
 
 export default function InsightsClient({
-  month, today, kpis, memberUtilization, clientHours, prevMonthClientHours, spendByCategory, allMembers,
+  month, today, kpis, memberUtilization, clientHours, prevMonthClientHours, spendByCategory, allMembers, teams = [],
 }: {
   month: string
   today: string
@@ -200,6 +204,7 @@ export default function InsightsClient({
   prevMonthClientHours: number
   spendByCategory: SpendCategory[]
   allMembers: AllMember[]
+  teams?: TeamRow[]
 }) {
   const router  = useRouter()
   const [expandedMember, setExpandedMember] = useState<string | null>(null)
@@ -396,7 +401,7 @@ export default function InsightsClient({
               {memberUtilization.length === 0 ? (
                 <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: MUTED, fontSize: 13 }}>No attendance data for this month</td></tr>
               ) : memberUtilization.map((m) => {
-                const tb = teamBadge(m.team)
+                const tb = teamBadge(m.team, teams)
                 return (
                   <tr key={m.id} className="hover:bg-[#F9FAFB]" style={{ borderBottom: `1px solid #F3F4F6` }}>
                     <td style={{ padding: '11px 16px' }}>
@@ -490,7 +495,7 @@ export default function InsightsClient({
                 <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: MUTED, fontSize: 13 }}>No attendance data for this month</td></tr>
               ) : memberUtilization.map((m) => {
                 const eColor = effColor(m.efficiency, m.overworked)
-                const tb     = teamBadge(m.team)
+                const tb     = teamBadge(m.team, teams)
                 return (
                   <tr key={m.id} className="hover:bg-[#F9FAFB]" style={{ borderBottom: `1px solid #F3F4F6` }}>
                     <td style={{ padding: '11px 16px' }}>
@@ -878,7 +883,7 @@ export default function InsightsClient({
             </thead>
             <tbody>
               {allMembers.map((m) => {
-                const tb = teamBadge(m.team)
+                const tb = teamBadge(m.team, teams)
                 return (
                 <tr key={m.employeeId} style={{ borderBottom: `1px solid ${RULE}` }}>
                   <td style={{ padding: '12px 16px', fontWeight: 700, color: INK }}>{m.name.trim()}</td>

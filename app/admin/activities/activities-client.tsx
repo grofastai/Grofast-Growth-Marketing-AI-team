@@ -7,6 +7,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 import { calcNetWorkHours } from "@/lib/utils/work-hours"
 import { PageHero } from "@/components/admin/PageHero"
 import { todayIST } from "@/lib/utils/ist-date"
+import type { TeamRow } from "@/lib/actions/teams"
+import { hexToRgba } from "@/lib/utils/team-colors"
 
 type WorkEntry = Record<string, unknown>
 
@@ -53,7 +55,9 @@ function fmtHours(h: unknown): string {
   return `${mins}m`
 }
 
-function getTeamBadge(team: string | null | undefined): { label: string; bg: string; color: string } {
+function getTeamBadge(team: string | null | undefined, teams: TeamRow[] = []): { label: string; bg: string; color: string } {
+  const row = teams.find(x => x.name === team)
+  if (row?.color) return { label: row.name, bg: hexToRgba(row.color, 0.1), color: row.color }
   const t = (team ?? "").toLowerCase()
   if (t.includes("media production") || team === "Media Team" || team === "Media") return { label: "Media Production", bg: "rgba(236,72,153,0.1)", color: "#EC4899" }
   if (team === "Freelance Videography") return { label: "FL Videography", bg: "rgba(239,68,68,0.1)", color: "#EF4444" }
@@ -152,13 +156,13 @@ function avatarColor(name: string) {
 }
 
 // ── Person Detail Drawer ──────────────────────────────────────────────────────
-function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, members }: { updates: Update[]; onClose: () => void; collabHoursMap?: Record<string, number>; members: Member[] }) {
+function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, members, teams = [] }: { updates: Update[]; onClose: () => void; collabHoursMap?: Record<string, number>; members: Member[]; teams?: TeamRow[] }) {
   const firstUpdate = updates[0]
   const user = Array.isArray(firstUpdate?.users) ? firstUpdate.users[0] : firstUpdate?.users
   if (!user) return null
 
   const [bg, fg] = avatarColor(user.name)
-  const badge = getTeamBadge(user.team)
+  const badge = getTeamBadge(user.team, teams)
 
   const totalHours = updates.reduce((s, u) => s + getUpdateHours(u) + (collabHoursMap[`${user.id}:${u.date}`] ?? 0), 0)
 
@@ -393,6 +397,7 @@ export default function ActivitiesClient({
   collabHoursMap = {},
   pendingLeaves = [],
   pendingCollabs = [],
+  teams = [],
 }: {
   updates: Update[]
   members: Member[]
@@ -405,6 +410,7 @@ export default function ActivitiesClient({
   collabHoursMap?: Record<string, number>
   pendingLeaves?: PendingLeave[]
   pendingCollabs?: PendingCollab[]
+  teams?: TeamRow[]
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -691,7 +697,7 @@ export default function ActivitiesClient({
               </div>
             )}
             {filteredPeople.map(({ userId, user, userUpdates, totalHours, entryCount, time }, idx) => {
-              const badge    = getTeamBadge(user.team)
+              const badge    = getTeamBadge(user.team, teams)
               const [bg, fg] = avatarColor(user.name)
               const isLast   = idx === filteredPeople.length - 1
               const isSelected = selectedUserId === userId
@@ -876,6 +882,7 @@ export default function ActivitiesClient({
           onClose={() => setSelectedUserId(null)}
           collabHoursMap={collabHoursMap}
           members={members}
+          teams={teams}
         />
       )}
     </div>

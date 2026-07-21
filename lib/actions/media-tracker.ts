@@ -6,8 +6,8 @@ import { revalidatePath } from 'next/cache'
 import {
   createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema,
   type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput,
-} from '@/lib/validations/content-tracker'
-import { isValidPipelineTransition, type ContentPipelineStatus } from '@/lib/content-tracker/pipeline-transitions'
+} from '@/lib/validations/media-tracker'
+import { isValidPipelineTransition, type ContentPipelineStatus } from '@/lib/media-tracker/pipeline-transitions'
 import { todayIST } from '@/lib/utils/ist-date'
 
 function adminSupabase() {
@@ -19,8 +19,8 @@ function adminSupabase() {
 }
 
 function revalidateTracker() {
-  revalidatePath('/admin/content-tracker')
-  revalidatePath('/member/content-tracker')
+  revalidatePath('/admin/media-tracker')
+  revalidatePath('/member/media-tracker')
 }
 
 // Ads-destination platforms vs organic/branding platforms — drives the two independent

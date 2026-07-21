@@ -23,11 +23,11 @@ import {
   addContentPost, deleteContentPost,
   createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, markReadyToPost, requestCorrection,
   createAdsVideoScript, recordVoiceOver, updateAdsVideoScript,
-} from "@/lib/actions/content-tracker"
+} from "@/lib/actions/media-tracker"
 import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
-import { isValidPipelineTransition } from "@/lib/content-tracker/pipeline-transitions"
-import { computeOverview, type AttentionItem } from "@/lib/content-tracker/overview"
+import { isValidPipelineTransition } from "@/lib/media-tracker/pipeline-transitions"
+import { computeOverview, type AttentionItem } from "@/lib/media-tracker/overview"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 // "ads" is a real posting destination — an Ads Video can be scheduled/posted straight
@@ -224,7 +224,7 @@ const SHOOT_TYPE_CFG: Record<ShootType, { label: string; color: string }> = {
 
 const USE_FOR_CFG: Record<UseFor, { label: string; color: string; icon: typeof Camera }> = PLATFORM_CFG
 
-// Mirrors ADS_PLATFORMS in lib/actions/content-tracker.ts — used only for optimistic
+// Mirrors ADS_PLATFORMS in lib/actions/media-tracker.ts — used only for optimistic
 // local state right after a backfill create; the server always recomputes the real value.
 const ADS_PLATFORM_SET = new Set<Platform>(["ads", "meta_ads", "google_ads"])
 
@@ -2827,7 +2827,7 @@ function EditAdModal({ ad, clients, pastClients, onClose, onSaved }: {
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
-export default function ContentTrackerClient({ initialItems, initialAds, initialShoots, members, currentUserId, clients, pastClients, voiceoverFreelancers }: Props) {
+export default function MediaTrackerClient({ initialItems, initialAds, initialShoots, members, currentUserId, clients, pastClients, voiceoverFreelancers }: Props) {
   const [items, setItems] = useState(initialItems)
   const [ads, setAds] = useState(initialAds)
   const [shoots, setShoots] = useState(initialShoots)
@@ -3385,7 +3385,7 @@ export default function ContentTrackerClient({ initialItems, initialAds, initial
       <PageHero
         eyebrow="MEDIA OPERATIONS"
         eyebrowIcon={<Sparkles size={14} style={{ color: "#FFD700" }} />}
-        title="Content & Ads Tracker"
+        title="Media Tracker"
         subtitle="Every video and poster from shoot to post — plus a full ad hooks & targeting history."
         chips={[
           { icon: <Video size={11} />, label: `${stats.readyToEdit + stats.edited} in pipeline` },

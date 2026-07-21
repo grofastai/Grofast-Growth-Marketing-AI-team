@@ -4,7 +4,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { isValidShootTransition, type ShootStatus } from '@/lib/shoots/status-transitions'
-import { moveScriptToShootSchema, type MoveScriptToShootInput } from '@/lib/validations/content-tracker'
+import { moveScriptToShootSchema, type MoveScriptToShootInput } from '@/lib/validations/media-tracker'
 
 function adminSupabase() {
   return createClient(
@@ -113,8 +113,8 @@ export async function updateShootStatus(
 
     revalidatePath('/admin/shoots')
     revalidatePath('/member/shoots')
-    revalidatePath('/admin/content-tracker')
-    revalidatePath('/member/content-tracker')
+    revalidatePath('/admin/media-tracker')
+    revalidatePath('/member/media-tracker')
     return { success: true, createdItems: [] }
   }
 
@@ -167,8 +167,8 @@ export async function updateShootStatus(
 
   revalidatePath('/admin/shoots')
   revalidatePath('/member/shoots')
-  revalidatePath('/admin/content-tracker')
-  revalidatePath('/member/content-tracker')
+  revalidatePath('/admin/media-tracker')
+  revalidatePath('/member/media-tracker')
   return { success: true, createdItems }
 }
 
@@ -220,8 +220,8 @@ export async function createTrackerShoot(
 
   revalidatePath('/admin/shoots')
   revalidatePath('/member/shoots')
-  revalidatePath('/admin/content-tracker')
-  revalidatePath('/member/content-tracker')
+  revalidatePath('/admin/media-tracker')
+  revalidatePath('/member/media-tracker')
   return { success: true, id: shoot.id }
 }
 
@@ -274,8 +274,8 @@ export async function completeShootWithTitles(
 
     revalidatePath('/admin/shoots')
     revalidatePath('/member/shoots')
-    revalidatePath('/admin/content-tracker')
-    revalidatePath('/member/content-tracker')
+    revalidatePath('/admin/media-tracker')
+    revalidatePath('/member/media-tracker')
     return { success: true, createdItems: [] }
   }
 
@@ -332,8 +332,8 @@ export async function completeShootWithTitles(
 
   revalidatePath('/admin/shoots')
   revalidatePath('/member/shoots')
-  revalidatePath('/admin/content-tracker')
-  revalidatePath('/member/content-tracker')
+  revalidatePath('/admin/media-tracker')
+  revalidatePath('/member/media-tracker')
   return { success: true, createdItems }
 }
 
@@ -369,8 +369,8 @@ export async function updateTrackerShoot(
 
   revalidatePath('/admin/shoots')
   revalidatePath('/member/shoots')
-  revalidatePath('/admin/content-tracker')
-  revalidatePath('/member/content-tracker')
+  revalidatePath('/admin/media-tracker')
+  revalidatePath('/member/media-tracker')
   return { success: true }
 }
 
@@ -390,8 +390,8 @@ export async function updateShootCrew(
 
   revalidatePath('/admin/shoots')
   revalidatePath('/member/shoots')
-  revalidatePath('/admin/content-tracker')
-  revalidatePath('/member/content-tracker')
+  revalidatePath('/admin/media-tracker')
+  revalidatePath('/member/media-tracker')
   return { success: true }
 }
 
@@ -438,8 +438,8 @@ export async function moveScriptToShoot(
 
   revalidatePath('/admin/shoots')
   revalidatePath('/member/shoots')
-  revalidatePath('/admin/content-tracker')
-  revalidatePath('/member/content-tracker')
+  revalidatePath('/admin/media-tracker')
+  revalidatePath('/member/media-tracker')
   return { success: true, shootId: shoot.id }
 }
 

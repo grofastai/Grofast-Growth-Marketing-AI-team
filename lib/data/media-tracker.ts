@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { ContentItem, Ad, Shoot } from '@/components/content-tracker/content-tracker-client'
+import type { ContentItem, Ad, Shoot } from '@/components/media-tracker/media-tracker-client'
 
 function adminSupabase() {
   return createClient(
@@ -9,10 +9,10 @@ function adminSupabase() {
   )
 }
 
-// Shared by both /admin/content-tracker and /member/content-tracker — the data
+// Shared by both /admin/media-tracker and /member/media-tracker — the data
 // is company-wide (everyone sees what everyone else logged), so there is no
 // role-specific filtering to do here.
-export async function getContentTrackerData(companyId: string): Promise<{
+export async function getMediaTrackerData(companyId: string): Promise<{
   items: ContentItem[]; ads: Ad[]; shoots: Shoot[]; members: { id: string; name: string }[]
   voiceoverFreelancers: { id: string; name: string }[]
 }> {

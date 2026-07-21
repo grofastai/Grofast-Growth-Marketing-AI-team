@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useMemo, useEffect, useTransition } from "react"
+import { useState, useMemo, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   IndianRupee, Plus, Trash2, Pencil,
   Car, Megaphone, Monitor, Building2,
   Receipt, Layers, CheckCircle2, AlertCircle,
-  ChevronRight, ChevronDown, Search, MoreVertical, TrendingUp, Users, Copy, Loader2,
+  ChevronRight, ChevronDown, Search, MoreVertical, TrendingUp, Users, Copy, Loader2, Check,
 } from "lucide-react"
 import { FlatCard } from "@/components/ui/FlatCard"
 import { SegmentedControl } from "@/components/ui/SegmentedControl"
@@ -19,9 +19,7 @@ import {
   deleteClientExpense,
   upsertCommonExpense,
   deleteCommonExpense,
-  getCommonExpensesForMonth,
   copyCommonExpensesToMonth,
-  getClientExpensesForMonth,
   copyClientExpensesToMonth,
 } from "@/lib/actions/client-expenses"
 import { setCommonExpenseParticipation } from "@/lib/actions/clients"
@@ -301,12 +299,11 @@ function CommonExpenseModalBody({ selectedMonth, overheadDivisor, editing, onClo
 }
 
 // ── Copy Expenses Modal (shared by Client Direct + Common/Shared) ─────────────
-// Copies rows from a picked source month straight into the target month as a
-// starting point — amounts often drift month to month (fuel, filing fees), so
-// this deliberately doesn't try to be "smart" about what changed. The admin
-// edits each copied row afterward with the exact same pencil icon used for any
-// other row. No duplicate-detection on purpose — the admin already knows
-// what's been re-entered by hand for that month and owns catching that.
+// Always copies FROM the month you're currently viewing — rows are passed in
+// directly, already loaded by the page — INTO a picked target month, with each
+// amount editable right here before confirming since they don't always repeat
+// exactly (fuel, filing fees). No duplicate-detection on purpose — the admin
+// already knows what's been re-entered by hand and owns catching that.
 type CopyKind = "common" | "client"
 type CopyRow = {
   id: string
@@ -319,6 +316,9 @@ type CopyRow = {
   notes?: string | null
   shoot_title?: string | null
 }
+// Per-row edit state before confirming a copy — name/type only apply to one
+// kind each (name: common, type: client) but both kinds share notes/amount.
+type CopyRowEdit = { name: string; type: string; notes: string; amount: string }
 
 function monthLabel(ym: string) {
   const [y, m] = ym.split("-").map(Number)
@@ -330,32 +330,29 @@ function shiftMonth(ym: string, delta: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
 }
 
-function CopyExpensesModalBody({ kind, targetMonth, onDone, onClose }: {
+function CopyExpensesModalBody({ kind, currentMonth, rows, onDone, onClose }: {
   kind: CopyKind
-  targetMonth: string
+  currentMonth: string
+  rows: CopyRow[]
   onDone: () => void
   onClose: () => void
 }) {
-  const [sourceMonth, setSourceMonth] = useState(shiftMonth(targetMonth, -1))
-  const [rows, setRows] = useState<CopyRow[]>([])
-  const [loadingRows, setLoadingRows] = useState(false)
+  const [targetMonth, setTargetMonth] = useState(shiftMonth(currentMonth, 1))
+  const [edits, setEdits] = useState<Record<string, CopyRowEdit>>(() => {
+    const seed: Record<string, CopyRowEdit> = {}
+    rows.forEach(r => { seed[r.id] = { name: r.name ?? "", type: r.type ?? "other", notes: r.notes ?? "", amount: String(r.amount) } })
+    return seed
+  })
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [copying, setCopying] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<number | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    setLoadingRows(true); setError(null); setSelected(new Set())
-    const fetcher = kind === "common" ? getCommonExpensesForMonth(sourceMonth) : getClientExpensesForMonth(sourceMonth)
-    fetcher.then(data => {
-      if (cancelled) return
-      setRows(data as CopyRow[])
-      setLoadingRows(false)
-    })
-    return () => { cancelled = true }
-  }, [kind, sourceMonth])
+  const sameMonth = targetMonth === currentMonth
 
+  function updateEdit(id: string, patch: Partial<CopyRowEdit>) {
+    setEdits(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }))
+  }
   function toggle(id: string) {
     setSelected(prev => {
       const next = new Set(prev)
@@ -368,58 +365,112 @@ function CopyExpensesModalBody({ kind, targetMonth, onDone, onClose }: {
   }
 
   async function runCopy() {
+    if (sameMonth) return
     setCopying(true); setError(null)
-    const ids = Array.from(selected)
+    const rowById = new Map(rows.map(r => [r.id, r]))
     const result = kind === "common"
-      ? await copyCommonExpensesToMonth(ids, targetMonth)
-      : await copyClientExpensesToMonth(ids, targetMonth)
+      ? await copyCommonExpensesToMonth(
+          Array.from(selected).map(id => ({
+            id, name: edits[id].name.trim() || "Untitled", notes: edits[id].notes.trim() || null, amount: parseFloat(edits[id].amount) || 0,
+          })),
+          targetMonth,
+        )
+      : await copyClientExpensesToMonth(
+          Array.from(selected).map(id => ({
+            id, clientName: rowById.get(id)?.client_name ?? "", date: rowById.get(id)?.date ?? currentMonth + "-01",
+            type: edits[id].type, notes: edits[id].notes.trim() || null, amount: parseFloat(edits[id].amount) || 0,
+          })),
+          targetMonth,
+        )
     setCopying(false)
     if (!result.success) { setError(result.error ?? "Failed to copy."); return }
-    setDone(result.count ?? ids.length)
+    setDone(result.count ?? selected.size)
     setTimeout(onDone, 1200)
   }
 
   return (
     <div className="space-y-4">
-      <div>
-        <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6B1D3A" }}>Copy from</label>
-        <input type="month" value={sourceMonth} onChange={e => e.target.value && setSourceMonth(e.target.value)}
-          className="mt-1 w-full rounded-xl px-3 py-2.5 text-[13px] outline-none"
-          style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }} />
-        <p className="text-[11px] mt-1.5" style={{ color: "#8B5CF6" }}>
-          Copying into <b>{monthLabel(targetMonth)}</b>
-        </p>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6B1D3A" }}>Copying from</p>
+          <p className="text-[13px] font-black mt-1" style={{ color: "#111111" }}>{monthLabel(currentMonth)}</p>
+        </div>
+        <div>
+          <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6B1D3A" }}>Copy to</label>
+          <input type="month" value={targetMonth} onChange={e => e.target.value && setTargetMonth(e.target.value)}
+            className="mt-1 w-full rounded-xl px-3 py-2.5 text-[13px] outline-none"
+            style={{ background: "#F9FAFB", border: `1px solid ${sameMonth ? "#DC2626" : "#E5E7EB"}`, color: "#111111" }} />
+        </div>
       </div>
+      {sameMonth && (
+        <p className="text-[11px] font-bold -mt-2 flex items-center gap-1.5" style={{ color: "#DC2626" }}>
+          <AlertCircle size={12} /> Pick a different month — this is the month you&apos;re already viewing.
+        </p>
+      )}
 
-      {loadingRows ? (
-        <div className="flex justify-center py-8"><Loader2 className="animate-spin" size={20} style={{ color: "#8B5CF6" }} /></div>
-      ) : rows.length === 0 ? (
-        <p className="text-[13px] py-6 text-center" style={{ color: "#6B1D3A" }}>No expenses found for {monthLabel(sourceMonth)}.</p>
+      {rows.length === 0 ? (
+        <p className="text-[13px] py-6 text-center" style={{ color: "#6B1D3A" }}>No expenses found for {monthLabel(currentMonth)}.</p>
       ) : (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #E5E7EB" }}>
-          <div className="flex items-center justify-between px-3 py-2" style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
-            <label className="flex items-center gap-2 text-[11px] font-bold cursor-pointer" style={{ color: "#6B1D3A" }}>
-              <input type="checkbox" checked={selected.size === rows.length && rows.length > 0} onChange={toggleAll} />
+        <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid #EDEDED", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <label className="flex items-center justify-between px-3.5 py-2.5 cursor-pointer" style={{ background: "#FAFAFA", borderBottom: "1px solid #EDEDED" }}>
+            <span className="flex items-center gap-2.5 text-[11px] font-black uppercase tracking-wider" style={{ color: "#6B1D3A" }}>
+              <CopyCheckbox checked={selected.size === rows.length && rows.length > 0} onToggle={toggleAll} />
               Select all ({rows.length})
-            </label>
-            <span className="text-[11px] font-bold" style={{ color: "#8B5CF6" }}>{selected.size} selected</span>
+            </span>
+            <span className="text-[11px] font-black px-2 py-0.5 rounded-full" style={{ color: "#8B5CF6", background: "rgba(139,92,246,0.1)" }}>{selected.size} selected</span>
+          </label>
+          <div className="flex items-center gap-3 px-3.5 pt-2.5" style={{ color: "#9CA3AF" }}>
+            <span style={{ width: 20, flexShrink: 0 }} />
+            <span className="flex-1 text-[9px] font-black uppercase tracking-wider">{kind === "common" ? "Name" : "Client"}</span>
+            {kind === "client" && <span className="text-[9px] font-black uppercase tracking-wider" style={{ width: 108 }}>Type</span>}
+            <span className="text-[9px] font-black uppercase tracking-wider flex-1">Details</span>
+            <span className="text-[9px] font-black uppercase tracking-wider" style={{ width: 92 }}>Amount</span>
           </div>
-          <div style={{ maxHeight: 320, overflowY: "auto" }}>
-            {rows.map(r => (
-              <label key={r.id} className="flex items-center gap-3 px-3 py-2.5 cursor-pointer"
-                style={{ borderBottom: "1px solid #F5F5F5" }}>
-                <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[12px] font-bold truncate" style={{ color: "#111111" }}>
-                    {kind === "common" ? r.name : r.client_name}
-                  </p>
-                  <p className="text-[10.5px] truncate" style={{ color: "#6B1D3A" }}>
-                    {kind === "common" ? (r.notes || "—") : `${fmtDate(r.date ?? "")}${r.shoot_title ? ` · ${r.shoot_title}` : ""}`}
-                  </p>
+          <div style={{ maxHeight: 400, overflowY: "auto" }}>
+            {rows.map((r, i) => {
+              const isSelected = selected.has(r.id)
+              const e = edits[r.id]
+              return (
+                <div key={r.id} className="flex items-center gap-3 px-3.5 py-2.5"
+                  style={{ borderBottom: i < rows.length - 1 ? "1px solid #F5F5F5" : "none", background: isSelected ? "rgba(139,92,246,0.05)" : "transparent" }}>
+                  <CopyCheckbox checked={isSelected} onToggle={() => toggle(r.id)} />
+
+                  {kind === "common" ? (
+                    <input type="text" value={e.name} onChange={ev => updateEdit(r.id, { name: ev.target.value })}
+                      onFocus={() => !isSelected && toggle(r.id)}
+                      className="flex-1 min-w-0 text-[12px] font-bold outline-none py-1 px-2 rounded-lg"
+                      style={{ color: "#111111", background: "#F9FAFB", border: "1px solid #E5E7EB" }} />
+                  ) : (
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-bold truncate" style={{ color: "#111111" }}>{r.client_name}</p>
+                      <p className="text-[10px] truncate" style={{ color: "#9CA3AF" }}>{fmtDate(r.date ?? "")}</p>
+                    </div>
+                  )}
+
+                  {kind === "client" && (
+                    <select value={e.type} onChange={ev => updateEdit(r.id, { type: ev.target.value })}
+                      onFocus={() => !isSelected && toggle(r.id)}
+                      className="text-[11px] font-bold capitalize outline-none py-1.5 rounded-lg flex-shrink-0"
+                      style={{ width: 108, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other, background: TYPE_BG[e.type] ?? TYPE_BG.other, border: `1px solid ${TYPE_COLOR[e.type] ?? TYPE_COLOR.other}33` }}>
+                      {(["ad", "software", "other"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  )}
+
+                  <input type="text" value={e.notes} onChange={ev => updateEdit(r.id, { notes: ev.target.value })}
+                    onFocus={() => !isSelected && toggle(r.id)} placeholder="Add details…"
+                    className="flex-1 min-w-0 text-[11.5px] outline-none py-1.5 px-2 rounded-lg"
+                    style={{ color: "#111111", background: "#F9FAFB", border: "1px solid #E5E7EB" }} />
+
+                  <div className="flex items-center flex-shrink-0" style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, width: 92 }}>
+                    <span className="text-[11px] font-bold pl-2" style={{ color: "#9CA3AF" }}>₹</span>
+                    <input type="number" value={e.amount} onChange={ev => updateEdit(r.id, { amount: ev.target.value })}
+                      onFocus={() => !isSelected && toggle(r.id)}
+                      className="text-[12px] font-black text-right outline-none py-1.5 pr-2 pl-1 min-w-0"
+                      style={{ width: 68, color: "#111111", background: "transparent" }} />
+                  </div>
                 </div>
-                <span className="text-[12px] font-black whitespace-nowrap" style={{ color: "#111111" }}>{fmtRupee(r.amount)}</span>
-              </label>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -429,14 +480,29 @@ function CopyExpensesModalBody({ kind, targetMonth, onDone, onClose }: {
 
       <div className="flex gap-3">
         <button onClick={onClose} className="flex-1 py-3 rounded-xl text-[13px] font-bold" style={{ background: "#F3F4F6", color: "#6B7280" }}>Cancel</button>
-        <button onClick={runCopy} disabled={selected.size === 0 || copying}
-          className="flex-1 py-3 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg,#8B5CF6,#6D28D9)" }}>
-          {copying ? <Loader2 size={14} className="animate-spin" /> : <Copy size={14} />}
-          Copy {selected.size > 0 ? selected.size : ""} to {monthLabel(targetMonth).split(" ")[0]}
+        <button onClick={runCopy} disabled={selected.size === 0 || copying || sameMonth}
+          className="flex-1 flex items-center justify-center gap-2 transition-all duration-100 active:translate-y-[3px] shadow-[0_4px_0_#6D28D9] active:shadow-[0_0px_0_#6D28D9] hover:brightness-105 disabled:opacity-50 disabled:active:translate-y-0 disabled:shadow-[0_4px_0_#6D28D9]"
+          style={{ border: "none", cursor: selected.size === 0 || copying || sameMonth ? "not-allowed" : "pointer", background: "linear-gradient(180deg, #A78BFA 0%, #8B5CF6 100%)", padding: "12px 14px", borderRadius: 12 }}>
+          {copying ? <Loader2 size={14} className="animate-spin" style={{ color: "#fff" }} /> : <Copy size={14} style={{ color: "#fff" }} strokeWidth={2.5} />}
+          <span className="text-[13px] font-black" style={{ color: "#fff" }}>
+            Copy {selected.size > 0 ? selected.size : ""} to {monthLabel(targetMonth).split(" ")[0]}
+          </span>
         </button>
       </div>
     </div>
+  )
+}
+
+function CopyCheckbox({ checked, onToggle }: { checked: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} aria-pressed={checked} className="flex-shrink-0 flex items-center justify-center transition-all"
+      style={{
+        width: 20, height: 20, borderRadius: 7,
+        background: checked ? "linear-gradient(180deg, #A78BFA 0%, #8B5CF6 100%)" : "#fff",
+        border: checked ? "none" : "1.5px solid #D1D5DB",
+      }}>
+      {checked && <Check size={13} style={{ color: "#fff" }} strokeWidth={3} />}
+    </button>
   )
 }
 
@@ -685,6 +751,19 @@ export default function ExpensesClient({
   const travelClientNames = useMemo(
     () => Array.from(new Set(shootRows.map(r => r.clientName))).sort(),
     [shootRows]
+  )
+
+  // Copy Expenses only ever offers this month's own rows — travel/shoot costs are
+  // excluded for Client Direct since a shoot's travel cost is one-off, never recurring.
+  const copyableClientRows: CopyRow[] = useMemo(
+    () => clientExpenses.filter(e => e.type !== "travel").map(e => ({
+      id: e.id, amount: e.amount, client_name: e.client_name, date: e.date, type: e.type, notes: e.notes, shoot_title: e.shoot_title,
+    })),
+    [clientExpenses]
+  )
+  const copyableCommonRows: CopyRow[] = useMemo(
+    () => commonExpenses.map(e => ({ id: e.id, amount: e.amount, name: e.name, notes: e.notes })),
+    [commonExpenses]
   )
 
   const totalClientDirect = useMemo(() => clientExpenses.reduce((s, e) => s + e.amount, 0), [clientExpenses])
@@ -944,9 +1023,10 @@ export default function ExpensesClient({
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => setCopyModal("client")}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold whitespace-nowrap"
-                  style={{ background: "rgba(139,92,246,0.08)", color: "#8B5CF6", border: "1px solid rgba(139,92,246,0.2)" }}>
-                  <Copy size={12} /> Copy Expenses
+                  className="flex items-center gap-1.5 transition-all duration-100 active:translate-y-[3px] shadow-[0_3px_0_#6D28D9] active:shadow-[0_0px_0_#6D28D9] hover:brightness-105 whitespace-nowrap"
+                  style={{ border: "none", cursor: "pointer", background: "linear-gradient(180deg, #A78BFA 0%, #8B5CF6 100%)", padding: "8px 12px", borderRadius: 10 }}>
+                  <Copy size={12} style={{ color: "#fff" }} strokeWidth={2.5} />
+                  <span className="text-[11px] font-black uppercase tracking-wide" style={{ color: "#fff" }}>Copy Expenses</span>
                 </button>
                 <HeaderClientFilter value={clientFilter} onChange={setClientFilter} options={directClientNames} />
               </div>
@@ -1024,9 +1104,10 @@ export default function ExpensesClient({
               </div>
               <div className="flex items-center gap-2">
               <button onClick={() => setCopyModal("common")}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-bold whitespace-nowrap"
-                style={{ background: "rgba(139,92,246,0.08)", color: "#8B5CF6", border: "1px solid rgba(139,92,246,0.2)" }}>
-                <Copy size={12} /> Copy Expenses
+                className="flex items-center gap-1.5 transition-all duration-100 active:translate-y-[3px] shadow-[0_3px_0_#6D28D9] active:shadow-[0_0px_0_#6D28D9] hover:brightness-105 whitespace-nowrap"
+                style={{ border: "none", cursor: "pointer", background: "linear-gradient(180deg, #A78BFA 0%, #8B5CF6 100%)", padding: "8px 12px", borderRadius: 10 }}>
+                <Copy size={12} style={{ color: "#fff" }} strokeWidth={2.5} />
+                <span className="text-[11px] font-black uppercase tracking-wide" style={{ color: "#fff" }}>Copy Expenses</span>
               </button>
               <button onClick={() => setShowParticipation(true)}
                 className="flex items-center gap-2 transition-all duration-100 active:translate-y-[3px] shadow-[0_4px_0_#6D28D9] active:shadow-[0_0px_0_#6D28D9] hover:brightness-105"
@@ -1242,12 +1323,15 @@ export default function ExpensesClient({
       <DrawerPanel
         open={copyModal !== null}
         onClose={() => setCopyModal(null)}
-        header={<span className="text-[14px] font-black" style={{ color: "#111111" }}>Copy Expenses — {copyModal === "common" ? "Common / Shared" : "Client Direct"}</span>}
+        widthClassName="w-full max-w-2xl"
+        header={<span className="text-[14px] font-black uppercase tracking-wide" style={{ color: "#111111" }}>Copy Expenses — {copyModal === "common" ? "COMMON / SHARED" : "CLIENT DIRECT"}</span>}
       >
         {copyModal && (
           <CopyExpensesModalBody
+            key={`${copyModal}-${selectedMonth}`}
             kind={copyModal}
-            targetMonth={selectedMonth}
+            currentMonth={selectedMonth}
+            rows={copyModal === "common" ? copyableCommonRows : copyableClientRows}
             onClose={() => setCopyModal(null)}
             onDone={() => { setCopyModal(null); router.refresh() }}
           />

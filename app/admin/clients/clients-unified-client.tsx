@@ -333,7 +333,7 @@ export default function ClientsUnifiedClient({
   const showClient = selectedClientRow?.industry?.startsWith('__virtual') ?? false
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#F8F9FB' }}>
+    <div className="md:h-screen md:overflow-hidden" style={{ display: 'flex', flexDirection: 'column', background: '#F8F9FB' }}>
       {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
       <div style={{ flexShrink: 0, margin: '16px 16px 0', borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)', boxShadow: '0 8px 32px rgba(222,26,26,0.35)', position: 'relative' }}>
         {/* Decorative circles */}
@@ -375,12 +375,12 @@ export default function ClientsUnifiedClient({
         </div>
       </div>
       {/* ── SPLIT PANEL ───────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row" style={{ flex: 1, overflow: 'hidden' }}>
+      <div className="flex flex-col md:flex-row md:overflow-hidden" style={{ flex: 1 }}>
 
       {/* ── LEFT PANEL ──────────────────────────────────────────────────── */}
-      <div className={selectedClientName ? "hidden md:flex flex-col flex-1 md:flex-none w-full md:w-[300px]" : "flex flex-col flex-1 md:flex-none w-full md:w-[300px]"} style={{
+      <div className={selectedClientName ? "hidden md:flex flex-col flex-1 md:flex-none w-full md:w-[300px] md:overflow-hidden" : "flex flex-col flex-1 md:flex-none w-full md:w-[300px] md:overflow-hidden"} style={{
         flexShrink: 0, borderRight: '1px solid #EBEDF2',
-        background: '#FFFFFF', overflow: 'hidden', minHeight: 0,
+        background: '#FFFFFF', minHeight: 0,
       }}>
         {/* Header */}
         <div style={{ padding: '18px 16px 12px', borderBottom: '1px solid #F0F1F5' }}>
@@ -426,7 +426,7 @@ export default function ClientsUnifiedClient({
         </div>
 
         {/* Client list — virtual summary + 3 real sections */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div className="md:overflow-y-auto" style={{ flex: 1, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {filteredInternal.length === 0 && filteredActive.length === 0 && filteredPast.length === 0 && (
             <p style={{ fontSize: 12, color: "#37474F", textAlign: 'center', padding: '24px 0' }}>No clients found</p>
           )}
@@ -513,7 +513,7 @@ export default function ClientsUnifiedClient({
       </div>
 
       {/* ── RIGHT PANEL ─────────────────────────────────────────────────── */}
-      <div className={!selectedClientName ? "hidden md:flex flex-col" : "flex flex-col"} style={{ flex: 1, overflowY: 'auto' }}>
+      <div className={!selectedClientName ? "hidden md:flex flex-col md:overflow-y-auto" : "flex flex-col md:overflow-y-auto"} style={{ flex: 1 }}>
 
         {/* No client selected */}
         {!selectedClientName && (

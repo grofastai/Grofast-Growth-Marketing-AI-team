@@ -126,7 +126,7 @@ export default function AdminFreelancersTabs({
   })), [flEntries])
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden", background: "#F8F9FB" }}>
+    <div className="md:h-screen md:overflow-hidden" style={{ display: "flex", flexDirection: "column", background: "#F8F9FB" }}>
 
       {/* ── Hero header ──────────────────────────────────────────────────────── */}
       <div style={{ flexShrink: 0, margin: "14px 14px 0" }}>
@@ -145,11 +145,11 @@ export default function AdminFreelancersTabs({
       </div>
 
       {/* ── Two-panel body ───────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row" style={{ flex: 1, minHeight: 0, overflow: "hidden", background: "#fff", marginTop: 10, borderTop: "1px solid #F0F1F5" }}>
+      <div className="flex flex-col md:flex-row md:overflow-hidden" style={{ flex: 1, minHeight: 0, background: "#fff", marginTop: 10, borderTop: "1px solid #F0F1F5" }}>
 
         {/* ── Unified left panel ─────────────────────────────────────────────── */}
-        <div className={(selected || mobileShowRight) ? "hidden md:flex md:flex-col md:w-[220px]" : "flex flex-col w-full md:w-[220px]"}
-          style={{ flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", overflowY: "auto" }}>
+        <div className={(selected || mobileShowRight) ? "hidden md:flex md:flex-col md:w-[220px] md:overflow-y-auto" : "flex flex-col w-full md:w-[220px] md:overflow-y-auto"}
+          style={{ flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA" }}>
 
           {/* Only worth showing once there's more than one team to actually filter between —
               with a single team present, toggling it produces the same list every time. */}
@@ -243,8 +243,8 @@ export default function AdminFreelancersTabs({
         </div>
 
         {/* ── Right panel ────────────────────────────────────────────────────── */}
-        <div className={(!selected && !mobileShowRight) ? "hidden md:flex md:flex-col" : "flex flex-col"}
-          style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+        <div className={(!selected && !mobileShowRight) ? "hidden md:flex md:flex-col md:overflow-hidden" : "flex flex-col md:overflow-hidden"}
+          style={{ flex: 1, minHeight: 0 }}>
 
           {/* Back button — mobile only */}
           {(selected || mobileShowRight) && (

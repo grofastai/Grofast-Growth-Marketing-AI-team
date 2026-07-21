@@ -191,8 +191,11 @@ function statusButtonGradient(status: ContentStatus): string {
 // (shoot/ads-video video enters at Ready to Edit; posters enter at Design).
 const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "edited", "on_review", "ready_to_post", "cancelled"]
 const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "edited", "on_review", "ready_to_post", "cancelled"]
-// The Ads Video sub-tab's own two-column board — feeds INTO Ready to Edit, doesn't include it.
+// The Ads Video sub-tab's own draggable columns — feeds INTO Ready to Edit, doesn't include it.
+// A 3rd, non-draggable "Completed" column (not a real ContentStatus) sits alongside these —
+// see adsVideoCompletedItems.
 const ADS_VIDEO_ORDER: ContentStatus[] = ["scripting", "voiceover"]
+const ADS_VIDEO_COMPLETED_CFG = { label: "Completed", accent: "#22C55E" }
 // The default "move forward" target for the generic advance button. on_review is
 // deliberately absent — it branches two ways (approve / correction) and gets its own
 // two-button UI instead of a single generic button. posted is terminal.
@@ -727,22 +730,30 @@ function ContentCardInner({
 // ── Ads Video card — the Scripting/Voice Over board's card, distinct from
 // ContentCardInner because its fields (hooks, use-for, priority) don't apply once an
 // item reaches the shared Ready to Edit board (which reuses ContentCardInner).
-function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete, onMoveToShoot }: {
+function AdsVideoCardInner({ item, isDragging, isCompleted, onAdvance, onEdit, onDelete, onMoveToShoot }: {
   item: ContentItem
   isDragging?: boolean
+  // Sent to a shoot, or moved on past Voice Over — this sub-flow's work is done, so the
+  // card is read-only: no advance/cancel/move actions, just a Completed badge.
+  isCompleted?: boolean
   onAdvance: (item: ContentItem, next: ContentStatus) => void
   onEdit: (item: ContentItem) => void
   onDelete: (id: string) => void
   onMoveToShoot: (item: ContentItem) => void
 }) {
-  const cardMenu: CardMenuItem[] = [
-    { label: "Edit details", icon: Pencil, onClick: () => onEdit(item) },
-    // A script/voice-over can turn out unusable before it ever reaches a shoot or edit —
-    // kept as a record instead of deleted outright, same as Ready to Edit/Design.
-    { label: "Cancel", icon: XCircle, onClick: () => onAdvance(item, "cancelled"), danger: true },
-    { label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true },
-  ]
-  const next = NEXT_STATUS[item.status]
+  const cardMenu: CardMenuItem[] = isCompleted
+    ? [
+        { label: "Edit details", icon: Pencil, onClick: () => onEdit(item) },
+        { label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true },
+      ]
+    : [
+        { label: "Edit details", icon: Pencil, onClick: () => onEdit(item) },
+        // A script/voice-over can turn out unusable before it ever reaches a shoot or edit —
+        // kept as a record instead of deleted outright, same as Ready to Edit/Design.
+        { label: "Cancel", icon: XCircle, onClick: () => onAdvance(item, "cancelled"), danger: true },
+        { label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true },
+      ]
+  const next = isCompleted ? undefined : NEXT_STATUS[item.status]
 
   const accent = STATUS_CFG[item.status].accent
   const accentDark = darken(accent, 0.7)
@@ -811,7 +822,13 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete, onMo
         </div>
       )}
 
-      {next && (
+      {isCompleted && (
+        <div className="w-full py-2 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5"
+          style={{ background: `${ADS_VIDEO_COMPLETED_CFG.accent}14`, color: ADS_VIDEO_COMPLETED_CFG.accent, marginTop: item.voiceoverBy || item.scriptedByUser ? 0 : 4 }}>
+          <Check size={10} /> Completed
+        </div>
+      )}
+      {!isCompleted && next && (
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, next)}
@@ -820,7 +837,7 @@ function AdsVideoCardInner({ item, isDragging, onAdvance, onEdit, onDelete, onMo
           {item.status === "voiceover" ? <>Send to Ready to Edit <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
         </button>
       )}
-      {item.status === "scripting" && (
+      {!isCompleted && item.status === "scripting" && (
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onMoveToShoot(item)}
@@ -2188,12 +2205,8 @@ function RequestCorrectionModal({ item, members, onClose, onRequested }: {
   }
 
   return (
-    <Modal title="Needs Correction" onClose={onClose}>
+    <Modal title={`Needs Correction — ${item.title}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-          <strong style={{ color: "#111827" }}>{item.title}</strong> goes back to Edited for rework. The
-          round-trip is logged, so you can see how many rounds it took.
-        </p>
         <div>
           <label style={LABEL}>What needs fixing? *</label>
           <textarea style={{ ...FIELD, minHeight: 70, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)}
@@ -2307,12 +2320,8 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
   }
 
   return (
-    <Modal title="Who edited this?" onClose={onClose}>
+    <Modal title={`Who edited this? — ${item.title}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-          <strong style={{ color: "#111827" }}>{item.title}</strong> is moving to Edited. Recording who
-          edited it means the rest of the team can see who to ask.
-        </p>
         <div>
           <label style={LABEL}>Editor *</label>
           <select style={{ ...FIELD, cursor: "pointer" }} value={editorId} onChange={e => setEditorId(e.target.value)}>
@@ -2351,11 +2360,8 @@ function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
   }
 
   return (
-    <Modal title="Who recorded the voice-over?" onClose={onClose}>
+    <Modal title={`Who recorded the voice-over? — ${item.title}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-          <strong style={{ color: "#111827" }}>{item.title}</strong> is moving to Voice Over.
-        </p>
         {freelancers.length === 0 ? (
           <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>
             No active Freelance RJ Voiceover artists found — add one under Freelancers first.
@@ -2422,12 +2428,8 @@ function MoveToShootModal({ item, onClose, onMoved }: {
   }
 
   return (
-    <Modal title="Move to Shoot" onClose={onClose}>
+    <Modal title={`Move to Shoot — ${item.title}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-          <strong style={{ color: "#111827" }}>{item.title}</strong> needs to be shot instead of voiced over. This schedules
-          a real shoot — it'll show up on the Shoots board too. The script stays in Scripting until the shoot is marked Done.
-        </p>
         <div>
           <label style={LABEL}>Shoot Type *</label>
           <div style={{ display: "flex", gap: 6 }}>
@@ -2519,9 +2521,6 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
       <div className="flex flex-col gap-3">
         {!isLinked && (
           <>
-            <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-              What videos came out of this shoot? Each one becomes a card in the Pipeline at <strong>Shot</strong>.
-            </p>
             <div>
               <label style={LABEL}>Video Titles *</label>
               <div style={{ display: "flex", gap: 8 }}>
@@ -2547,12 +2546,6 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
             </div>
           </>
         )}
-        {isLinked && (
-          <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-            This shoot came from an Ads Video script — completing it moves <strong>{shoot.legacyTitle}</strong> straight to Ready to Edit.
-          </p>
-        )}
-
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
             <label style={LABEL}>Actual Start Time *</label>
@@ -2618,9 +2611,6 @@ function EditCrewModal({ shoot, members, currentUserId, onClose, onSaved }: {
   return (
     <Modal title={`Who went — ${shoot.legacyTitle}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-          Set or correct who covered this shoot. Works even after it&apos;s Done.
-        </p>
         <div>
           <label style={LABEL}>Crew</label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -2989,11 +2979,27 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
 
   function colItems(status: ContentStatus) { return pipelineItems.filter(i => i.status === status) }
 
+  // A Scripting item that's been sent to a shoot (Move to Shoot) still has status
+  // "scripting" until that shoot completes — this id set is how the board tells "still
+  // deciding" scripting apart from "already sent to a shoot" scripting.
+  const shootLinkedItemIds = useMemo(
+    () => new Set(shoots.filter(s => s.source_content_item_id).map(s => s.source_content_item_id!)),
+    [shoots]
+  )
   const adsVideoItems = useMemo(
-    () => items.filter(i => i.content_type === "video" && i.source === "ads_video" && ADS_VIDEO_ORDER.includes(i.status)),
-    [items]
+    () => items.filter(i => i.content_type === "video" && i.source === "ads_video" && ADS_VIDEO_ORDER.includes(i.status)
+      && !(i.status === "scripting" && shootLinkedItemIds.has(i.id))),
+    [items, shootLinkedItemIds]
   )
   function adsVideoColItems(status: ContentStatus) { return adsVideoItems.filter(i => i.status === status) }
+  // The Ads Video sub-flow's own work is done once a script has been sent to a shoot, or a
+  // voice-over has moved on to Ready to Edit (or beyond) — shown as a 3rd, read-only column.
+  const adsVideoCompletedItems = useMemo(
+    () => items.filter(i => i.content_type === "video" && i.source === "ads_video" && i.status !== "cancelled" && (
+      (i.status === "scripting" && shootLinkedItemIds.has(i.id)) || (i.status !== "scripting" && i.status !== "voiceover")
+    )),
+    [items, shootLinkedItemIds]
+  )
 
   function advance(item: ContentItem, next: ContentStatus) {
     if (next === "posted") { setPlatformModalKind("branding"); setPlatformModalItem(item); return }
@@ -3148,7 +3154,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const navSections = useMemo(() => {
     if (mode === "ads" || mode === "overview") return []
     const ofMode = items.filter(i => i.content_type === contentTypeForMode)
-    const activeAdsVideo = items.filter(i => i.content_type === "video" && i.source === "ads_video" && (i.status === "scripting" || i.status === "voiceover"))
+    // Excludes scripting items already sent to a shoot — those are done as far as this
+    // sub-flow is concerned, so they don't count as "still active" here.
+    const activeAdsVideo = items.filter(i => i.content_type === "video" && i.source === "ads_video"
+      && (i.status === "voiceover" || (i.status === "scripting" && !shootLinkedItemIds.has(i.id))))
     return [
       ...(mode === "video"
         ? [{ key: "shoots", label: "Shoots", icon: Camera, count: shoots.filter(s => s.status === "scheduled").length }]
@@ -3160,7 +3169,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       { key: "log", label: "Branding", icon: History, count: ofMode.filter(i => i.posted_branding).length },
       { key: "adlog", label: "Advertisement", icon: Megaphone, count: ofMode.filter(i => i.posted_ads).length },
     ]
-  }, [mode, items, shoots, contentTypeForMode, pipelineOrder])
+  }, [mode, items, shoots, contentTypeForMode, pipelineOrder, shootLinkedItemIds])
 
   const stats = useMemo(() => {
     const readyToEdit = items.filter(i => i.status === "ready_to_edit").length
@@ -3642,10 +3651,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
 
       {mode === "video" && tab === "adsvideo" && (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>
-              Video that starts as a script, not a shoot — scripting and voice-over here, then it joins the shared production board at Ready to Edit.
-            </p>
+          <div className="flex items-center justify-end flex-wrap gap-2">
             <button onClick={() => setShowNewAdsVideo(true)}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 16px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer" }}>
               <Plus size={14} /> New Ads Video
@@ -3670,11 +3676,21 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                 </div>
               )
             })}
+            <div className="rounded-2xl overflow-hidden" style={{ background: `linear-gradient(165deg, ${ADS_VIDEO_COMPLETED_CFG.accent} 0%, ${darken(ADS_VIDEO_COMPLETED_CFG.accent, 0.55)} 100%)` }}>
+              <KanbanColumnHeader label={ADS_VIDEO_COMPLETED_CFG.label} count={adsVideoCompletedItems.length} accent={ADS_VIDEO_COMPLETED_CFG.accent} />
+              <div className="p-3">
+                {adsVideoCompletedItems.length === 0 ? (
+                  <KanbanEmptyCell isOver={false} />
+                ) : adsVideoCompletedItems.map(item => (
+                  <AdsVideoCardInner key={item.id} item={item} isCompleted onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} onMoveToShoot={setMoveToShootFor} />
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="hidden md:block">
             <DndContext sensors={sensors} onDragStart={e => setAdsVideoDragId(String(e.active.id))} onDragOver={handleAdsVideoDragOver as never} onDragEnd={handleAdsVideoDragEnd}>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 {ADS_VIDEO_ORDER.map(status => {
                   const list = adsVideoColItems(status)
                   const cfg = STATUS_CFG[status]
@@ -3693,6 +3709,16 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                     </KanbanColumn>
                   )
                 })}
+                <div className="rounded-2xl flex flex-col" style={{ border: "1px solid #E8E9EF", background: `linear-gradient(165deg, ${ADS_VIDEO_COMPLETED_CFG.accent} 0%, ${darken(ADS_VIDEO_COMPLETED_CFG.accent, 0.55)} 100%)`, minHeight: 200 }}>
+                  <KanbanColumnHeader label={ADS_VIDEO_COMPLETED_CFG.label} count={adsVideoCompletedItems.length} accent={ADS_VIDEO_COMPLETED_CFG.accent} />
+                  <div className="p-3 flex-1">
+                    {adsVideoCompletedItems.length === 0 ? (
+                      <KanbanEmptyCell isOver={false} />
+                    ) : adsVideoCompletedItems.map(item => (
+                      <AdsVideoCardInner key={item.id} item={item} isCompleted onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} onMoveToShoot={setMoveToShootFor} />
+                    ))}
+                  </div>
+                </div>
               </div>
               <DragOverlay>
                 {draggedAdsVideo ? (

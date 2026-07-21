@@ -8,7 +8,7 @@ import {
   Search, Plus, Shield, UserCheck,
   MoreVertical, Phone, CalendarDays, X, Pencil,
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
-  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy, Check, Users, Sparkles,
+  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy, Check, Users, Sparkles, Lock,
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
@@ -1680,20 +1680,25 @@ function ManageTeamsPositionsPanel({
                           className="flex-1 min-w-0 text-[12.5px] rounded-lg px-2 py-1" style={{ border: "1px solid #DE1A1A" }} />
                       ) : (
                         <div className="flex-1 min-w-0">
-                          <p className="text-[12.5px] font-semibold truncate" style={{ color: "#111111" }}>{t.name}</p>
-                          <p className="text-[10.5px]" style={{ color: "#9CA3AF" }}>{teamCounts[t.id] ?? 0} member{teamCounts[t.id] === 1 ? "" : "s"}</p>
+                          <p className="text-[12.5px] font-semibold truncate flex items-center gap-1" style={{ color: "#111111" }}>
+                            {t.name}
+                            {t.is_locked && <Lock size={10} style={{ color: "#9CA3AF", flexShrink: 0 }} />}
+                          </p>
+                          <p className="text-[10.5px]" style={{ color: "#9CA3AF" }}>
+                            {t.is_locked ? "Locked — name can't be changed" : `${teamCounts[t.id] ?? 0} member${teamCounts[t.id] === 1 ? "" : "s"}`}
+                          </p>
                         </div>
                       )}
                       {editingTeamId === t.id ? (
                         <button type="button" onClick={() => handleRenameTeam(t.id)} disabled={isPending} className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#DE1A1A", color: "#fff" }}><Check size={12} /></button>
-                      ) : (
+                      ) : !t.is_locked ? (
                         <button type="button" onClick={() => { setEditingTeamId(t.id); setEditingTeamName(t.name) }} className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ border: "1px solid #E5E7EB", color: "#5C3D1F" }}><Pencil size={11} /></button>
-                      )}
+                      ) : null}
                       <button type="button" onClick={() => handleToggleTeam(t)} disabled={isPending} title={t.is_active ? "Deactivate" : "Reactivate"}
                         className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ border: "1px solid #E5E7EB", color: t.is_active ? "#F97316" : "#16A34A" }}>
                         {t.is_active ? <Ban size={11} /> : <RotateCcw size={11} />}
                       </button>
-                      {(teamCounts[t.id] ?? 0) === 0 && (
+                      {!t.is_locked && (teamCounts[t.id] ?? 0) === 0 && (
                         <button type="button" onClick={() => handleDeleteTeam(t)} disabled={isPending} className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ border: "1px solid #FCA5A5", color: "#DC2626" }}><Trash2 size={11} /></button>
                       )}
                     </div>

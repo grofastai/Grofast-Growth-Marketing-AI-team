@@ -31,6 +31,7 @@ export type TeamRow = {
   color: string | null
   emoji: string | null
   is_active: boolean
+  is_locked: boolean
 }
 
 export async function listTeams(scope?: TeamScope): Promise<TeamRow[]> {
@@ -39,7 +40,7 @@ export async function listTeams(scope?: TeamScope): Promise<TeamRow[]> {
   const admin = adminSupabase()
   let query = admin
     .from('teams')
-    .select('id, name, scope, template_key, color, emoji, is_active')
+    .select('id, name, scope, template_key, color, emoji, is_active, is_locked')
     .eq('company_id', companyId)
     .order('sort_order')
     .order('name')
@@ -114,8 +115,12 @@ export async function updateTeam(
 
   let oldName: string | null = null
   if (fields.name != null) {
-    const { data: current } = await admin.from('teams').select('name').eq('id', id).eq('company_id', companyId).single()
-    oldName = (current as { name?: string } | null)?.name ?? null
+    const { data: current } = await admin.from('teams').select('name, is_locked').eq('id', id).eq('company_id', companyId).single()
+    const row = current as { name?: string; is_locked?: boolean } | null
+    if (row?.is_locked && fields.name.trim() !== row.name) {
+      return { success: false, error: 'This team\'s name is locked — other parts of the app still depend on it exactly as-is. Ask your developer before renaming it.' }
+    }
+    oldName = row?.name ?? null
   }
 
   const { error } = await admin
@@ -168,6 +173,12 @@ export async function deleteTeam(id: string): Promise<{ success: boolean; error?
   if (!companyId) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
+
+  const { data: current } = await admin.from('teams').select('is_locked').eq('id', id).eq('company_id', companyId).single()
+  if ((current as { is_locked?: boolean } | null)?.is_locked) {
+    return { success: false, error: 'This team is locked and can\'t be deleted — other parts of the app still depend on it existing.' }
+  }
+
   const [{ count: userCount }, { count: flCount }] = await Promise.all([
     admin.from('users').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('team_id', id),
     admin.from('freelancers').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('team_id', id),

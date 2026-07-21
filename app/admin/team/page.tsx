@@ -82,7 +82,7 @@ export default async function TeamPage({
       .order('date_finished', { ascending: true }),
     admin
       .from('teams')
-      .select('id, name, scope, template_key, color, emoji, is_active')
+      .select('id, name, scope, template_key, color, emoji, is_active, is_locked')
       .eq('company_id', profile.company_id)
       .order('sort_order')
       .order('name'),

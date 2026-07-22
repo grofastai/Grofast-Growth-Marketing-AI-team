@@ -21,7 +21,7 @@ import { latestEntry, isUnderperforming, cpc, cpm, frequency, costPerResult, typ
 import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
-  createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, markReadyToPost, requestCorrection,
+  createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, requestCorrection,
   createAdsVideoScript, recordVoiceOver, updateAdsVideoScript, updateVoiceOver,
 } from "@/lib/actions/media-tracker"
 import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, renameShootTitle, addShootTitle, updateShootActualTime, type CreatedShootItem } from "@/lib/actions/shoots"
@@ -38,10 +38,11 @@ type Priority = "low" | "medium" | "high" | "urgent"
 type ContentSource = "shoot" | "ads_video" | "poster"
 type ContentStatus =
   | "scripting" | "voiceover" | "design" | "ready_to_edit"
-  | "edited" | "on_review" | "ready_to_post" | "posted" | "cancelled"
+  | "on_review" | "branding_ready" | "ads_ready" | "posted" | "cancelled"
 type TargetingType = "broad" | "interest" | "lookalike" | "retargeting"
 type AdStatus = "active" | "paused" | "testing" | "stopped"
 type ShootType = "ads_shoot" | "branding_shoot"
+type CancelledBy = "client" | "us"
 
 type Person = { id: string; name: string } | null
 
@@ -51,6 +52,7 @@ export type ContentPost = {
   platform: Platform
   posted_date: string
   post_link: string | null
+  ad_run_date: string | null
   postedByUser?: Person
 }
 
@@ -89,6 +91,7 @@ export type ContentItem = {
   // an item can be posted_branding, posted_ads, or both at once.
   posted_branding: boolean
   posted_ads: boolean
+  cancelled_by: CancelledBy | null
   shotByUser?: Person
   editedByUser?: Person
   scriptedByUser?: Person
@@ -158,18 +161,17 @@ type Props = {
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
-  scripting:     { label: "Scripting",     accent: "#F97316" },
-  voiceover:     { label: "Voice Over",    accent: "#1E3A8A" },
-  design:        { label: "Design",        accent: "#F59E0B" },
-  ready_to_edit: { label: "Ready to Edit", accent: "#0D9488" },
-  // Was #9B6BFF (purple) — read as nearly the same color as neighboring stages once
-  // darkened for the badge fill. Fuchsia is a clean break from it.
-  edited:        { label: "Edited",        accent: "#D946EF" },
-  // Was #EC4899 (pink) — too close to Edited's new fuchsia. Rose leans warmer/redder.
-  on_review:     { label: "On Review",     accent: "#F43F5E" },
-  ready_to_post: { label: "Ready to Post", accent: "#0EA5E9" },
-  posted:        { label: "Posted",        accent: "#22C55E" },
-  cancelled:     { label: "Cancelled",     accent: "#EF4444" },
+  scripting:       { label: "Scripting",       accent: "#F97316" },
+  voiceover:       { label: "Voice Over",      accent: "#1E3A8A" },
+  design:          { label: "Design",          accent: "#F59E0B" },
+  ready_to_edit:   { label: "Ready to Edit",   accent: "#0D9488" },
+  // Was #EC4899 (pink) — too close to neighboring stages once darkened for the badge fill.
+  // Rose reads as its own distinct hue in the lineup.
+  on_review:       { label: "On Review",       accent: "#F43F5E" },
+  branding_ready:  { label: "Branding Ready",  accent: "#0EA5E9" },
+  ads_ready:       { label: "Ads Ready",       accent: "#D97706" },
+  posted:          { label: "Posted",          accent: "#22C55E" },
+  cancelled:       { label: "Cancelled",       accent: "#EF4444" },
 }
 // Darkens a #RRGGBB hex color by blending it toward black — computed in JS instead of the
 // CSS color-mix() function, which silently drops the whole declaration (no fallback, no
@@ -190,23 +192,22 @@ function statusButtonGradient(status: ContentStatus): string {
 }
 // The production board's column order — differs by content type only in its first column
 // (shoot/ads-video video enters at Ready to Edit; posters enter at Design).
-const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "edited", "on_review", "ready_to_post", "cancelled"]
-const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "edited", "on_review", "ready_to_post", "cancelled"]
+const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "on_review", "branding_ready", "ads_ready", "cancelled"]
+const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "on_review", "branding_ready", "ads_ready", "cancelled"]
 // The Ads Video sub-tab's own draggable columns — feeds INTO Ready to Edit, doesn't include it.
 // A 3rd, non-draggable "Completed" column (not a real ContentStatus) sits alongside these —
 // see adsVideoCompletedItems.
 const ADS_VIDEO_ORDER: ContentStatus[] = ["scripting", "voiceover"]
 const ADS_VIDEO_COMPLETED_CFG = { label: "Completed", accent: "#22C55E" }
 // The default "move forward" target for the generic advance button. on_review is
-// deliberately absent — it branches two ways (approve / correction) and gets its own
-// two-button UI instead of a single generic button. posted is terminal.
+// deliberately absent — it branches three ways (Branding/Ads/Cancelled) via its own Move
+// dialog. branding_ready/ads_ready are also absent — each gets its own dedicated
+// "Mark as Posted"/"Ads Completed" button instead of the generic advance.
 const NEXT_STATUS: Partial<Record<ContentStatus, ContentStatus>> = {
   scripting: "voiceover",
   voiceover: "ready_to_edit",
-  design: "edited",
-  ready_to_edit: "edited",
-  edited: "on_review",
-  ready_to_post: "posted",
+  design: "on_review",
+  ready_to_edit: "on_review",
 }
 
 const PLATFORM_CFG: Record<Platform, { label: string; color: string; icon: typeof Camera }> = {
@@ -387,9 +388,8 @@ const MODE_ACCENT: Record<TrackerMode, { solid: string; grad: string; glow: stri
 // that language (rather than inventing a new one) keeps Overview feeling
 // like part of the same product instead of a one-off skin.
 const OVERVIEW_TILE_GRADIENTS = {
-  dueToday: "linear-gradient(135deg,#0EA5E9,#075985)",
-  dueThisWeek: "linear-gradient(135deg,#6366F1,#3730A3)",
-  overdue: "linear-gradient(135deg,#E11D48,#831843)",
+  brandingWaiting: "linear-gradient(135deg,#0EA5E9,#075985)",
+  adsWaiting: "linear-gradient(135deg,#D97706,#92400E)",
   video: "linear-gradient(135deg,#DE1A1A,#8B1212)",
   poster: "linear-gradient(135deg,#7C3AED,#5B21B6)",
   shoots: "linear-gradient(135deg,#3B82F6,#1D4ED8)",
@@ -493,15 +493,16 @@ function TrackerNav({ mode, onMode, tab, onTab, modeCounts, sections }: {
 
 // ── Kanban card ──────────────────────────────────────────────────────────────
 function ContentCardInner({
-  item, isDraggable, isDragging, onAdvance, onDelete, onAddPlatform, onEdit,
+  item, isDraggable, isDragging, onAdvance, onDelete, onAddPlatform, onEdit, onMove,
 }: {
   item: ContentItem
   isDraggable?: boolean
   isDragging?: boolean
   onAdvance: (item: ContentItem, next: ContentStatus) => void
   onDelete: (id: string) => void
-  onAddPlatform: (item: ContentItem) => void
+  onAddPlatform: (item: ContentItem, kind?: "branding" | "ads") => void
   onEdit?: (item: ContentItem) => void
+  onMove: (item: ContentItem) => void
 }) {
   const TypeIcon = item.content_type === "video" ? Video : ImageIcon
   // The card's own column/status color, not a fixed video-vs-poster color — a card sitting
@@ -512,8 +513,7 @@ function ContentCardInner({
   // scheduled slot, corrections) shades off this same accent instead of its own unrelated
   // hue, so nothing on the card fights the card's own color.
   const typeAccentDark = darken(typeAccent, 0.7)
-  const age = (item.status === "ready_to_edit" || item.status === "design") ? daysAgo(originDate(item))
-    : item.status === "edited" ? daysAgo(item.edited_date) : null
+  const age = (item.status === "ready_to_edit" || item.status === "design") ? daysAgo(originDate(item)) : null
   const stale = age !== null && age >= 3
 
   // The drag overlay renders this card with no handlers, so an empty menu is expected there
@@ -625,7 +625,7 @@ function ContentCardInner({
         )}
         {/* Once it's Edited, name the editor outright — the point of asking "who edited
             this?" is that the rest of the team can see it without hovering. */}
-        {item.editedByUser && item.status === "edited" ? (
+        {item.editedByUser && item.status === "on_review" ? (
           <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
             title={`Edited by ${item.editedByUser.name}`}
             style={{ background: `${typeAccent}18`, color: typeAccentDark }}>
@@ -645,30 +645,6 @@ function ContentCardInner({
         <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(originDate(item))}</span>
       </div>
 
-      {/* Scheduled slot — shown while it's queued in Ready to Post. */}
-      {item.status === "ready_to_post" && item.scheduled_post_date && (
-        <div className="mb-2 p-2 rounded-xl" style={{ background: `${typeAccent}14` }}>
-          <div className="flex items-center gap-1 mb-1">
-            <CalendarDays size={10} style={{ color: typeAccentDark }} />
-            <span className="text-[9px] font-bold" style={{ color: typeAccentDark }}>
-              {fmtDate(item.scheduled_post_date)}{item.scheduled_post_time ? ` · ${fmtTime(item.scheduled_post_time)}` : ""}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {item.ready_platforms.map(p => {
-              const cfg = PLATFORM_CFG[p]
-              const Icon = cfg.icon
-              return (
-                <span key={p} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ background: `${cfg.color}18`, color: cfg.color }}>
-                  <Icon size={9} /> {cfg.label}
-                </span>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Correction round-trips — shows this went back N times, and what for. */}
       {item.corrections.length > 0 && (
         <div className="mb-2">
@@ -683,35 +659,40 @@ function ContentCardInner({
         </div>
       )}
 
-      {/* The review gate: approve moves it on, or it's cancelled outright. */}
+      {/* The review gate: one Move button opens the 3-way choice (Branding/Ads/Cancelled). */}
       {item.status === "on_review" ? (
-        <div className="flex flex-col gap-1.5">
-          <button
-            onPointerDown={e => e.stopPropagation()}
-            onClick={() => onAdvance(item, "ready_to_post")}
-            className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
-            style={{ background: statusButtonGradient("ready_to_post"), color: "#fff" }}>
-            Approve <ArrowRight size={10} />
-          </button>
-          <button
-            onPointerDown={e => e.stopPropagation()}
-            onClick={() => onAdvance(item, "cancelled")}
-            className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
-            style={{ background: statusButtonGradient("cancelled"), color: "#fff" }}>
-            <XCircle size={10} /> Cancelled
-          </button>
-        </div>
+        <button
+          onPointerDown={e => e.stopPropagation()}
+          onClick={() => onMove(item)}
+          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
+          style={{ background: statusButtonGradient("on_review"), color: "#fff" }}>
+          Move <ArrowRight size={10} />
+        </button>
       ) : next && (
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, next)}
           className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
           style={{ background: statusButtonGradient(next), color: "#fff" }}>
-          {item.status === "ready_to_post" ? <>Mark Posted <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
+          Move to {STATUS_CFG[next].label} <ArrowRight size={10} />
+        </button>
+      )}
+      {item.status === "branding_ready" && (
+        <button onPointerDown={e => e.stopPropagation()} onClick={() => onAddPlatform(item, "branding")}
+          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
+          style={{ background: statusButtonGradient("branding_ready"), color: "#fff" }}>
+          Mark as Posted <ArrowRight size={10} />
+        </button>
+      )}
+      {item.status === "ads_ready" && (
+        <button onPointerDown={e => e.stopPropagation()} onClick={() => onAddPlatform(item, "ads")}
+          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
+          style={{ background: statusButtonGradient("ads_ready"), color: "#fff" }}>
+          Ads Completed <ArrowRight size={10} />
         </button>
       )}
       {item.status === "posted" && (
-        <button onPointerDown={e => e.stopPropagation()} onClick={() => onAddPlatform(item)}
+        <button onPointerDown={e => e.stopPropagation()} onClick={() => onAddPlatform(item, item.posted_ads && !item.posted_branding ? "ads" : "branding")}
           className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
           style={{ background: "rgba(34,197,94,0.08)", color: "#16A34A" }}>
           <Plus size={10} /> Add Platform
@@ -845,7 +826,7 @@ function AdsVideoCardInner({ item, isDragging, isCompleted, onAdvance, onEdit, o
   )
 }
 
-function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvance: (item: ContentItem, next: ContentStatus) => void; onDelete: (id: string) => void; onAddPlatform: (item: ContentItem) => void; onEdit: (item: ContentItem) => void }) {
+function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvance: (item: ContentItem, next: ContentStatus) => void; onDelete: (id: string) => void; onAddPlatform: (item: ContentItem, kind?: "branding" | "ads") => void; onEdit: (item: ContentItem) => void; onMove: (item: ContentItem) => void }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: props.item.id, data: { status: props.item.status } })
   const style = transform ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` } : undefined
   return (
@@ -855,7 +836,7 @@ function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvanc
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     <div ref={setNodeRef} style={{ ...style, touchAction: "none" }} {...(listeners as any)} {...(attributes as any)} className="cursor-grab active:cursor-grabbing">
       <ContentCardInner item={props.item} isDraggable isDragging={props.isDragging}
-        onAdvance={props.onAdvance} onDelete={props.onDelete} onAddPlatform={props.onAddPlatform} onEdit={props.onEdit} />
+        onAdvance={props.onAdvance} onDelete={props.onDelete} onAddPlatform={props.onAddPlatform} onEdit={props.onEdit} onMove={props.onMove} />
     </div>
   )
 }
@@ -1423,8 +1404,9 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
       hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
       posted_branding: alreadyPosted && postedPlatforms.some(p => !ADS_PLATFORM_SET.has(p)),
       posted_ads: alreadyPosted && postedPlatforms.some(p => ADS_PLATFORM_SET.has(p)),
+      cancelled_by: null,
       shot_date: shotDate, edited_date: alreadyPosted ? postedDate : null, notes: notes.trim() || null, created_at: new Date().toISOString(),
-      posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({ id: `${res.id}-${i}`, content_item_id: res.id!, platform, posted_date: postedDate, post_link: null })) : [],
+      posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({ id: `${res.id}-${i}`, content_item_id: res.id!, platform, posted_date: postedDate, post_link: null, ad_run_date: null })) : [],
     })
   }
 
@@ -1521,7 +1503,7 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
       status: "scripting", shot_date: null, edited_date: null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: finalHookCount, use_for: useFor, priority: null, shoot_type: shootType, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false, scriptedByUser, posts: [],
+      posted_branding: false, posted_ads: false, cancelled_by: null, scriptedByUser, posts: [],
     })
   }
 
@@ -1755,8 +1737,8 @@ function EditContentModal({ item, clients, pastClients, members, onClose, onSave
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
     [clients, pastClients]
   )
-  const showEditor = item.status === "edited" || item.status === "on_review" || item.status === "ready_to_post" || item.status === "posted"
-  const showSchedule = item.status === "ready_to_post" || item.status === "posted"
+  const showEditor = item.status === "on_review" || item.status === "branding_ready" || item.status === "ads_ready" || item.status === "posted"
+  const showSchedule = item.status === "posted"
 
   const [client, setClient] = useState(item.client_name)
   const [title, setTitle] = useState(item.title)
@@ -1879,6 +1861,7 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
   const [postedDate, setPostedDate] = useState(
     item.scheduled_post_date || todayIST()
   )
+  const [adRunDate, setAdRunDate] = useState(todayIST())
   const [postLink, setPostLink] = useState("")
   // Who's posting — defaults to whoever clicked, but can be assigned to someone else.
   const [postedBy, setPostedBy] = useState(
@@ -1901,6 +1884,7 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
         content_item_id: item.id, platform, posted_date: postedDate,
         post_link: postLink.trim() || undefined,
         posted_by: postedBy || undefined,
+        ad_run_date: kind === "ads" ? adRunDate : undefined,
       }).then(res => ({ res, platform }))
     ))
     setSaving(false)
@@ -1912,6 +1896,7 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
     onAdded(results.map(({ res, platform }) => ({
       id: res.id!, content_item_id: item.id, platform,
       posted_date: postedDate, post_link: postLink.trim() || null,
+      ad_run_date: kind === "ads" ? adRunDate : null,
       postedByUser: poster,
     })))
   }
@@ -1955,6 +1940,12 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
           <label style={LABEL}>Posted Date *</label>
           <input type="date" style={FIELD} value={postedDate} onChange={e => setPostedDate(e.target.value)} />
         </div>
+        {kind === "ads" && (
+          <div>
+            <label style={LABEL}>Ad Run Date *</label>
+            <input type="date" style={FIELD} value={adRunDate} onChange={e => setAdRunDate(e.target.value)} />
+          </div>
+        )}
         <div>
           <label style={LABEL}>Post Link</label>
           <input style={FIELD} value={postLink} onChange={e => setPostLink(e.target.value)} placeholder="Optional URL" />
@@ -2316,69 +2307,56 @@ function RequestCorrectionModal({ item, members, onClose, onRequested }: {
   )
 }
 
-// ── "Ready to Post" — schedules WHICH platforms and WHEN, before it actually goes out ──
-function ReadyToPostModal({ item, onClose, onScheduled }: {
+// ── "Move" — the On Review 3-way branch: Branding, Ads, or Cancelled (with who caused it) ──
+function MoveOnReviewModal({ item, onClose, onMoved, onCancelled }: {
   item: ContentItem
   onClose: () => void
-  onScheduled: (platforms: Platform[], date: string, time: string) => void
+  onMoved: (next: "branding_ready" | "ads_ready") => void
+  onCancelled: (cancelledBy: CancelledBy) => void
 }) {
-  const [platforms, setPlatforms] = useState<Platform[]>([])
-  const [date, setDate] = useState(todayIST())
-  const [time, setTime] = useState("")
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  function toggle(p: Platform) {
-    setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
-  }
-
-  async function submit() {
-    if (platforms.length === 0) { setError("Pick at least one platform"); return }
-    if (!date) { setError("Pick the posting date"); return }
-    if (!time) { setError("Pick a posting time"); return }
-    setSaving(true); setError(null)
-    const res = await markReadyToPost({
-      content_item_id: item.id,
-      ready_platforms: platforms,
-      scheduled_post_date: date,
-      scheduled_post_time: time || undefined,
-    })
-    setSaving(false)
-    if (!res.success) { setError(res.error ?? "Failed to schedule"); return }
-    onScheduled(platforms, date, time)
-  }
+  const [showCancelReasons, setShowCancelReasons] = useState(false)
 
   return (
-    <Modal title="Ready to Post" onClose={onClose}>
+    <Modal title={`Move — ${item.title}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <div>
-          <label style={LABEL}>Platforms * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
-              const cfg = PLATFORM_CFG[p]
-              const Icon = cfg.icon
-              const on = platforms.includes(p)
-              return (
-                <button key={p} onClick={() => toggle(p)}
-                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  <Icon size={12} /> {cfg.label} {on && <Check size={10} />}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <div>
-            <label style={LABEL}>Posting Date *</label>
-            <input type="date" style={FIELD} value={date} onChange={e => setDate(e.target.value)} />
-          </div>
-          <div>
-            <label style={LABEL}>Time *</label>
-            <input type="time" style={FIELD} value={time} onChange={e => setTime(e.target.value)} />
-          </div>
-        </div>
-        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
-        <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Schedule Post"}</PrimaryButton>
+        {!showCancelReasons ? (
+          <>
+            <button onClick={() => onMoved("branding_ready")}
+              className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
+              style={{ background: statusButtonGradient("branding_ready"), color: "#fff" }}>
+              Move to Branding
+            </button>
+            <button onClick={() => onMoved("ads_ready")}
+              className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
+              style={{ background: statusButtonGradient("ads_ready"), color: "#fff" }}>
+              Move to Ads
+            </button>
+            <button onClick={() => setShowCancelReasons(true)}
+              className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
+              style={{ background: statusButtonGradient("cancelled"), color: "#fff" }}>
+              Move to Cancelled
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>Cancelled by</p>
+            <button onClick={() => onCancelled("client")}
+              className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
+              style={{ background: statusButtonGradient("cancelled"), color: "#fff" }}>
+              Cancelled by Client
+            </button>
+            <button onClick={() => onCancelled("us")}
+              className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
+              style={{ background: statusButtonGradient("cancelled"), color: "#fff" }}>
+              Cancelled by Us
+            </button>
+            <button onClick={() => setShowCancelReasons(false)}
+              className="w-full py-2 rounded-xl text-[12px] font-bold transition-all hover:opacity-90"
+              style={{ background: "#fff", color: "#6B7280", border: "1.5px solid #E5E7EB" }}>
+              Back
+            </button>
+          </>
+        )}
       </div>
     </Modal>
   )
@@ -3117,7 +3095,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const [markEditedItem, setMarkEditedItem] = useState<ContentItem | null>(null)
   const [voiceOverItem, setVoiceOverItem] = useState<ContentItem | null>(null)
   const [moveToShootFor, setMoveToShootFor] = useState<ContentItem | null>(null)
-  const [readyToPostItem, setReadyToPostItem] = useState<ContentItem | null>(null)
+  const [moveOnReviewFor, setMoveOnReviewFor] = useState<ContentItem | null>(null)
   const [editCrewFor, setEditCrewFor] = useState<Shoot | null>(null)
   const [editShootFor, setEditShootFor] = useState<Shoot | null>(null)
   const [editCompletedShootFor, setEditCompletedShootFor] = useState<Shoot | null>(null)
@@ -3209,7 +3187,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       const dates = item.posts.map(p => p.posted_date).sort()
       return dates.length ? dates[dates.length - 1] : null
     }
-    if (item.status === "edited") return item.edited_date
+    if (item.status === "on_review" || item.status === "branding_ready" || item.status === "ads_ready") return item.edited_date
     // Ads Video items have no shot_date — fall back to when voice-over was recorded,
     // or creation date, so a day/month filter doesn't silently hide them.
     return item.shot_date ?? item.voiceover_date ?? item.created_at.slice(0, 10)
@@ -3256,17 +3234,13 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   )
 
   function advance(item: ContentItem, next: ContentStatus) {
-    if (next === "posted") { setPlatformModalKind("branding"); setPlatformModalItem(item); return }
-    // Ready to Post asks where and when it's going out — used both for the normal forward
-    // path and for approving out of On Review.
-    if (next === "ready_to_post") { setReadyToPostItem(item); return }
-    // Reaching Edited asks who edited it — that's the accountability moment, since
-    // there's no separate Editing stage to capture it at.
-    if (next === "edited" && members.length > 0) { setMarkEditedItem(item); return }
+    // Reaching On Review asks who edited it — that's the accountability moment, asked
+    // right at this move since there's no separate Edited stage to stop at first.
+    if (next === "on_review" && members.length > 0) { setMarkEditedItem(item); return }
     // Entering Voice Over asks who recorded it.
     if (next === "voiceover") { setVoiceOverItem(item); return }
     const previous = item.status
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, ...(next === "edited" ? { edited_date: todayIST() } : {}) } : i))
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, ...(next === "on_review" ? { edited_date: todayIST() } : {}) } : i))
     startTransition(async () => {
       const res = await updateContentItemStatus(item.id, next)
       if (!res.success) {
@@ -3276,22 +3250,25 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     })
   }
 
-  function handleReadyToPost(item: ContentItem, platforms: Platform[], date: string, time: string) {
-    setItems(prev => prev.map(i => i.id === item.id ? {
-      ...i, status: "ready_to_post",
-      ready_platforms: platforms,
-      scheduled_post_date: date,
-      scheduled_post_time: time || null,
-    } : i))
-    setReadyToPostItem(null)
+  function handleMoveOnReviewCancelled(item: ContentItem, cancelledBy: CancelledBy) {
+    const previous = item.status
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: "cancelled", cancelled_by: cancelledBy } : i))
+    setMoveOnReviewFor(null)
+    startTransition(async () => {
+      const res = await updateContentItemStatus(item.id, "cancelled", undefined, cancelledBy)
+      if (!res.success) {
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: previous, cancelled_by: null } : i))
+        alert(res.error ?? "Failed to cancel")
+      }
+    })
   }
 
   function handleMarkEdited(item: ContentItem, editorId: string, editorName: string) {
     setItems(prev => prev.map(i => i.id === item.id
-      ? { ...i, status: "edited", edited_date: new Date().toISOString().split("T")[0], editedByUser: { id: editorId, name: editorName } }
+      ? { ...i, status: "on_review", edited_date: new Date().toISOString().split("T")[0], editedByUser: { id: editorId, name: editorName } }
       : i))
     setMarkEditedItem(null)
-    startTransition(async () => { await updateContentItemStatus(item.id, "edited", editorId) })
+    startTransition(async () => { await updateContentItemStatus(item.id, "on_review", editorId) })
   }
 
   function handleVoiceOverRecorded(item: ContentItem, voiceoverBy: VoiceFreelancer, date: string) {
@@ -3302,8 +3279,18 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   }
 
   function handleDeleteItem(id: string) {
-    setItems(prev => prev.filter(i => i.id !== id))
-    startTransition(async () => { await deleteContentItem(id) })
+    // A video that came out of a shoot is also listed on that shoot's video-titles list —
+    // warn here so a delete from either side doesn't silently orphan the other.
+    const linkedShoot = shoots.find(s => s.titles.some(t => t.content_item_id === id))
+    const message = linkedShoot
+      ? `This video is linked to the shoot "${linkedShoot.legacyTitle}" — deleting it will also remove it from that shoot's video list. This cannot be undone.`
+      : "This cannot be undone."
+    confirm({ title: "Delete this item?", message, icon: "trash" }).then(ok => {
+      if (!ok) return
+      setItems(prev => prev.filter(i => i.id !== id))
+      setShoots(prev => prev.map(s => ({ ...s, titles: s.titles.filter(t => t.content_item_id !== id) })))
+      startTransition(async () => { await deleteContentItem(id) })
+    })
   }
 
   function handleDragStart(e: DragStartEvent) { setDragId(String(e.active.id)) }
@@ -3416,8 +3403,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
 
   const stats = useMemo(() => {
     const readyToEdit = items.filter(i => i.status === "ready_to_edit").length
-    const edited = items.filter(i => i.status === "edited").length
-    const readyToPost = items.filter(i => i.status === "ready_to_post").length
+    const edited = items.filter(i => i.status === "on_review").length
+    const readyToPost = items.filter(i => i.status === "branding_ready" || i.status === "ads_ready").length
     const posted = items.filter(i => i.status === "posted").length
     const totalPosts = items.reduce((s, i) => s + i.posts.length, 0)
     return { readyToEdit, edited, readyToPost, posted, totalPosts }
@@ -3430,18 +3417,11 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const logKind: "branding" | "ads" = tab === "adlog" ? "ads" : "branding"
   const isDoneForKind = (i: ContentItem) => logKind === "branding" ? i.posted_branding : i.posted_ads
 
-  // The "what's due next" queue — items scheduled into Ready to Post (or already posted the
-  // OTHER kind), soonest first, that still need THIS kind's post.
+  // The "waiting to post" queue — items sitting in this kind's Ready lane, oldest first.
   const readyQueue = useMemo(
     () => items
-      .filter(i => (i.status === "ready_to_post" || i.status === "posted") && !isDoneForKind(i)
-        && i.content_type === contentTypeForMode && i.scheduled_post_date)
-      .sort((a, b) => {
-        const byDate = (a.scheduled_post_date ?? "").localeCompare(b.scheduled_post_date ?? "")
-        if (byDate !== 0) return byDate
-        // No time set sorts last within the day — a specific slot is more urgent than "sometime".
-        return (a.scheduled_post_time ?? "99:99").localeCompare(b.scheduled_post_time ?? "99:99")
-      }),
+      .filter(i => i.status === (logKind === "ads" ? "ads_ready" : "branding_ready") && i.content_type === contentTypeForMode)
+      .sort((a, b) => (a.edited_date ?? a.created_at).localeCompare(b.edited_date ?? b.created_at)),
     [items, contentTypeForMode, logKind]
   )
 
@@ -3467,10 +3447,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       if (isDoneForKind(item)) {
         const relevant = item.posts.filter(p => logKind === "ads" ? ADS_PLATFORM_SET.has(p.platform) : !ADS_PLATFORM_SET.has(p.platform))
         if (logMonthFilter === "all" || relevant.some(p => p.posted_date.slice(0, 7) === logMonthFilter)) rec.posted++
-      } else if (item.status === "posted" || item.status === "edited" || item.status === "on_review" || item.status === "ready_to_post") {
-        // Already past editing (edited, in review, approved and queued to post, or posted
-        // under the other kind) — just waiting on THIS kind's post, not on editing.
-        if (inMonth(item.edited_date ?? item.scheduled_post_date)) rec.unposted++
+      } else if (item.status === "posted" || item.status === "on_review" || item.status === "branding_ready" || item.status === "ads_ready") {
+        // Already past editing (in review, approved and queued to post, or posted under
+        // the other kind) — just waiting on THIS kind's post, not on editing.
+        if (inMonth(item.edited_date)) rec.unposted++
       } else {
         // scripting/voiceover/design/ready_to_edit — hasn't been edited yet.
         if (inMonth(item.shot_date)) rec.unedited++
@@ -3554,7 +3534,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       status: "ready_to_edit", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false,
+      posted_branding: false, posted_ads: false, cancelled_by: null,
       created_at: new Date().toISOString(), posts: [],
     }))
     setItems(prev => {
@@ -3607,7 +3587,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       status: "ready_to_edit", shot_date: created.shot_date, edited_date: null, notes: created.notes,
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false,
+      posted_branding: false, posted_ads: false, cancelled_by: null,
       created_at: new Date().toISOString(), posts: [],
     }
     setItems(prev => [newItem, ...prev])
@@ -3725,9 +3705,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   function handleDeletePost(postId: string, contentItemId: string) {
     setItems(prev => prev.map(i => {
       if (i.id !== contentItemId) return i
+      const deletedPost = i.posts.find(p => p.id === postId)
       const posts = i.posts.filter(p => p.id !== postId)
-      // Mirrors the server: back to the queue if it still has a slot, else to Edited.
-      const fallback: ContentStatus = i.scheduled_post_date ? "ready_to_post" : "edited"
+      // Mirrors the server: back to its Ready lane once its last post is removed.
+      const fallback: ContentStatus = deletedPost && ADS_PLATFORM_SET.has(deletedPost.platform) ? "ads_ready" : "branding_ready"
       return { ...i, posts, status: posts.length === 0 ? fallback : i.status }
     }))
     startTransition(async () => { await deleteContentPost(postId, contentItemId) })
@@ -3802,14 +3783,12 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             )}
           </div>
 
-          {/* Posting — the time-sensitive block. */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <OverviewStat label="Due Today" value={overview.posting.dueToday} gradient={OVERVIEW_TILE_GRADIENTS.dueToday} icon={Clock}
+          {/* Posting — items sitting in a Ready lane, waiting to actually go out. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <OverviewStat label="Branding Waiting" value={overview.posting.brandingWaiting} gradient={OVERVIEW_TILE_GRADIENTS.brandingWaiting} icon={Clock}
               onClick={() => goTo({ mode: "video", tab: "log" })} />
-            <OverviewStat label="Due This Week" value={overview.posting.dueThisWeek} gradient={OVERVIEW_TILE_GRADIENTS.dueThisWeek} icon={CalendarDays}
-              onClick={() => goTo({ mode: "video", tab: "log" })} />
-            <OverviewStat label="Overdue" value={overview.posting.overdue} gradient={OVERVIEW_TILE_GRADIENTS.overdue} icon={AlertTriangle}
-              onClick={() => goTo({ mode: "video", tab: "log" })} />
+            <OverviewStat label="Ads Waiting" value={overview.posting.adsWaiting} gradient={OVERVIEW_TILE_GRADIENTS.adsWaiting} icon={Megaphone}
+              onClick={() => goTo({ mode: "video", tab: "adlog" })} />
           </div>
 
           {/* Scopes only the four stage-count blocks below by creation date — Needs
@@ -3919,7 +3898,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             {colItems(activeMobileCol).length === 0 ? (
               <KanbanEmptyCell isOver={false} />
             ) : colItems(activeMobileCol).map(item => (
-              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={item => { setPlatformModalKind("branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} />
+              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={(item, kind) => { setPlatformModalKind(kind ?? "branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onMove={setMoveOnReviewFor} />
             ))}
           </div>
 
@@ -3936,7 +3915,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                         {list.length === 0 ? (
                           <KanbanEmptyCell isOver={overCol === status} />
                         ) : list.map(item => (
-                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={item => { setPlatformModalKind("branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} />
+                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={(item, kind) => { setPlatformModalKind(kind ?? "branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onMove={setMoveOnReviewFor} />
                         ))}
                       </div>
                     </DroppableColumn>
@@ -3946,7 +3925,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               <DragOverlay>
                 {draggedItem ? (
                   <div style={{ width: 260, opacity: 0.95, transform: "rotate(2deg)" }}>
-                    <ContentCardInner item={draggedItem} onAdvance={() => {}} onDelete={() => {}} onAddPlatform={() => {}} />
+                    <ContentCardInner item={draggedItem} onAdvance={() => {}} onDelete={() => {}} onAddPlatform={() => {}} onMove={() => {}} />
                   </div>
                 ) : null}
               </DragOverlay>
@@ -4040,13 +4019,13 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
 
       {(mode === "video" || mode === "poster") && (tab === "log" || tab === "adlog") && (
         <div className="flex flex-col gap-4">
-          {/* Upcoming queue — what's scheduled but hasn't gone out yet for THIS kind, soonest first. */}
+          {/* Waiting queue — items sitting in this kind's Ready lane, not yet posted. */}
           {readyQueue.length > 0 && (
             <div style={{ background: "#fff", border: "1px solid #BAE6FD", borderRadius: 18, overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6", background: "rgba(14,165,233,0.05)" }}>
                 <CalendarDays size={13} style={{ color: "#0EA5E9" }} />
                 <span style={{ fontSize: 10, fontWeight: 700, color: "#0EA5E9", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Ready to Post — {readyQueue.length} queued
+                  Waiting to Post — {readyQueue.length} queued
                 </span>
               </div>
               <div className="flex flex-col">
@@ -4057,33 +4036,11 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                       <p className="text-[12px] font-bold" style={{ color: "#111827", margin: 0 }}>{item.title}</p>
                       <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>{item.client_name}</p>
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full"
-                        style={{ background: "rgba(14,165,233,0.1)", color: "#0EA5E9" }}>
-                        <CalendarDays size={10} />
-                        {fmtDate(item.scheduled_post_date)}{item.scheduled_post_time ? ` · ${fmtTime(item.scheduled_post_time)}` : ""}
-                      </span>
-                      {item.ready_platforms.map(p => {
-                        const cfg = PLATFORM_CFG[p]
-                        const Icon = cfg.icon
-                        return (
-                          <span key={p} className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full"
-                            style={{ background: `${cfg.color}14`, color: cfg.color }}>
-                            <Icon size={10} /> {cfg.label}
-                          </span>
-                        )
-                      })}
-                      <button onClick={() => { setPlatformModalKind("branding"); setPlatformModalItem(item) }}
-                        className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
-                        style={{ border: "none", background: "rgba(34,197,94,0.1)", color: "#16A34A", cursor: "pointer" }}>
-                        Mark as Posted
-                      </button>
-                      <button onClick={() => { setPlatformModalKind("ads"); setPlatformModalItem(item) }}
-                        className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
-                        style={{ border: "none", background: "rgba(217,119,6,0.1)", color: "#D97706", cursor: "pointer" }}>
-                        Mark as Ads
-                      </button>
-                    </div>
+                    <button onClick={() => { setPlatformModalKind(logKind); setPlatformModalItem(item) }}
+                      className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                      style={{ border: "none", background: logKind === "ads" ? "rgba(217,119,6,0.1)" : "rgba(34,197,94,0.1)", color: logKind === "ads" ? "#D97706" : "#16A34A", cursor: "pointer" }}>
+                      {logKind === "ads" ? "Ads Completed" : "Mark as Posted"}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -4117,7 +4074,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                         onClick={() => setLogClientFilter(prev => prev === row.client ? "all" : row.client)}>
                         <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
                         <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
-                        <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.edited.accent }}>{row.unposted}</td>
+                        <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.on_review.accent }}>{row.unposted}</td>
                         <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.ready_to_edit.accent }}>{row.unedited}</td>
                       </tr>
                     ))}
@@ -4539,9 +4496,13 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           onMoved={shoot => { setShoots(prev => [shoot, ...prev]); setMoveToShootFor(null) }}
         />
       )}
-      {readyToPostItem && (
-        <ReadyToPostModal item={readyToPostItem} onClose={() => setReadyToPostItem(null)}
-          onScheduled={(platforms, date, time) => handleReadyToPost(readyToPostItem, platforms, date, time)} />
+      {moveOnReviewFor && (
+        <MoveOnReviewModal
+          item={moveOnReviewFor}
+          onClose={() => setMoveOnReviewFor(null)}
+          onMoved={next => { advance(moveOnReviewFor, next); setMoveOnReviewFor(null) }}
+          onCancelled={cancelledBy => handleMoveOnReviewCancelled(moveOnReviewFor, cancelledBy)}
+        />
       )}
     </div>
   )

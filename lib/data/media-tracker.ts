@@ -35,7 +35,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
 
   type ItemRow = {
     id: string; client_name: string; title: string; content_type: 'video' | 'poster'
-    status: 'scripting' | 'voiceover' | 'design' | 'ready_to_edit' | 'edited' | 'on_review' | 'ready_to_post' | 'posted' | 'cancelled'
+    status: 'scripting' | 'voiceover' | 'design' | 'ready_to_edit' | 'on_review' | 'branding_ready' | 'ads_ready' | 'posted' | 'cancelled'
     source: 'shoot' | 'ads_video' | 'poster'
     shot_by: string | null; shot_date: string | null; edited_by: string | null; edited_date: string | null
     notes: string | null; created_at: string
@@ -45,8 +45,9 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     scripted_by: string | null; voiceover_by: string | null; voiceover_date: string | null
     reviewed_by: string | null; reviewed_at: string | null
     posted_branding: boolean; posted_ads: boolean
+    cancelled_by: 'client' | 'us' | null
   }
-  type PostRow = { id: string; content_item_id: string; platform: 'instagram' | 'youtube' | 'facebook' | 'linkedin' | 'gmb' | 'ads' | 'meta_ads' | 'google_ads' | 'other'; posted_date: string; posted_by: string | null; post_link: string | null }
+  type PostRow = { id: string; content_item_id: string; platform: 'instagram' | 'youtube' | 'facebook' | 'linkedin' | 'gmb' | 'ads' | 'meta_ads' | 'google_ads' | 'other'; posted_date: string; posted_by: string | null; post_link: string | null; ad_run_date: string | null }
   type UserRow = { id: string; name: string }
   type AdRow = { id: string; client_name: string; ad_name: string; platform: string; launch_date: string | null; hook_count: number; targeting_type: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null; targeting_notes: string | null; status: 'active' | 'paused' | 'testing' | 'stopped'; created_at: string }
   type RevisionRow = { id: string; ad_id: string; revision_date: string; notes: string; hook_count_after: number | null; targeting_type_after: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null }
@@ -127,6 +128,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     reviewed_at: row.reviewed_at,
     posted_branding: row.posted_branding,
     posted_ads: row.posted_ads,
+    cancelled_by: row.cancelled_by,
     shotByUser: row.shot_by ? (userMap.get(row.shot_by) ?? null) : null,
     editedByUser: row.edited_by ? (userMap.get(row.edited_by) ?? null) : null,
     scriptedByUser: row.scripted_by ? (userMap.get(row.scripted_by) ?? null) : null,
@@ -142,6 +144,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     })),
     posts: (postsByItem.get(row.id) ?? []).map(p => ({
       id: p.id, content_item_id: p.content_item_id, platform: p.platform, posted_date: p.posted_date, post_link: p.post_link,
+      ad_run_date: p.ad_run_date,
       postedByUser: p.posted_by ? (userMap.get(p.posted_by) ?? null) : null,
     })),
   }))

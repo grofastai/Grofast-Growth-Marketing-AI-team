@@ -163,10 +163,10 @@ export async function requestCorrection(
   }).select('id, correction_date').single()
   if (error) return { success: false, error: error.message }
 
-  // Back to Edited for rework — there's no separate Editing stage to bounce into. If the
-  // correction was assigned to someone, they become the editor — otherwise whoever
+  // Back to Ready to Edit for rework — there's no separate Editing stage to bounce into. If
+  // the correction was assigned to someone, they become the editor — otherwise whoever
   // already edited it keeps it.
-  const updates: Record<string, unknown> = { status: 'edited', updated_at: new Date().toISOString() }
+  const updates: Record<string, unknown> = { status: 'ready_to_edit', updated_at: new Date().toISOString() }
   if (parsed.data.assigned_to) updates.edited_by = parsed.data.assigned_to
 
   const { error: statusError } = await ctx.admin.from('content_items')
@@ -222,7 +222,8 @@ export async function markReadyToPost(input: MarkReadyToPostInput): Promise<{ su
 export async function updateContentItemStatus(
   id: string,
   status: ContentPipelineStatus,
-  editorId?: string
+  editorId?: string,
+  cancelledBy?: 'client' | 'us'
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
@@ -237,13 +238,15 @@ export async function updateContentItemStatus(
 
   const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
 
-  if (status === 'edited') {
+  if (status === 'on_review') {
     updates.edited_date = todayIST()
-    // Reaching Edited is where the editor is recorded — that's the accountability moment
-    // ("who edited this?"), since there's no separate Editing stage to capture it at.
+    // Reaching On Review is where the editor is recorded — that's the accountability
+    // moment ("who edited this?"), asked right at this move since there's no separate
+    // Edited stage to stop at first.
     if (editorId) updates.edited_by = editorId
     else if (!current.edited_by) updates.edited_by = ctx.id
   }
+  if (status === 'cancelled' && cancelledBy) updates.cancelled_by = cancelledBy
 
   const { error } = await ctx.admin.from('content_items').update(updates).eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
@@ -255,6 +258,10 @@ export async function updateContentItemStatus(
 export async function deleteContentItem(id: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  // If this came from a shoot, clear the shoot_titles link too — otherwise the shoot's
+  // own video-titles list keeps showing an orphaned entry for a video that no longer exists.
+  await ctx.admin.from('shoot_titles').delete().eq('content_item_id', id)
 
   const { error } = await ctx.admin.from('content_items').delete().eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
@@ -279,6 +286,7 @@ export async function addContentPost(input: AddContentPostInput): Promise<{ succ
     posted_date:     parsed.data.posted_date,
     post_link:       parsed.data.post_link || null,
     posted_by:       parsed.data.posted_by || ctx.id,
+    ad_run_date:     parsed.data.ad_run_date || null,
   }).select('id').single()
   if (error) return { success: false, error: error.message }
 
@@ -297,20 +305,20 @@ export async function deleteContentPost(id: string, contentItemId: string): Prom
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
 
+  const { data: deletedPost } = await ctx.admin.from('content_item_posts').select('platform').eq('id', id).single()
+
   const { error } = await ctx.admin.from('content_item_posts').delete().eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
 
-  // If that was the last platform post for this item, it's no longer "posted". Fall back
-  // to "ready" if it still has a scheduled slot (so it returns to the queue rather than
-  // losing its schedule), otherwise to "edited".
+  // If that was the last platform post for this item, it's no longer "posted" — fall back
+  // to whichever Ready lane matches the platform that was just removed.
   const { count } = await ctx.admin.from('content_item_posts')
     .select('id', { count: 'exact', head: true })
     .eq('content_item_id', contentItemId)
   if (!count) {
-    const { data: item } = await ctx.admin.from('content_items')
-      .select('scheduled_post_date').eq('id', contentItemId).eq('company_id', ctx.companyId).single()
+    const isAds = deletedPost ? ADS_PLATFORMS.has(deletedPost.platform as string) : false
     await ctx.admin.from('content_items')
-      .update({ status: item?.scheduled_post_date ? 'ready_to_post' : 'edited', updated_at: new Date().toISOString() })
+      .update({ status: isAds ? 'ads_ready' : 'branding_ready', updated_at: new Date().toISOString() })
       .eq('id', contentItemId)
       .eq('company_id', ctx.companyId)
   }

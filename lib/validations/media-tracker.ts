@@ -2,8 +2,9 @@ import { z } from 'zod'
 
 export const CONTENT_STATUSES = [
   'scripting', 'voiceover', 'design', 'ready_to_edit',
-  'edited', 'on_review', 'ready_to_post', 'posted', 'cancelled',
+  'on_review', 'branding_ready', 'ads_ready', 'posted', 'cancelled',
 ] as const
+export const CANCELLED_BY_OPTIONS = ['client', 'us'] as const
 export const CONTENT_TYPES    = ['video', 'poster'] as const
 export const CONTENT_SOURCES  = ['shoot', 'ads_video', 'poster'] as const
 // "ads" is a valid posting destination, not just a script's intended use — an Ads
@@ -34,7 +35,8 @@ export const updateContentItemSchema = z.object({
   content_type: z.enum(CONTENT_TYPES),
   shot_date:    z.string().optional(),
   notes:        z.string().optional(),
-  // Reassigning who edited it — only meaningful once the item has reached Edited or later.
+  // Reassigning who edited it — only meaningful once the item has reached On Review or later
+  // (that's when it was first asked, at the Ready to Edit -> On Review move).
   edited_by:    z.string().uuid().optional(),
   // Schedule/intent fields — editable here independent of stage. Saving these does NOT
   // move the item to "ready_to_post"; that transition stays owned by markReadyToPost.
@@ -51,6 +53,9 @@ export const addContentPostSchema = z.object({
   post_link:       z.string().optional(),
   // Who actually posted it — defaults to the current user if not supplied.
   posted_by:       z.string().uuid().optional(),
+  // Ads Completed only — when the ad actually started running, separate from posted_date
+  // (when it was logged).
+  ad_run_date:     z.string().optional(),
 })
 export type AddContentPostInput = z.infer<typeof addContentPostSchema>
 

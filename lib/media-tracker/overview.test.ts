@@ -12,7 +12,6 @@ function item(overrides: Partial<OverviewItem> = {}): OverviewItem {
     shot_date: '2026-07-01',
     voiceover_date: null,
     created_at: '2026-07-01T09:00:00Z',
-    scheduled_post_date: null,
     corrections: [],
     ...overrides,
   }
@@ -23,21 +22,21 @@ function shoot(overrides: Partial<OverviewShoot> = {}): OverviewShoot {
 function ad(overrides: Partial<OverviewAd> = {}): OverviewAd {
   return { id: 'a1', status: 'active', created_at: `${TODAY}T09:00:00Z`, ...overrides }
 }
-const EMPTY_STAGES = { scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0, edited: 0, on_review: 0, ready_to_post: 0, posted: 0, cancelled: 0 }
+const EMPTY_STAGES = { scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0, on_review: 0, branding_ready: 0, ads_ready: 0, posted: 0, cancelled: 0 }
 
 describe('stage counts', () => {
   it('splits video and poster counts by content_type', () => {
     const o = computeOverview({
       items: [
         item({ id: '1', content_type: 'video', status: 'ready_to_edit' }),
-        item({ id: '2', content_type: 'video', status: 'edited' }),
-        item({ id: '3', content_type: 'poster', status: 'edited' }),
+        item({ id: '2', content_type: 'video', status: 'on_review' }),
+        item({ id: '3', content_type: 'poster', status: 'branding_ready' }),
         item({ id: '4', content_type: 'poster', status: 'posted' }),
       ],
       shoots: [], ads: [], today: TODAY,
     })
-    expect(o.videos).toEqual({ ...EMPTY_STAGES, ready_to_edit: 1, edited: 1 })
-    expect(o.posters).toEqual({ ...EMPTY_STAGES, edited: 1, posted: 1 })
+    expect(o.videos).toEqual({ ...EMPTY_STAGES, ready_to_edit: 1, on_review: 1 })
+    expect(o.posters).toEqual({ ...EMPTY_STAGES, branding_ready: 1, posted: 1 })
   })
 
   it('returns all-zero counts for empty input', () => {
@@ -49,30 +48,19 @@ describe('stage counts', () => {
 })
 
 describe('posting counts', () => {
-  it('counts due today, this week, and overdue by scheduled_post_date', () => {
+  it('counts items waiting in Branding Ready and Ads Ready separately', () => {
     const o = computeOverview({
       items: [
-        item({ id: '1', status: 'ready_to_post', scheduled_post_date: '2026-07-13' }), // yesterday -> overdue
-        item({ id: '2', status: 'ready_to_post', scheduled_post_date: TODAY }),        // today
-        item({ id: '3', status: 'ready_to_post', scheduled_post_date: '2026-07-20' }), // today+6 -> in week
-        item({ id: '4', status: 'ready_to_post', scheduled_post_date: '2026-07-21' }), // today+7 -> outside week
+        item({ id: '1', status: 'branding_ready' }),
+        item({ id: '2', status: 'branding_ready' }),
+        item({ id: '3', status: 'ads_ready' }),
+        item({ id: '4', status: 'posted' }),
+        item({ id: '5', status: 'on_review' }),
       ],
       shoots: [], ads: [], today: TODAY,
     })
-    expect(o.posting.overdue).toBe(1)
-    expect(o.posting.dueToday).toBe(1)
-    expect(o.posting.dueThisWeek).toBe(2)
-  })
-
-  it('ignores items that are not ready_to_post, and ready_to_post items with no date', () => {
-    const o = computeOverview({
-      items: [
-        item({ id: '1', status: 'posted', scheduled_post_date: '2026-07-13' }),
-        item({ id: '2', status: 'ready_to_post', scheduled_post_date: null }),
-      ],
-      shoots: [], ads: [], today: TODAY,
-    })
-    expect(o.posting).toEqual({ dueToday: 0, dueThisWeek: 0, overdue: 0 })
+    expect(o.posting.brandingWaiting).toBe(2)
+    expect(o.posting.adsWaiting).toBe(1)
   })
 })
 
@@ -102,19 +90,29 @@ describe('ad counts', () => {
   })
 })
 
-describe('needs attention — overdue', () => {
-  it('reports overdue posts', () => {
+describe('needs attention — branding/ads waiting', () => {
+  it('reports items waiting to post as Branding, pointing at the Branding tab', () => {
     const o = computeOverview({
-      items: [item({ status: 'ready_to_post', scheduled_post_date: '2026-07-10' })],
+      items: [item({ status: 'branding_ready' })],
       shoots: [], ads: [], today: TODAY,
     })
-    const entry = o.attention.find(a => a.kind === 'overdue')
+    const entry = o.attention.find(a => a.kind === 'branding-waiting')
     expect(entry?.count).toBe(1)
     expect(entry?.target).toEqual({ mode: 'video', tab: 'log' })
   })
+
+  it('reports items waiting to post as Ads, pointing at the Advertisement tab', () => {
+    const o = computeOverview({
+      items: [item({ status: 'ads_ready' })],
+      shoots: [], ads: [], today: TODAY,
+    })
+    const entry = o.attention.find(a => a.kind === 'ads-waiting')
+    expect(entry?.count).toBe(1)
+    expect(entry?.target).toEqual({ mode: 'video', tab: 'adlog' })
+  })
 })
 
-describe('needs attention — stuck before Edited', () => {
+describe('needs attention — stuck before review', () => {
   it('flags an item sitting in Ready to Edit for 7+ days, but not 6', () => {
     const o = computeOverview({
       items: [
@@ -199,7 +197,7 @@ describe('needs attention — shoots today and repeat bounces', () => {
 describe('needs attention — awaiting review and in scripting', () => {
   it('counts items sitting in on_review', () => {
     const o = computeOverview({
-      items: [item({ id: '1', status: 'on_review' }), item({ id: '2', status: 'on_review' }), item({ id: '3', status: 'edited' })],
+      items: [item({ id: '1', status: 'on_review' }), item({ id: '2', status: 'on_review' }), item({ id: '3', status: 'branding_ready' })],
       shoots: [], ads: [], today: TODAY,
     })
     const entry = o.attention.find(a => a.kind === 'awaiting-review')
@@ -267,16 +265,13 @@ describe('range filter — scopes stage counts, not posting/attention', () => {
   it('does not affect posting or attention counts, even outside the range', () => {
     const o = computeOverview({
       items: [
-        item({
-          id: '1', status: 'ready_to_post', created_at: '2026-01-01T00:00:00Z',
-          scheduled_post_date: '2026-07-01',
-        }),
+        item({ id: '1', status: 'branding_ready', created_at: '2026-01-01T00:00:00Z' }),
       ],
       shoots: [], ads: [], today: TODAY,
       range: { from: '2026-07-10', to: '2026-07-14' },
     })
-    expect(o.posting.overdue).toBe(1)
-    expect(o.attention.find(a => a.kind === 'overdue')?.count).toBe(1)
+    expect(o.posting.brandingWaiting).toBe(1)
+    expect(o.attention.find(a => a.kind === 'branding-waiting')?.count).toBe(1)
   })
 
   it('with no range, behaves exactly as before (everything counted)', () => {

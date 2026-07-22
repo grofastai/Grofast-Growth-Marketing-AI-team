@@ -34,6 +34,8 @@ export const updateContentItemSchema = z.object({
   content_type: z.enum(CONTENT_TYPES),
   shot_date:    z.string().optional(),
   notes:        z.string().optional(),
+  // Reassigning who edited it — only meaningful once the item has reached Edited or later.
+  edited_by:    z.string().uuid().optional(),
   // Schedule/intent fields — editable here independent of stage. Saving these does NOT
   // move the item to "ready_to_post"; that transition stays owned by markReadyToPost.
   ready_platforms:     z.array(z.enum(PLATFORMS)).optional(),
@@ -96,7 +98,7 @@ export const createAdsVideoScriptSchema = z.object({
   title:       z.string().min(1, 'Title is required'),
   hook_count:  z.number().int().min(0).default(0),
   use_for:     z.array(z.enum(USE_FOR_OPTIONS)).min(1, 'Pick at least one'),
-  priority:    z.enum(PRIORITY_LEVELS).default('medium'),
+  shoot_type:  z.enum(SHOOT_TYPES),
   scripted_by: z.string().uuid('Pick who scripted this'),
   notes:       z.string().optional(),
 })
@@ -119,11 +121,21 @@ export const updateAdsVideoScriptSchema = z.object({
   title:           z.string().min(1, 'Title is required'),
   hook_count:      z.number().int().min(0).default(0),
   use_for:         z.array(z.enum(USE_FOR_OPTIONS)).min(1, 'Pick at least one'),
-  priority:        z.enum(PRIORITY_LEVELS).default('medium'),
+  shoot_type:      z.enum(SHOOT_TYPES),
   scripted_by:     z.string().uuid('Pick who scripted this'),
   notes:           z.string().optional(),
 })
 export type UpdateAdsVideoScriptInput = z.infer<typeof updateAdsVideoScriptSchema>
+
+// Editing a Voice Over assignment after the fact — the artist became unavailable, or the
+// date was wrong. Deliberately NOT a pipeline transition (item is already at "voiceover"),
+// just an in-place correction — see updateVoiceOver.
+export const updateVoiceOverSchema = z.object({
+  content_item_id: z.string().uuid(),
+  voiceover_by:    z.string().uuid(),
+  voiceover_date:  z.string().min(1, 'Date is required'),
+})
+export type UpdateVoiceOverInput = z.infer<typeof updateVoiceOverSchema>
 
 // Spinning a real shoot off an Ads Video item that's still in Scripting — e.g. the client
 // wants to speak the script on camera instead of using a recorded voice-over.

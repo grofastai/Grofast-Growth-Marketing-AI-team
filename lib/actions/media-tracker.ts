@@ -4,8 +4,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import {
-  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema,
-  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput,
+  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema, updateVoiceOverSchema,
+  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput, type UpdateVoiceOverInput,
 } from '@/lib/validations/media-tracker'
 import { isValidPipelineTransition, type ContentPipelineStatus } from '@/lib/media-tracker/pipeline-transitions'
 import { todayIST } from '@/lib/utils/ist-date'
@@ -104,7 +104,7 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
 
-  const { error } = await ctx.admin.from('content_items').update({
+  const updates: Record<string, unknown> = {
     client_name:  parsed.data.client_name,
     title:        parsed.data.title,
     content_type: parsed.data.content_type,
@@ -114,7 +114,10 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
     scheduled_post_date: parsed.data.scheduled_post_date || null,
     scheduled_post_time: parsed.data.scheduled_post_time || null,
     updated_at:   new Date().toISOString(),
-  }).eq('id', id).eq('company_id', ctx.companyId)
+  }
+  if (parsed.data.edited_by) updates.edited_by = parsed.data.edited_by
+
+  const { error } = await ctx.admin.from('content_items').update(updates).eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
 
   revalidateTracker()
@@ -462,7 +465,7 @@ export async function createAdsVideoScript(input: CreateAdsVideoScriptInput): Pr
     status:       'scripting',
     hook_count:   parsed.data.hook_count,
     use_for:      parsed.data.use_for,
-    priority:     parsed.data.priority,
+    shoot_type:   parsed.data.shoot_type,
     scripted_by:  parsed.data.scripted_by,
     notes:        parsed.data.notes || null,
     created_by:   ctx.id,
@@ -513,10 +516,36 @@ export async function updateAdsVideoScript(input: UpdateAdsVideoScriptInput): Pr
     title:       parsed.data.title,
     hook_count:  parsed.data.hook_count,
     use_for:     parsed.data.use_for,
-    priority:    parsed.data.priority,
+    shoot_type:  parsed.data.shoot_type,
     scripted_by: parsed.data.scripted_by,
     notes:       parsed.data.notes || null,
     updated_at:  new Date().toISOString(),
+  }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true }
+}
+
+// Correcting a Voice Over assignment after the fact — the artist became unavailable, or the
+// date was wrong. Deliberately NOT a pipeline transition (item is already at "voiceover",
+// and "voiceover -> voiceover" isn't a valid move) — just an in-place field update.
+export async function updateVoiceOver(input: UpdateVoiceOverInput): Promise<{ success: boolean; error?: string }> {
+  const parsed = updateVoiceOverSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { data: current } = await ctx.admin
+    .from('content_items').select('status').eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId).single()
+  if (!current) return { success: false, error: 'Content item not found' }
+  if (current.status !== 'voiceover') return { success: false, error: 'Only items in Voice Over can be edited here' }
+
+  const { error } = await ctx.admin.from('content_items').update({
+    voiceover_by:   parsed.data.voiceover_by,
+    voiceover_date: parsed.data.voiceover_date,
+    updated_at:     new Date().toISOString(),
   }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
 

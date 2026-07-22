@@ -22,7 +22,7 @@ import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
   createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, markReadyToPost, requestCorrection,
-  createAdsVideoScript, recordVoiceOver, updateAdsVideoScript,
+  createAdsVideoScript, recordVoiceOver, updateAdsVideoScript, updateVoiceOver,
 } from "@/lib/actions/media-tracker"
 import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
@@ -82,6 +82,7 @@ export type ContentItem = {
   hook_count: number | null
   use_for: UseFor[]
   priority: Priority | null
+  shoot_type: ShootType | null
   voiceover_date: string | null
   reviewed_at: string | null
   // Derived from posts — see addContentPost/deleteContentPost. Independent of status:
@@ -492,14 +493,13 @@ function TrackerNav({ mode, onMode, tab, onTab, modeCounts, sections }: {
 
 // ── Kanban card ──────────────────────────────────────────────────────────────
 function ContentCardInner({
-  item, isDraggable, isDragging, onAdvance, onDelete, onAddPlatform, onEdit, onRequestCorrection,
+  item, isDraggable, isDragging, onAdvance, onDelete, onAddPlatform, onEdit,
 }: {
   item: ContentItem
   isDraggable?: boolean
   isDragging?: boolean
   onAdvance: (item: ContentItem, next: ContentStatus) => void
   onDelete: (id: string) => void
-  onRequestCorrection?: (item: ContentItem) => void
   onAddPlatform: (item: ContentItem) => void
   onEdit?: (item: ContentItem) => void
 }) {
@@ -520,9 +520,6 @@ function ContentCardInner({
   // and the kebab is simply omitted.
   const cardMenu: CardMenuItem[] = []
   if (onEdit) cardMenu.push({ label: "Edit details", icon: Pencil, onClick: () => onEdit(item) })
-  if (onRequestCorrection && item.status === "on_review") {
-    cardMenu.push({ label: "Needs correction", icon: RotateCcw, onClick: () => onRequestCorrection(item) })
-  }
   // Footage or a design that came out unusable — kept as a record instead of deleted outright.
   if (item.status === "ready_to_edit" || item.status === "design") {
     cardMenu.push({ label: "Cancel", icon: XCircle, onClick: () => onAdvance(item, "cancelled"), danger: true })
@@ -686,7 +683,7 @@ function ContentCardInner({
         </div>
       )}
 
-      {/* The review gate: approve moves it on, a correction sends it back to Edited for rework. */}
+      {/* The review gate: approve moves it on, or it's cancelled outright. */}
       {item.status === "on_review" ? (
         <div className="flex flex-col gap-1.5">
           <button
@@ -696,15 +693,13 @@ function ContentCardInner({
             style={{ background: statusButtonGradient("ready_to_post"), color: "#fff" }}>
             Approve <ArrowRight size={10} />
           </button>
-          {onRequestCorrection && (
-            <button
-              onPointerDown={e => e.stopPropagation()}
-              onClick={() => onRequestCorrection(item)}
-              className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
-              style={{ background: "#92400E", color: "#fff" }}>
-              <RotateCcw size={10} /> Needs Correction
-            </button>
-          )}
+          <button
+            onPointerDown={e => e.stopPropagation()}
+            onClick={() => onAdvance(item, "cancelled")}
+            className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
+            style={{ background: statusButtonGradient("cancelled"), color: "#fff" }}>
+            <XCircle size={10} /> Cancelled
+          </button>
         </div>
       ) : next && (
         <button
@@ -780,9 +775,9 @@ function AdsVideoCardInner({ item, isDragging, isCompleted, onAdvance, onEdit, o
       <div className="flex flex-wrap items-center gap-1.5 mb-2">
         <span className="text-[9px] font-medium px-2 py-1 rounded-full truncate max-w-[110px]"
           style={{ background: `${accent}14`, color: accent, lineHeight: 1 }}>{item.client_name}</span>
-        {item.priority && (
-          <span className="text-[9px] font-bold px-2 py-1 rounded-full" style={{ background: `${PRIORITY_CFG[item.priority].color}18`, color: PRIORITY_CFG[item.priority].color, lineHeight: 1 }}>
-            {PRIORITY_CFG[item.priority].label}
+        {item.shoot_type && (
+          <span className="text-[9px] font-bold px-2 py-1 rounded-full" style={{ background: `${SHOOT_TYPE_CFG[item.shoot_type].color}18`, color: SHOOT_TYPE_CFG[item.shoot_type].color, lineHeight: 1 }}>
+            {SHOOT_TYPE_CFG[item.shoot_type].label}
           </span>
         )}
       </div>
@@ -850,7 +845,7 @@ function AdsVideoCardInner({ item, isDragging, isCompleted, onAdvance, onEdit, o
   )
 }
 
-function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvance: (item: ContentItem, next: ContentStatus) => void; onDelete: (id: string) => void; onAddPlatform: (item: ContentItem) => void; onEdit: (item: ContentItem) => void; onRequestCorrection: (item: ContentItem) => void }) {
+function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvance: (item: ContentItem, next: ContentStatus) => void; onDelete: (id: string) => void; onAddPlatform: (item: ContentItem) => void; onEdit: (item: ContentItem) => void }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: props.item.id, data: { status: props.item.status } })
   const style = transform ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` } : undefined
   return (
@@ -860,8 +855,7 @@ function DraggableCard(props: { item: ContentItem; isDragging: boolean; onAdvanc
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     <div ref={setNodeRef} style={{ ...style, touchAction: "none" }} {...(listeners as any)} {...(attributes as any)} className="cursor-grab active:cursor-grabbing">
       <ContentCardInner item={props.item} isDraggable isDragging={props.isDragging}
-        onAdvance={props.onAdvance} onDelete={props.onDelete} onAddPlatform={props.onAddPlatform} onEdit={props.onEdit}
-        onRequestCorrection={props.onRequestCorrection} />
+        onAdvance={props.onAdvance} onDelete={props.onDelete} onAddPlatform={props.onAddPlatform} onEdit={props.onEdit} />
     </div>
   )
 }
@@ -1426,7 +1420,7 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
       status: alreadyPosted ? "posted" : (contentType === "poster" ? "design" : "ready_to_edit"),
       source: contentType === "poster" ? "poster" : "shoot",
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
-      hook_count: null, use_for: [], priority: null, voiceover_date: null, reviewed_at: null,
+      hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
       posted_branding: alreadyPosted && postedPlatforms.some(p => !ADS_PLATFORM_SET.has(p)),
       posted_ads: alreadyPosted && postedPlatforms.some(p => ADS_PLATFORM_SET.has(p)),
       shot_date: shotDate, edited_date: alreadyPosted ? postedDate : null, notes: notes.trim() || null, created_at: new Date().toISOString(),
@@ -1501,7 +1495,7 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
   const [title, setTitle] = useState("")
   const [hookCount, setHookCount] = useState<number | "">(1)
   const [useFor, setUseFor] = useState<UseFor[]>([])
-  const [priority, setPriority] = useState<Priority>("medium")
+  const [shootType, setShootType] = useState<ShootType | "">("")
   const [scriptedBy, setScriptedBy] = useState(currentUserId)
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
@@ -1514,10 +1508,11 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
   async function submit() {
     if (!client || !title.trim()) { setError("Client and title are required"); return }
     if (useFor.length === 0) { setError("Pick at least one \"use for\""); return }
+    if (!shootType) { setError("Shoot type is required"); return }
     if (!scriptedBy) { setError("Pick who scripted this"); return }
     setSaving(true); setError(null)
     const finalHookCount = hookCount === "" ? 0 : hookCount
-    const res = await createAdsVideoScript({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: useFor, priority, scripted_by: scriptedBy, notes: notes.trim() || undefined })
+    const res = await createAdsVideoScript({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: useFor, shoot_type: shootType, scripted_by: scriptedBy, notes: notes.trim() || undefined })
     setSaving(false)
     if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
     const scriptedByUser = members.find(m => m.id === scriptedBy) ?? null
@@ -1525,7 +1520,7 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
       id: res.id, client_name: client, title: title.trim(), content_type: "video", source: "ads_video",
       status: "scripting", shot_date: null, edited_date: null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
-      hook_count: finalHookCount, use_for: useFor, priority, voiceover_date: null, reviewed_at: null,
+      hook_count: finalHookCount, use_for: useFor, priority: null, shoot_type: shootType, voiceover_date: null, reviewed_at: null,
       posted_branding: false, posted_ads: false, scriptedByUser, posts: [],
     })
   }
@@ -1567,10 +1562,19 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
           </div>
         </div>
         <div>
-          <label style={LABEL}>Priority</label>
-          <select style={{ ...FIELD, cursor: "pointer" }} value={priority} onChange={e => setPriority(e.target.value as Priority)}>
-            {(Object.keys(PRIORITY_CFG) as Priority[]).map(p => <option key={p} value={p}>{PRIORITY_CFG[p].label}</option>)}
-          </select>
+          <label style={LABEL}>Shoot Type *</label>
+          <div style={{ display: "flex", gap: 6 }}>
+            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
+              const cfg = SHOOT_TYPE_CFG[t]
+              const on = shootType === t
+              return (
+                <button key={t} type="button" onClick={() => setShootType(t)}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {cfg.label} {on && <Check size={10} />}
+                </button>
+              )
+            })}
+          </div>
         </div>
         <div>
           <label style={LABEL}>Notes <span style={{ fontWeight: 600, textTransform: "none" }}>(the script brief)</span></label>
@@ -1583,13 +1587,13 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
   )
 }
 
-// ── Edit Ads Video modal — same field set as creation, pre-filled ───────────
+// ── Edit Script modal — the Scripting-stage entry's own fields, pre-filled ──
 function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId, onClose, onSaved }: {
   item: ContentItem
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   members: Member[]; currentUserId: string
   onClose: () => void
-  onSaved: (updates: { client_name: string; title: string; hook_count: number; use_for: UseFor[]; priority: Priority; scriptedByUser: Person; notes: string }) => void
+  onSaved: (updates: { client_name: string; title: string; hook_count: number; use_for: UseFor[]; shoot_type: ShootType; scriptedByUser: Person; notes: string }) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
@@ -1599,7 +1603,7 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
   const [title, setTitle] = useState(item.title)
   const [hookCount, setHookCount] = useState<number | "">(item.hook_count ?? 0)
   const [useFor, setUseFor] = useState<UseFor[]>(item.use_for)
-  const [priority, setPriority] = useState<Priority>(item.priority ?? "medium")
+  const [shootType, setShootType] = useState<ShootType | "">(item.shoot_type ?? "")
   const [scriptedBy, setScriptedBy] = useState(item.scriptedByUser?.id ?? currentUserId)
   const [notes, setNotes] = useState(item.notes || "")
   const [saving, setSaving] = useState(false)
@@ -1612,18 +1616,19 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
   async function submit() {
     if (!client || !title.trim()) { setError("Client and title are required"); return }
     if (useFor.length === 0) { setError("Pick at least one \"use for\""); return }
+    if (!shootType) { setError("Shoot type is required"); return }
     if (!scriptedBy) { setError("Pick who scripted this"); return }
     setSaving(true); setError(null)
     const finalHookCount = hookCount === "" ? 0 : hookCount
-    const res = await updateAdsVideoScript({ content_item_id: item.id, client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: useFor, priority, scripted_by: scriptedBy, notes: notes.trim() || undefined })
+    const res = await updateAdsVideoScript({ content_item_id: item.id, client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: useFor, shoot_type: shootType, scripted_by: scriptedBy, notes: notes.trim() || undefined })
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to save"); return }
     const scriptedByUser = members.find(m => m.id === scriptedBy) ?? null
-    onSaved({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: useFor, priority, scriptedByUser, notes: notes.trim() })
+    onSaved({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: useFor, shoot_type: shootType, scriptedByUser, notes: notes.trim() })
   }
 
   return (
-    <Modal title="Edit Ads Video" onClose={onClose}>
+    <Modal title={`Edit Script — ${item.title}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
         <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
         <div>
@@ -1659,10 +1664,19 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
           </div>
         </div>
         <div>
-          <label style={LABEL}>Priority</label>
-          <select style={{ ...FIELD, cursor: "pointer" }} value={priority} onChange={e => setPriority(e.target.value as Priority)}>
-            {(Object.keys(PRIORITY_CFG) as Priority[]).map(p => <option key={p} value={p}>{PRIORITY_CFG[p].label}</option>)}
-          </select>
+          <label style={LABEL}>Shoot Type *</label>
+          <div style={{ display: "flex", gap: 6 }}>
+            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
+              const cfg = SHOOT_TYPE_CFG[t]
+              const on = shootType === t
+              return (
+                <button key={t} type="button" onClick={() => setShootType(t)}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {cfg.label} {on && <Check size={10} />}
+                </button>
+              )
+            })}
+          </div>
         </div>
         <div>
           <label style={LABEL}>Notes</label>
@@ -1675,29 +1689,86 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
   )
 }
 
+// ── Edit Voice Over modal — reassign the artist or fix the date after the fact ──
+function EditVoiceOverModal({ item, freelancers, onClose, onSaved }: {
+  item: ContentItem
+  freelancers: VoiceFreelancer[]
+  onClose: () => void
+  onSaved: (voiceoverBy: VoiceFreelancer, date: string) => void
+}) {
+  const [voiceoverId, setVoiceoverId] = useState(item.voiceoverBy?.id ?? freelancers[0]?.id ?? "")
+  const [date, setDate] = useState(item.voiceover_date ?? todayIST())
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit() {
+    const freelancer = freelancers.find(f => f.id === voiceoverId)
+    if (!freelancer) { setError("Pick who recorded the voice-over"); return }
+    setSaving(true); setError(null)
+    const res = await updateVoiceOver({ content_item_id: item.id, voiceover_by: freelancer.id, voiceover_date: date })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onSaved(freelancer, date)
+  }
+
+  return (
+    <Modal title={`Edit Voice Over — ${item.title}`} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        {freelancers.length === 0 ? (
+          <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>
+            No active Freelance RJ Voiceover artists found — add one under Freelancers first.
+          </p>
+        ) : (
+          <div>
+            <label style={LABEL}>Voice Artist *</label>
+            <select style={{ ...FIELD, cursor: "pointer" }} value={voiceoverId} onChange={e => setVoiceoverId(e.target.value)}>
+              {freelancers.map(f => <option key={f.id} value={f.id}>{upper(f.name)}</option>)}
+            </select>
+          </div>
+        )}
+        <div>
+          <label style={LABEL}>Date</label>
+          <input type="date" style={FIELD} value={date} onChange={e => setDate(e.target.value)} />
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit} disabled={saving || freelancers.length === 0}>{saving ? "Saving…" : "Save Changes"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
 // ── Edit Content modal ───────────────────────────────────────────────────────
-function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
+// Shows only what's actually relevant to the item's current stage — a Ready to Edit item
+// has no schedule yet to edit, and only Edited-or-later items have an editor to reassign.
+function EditContentModal({ item, clients, pastClients, members, onClose, onSaved }: {
   item: ContentItem
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  members: Member[]
   onClose: () => void
   onSaved: (updates: {
     client_name: string; title: string; content_type: "video" | "poster"; shot_date: string; notes: string
     ready_platforms: Platform[]; scheduled_post_date: string; scheduled_post_time: string
+    editedByUser?: Person
   }) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
     [clients, pastClients]
   )
+  const showEditor = item.status === "edited" || item.status === "on_review" || item.status === "ready_to_post" || item.status === "posted"
+  const showSchedule = item.status === "ready_to_post" || item.status === "posted"
+
   const [client, setClient] = useState(item.client_name)
   const [title, setTitle] = useState(item.title)
   // Not editable — changing a poster into a video (or vice versa) would move it to the
   // other tab and make it look like it disappeared.
   const contentType = item.content_type
   const [shotDate, setShotDate] = useState(item.shot_date || todayIST())
+  const [editedBy, setEditedBy] = useState(item.editedByUser?.id ?? "")
   const [notes, setNotes] = useState(item.notes || "")
-  // Schedule/intent fields — editable regardless of stage, but saving them here never
-  // changes item.status. That transition stays owned by the Ready to Post flow.
+  // Schedule/intent fields — only shown once the item has actually reached Ready to Post.
+  // Saving these here never changes item.status; that transition stays owned by the Ready
+  // to Post flow.
   const [platforms, setPlatforms] = useState<Platform[]>(item.ready_platforms ?? [])
   const [scheduledDate, setScheduledDate] = useState(item.scheduled_post_date || "")
   const [scheduledTime, setScheduledTime] = useState(item.scheduled_post_time || "")
@@ -1713,18 +1784,22 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
     setSaving(true); setError(null)
     const res = await updateContentItem(item.id, {
       client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() || undefined,
-      ready_platforms: platforms, scheduled_post_date: scheduledDate || undefined, scheduled_post_time: scheduledTime || undefined,
+      edited_by: showEditor ? (editedBy || undefined) : undefined,
+      ready_platforms: showSchedule ? platforms : undefined,
+      scheduled_post_date: showSchedule ? (scheduledDate || undefined) : undefined,
+      scheduled_post_time: showSchedule ? (scheduledTime || undefined) : undefined,
     })
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to save"); return }
     onSaved({
       client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim(),
       ready_platforms: platforms, scheduled_post_date: scheduledDate, scheduled_post_time: scheduledTime,
+      editedByUser: showEditor ? (members.find(m => m.id === editedBy) ?? null) : undefined,
     })
   }
 
   return (
-    <Modal title="Edit Content Item" onClose={onClose}>
+    <Modal title={`Edit — ${STATUS_CFG[item.status].label} — ${item.title}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
         <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
         <div>
@@ -1735,31 +1810,44 @@ function EditContentModal({ item, clients, pastClients, onClose, onSaved }: {
           <label style={LABEL}>Shot Date</label>
           <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
         </div>
-        <div>
-          <label style={LABEL}>Platforms <span style={{ fontWeight: 600, textTransform: "none" }}>(where this is going out)</span></label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
-              const cfg = PLATFORM_CFG[p]
-              const on = platforms.includes(p)
-              return (
-                <button key={p} type="button" onClick={() => togglePlatform(p)}
-                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  <cfg.icon size={12} /> {cfg.label} {on && <Check size={10} />}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {showEditor && (
           <div>
-            <label style={LABEL}>Scheduled Post Date</label>
-            <input type="date" style={FIELD} value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} />
+            <label style={LABEL}>Editor</label>
+            <select style={{ ...FIELD, cursor: "pointer" }} value={editedBy} onChange={e => setEditedBy(e.target.value)}>
+              <option value="">— Not set —</option>
+              {members.map(m => <option key={m.id} value={m.id}>{upper(m.name)}</option>)}
+            </select>
           </div>
-          <div>
-            <label style={LABEL}>Scheduled Post Time</label>
-            <input type="time" style={FIELD} value={scheduledTime} onChange={e => setScheduledTime(e.target.value)} />
-          </div>
-        </div>
+        )}
+        {showSchedule && (
+          <>
+            <div>
+              <label style={LABEL}>Platforms <span style={{ fontWeight: 600, textTransform: "none" }}>(where this is going out)</span></label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
+                  const cfg = PLATFORM_CFG[p]
+                  const on = platforms.includes(p)
+                  return (
+                    <button key={p} type="button" onClick={() => togglePlatform(p)}
+                      style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                      <cfg.icon size={12} /> {cfg.label} {on && <Check size={10} />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <label style={LABEL}>Scheduled Post Date</label>
+                <input type="date" style={FIELD} value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} />
+              </div>
+              <div>
+                <label style={LABEL}>Scheduled Post Time</label>
+                <input type="time" style={FIELD} value={scheduledTime} onChange={e => setScheduledTime(e.target.value)} />
+              </div>
+            </div>
+          </>
+        )}
         <div>
           <label style={LABEL}>Notes</label>
           <textarea style={{ ...FIELD, minHeight: 60, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
@@ -2392,7 +2480,8 @@ function MoveToShootModal({ item, onClose, onMoved }: {
   onClose: () => void
   onMoved: (shoot: Shoot) => void
 }) {
-  const [shootType, setShootType] = useState<ShootType | "">("")
+  // Pre-fill from the script's own Shoot Type — same classification, no need to ask twice.
+  const [shootType, setShootType] = useState<ShootType | "">(item.shoot_type ?? "")
   const [shotDate, setShotDate] = useState(todayIST())
   const [fromTime, setFromTime] = useState("")
   const [toTime, setToTime] = useState("")
@@ -2877,7 +2966,6 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const [voiceOverItem, setVoiceOverItem] = useState<ContentItem | null>(null)
   const [moveToShootFor, setMoveToShootFor] = useState<ContentItem | null>(null)
   const [readyToPostItem, setReadyToPostItem] = useState<ContentItem | null>(null)
-  const [correctionItem, setCorrectionItem] = useState<ContentItem | null>(null)
   const [editCrewFor, setEditCrewFor] = useState<Shoot | null>(null)
   const [editShootFor, setEditShootFor] = useState<Shoot | null>(null)
   const [deleteShootFor, setDeleteShootFor] = useState<Shoot | null>(null)
@@ -2892,6 +2980,13 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const [adsVideoOverCol, setAdsVideoOverCol] = useState<string | null>(null)
   const [showNewAdsVideo, setShowNewAdsVideo] = useState(false)
   const [editAdsVideoFor, setEditAdsVideoFor] = useState<ContentItem | null>(null)
+  const [editVoiceOverFor, setEditVoiceOverFor] = useState<ContentItem | null>(null)
+  // Scripting -> Edit Script, Voice Over -> Edit Voice Over — each stage edits only what
+  // was actually captured there, instead of one generic form for both.
+  function handleEditAdsItem(item: ContentItem) {
+    if (item.status === "voiceover") { setEditVoiceOverFor(item); return }
+    setEditAdsVideoFor(item)
+  }
   const [adDragId, setAdDragId] = useState<string | null>(null)
   const [adOverCol, setAdOverCol] = useState<string | null>(null)
   const [activeAdCol, setActiveAdCol] = useState<AdStatus>("active")
@@ -3020,17 +3115,6 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         alert(res.error ?? `Failed to move to ${STATUS_CFG[next].label}`)
       }
     })
-  }
-
-  function handleCorrectionRequested(correction: ContentCorrection) {
-    setItems(prev => prev.map(i => i.id === correction.content_item_id ? {
-      ...i,
-      status: "edited",
-      corrections: [correction, ...i.corrections],
-      // If it was reassigned, that person is now the editor.
-      editedByUser: correction.assignedToUser ?? i.editedByUser,
-    } : i))
-    setCorrectionItem(null)
   }
 
   function handleReadyToPost(item: ContentItem, platforms: Platform[], date: string, time: string) {
@@ -3224,9 +3308,12 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       if (isDoneForKind(item)) {
         const relevant = item.posts.filter(p => logKind === "ads" ? ADS_PLATFORM_SET.has(p.platform) : !ADS_PLATFORM_SET.has(p.platform))
         if (logMonthFilter === "all" || relevant.some(p => p.posted_date.slice(0, 7) === logMonthFilter)) rec.posted++
-      } else if (item.status === "posted" || item.status === "edited") {
+      } else if (item.status === "posted" || item.status === "edited" || item.status === "on_review" || item.status === "ready_to_post") {
+        // Already past editing (edited, in review, approved and queued to post, or posted
+        // under the other kind) — just waiting on THIS kind's post, not on editing.
         if (inMonth(item.edited_date ?? item.scheduled_post_date)) rec.unposted++
       } else {
+        // scripting/voiceover/design/ready_to_edit — hasn't been edited yet.
         if (inMonth(item.shot_date)) rec.unedited++
       }
     }
@@ -3307,7 +3394,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       id: ci.id, client_name: ci.client_name, title: ci.title, content_type: "video", source: "shoot",
       status: "ready_to_edit", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
-      hook_count: null, use_for: [], priority: null, voiceover_date: null, reviewed_at: null,
+      hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
       posted_branding: false, posted_ads: false,
       created_at: new Date().toISOString(), posts: [],
     }))
@@ -3613,7 +3700,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             {colItems(activeMobileCol).length === 0 ? (
               <KanbanEmptyCell isOver={false} />
             ) : colItems(activeMobileCol).map(item => (
-              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={item => { setPlatformModalKind("branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
+              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={item => { setPlatformModalKind("branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} />
             ))}
           </div>
 
@@ -3630,7 +3717,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                         {list.length === 0 ? (
                           <KanbanEmptyCell isOver={overCol === status} />
                         ) : list.map(item => (
-                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={item => { setPlatformModalKind("branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onRequestCorrection={setCorrectionItem} />
+                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={item => { setPlatformModalKind("branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} />
                         ))}
                       </div>
                     </DroppableColumn>
@@ -3670,7 +3757,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                     {list.length === 0 ? (
                       <KanbanEmptyCell isOver={false} />
                     ) : list.map(item => (
-                      <AdsVideoCardInner key={item.id} item={item} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} onMoveToShoot={setMoveToShootFor} />
+                      <AdsVideoCardInner key={item.id} item={item} onAdvance={advance} onEdit={handleEditAdsItem} onDelete={handleDeleteItem} onMoveToShoot={setMoveToShootFor} />
                     ))}
                   </div>
                 </div>
@@ -3682,7 +3769,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                 {adsVideoCompletedItems.length === 0 ? (
                   <KanbanEmptyCell isOver={false} />
                 ) : adsVideoCompletedItems.map(item => (
-                  <AdsVideoCardInner key={item.id} item={item} isCompleted onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} onMoveToShoot={setMoveToShootFor} />
+                  <AdsVideoCardInner key={item.id} item={item} isCompleted onAdvance={advance} onEdit={handleEditAdsItem} onDelete={handleDeleteItem} onMoveToShoot={setMoveToShootFor} />
                 ))}
               </div>
             </div>
@@ -3702,7 +3789,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                           <KanbanEmptyCell isOver={adsVideoOverCol === status} />
                         ) : list.map(item => (
                           <KanbanCard key={item.id} id={item.id}>
-                            <AdsVideoCardInner item={item} isDragging={adsVideoDragId === item.id} onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} onMoveToShoot={setMoveToShootFor} />
+                            <AdsVideoCardInner item={item} isDragging={adsVideoDragId === item.id} onAdvance={advance} onEdit={handleEditAdsItem} onDelete={handleDeleteItem} onMoveToShoot={setMoveToShootFor} />
                           </KanbanCard>
                         ))}
                       </div>
@@ -3715,7 +3802,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                     {adsVideoCompletedItems.length === 0 ? (
                       <KanbanEmptyCell isOver={false} />
                     ) : adsVideoCompletedItems.map(item => (
-                      <AdsVideoCardInner key={item.id} item={item} isCompleted onAdvance={advance} onEdit={setEditAdsVideoFor} onDelete={handleDeleteItem} onMoveToShoot={setMoveToShootFor} />
+                      <AdsVideoCardInner key={item.id} item={item} isCompleted onAdvance={advance} onEdit={handleEditAdsItem} onDelete={handleDeleteItem} onMoveToShoot={setMoveToShootFor} />
                     ))}
                   </div>
                 </div>
@@ -4115,13 +4202,15 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           onClose={() => setPlatformModalItem(null)} onAdded={handlePostAdded} />
       )}
       {editingItem && (
-        <EditContentModal item={editingItem} clients={clients} pastClients={pastClients} onClose={() => setEditingItem(null)}
+        <EditContentModal item={editingItem} clients={clients} pastClients={pastClients} members={members} onClose={() => setEditingItem(null)}
           onSaved={updates => {
             setItems(prev => prev.map(i => i.id === editingItem.id ? {
               ...i, ...updates,
               notes: updates.notes || null,
               scheduled_post_date: updates.scheduled_post_date || null,
               scheduled_post_time: updates.scheduled_post_time || null,
+              // undefined means "wasn't shown/editable this time" — keep whatever it already was.
+              editedByUser: updates.editedByUser !== undefined ? updates.editedByUser : i.editedByUser,
             } : i))
             setEditingItem(null)
           }} />
@@ -4205,6 +4294,16 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           }}
         />
       )}
+      {editVoiceOverFor && (
+        <EditVoiceOverModal
+          item={editVoiceOverFor} freelancers={voiceoverFreelancers}
+          onClose={() => setEditVoiceOverFor(null)}
+          onSaved={(voiceoverBy, date) => {
+            setItems(prev => prev.map(i => i.id === editVoiceOverFor.id ? { ...i, voiceoverBy, voiceover_date: date } : i))
+            setEditVoiceOverFor(null)
+          }}
+        />
+      )}
       {moveToShootFor && (
         <MoveToShootModal
           item={moveToShootFor}
@@ -4215,10 +4314,6 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       {readyToPostItem && (
         <ReadyToPostModal item={readyToPostItem} onClose={() => setReadyToPostItem(null)}
           onScheduled={(platforms, date, time) => handleReadyToPost(readyToPostItem, platforms, date, time)} />
-      )}
-      {correctionItem && (
-        <RequestCorrectionModal item={correctionItem} members={members}
-          onClose={() => setCorrectionItem(null)} onRequested={handleCorrectionRequested} />
       )}
     </div>
   )

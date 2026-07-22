@@ -41,6 +41,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     notes: string | null; created_at: string
     ready_platforms: string[] | null; scheduled_post_date: string | null; scheduled_post_time: string | null
     hook_count: number | null; use_for: string[] | null; priority: string | null
+    shoot_type: 'ads_shoot' | 'branding_shoot' | null
     scripted_by: string | null; voiceover_by: string | null; voiceover_date: string | null
     reviewed_by: string | null; reviewed_at: string | null
     posted_branding: boolean; posted_ads: boolean
@@ -121,6 +122,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     hook_count: row.hook_count,
     use_for: (row.use_for ?? []) as ContentItem['use_for'],
     priority: row.priority as ContentItem['priority'],
+    shoot_type: row.shoot_type,
     voiceover_date: row.voiceover_date,
     reviewed_at: row.reviewed_at,
     posted_branding: row.posted_branding,

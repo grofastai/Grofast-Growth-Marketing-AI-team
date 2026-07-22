@@ -14,9 +14,12 @@ describe('isValidPipelineTransition', () => {
     expect(isValidPipelineTransition('edited', 'on_review')).toBe(true)
     expect(isValidPipelineTransition('ready_to_post', 'posted')).toBe(true)
   })
-  it('on_review branches two ways: approve to ready_to_post, or bounce back to edited', () => {
+  it('on_review branches two ways: approve to ready_to_post, or cancel outright', () => {
     expect(isValidPipelineTransition('on_review', 'ready_to_post')).toBe(true)
-    expect(isValidPipelineTransition('on_review', 'edited')).toBe(true)
+    expect(isValidPipelineTransition('on_review', 'cancelled')).toBe(true)
+  })
+  it('rejects on_review bouncing back to edited (no more "needs correction")', () => {
+    expect(isValidPipelineTransition('on_review', 'edited')).toBe(false)
   })
   it('rejects skipping a stage', () => {
     expect(isValidPipelineTransition('scripting', 'ready_to_edit')).toBe(false)
@@ -37,9 +40,8 @@ describe('isValidPipelineTransition', () => {
     expect(isValidPipelineTransition('scripting', 'cancelled')).toBe(true)
     expect(isValidPipelineTransition('voiceover', 'cancelled')).toBe(true)
   })
-  it('rejects cancelling from any other stage', () => {
+  it('rejects cancelling from Edited (not a cancel point)', () => {
     expect(isValidPipelineTransition('edited', 'cancelled')).toBe(false)
-    expect(isValidPipelineTransition('on_review', 'cancelled')).toBe(false)
   })
   it('rejects cancelled -> anything (terminal state)', () => {
     expect(isValidPipelineTransition('cancelled', 'ready_to_edit')).toBe(false)

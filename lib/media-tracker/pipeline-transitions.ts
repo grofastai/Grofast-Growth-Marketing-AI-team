@@ -22,9 +22,9 @@ const TRANSITIONS: Record<ContentPipelineStatus, ContentPipelineStatus[]> = {
   // deletion.
   ready_to_edit: ['edited', 'cancelled'],
   edited: ['on_review'],
-  // The review gate: approve moves it on, a correction sends it back for rework — there's
-  // no separate Editing stage to bounce into anymore, so it lands back on Edited.
-  on_review: ['ready_to_post', 'edited'],
+  // The review gate: approve moves it on, or it's cancelled outright — no more "needs
+  // correction" bounce-back to Edited.
+  on_review: ['ready_to_post', 'cancelled'],
   ready_to_post: ['posted'],
   posted: [],
   cancelled: [],

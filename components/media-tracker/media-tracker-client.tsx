@@ -239,15 +239,22 @@ const ADS_PLATFORM_SET = new Set<Platform>(["ads", "meta_ads", "google_ads"])
 // purpose (Overview is a bird's-eye view, not scoped to one content type).
 function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFilter: string) {
   const isDone = (i: ContentItem) => kind === "branding" ? i.posted_branding : i.posted_ads
+  const isDoneOtherKind = (i: ContentItem) => kind === "branding" ? i.posted_ads : i.posted_branding
   const inMonth = (d: string | null) => monthFilter === "all" || (!!d && d.slice(0, 7) === monthFilter)
-  const map = new Map<string, { posted: number; unposted: number; unedited: number }>()
+  const map = new Map<string, { posted: number; unposted: number; unedited: number; dual: number }>()
   for (const item of items) {
     if (item.status === "cancelled") continue
-    if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0 })
+    if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0, dual: 0 })
     const rec = map.get(item.client_name)!
     if (isDone(item)) {
       const relevant = item.posts.filter(p => kind === "ads" ? ADS_PLATFORM_SET.has(p.platform) : !ADS_PLATFORM_SET.has(p.platform))
-      if (monthFilter === "all" || relevant.some(p => p.posted_date.slice(0, 7) === monthFilter)) rec.posted++
+      if (monthFilter === "all" || relevant.some(p => p.posted_date.slice(0, 7) === monthFilter)) {
+        rec.posted++
+        // Already counted in "posted" above — this is just a highlighted breakdown of how
+        // many of those also went out the other way (e.g. an ad shoot's hook also posted
+        // organically), not an additional total.
+        if (isDoneOtherKind(item)) rec.dual++
+      }
     } else if (item.status === "posted" || item.status === "on_review" || item.status === "branding_ready" || item.status === "ads_ready") {
       if (inMonth(item.edited_date)) rec.unposted++
     } else {
@@ -724,12 +731,22 @@ function ContentCardInner({
           Ads Completed <ArrowRight size={10} />
         </button>
       )}
+      {/* A posted video can go out on both fronts — e.g. one ad shoot's hook+body also gets
+          reused as a single organic post. Both buttons stay available regardless of which
+          kind it's already posted under, so either side can be added or topped up. */}
       {item.status === "posted" && (
-        <button onPointerDown={e => e.stopPropagation()} onClick={() => onAddPlatform(item, item.posted_ads && !item.posted_branding ? "ads" : "branding")}
-          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
-          style={{ background: "rgba(34,197,94,0.08)", color: "#16A34A" }}>
-          <Plus size={10} /> Add Platform
-        </button>
+        <div className="flex gap-1">
+          <button onPointerDown={e => e.stopPropagation()} onClick={() => onAddPlatform(item, "branding")}
+            className="flex-1 py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
+            style={{ background: "rgba(34,197,94,0.08)", color: "#16A34A" }}>
+            <Plus size={10} /> {item.posted_branding ? "Branding" : "Also Branding"}
+          </button>
+          <button onPointerDown={e => e.stopPropagation()} onClick={() => onAddPlatform(item, "ads")}
+            className="flex-1 py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
+            style={{ background: "rgba(217,119,6,0.08)", color: "#D97706" }}>
+            <Plus size={10} /> {item.posted_ads ? "Ads" : "Also Ads"}
+          </button>
+        </div>
       )}
 
     </div>
@@ -3743,7 +3760,17 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   function handlePostAdded(posts: ContentPost[]) {
     if (posts.length === 0) return
     const itemId = posts[0].content_item_id
-    setItems(prev => prev.map(i => i.id === itemId ? { ...i, status: "posted", posts: [...i.posts, ...posts] } : i))
+    setItems(prev => prev.map(i => {
+      if (i.id !== itemId) return i
+      const allPosts = [...i.posts, ...posts]
+      // Mirrors the server's syncPostedFlags — recomputed here too so the Branding ✓ / Ads ✓
+      // badges and the dual-post buttons update immediately, not just after revalidation.
+      return {
+        ...i, status: "posted", posts: allPosts,
+        posted_ads: allPosts.some(p => ADS_PLATFORM_SET.has(p.platform)),
+        posted_branding: allPosts.some(p => !ADS_PLATFORM_SET.has(p.platform)),
+      }
+    }))
     setPlatformModalItem(null)
   }
 
@@ -3754,7 +3781,13 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       const posts = i.posts.filter(p => p.id !== postId)
       // Mirrors the server: back to its Ready lane once its last post is removed.
       const fallback: ContentStatus = deletedPost && ADS_PLATFORM_SET.has(deletedPost.platform) ? "ads_ready" : "branding_ready"
-      return { ...i, posts, status: posts.length === 0 ? fallback : i.status }
+      return {
+        ...i, posts, status: posts.length === 0 ? fallback : i.status,
+        // A dual-posted item that loses its last post on one side should stop showing that
+        // side's ✓ badge, even though it's still "posted" overall via the other side.
+        posted_ads: posts.some(p => ADS_PLATFORM_SET.has(p.platform)),
+        posted_branding: posts.some(p => !ADS_PLATFORM_SET.has(p.platform)),
+      }
     }))
     startTransition(async () => { await deleteContentPost(postId, contentItemId) })
   }
@@ -3849,8 +3882,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2">
               {[
-                { label: "Branding", rows: overviewBrandingKPIs, postedLabel: "Posted" },
-                { label: "Advertisement", rows: overviewAdsKPIs, postedLabel: "Ads Posted" },
+                { label: "Branding", rows: overviewBrandingKPIs, postedLabel: "Posted", dualLabel: "Also Used in Ads" },
+                { label: "Advertisement", rows: overviewAdsKPIs, postedLabel: "Ads Posted", dualLabel: "Also Used in Branding" },
               ].map((block, i) => (
                 <div key={block.label} className={i === 1 ? "md:border-l" : undefined} style={{ borderTop: "1px solid #F3F4F6", borderColor: "#F3F4F6" }}>
                   <div style={{ padding: "10px 16px", background: "#F9FAFB" }}>
@@ -3865,7 +3898,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                         <thead>
                           <tr style={{ background: "#F9FAFB" }}>
-                            {["Client", block.postedLabel, "Unposted", "Unedited"].map(h => (
+                            {["Client", block.postedLabel, block.dualLabel, "Unposted", "Unedited"].map(h => (
                               <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                             ))}
                           </tr>
@@ -3875,6 +3908,15 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                             <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6" }}>
                               <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
                               <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
+                              <td style={{ padding: "9px 14px", textAlign: "center" }}>
+                                {row.dual > 0 ? (
+                                  <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 999, fontWeight: 800, background: "rgba(124,58,237,0.12)", color: "#7C3AED" }}>
+                                    {row.dual}
+                                  </span>
+                                ) : (
+                                  <span style={{ fontWeight: 800, color: "#D1D5DB" }}>0</span>
+                                )}
+                              </td>
                               <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.on_review.accent }}>{row.unposted}</td>
                               <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.ready_to_edit.accent }}>{row.unedited}</td>
                             </tr>

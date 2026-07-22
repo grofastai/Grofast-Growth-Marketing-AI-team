@@ -234,6 +234,32 @@ const USE_FOR_CFG: Record<UseFor, { label: string; color: string; icon: typeof C
 // local state right after a backfill create; the server always recomputes the real value.
 const ADS_PLATFORM_SET = new Set<Platform>(["ads", "meta_ads", "google_ads"])
 
+// Per-client Posted / Unposted (edited, awaiting THIS kind's post) / Unedited breakdown for
+// one kind — powers the Overview "Per-Client KPIs" tables. Combines video + poster on
+// purpose (Overview is a bird's-eye view, not scoped to one content type).
+function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFilter: string) {
+  const isDone = (i: ContentItem) => kind === "branding" ? i.posted_branding : i.posted_ads
+  const inMonth = (d: string | null) => monthFilter === "all" || (!!d && d.slice(0, 7) === monthFilter)
+  const map = new Map<string, { posted: number; unposted: number; unedited: number }>()
+  for (const item of items) {
+    if (item.status === "cancelled") continue
+    if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0 })
+    const rec = map.get(item.client_name)!
+    if (isDone(item)) {
+      const relevant = item.posts.filter(p => kind === "ads" ? ADS_PLATFORM_SET.has(p.platform) : !ADS_PLATFORM_SET.has(p.platform))
+      if (monthFilter === "all" || relevant.some(p => p.posted_date.slice(0, 7) === monthFilter)) rec.posted++
+    } else if (item.status === "posted" || item.status === "on_review" || item.status === "branding_ready" || item.status === "ads_ready") {
+      if (inMonth(item.edited_date)) rec.unposted++
+    } else {
+      if (inMonth(item.shot_date)) rec.unedited++
+    }
+  }
+  return Array.from(map.entries())
+    .map(([client, v]) => ({ client, ...v, total: v.posted + v.unposted + v.unedited }))
+    .filter(r => r.total > 0)
+    .sort((a, b) => b.total - a.total)
+}
+
 const PRIORITY_CFG: Record<Priority, { label: string; color: string }> = {
   low:    { label: "Low",    color: "#6B7280" },
   medium: { label: "Medium", color: "#3B82F6" },
@@ -3165,6 +3191,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const [logPlatformFilter, setLogPlatformFilter] = useState<Platform | "all">("all")
   const [logClientFilter, setLogClientFilter] = useState<string>("all")
   const [logMonthFilter, setLogMonthFilter] = useState<string>("all")
+  const [overviewKpiMonth, setOverviewKpiMonth] = useState<string>("all")
   const [logDayFilter, setLogDayFilter] = useState("")
   const [pipelineDayFilter, setPipelineDayFilter] = useState("")
   const [shootsMonthFilter, setShootsMonthFilter] = useState<string>("all")
@@ -3451,11 +3478,14 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const isDoneForKind = (i: ContentItem) => logKind === "branding" ? i.posted_branding : i.posted_ads
 
   // The "waiting to post" queue — items sitting in this kind's Ready lane, oldest first.
+  // Respects the same client/month filters as the log table below it.
   const readyQueue = useMemo(
     () => items
       .filter(i => i.status === (logKind === "ads" ? "ads_ready" : "branding_ready") && i.content_type === contentTypeForMode)
+      .filter(i => logClientFilter === "all" || i.client_name === logClientFilter)
+      .filter(i => logMonthFilter === "all" || (i.edited_date ?? i.created_at).slice(0, 7) === logMonthFilter)
       .sort((a, b) => (a.edited_date ?? a.created_at).localeCompare(b.edited_date ?? b.created_at)),
-    [items, contentTypeForMode, logKind]
+    [items, contentTypeForMode, logKind, logClientFilter, logMonthFilter]
   )
 
   // Posting log — one row per content item (not per platform); platforms shown as badges within the row
@@ -3465,35 +3495,17 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   )
   const logClientOptions = allClientOptions
   const logMonthOptions = allMonthOptions
+  // Branding only ever posts to organic platforms, Ads only to ad destinations — no point
+  // offering the other kind's platforms in this filter row.
+  const logPlatformOptions = useMemo(
+    () => (Object.keys(PLATFORM_CFG) as Platform[]).filter(p => logKind === "ads" ? (ADS_PLATFORM_SET.has(p) || p === "other") : !ADS_PLATFORM_SET.has(p)),
+    [logKind]
+  )
 
-  // Per-client KPI strip: Posted / Unposted (edited, awaiting THIS kind's post) / Unedited (not yet
-  // edited) — bucketed by whichever date is relevant to that item's current stage, so "All Time"
-  // vs a specific month both mean something for items that haven't reached posting yet.
-  const clientKPIs = useMemo(() => {
-    const inMonth = (d: string | null) => logMonthFilter === "all" || (!!d && d.slice(0, 7) === logMonthFilter)
-    const map = new Map<string, { posted: number; unposted: number; unedited: number }>()
-    for (const item of items) {
-      if (item.content_type !== contentTypeForMode) continue
-      if (item.status === "cancelled") continue
-      if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0 })
-      const rec = map.get(item.client_name)!
-      if (isDoneForKind(item)) {
-        const relevant = item.posts.filter(p => logKind === "ads" ? ADS_PLATFORM_SET.has(p.platform) : !ADS_PLATFORM_SET.has(p.platform))
-        if (logMonthFilter === "all" || relevant.some(p => p.posted_date.slice(0, 7) === logMonthFilter)) rec.posted++
-      } else if (item.status === "posted" || item.status === "on_review" || item.status === "branding_ready" || item.status === "ads_ready") {
-        // Already past editing (in review, approved and queued to post, or posted under
-        // the other kind) — just waiting on THIS kind's post, not on editing.
-        if (inMonth(item.edited_date)) rec.unposted++
-      } else {
-        // scripting/voiceover/design/ready_to_edit — hasn't been edited yet.
-        if (inMonth(item.shot_date)) rec.unedited++
-      }
-    }
-    return Array.from(map.entries())
-      .map(([client, v]) => ({ client, ...v, total: v.posted + v.unposted + v.unedited }))
-      .filter(r => r.total > 0)
-      .sort((a, b) => b.total - a.total)
-  }, [items, logMonthFilter, contentTypeForMode, logKind])
+  // Per-client KPI tables live on Overview now (see overviewBrandingKPIs/overviewAdsKPIs
+  // below) — not scoped to a single content type or tab, so they show the full picture.
+  const overviewBrandingKPIs = useMemo(() => buildClientKPIs(items, "branding", overviewKpiMonth), [items, overviewKpiMonth])
+  const overviewAdsKPIs = useMemo(() => buildClientKPIs(items, "ads", overviewKpiMonth), [items, overviewKpiMonth])
 
   const logRows = useMemo(() => {
     let rows = postedItems
@@ -3823,6 +3835,59 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               onClick={() => goTo({ mode: "video", tab: "adlog" })} />
           </div>
 
+          {/* Per-client Branding/Advertisement breakdown — lives here instead of on the
+              Branding/Advertisement tabs so it's visible without switching tabs, and covers
+              both content types at once rather than needing a Video/Poster split. */}
+          <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
+              <select value={overviewKpiMonth} onChange={e => setOverviewKpiMonth(e.target.value)}
+                style={{ ...FIELD, width: "auto", cursor: "pointer", padding: "5px 10px", fontSize: 11 }}>
+                <option value="all">All Time</option>
+                {allMonthOptions.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2">
+              {[
+                { label: "Branding", rows: overviewBrandingKPIs, postedLabel: "Posted" },
+                { label: "Advertisement", rows: overviewAdsKPIs, postedLabel: "Ads Posted" },
+              ].map((block, i) => (
+                <div key={block.label} className={i === 1 ? "md:border-l" : undefined} style={{ borderTop: "1px solid #F3F4F6", borderColor: "#F3F4F6" }}>
+                  <div style={{ padding: "10px 16px", background: "#F9FAFB" }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: "#111827" }}>{block.label}</span>
+                  </div>
+                  {block.rows.length === 0 ? (
+                    <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "20px 0", margin: 0 }}>
+                      No activity {overviewKpiMonth === "all" ? "yet" : `in ${fmtMonth(overviewKpiMonth)}`}
+                    </p>
+                  ) : (
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ background: "#F9FAFB" }}>
+                            {["Client", block.postedLabel, "Unposted", "Unedited"].map(h => (
+                              <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {block.rows.map(row => (
+                            <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6" }}>
+                              <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
+                              <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
+                              <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.on_review.accent }}>{row.unposted}</td>
+                              <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.ready_to_edit.accent }}>{row.unedited}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Scopes only the four stage-count blocks below by creation date — Needs
               Attention and the posting tiles above are always live. */}
           <div className="flex items-center flex-wrap gap-2">
@@ -4051,6 +4116,29 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
 
       {(mode === "video" || mode === "poster") && (tab === "log" || tab === "adlog") && (
         <div className="flex flex-col gap-4">
+          {/* Search/client/month/day filters — right at the top, next to the tab buttons
+              above, so they're the first thing you see rather than buried mid-page. Also
+              scopes the Waiting to Post queue below, not just the log table. */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div style={{ position: "relative", flex: "1 1 200px" }}>
+              <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+              <input value={logSearch} onChange={e => setLogSearch(e.target.value)} placeholder="Search title or client…"
+                style={{ ...FIELD, paddingLeft: 30 }} />
+            </div>
+            <select value={logClientFilter} onChange={e => setLogClientFilter(e.target.value)}
+              style={{ ...FILTER_FIELD, flex: "0 0 auto" }}>
+              <option value="all">All Clients</option>
+              {logClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+              {pastClientOptions.length > 0 && (
+                <optgroup label="📁 Past Clients">
+                  {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                </optgroup>
+              )}
+            </select>
+            <MonthSelect value={logMonthFilter} onChange={setLogMonthFilter} options={logMonthOptions} />
+            <DayFilter value={logDayFilter} onChange={setLogDayFilter} />
+          </div>
+
           {/* Waiting queue — items sitting in this kind's Ready lane, not yet posted. */}
           {readyQueue.length > 0 && (
             <div style={{ background: "#fff", border: "1px solid #BAE6FD", borderRadius: 18, overflow: "hidden" }}>
@@ -4079,69 +4167,12 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             </div>
           )}
 
-          <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs — {logKind === "ads" ? "Advertisement" : "Branding"}</span>
-              <select value={logMonthFilter} onChange={e => setLogMonthFilter(e.target.value)}
-                style={{ ...FIELD, width: "auto", cursor: "pointer", padding: "5px 10px", fontSize: 11 }}>
-                <option value="all">All Time</option>
-                {logMonthOptions.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
-              </select>
-            </div>
-            {clientKPIs.length === 0 ? (
-              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "20px 0", margin: 0 }}>No activity {logMonthFilter === "all" ? "yet" : `in ${fmtMonth(logMonthFilter)}`}</p>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                  <thead>
-                    <tr style={{ background: "#F9FAFB" }}>
-                      {["Client", logKind === "ads" ? "Ads Posted" : "Posted", "Unposted", "Unedited"].map(h => (
-                        <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clientKPIs.map(row => (
-                      <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6", cursor: "pointer", background: logClientFilter === row.client ? "rgba(17,24,39,0.04)" : "transparent" }}
-                        onClick={() => setLogClientFilter(prev => prev === row.client ? "all" : row.client)}>
-                        <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
-                        <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
-                        <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.on_review.accent }}>{row.unposted}</td>
-                        <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.ready_to_edit.accent }}>{row.unedited}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <div style={{ position: "relative", flex: "1 1 200px" }}>
-              <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
-              <input value={logSearch} onChange={e => setLogSearch(e.target.value)} placeholder="Search title or client…"
-                style={{ ...FIELD, paddingLeft: 30 }} />
-            </div>
-            <select value={logClientFilter} onChange={e => setLogClientFilter(e.target.value)}
-              style={{ ...FILTER_FIELD, flex: "0 0 auto" }}>
-              <option value="all">All Clients</option>
-              {logClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-              {pastClientOptions.length > 0 && (
-                <optgroup label="📁 Past Clients">
-                  {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                </optgroup>
-              )}
-            </select>
-            <MonthSelect value={logMonthFilter} onChange={setLogMonthFilter} options={logMonthOptions} />
-            <DayFilter value={logDayFilter} onChange={setLogDayFilter} />
-          </div>
-
           <div className="flex items-center gap-2 flex-wrap">
             <button onClick={() => setLogPlatformFilter("all")}
               style={{ padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${logPlatformFilter === "all" ? "#111827" : "#E5E7EB"}`, background: logPlatformFilter === "all" ? "rgba(17,24,39,0.06)" : "#fff", color: logPlatformFilter === "all" ? "#111827" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
               All Platforms
             </button>
-            {(Object.keys(PLATFORM_CFG) as Platform[]).map(p => {
+            {logPlatformOptions.map(p => {
               const cfg = PLATFORM_CFG[p]
               return (
                 <button key={p} onClick={() => setLogPlatformFilter(p)}

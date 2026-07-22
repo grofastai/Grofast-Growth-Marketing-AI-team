@@ -409,6 +409,64 @@ export async function addShootTitle(
   }
 }
 
+// Removing a video that was listed by mistake — deletes both the shoot_titles row and its
+// linked content_item, so it disappears from Ready to Edit too, not just from this list.
+export async function deleteShootTitle(
+  shootTitleId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: st } = await admin.from('shoot_titles').select('id, content_item_id').eq('id', shootTitleId).single()
+  if (!st) return { success: false, error: 'Video title not found' }
+
+  if (st.content_item_id) {
+    await admin.from('content_items').delete().eq('id', st.content_item_id)
+  }
+  const { error } = await admin.from('shoot_titles').delete().eq('id', shootTitleId)
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/shoots')
+  revalidatePath('/member/shoots')
+  revalidatePath('/admin/media-tracker')
+  revalidatePath('/member/media-tracker')
+  return { success: true }
+}
+
+// Correcting the actual shoot time after completion (re-entered once already at Mark Done,
+// but it can still be wrong or need a later adjustment).
+export async function updateShootActualTime(
+  shootId: string,
+  fromTime: string,
+  toTime: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+  if (!fromTime) return { success: false, error: 'Start time is required' }
+  if (!toTime) return { success: false, error: 'End time is required' }
+
+  const admin = adminSupabase()
+  const { data: shoot } = await admin.from('shoots').select('id, start_time').eq('id', shootId).single()
+  if (!shoot) return { success: false, error: 'Shoot not found' }
+
+  const shotDate = shoot.start_time.split('T')[0]
+  const start_time = `${shotDate}T${fromTime}:00+05:30`
+  const end_time = `${shotDate}T${toTime}:00+05:30`
+  if (start_time >= end_time) return { success: false, error: 'End time must be after start time' }
+
+  const { error } = await admin.from('shoots').update({ start_time, end_time }).eq('id', shootId)
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/shoots')
+  revalidatePath('/member/shoots')
+  revalidatePath('/admin/media-tracker')
+  revalidatePath('/member/media-tracker')
+  return { success: true }
+}
+
 // Edit a Tracker-created shoot's details. Deliberately does NOT touch status, crew, or the
 // video titles — those each have their own flow, and folding them in here would let an
 // "edit details" action silently undo a completion.

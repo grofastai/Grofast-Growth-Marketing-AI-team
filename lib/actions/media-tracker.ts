@@ -120,6 +120,11 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
   const { error } = await ctx.admin.from('content_items').update(updates).eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
 
+  // Two-way sync with the shoot it came from, if any — a rename here keeps the shoot's own
+  // video-titles list (and its Edit Completed Shoot view) showing the same name, not a
+  // stale one. No-op if this item didn't come from a shoot.
+  await ctx.admin.from('shoot_titles').update({ title: parsed.data.title }).eq('content_item_id', id)
+
   revalidateTracker()
   return { success: true }
 }

@@ -24,7 +24,7 @@ import {
   createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, markReadyToPost, requestCorrection,
   createAdsVideoScript, recordVoiceOver, updateAdsVideoScript, updateVoiceOver,
 } from "@/lib/actions/media-tracker"
-import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, renameShootTitle, addShootTitle, type CreatedShootItem } from "@/lib/actions/shoots"
+import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, renameShootTitle, addShootTitle, updateShootActualTime, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
 import { isValidPipelineTransition } from "@/lib/media-tracker/pipeline-transitions"
 import { computeOverview, type AttentionItem } from "@/lib/media-tracker/overview"
@@ -2817,18 +2817,25 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
   )
 }
 
-// ── Edit Completed Shoot — the video-titles list captured at Mark Done, fixable after the
-// fact: rename a title (fixes a typo, keeps its content_item's title in sync) or add one
-// that was missed. ────────────────────────────────────────────────────────
-function EditCompletedShootModal({ shoot, onClose, onRenamed, onAdded }: {
+// ── Edit Completed Shoot — everything captured at Mark Done, fixable after the fact: video
+// titles (rename keeps the linked content_item's title in sync, add one that was missed),
+// the actual shoot time, and who went. ──────────────────────────────────────
+function EditCompletedShootModal({ shoot, members, currentUserId, onClose, onRenamed, onAdded, onTimeSaved, onCrewSaved }: {
   shoot: Shoot
+  members: Member[]
+  currentUserId: string
   onClose: () => void
   onRenamed: (shootTitleId: string, newTitle: string) => void
   onAdded: (item: CreatedShootItem) => void
+  onTimeSaved: (fromTime: string, toTime: string) => void
+  onCrewSaved: (crew: Member[]) => void
 }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const [newTitle, setNewTitle] = useState("")
+  const [fromTime, setFromTime] = useState(toISTTimeString(shoot.start_time))
+  const [toTime, setToTime] = useState(toISTTimeString(shoot.end_time))
+  const [crew, setCrew] = useState<string[]>(shoot.goingByUsers.map(u => u.id))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -2852,6 +2859,27 @@ function EditCompletedShootModal({ shoot, onClose, onRenamed, onAdded }: {
     if (!res.success || !res.item) { setError(res.error ?? "Failed to save"); return }
     onAdded(res.item)
     setNewTitle("")
+  }
+
+  async function saveTime() {
+    if (!fromTime || !toTime) { setError("Both times are required"); return }
+    setSaving(true); setError(null)
+    const res = await updateShootActualTime(shoot.id, fromTime, toTime)
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onTimeSaved(fromTime, toTime)
+  }
+
+  function toggleCrew(id: string) {
+    setCrew(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  async function saveCrew() {
+    setSaving(true); setError(null)
+    const res = await updateShootCrew(shoot.id, crew)
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onCrewSaved(members.filter(m => crew.includes(m.id)))
   }
 
   return (
@@ -2903,6 +2931,42 @@ function EditCompletedShootModal({ shoot, onClose, onRenamed, onAdded }: {
             </button>
           </div>
         </div>
+
+        <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
+          <label style={LABEL}>Actual Shoot Time</label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end" }}>
+            <div>
+              <input type="time" style={FIELD} value={fromTime} onChange={e => setFromTime(e.target.value)} />
+            </div>
+            <div>
+              <input type="time" style={FIELD} value={toTime} onChange={e => setToTime(e.target.value)} />
+            </div>
+            <button type="button" onClick={saveTime} disabled={saving}
+              style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+              Save Time
+            </button>
+          </div>
+        </div>
+
+        <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
+          <label style={LABEL}>Who Went? <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+            {members.map(m => {
+              const on = crew.includes(m.id)
+              return (
+                <button key={m.id} type="button" onClick={() => toggleCrew(m.id)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {on && <Check size={11} />} {upper(m.name)}{m.id === currentUserId ? " (me)" : ""}
+                </button>
+              )
+            })}
+          </div>
+          <button type="button" onClick={saveCrew} disabled={saving}
+            style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Save Crew
+          </button>
+        </div>
+
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
       </div>
     </Modal>
@@ -3526,6 +3590,17 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     }
   }
 
+  // The other direction of the same sync — renaming from the Ready to Edit side (or any
+  // later stage) keeps the originating shoot's own video-titles list showing the same name.
+  function syncShootTitleFromContentItem(contentItemId: string, newTitle: string) {
+    const renameByContentItem = (titles: ShootTitleRef[]) => titles.map(t =>
+      t.content_item_id === contentItemId ? { ...t, title: newTitle } : t)
+    setShoots(prev => prev.map(s => s.titles.some(t => t.content_item_id === contentItemId)
+      ? { ...s, titles: renameByContentItem(s.titles) } : s))
+    setEditCompletedShootFor(prev => prev && prev.titles.some(t => t.content_item_id === contentItemId)
+      ? { ...prev, titles: renameByContentItem(prev.titles) } : prev)
+  }
+
   function handleShootTitleAdded(shootId: string, created: CreatedShootItem) {
     const newItem: ContentItem = {
       id: created.id, client_name: created.client_name, title: created.title, content_type: "video", source: "shoot",
@@ -3547,6 +3622,21 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   function handleCrewSaved(shootId: string, crew: Member[]) {
     setShoots(prev => prev.map(s => s.id === shootId ? { ...s, goingByUsers: crew } : s))
     setEditCrewFor(null)
+  }
+
+  // Same as handleCrewSaved, but from Edit Completed Shoot — that modal stays open (its
+  // own state already reflects the pick), so it doesn't close editCrewFor.
+  function handleCompletedShootCrewSaved(shootId: string, crew: Member[]) {
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, goingByUsers: crew } : s))
+  }
+
+  function handleShootActualTimeSaved(shootId: string, fromTime: string, toTime: string) {
+    const shoot = shoots.find(s => s.id === shootId)
+    if (!shoot) return
+    const shotDate = shoot.start_time.split("T")[0]
+    const start_time = `${shotDate}T${fromTime}:00`
+    const end_time = `${shotDate}T${toTime}:00`
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, start_time, end_time } : s))
   }
 
   function handleDeleteShoot(shoot: Shoot) {
@@ -4341,6 +4431,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               // undefined means "wasn't shown/editable this time" — keep whatever it already was.
               editedByUser: updates.editedByUser !== undefined ? updates.editedByUser : i.editedByUser,
             } : i))
+            if (updates.title !== editingItem.title) syncShootTitleFromContentItem(editingItem.id, updates.title)
             setEditingItem(null)
           }} />
       )}
@@ -4390,10 +4481,12 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           onSaved={patch => handleShootSaved(editShootFor.id, patch)} />
       )}
       {editCompletedShootFor && (
-        <EditCompletedShootModal shoot={editCompletedShootFor}
+        <EditCompletedShootModal shoot={editCompletedShootFor} members={members} currentUserId={currentUserId}
           onClose={() => setEditCompletedShootFor(null)}
           onRenamed={(shootTitleId, newTitle) => handleShootTitleRenamed(editCompletedShootFor.id, shootTitleId, newTitle)}
-          onAdded={created => handleShootTitleAdded(editCompletedShootFor.id, created)} />
+          onAdded={created => handleShootTitleAdded(editCompletedShootFor.id, created)}
+          onTimeSaved={(fromTime, toTime) => handleShootActualTimeSaved(editCompletedShootFor.id, fromTime, toTime)}
+          onCrewSaved={crew => handleCompletedShootCrewSaved(editCompletedShootFor.id, crew)} />
       )}
       {editAdFor && (
         <EditAdModal ad={editAdFor} clients={clients} pastClients={pastClients}

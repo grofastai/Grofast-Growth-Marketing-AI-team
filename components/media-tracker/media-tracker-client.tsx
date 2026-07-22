@@ -572,7 +572,7 @@ function ContentCardInner({
   const next = NEXT_STATUS[item.status]
 
   return (
-    <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
+    <div className="rounded-2xl p-4 mb-2.5 group transition-all select-none"
       style={{
         background: isDragging ? "#F3F4F6" : "#fff",
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
@@ -587,22 +587,22 @@ function ContentCardInner({
           </span>
         )}
         <div style={{ width: 22, height: 22, borderRadius: 7, background: `${typeAccent}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <TypeIcon size={12} style={{ color: typeAccent }} />
+          <TypeIcon size={13} style={{ color: typeAccent }} />
         </div>
-        <p className="text-[12px] font-semibold leading-snug line-clamp-2 flex-1" style={{ color: "#111111" }}>{item.title}</p>
+        <p className="text-[14px] font-semibold leading-snug line-clamp-2 flex-1" style={{ color: "#111111" }}>{item.title}</p>
         {cardMenu.length > 0 && <CardMenu items={cardMenu} />}
       </div>
 
       <div className="flex flex-wrap items-center gap-1 mb-2.5">
-        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full truncate max-w-[110px]"
+        <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full truncate max-w-[110px]"
           style={{ background: `${typeAccent}14`, color: typeAccent }}>{item.client_name}</span>
         {item.source === "ads_video" && (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${typeAccent}18`, color: typeAccentDark }}>
+          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${typeAccent}18`, color: typeAccentDark }}>
             🎙️ Ads Video
           </span>
         )}
         {stale && (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-auto" style={{ background: "rgba(245,158,11,0.1)", color: "#D97706" }}>
+          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full ml-auto" style={{ background: "rgba(245,158,11,0.1)", color: "#D97706" }}>
             {age}d stuck
           </span>
         )}
@@ -610,11 +610,11 @@ function ContentCardInner({
 
       {item.priority && (
         <div className="flex flex-wrap items-center gap-1 mb-2.5">
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${PRIORITY_CFG[item.priority].color}18`, color: PRIORITY_CFG[item.priority].color }}>
+          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${PRIORITY_CFG[item.priority].color}18`, color: PRIORITY_CFG[item.priority].color }}>
             {PRIORITY_CFG[item.priority].label}
           </span>
           {item.hook_count !== null && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#F3F4F6", color: "#374151" }}>
+            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#F3F4F6", color: "#374151" }}>
               {item.hook_count} hook{item.hook_count === 1 ? "" : "s"}
             </span>
           )}
@@ -627,9 +627,9 @@ function ContentCardInner({
             const cfg = PLATFORM_CFG[p.platform]
             const Icon = cfg.icon
             return (
-              <span key={p.id} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+              <span key={p.id} className="flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-full"
                 style={{ background: `${cfg.color}18`, color: cfg.color }}>
-                <Icon size={9} /> {cfg.label}
+                <Icon size={10} /> {cfg.label}
               </span>
             )
           })}
@@ -639,12 +639,12 @@ function ContentCardInner({
       {(item.posted_branding || item.posted_ads) && (
         <div className="flex flex-wrap items-center gap-1 mb-2.5">
           {item.posted_branding && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.12)", color: "#16A34A" }}>
+            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.12)", color: "#16A34A" }}>
               Branding ✓
             </span>
           )}
           {item.posted_ads && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(217,119,6,0.12)", color: "#D97706" }}>
+            <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(217,119,6,0.12)", color: "#D97706" }}>
               Ads ✓
             </span>
           )}
@@ -654,14 +654,14 @@ function ContentCardInner({
       <div className="flex items-center gap-2 mb-2">
         {item.shotByUser && (
           <div className="flex items-center gap-1" title={`Shot by ${item.shotByUser.name}`}>
-            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: typeAccentDark, color: "#fff" }}>
+            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0" style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.shotByUser.name)}
             </div>
           </div>
         )}
         {item.voiceoverBy && (item.status === "voiceover" || item.status === "ready_to_edit") && (
           <div className="flex items-center gap-1" title={`Voiced by ${item.voiceoverBy.name}`}>
-            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: typeAccentDark, color: "#fff" }}>
+            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0" style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.voiceoverBy.name)}
             </div>
           </div>
@@ -669,31 +669,31 @@ function ContentCardInner({
         {/* Once it's Edited, name the editor and date outright — the point of asking "who
             edited this?" is that the rest of the team can see it without hovering. */}
         {item.editedByUser ? (
-          <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+          <span className="flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-full"
             title={`Edited by ${item.editedByUser.name}${item.edited_date ? ` on ${fmtDate(item.edited_date)}` : ""}`}
             style={{
               background: item.status === "on_review" ? `${typeAccent}18` : "#F1F5F9",
               color: item.status === "on_review" ? typeAccentDark : "#475569",
             }}>
-            <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0"
+            <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0"
               style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.editedByUser.name)}
             </span>
             {upper(item.editedByUser.name)}{item.edited_date ? ` · ${fmtDate(item.edited_date)}` : ""}
           </span>
         ) : null}
-        <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(originDate(item))}</span>
+        <span className="text-[11px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(originDate(item))}</span>
       </div>
 
       {/* Correction round-trips — shows this went back N times, and what for. */}
       {item.corrections.length > 0 && (
         <div className="mb-2">
-          <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full w-fit"
+          <span className="flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-full w-fit"
             title={item.corrections.map(c => c.notes).join(" · ")}
             style={{ background: `${typeAccent}18`, color: typeAccentDark }}>
-            <RotateCcw size={9} /> {item.corrections.length} correction{item.corrections.length > 1 ? "s" : ""}
+            <RotateCcw size={10} /> {item.corrections.length} correction{item.corrections.length > 1 ? "s" : ""}
           </span>
-          <p className="text-[9px] mt-1 line-clamp-2" style={{ color: "#6B7280" }}>
+          <p className="text-[11px] mt-1 line-clamp-2" style={{ color: "#6B7280" }}>
             {item.corrections[0].notes}
           </p>
         </div>
@@ -704,31 +704,31 @@ function ContentCardInner({
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onMove(item)}
-          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
+          className="w-full py-1.5 rounded-xl text-[11px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
           style={{ background: statusButtonGradient("on_review"), color: "#fff" }}>
-          Move <ArrowRight size={10} />
+          Move <ArrowRight size={11} />
         </button>
       ) : next && (
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, next)}
-          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
+          className="w-full py-1.5 rounded-xl text-[11px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
           style={{ background: statusButtonGradient(next), color: "#fff" }}>
-          Move to {STATUS_CFG[next].label} <ArrowRight size={10} />
+          Move to {STATUS_CFG[next].label} <ArrowRight size={11} />
         </button>
       )}
       {item.status === "branding_ready" && (
         <button onPointerDown={e => e.stopPropagation()} onClick={() => onAddPlatform(item, "branding")}
-          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
+          className="w-full py-1.5 rounded-xl text-[11px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
           style={{ background: statusButtonGradient("branding_ready"), color: "#fff" }}>
-          Mark as Posted <ArrowRight size={10} />
+          Mark as Posted <ArrowRight size={11} />
         </button>
       )}
       {item.status === "ads_ready" && (
         <button onPointerDown={e => e.stopPropagation()} onClick={() => onAddPlatform(item, "ads")}
-          className="w-full py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
+          className="w-full py-1.5 rounded-xl text-[11px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1"
           style={{ background: statusButtonGradient("ads_ready"), color: "#fff" }}>
-          Ads Completed <ArrowRight size={10} />
+          Ads Completed <ArrowRight size={11} />
         </button>
       )}
       {/* A posted video can go out on both fronts — e.g. one ad shoot's hook+body also gets
@@ -737,14 +737,14 @@ function ContentCardInner({
       {item.status === "posted" && (
         <div className="flex gap-1">
           <button onPointerDown={e => e.stopPropagation()} onClick={() => onAddPlatform(item, "branding")}
-            className="flex-1 py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
+            className="flex-1 py-1.5 rounded-xl text-[11px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
             style={{ background: "rgba(34,197,94,0.08)", color: "#16A34A" }}>
-            <Plus size={10} /> {item.posted_branding ? "Branding" : "Also Branding"}
+            <Plus size={11} /> {item.posted_branding ? "Branding" : "Also Branding"}
           </button>
           <button onPointerDown={e => e.stopPropagation()} onClick={() => onAddPlatform(item, "ads")}
-            className="flex-1 py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
+            className="flex-1 py-1.5 rounded-xl text-[11px] font-bold transition-all hover:opacity-80 flex items-center justify-center gap-1"
             style={{ background: "rgba(217,119,6,0.08)", color: "#D97706" }}>
-            <Plus size={10} /> {item.posted_ads ? "Ads" : "Also Ads"}
+            <Plus size={11} /> {item.posted_ads ? "Ads" : "Also Ads"}
           </button>
         </div>
       )}
@@ -784,7 +784,7 @@ function AdsVideoCardInner({ item, isDragging, isCompleted, onAdvance, onEdit, o
   const accent = STATUS_CFG[item.status].accent
   const accentDark = darken(accent, 0.7)
   return (
-    <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
+    <div className="rounded-2xl p-4 mb-2.5 group transition-all select-none"
       style={{
         background: isDragging ? "#F3F4F6" : "#fff",
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
@@ -797,17 +797,17 @@ function AdsVideoCardInner({ item, isDragging, isCompleted, onAdvance, onEdit, o
           <GripVertical size={13} style={{ color: "#6B7280" }} />
         </span>
         <div style={{ width: 22, height: 22, borderRadius: 7, background: `${accent}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Video size={12} style={{ color: accent }} />
+          <Video size={13} style={{ color: accent }} />
         </div>
-        <p className="text-[12px] font-semibold leading-snug line-clamp-2 flex-1" style={{ color: "#111111" }}>{item.title}</p>
+        <p className="text-[14px] font-semibold leading-snug line-clamp-2 flex-1" style={{ color: "#111111" }}>{item.title}</p>
         <CardMenu items={cardMenu} />
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 mb-2">
-        <span className="text-[9px] font-medium px-2 py-1 rounded-full truncate max-w-[110px]"
+        <span className="text-[11px] font-medium px-2 py-1 rounded-full truncate max-w-[110px]"
           style={{ background: `${accent}14`, color: accent, lineHeight: 1 }}>{item.client_name}</span>
         {item.shoot_type && (
-          <span className="text-[9px] font-bold px-2 py-1 rounded-full" style={{ background: `${SHOOT_TYPE_CFG[item.shoot_type].color}18`, color: SHOOT_TYPE_CFG[item.shoot_type].color, lineHeight: 1 }}>
+          <span className="text-[11px] font-bold px-2 py-1 rounded-full" style={{ background: `${SHOOT_TYPE_CFG[item.shoot_type].color}18`, color: SHOOT_TYPE_CFG[item.shoot_type].color, lineHeight: 1 }}>
             {SHOOT_TYPE_CFG[item.shoot_type].label}
           </span>
         )}
@@ -815,7 +815,7 @@ function AdsVideoCardInner({ item, isDragging, isCompleted, onAdvance, onEdit, o
 
       <div className="flex flex-wrap items-center gap-1.5 mb-2">
         {item.hook_count !== null && (
-          <span className="text-[9px] font-bold px-2 py-1 rounded-full" style={{ background: "#F3F4F6", color: "#374151", lineHeight: 1 }}>
+          <span className="text-[11px] font-bold px-2 py-1 rounded-full" style={{ background: "#F3F4F6", color: "#374151", lineHeight: 1 }}>
             {item.hook_count} hook{item.hook_count === 1 ? "" : "s"}
           </span>
         )}
@@ -823,9 +823,9 @@ function AdsVideoCardInner({ item, isDragging, isCompleted, onAdvance, onEdit, o
           const cfg = USE_FOR_CFG[u]
           const Icon = cfg.icon
           return (
-            <span key={u} className="flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-full"
+            <span key={u} className="flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full"
               style={{ background: `${cfg.color}18`, color: cfg.color, lineHeight: 1 }}>
-              <Icon size={9} /> {cfg.label}
+              <Icon size={10} /> {cfg.label}
             </span>
           )
         })}
@@ -833,43 +833,43 @@ function AdsVideoCardInner({ item, isDragging, isCompleted, onAdvance, onEdit, o
 
       {item.scriptedByUser && (
         <div className="flex items-center gap-1.5 mb-1.5" title={`Scripted by ${item.scriptedByUser.name}`}>
-          <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: "#374151", color: "#fff" }}>
+          <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0" style={{ background: "#374151", color: "#fff" }}>
             {initials(item.scriptedByUser.name)}
           </div>
-          <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{upper(item.scriptedByUser.name)}</span>
+          <span className="text-[11px]" style={{ color: "#374151", fontWeight: 600 }}>{upper(item.scriptedByUser.name)}</span>
         </div>
       )}
       {item.voiceoverBy && (
         <div className="flex items-center gap-1.5 mb-3" title={`Voiced by ${item.voiceoverBy.name}`}>
-          <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: accentDark, color: "#fff" }}>
+          <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0" style={{ background: accentDark, color: "#fff" }}>
             {initials(item.voiceoverBy.name)}
           </div>
-          <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{upper(item.voiceoverBy.name)}</span>
+          <span className="text-[11px]" style={{ color: "#374151", fontWeight: 600 }}>{upper(item.voiceoverBy.name)}</span>
         </div>
       )}
 
       {isCompleted && (
-        <div className="w-full py-2 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5"
+        <div className="w-full py-2 rounded-xl text-[12px] font-bold flex items-center justify-center gap-1.5"
           style={{ background: `${ADS_VIDEO_COMPLETED_CFG.accent}14`, color: ADS_VIDEO_COMPLETED_CFG.accent, marginTop: item.voiceoverBy || item.scriptedByUser ? 0 : 4 }}>
-          <Check size={10} /> Completed
+          <Check size={11} /> Completed
         </div>
       )}
       {!isCompleted && next && (
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onAdvance(item, next)}
-          className="w-full py-2 rounded-xl text-[10px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1.5"
+          className="w-full py-2 rounded-xl text-[12px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1.5"
           style={{ background: statusButtonGradient(next), color: "#fff", marginTop: item.voiceoverBy ? 0 : 4 }}>
-          {item.status === "voiceover" ? <>Send to Ready to Edit <ArrowRight size={10} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={10} /></>}
+          {item.status === "voiceover" ? <>Send to Ready to Edit <ArrowRight size={11} /></> : <>Move to {STATUS_CFG[next].label} <ArrowRight size={11} /></>}
         </button>
       )}
       {!isCompleted && item.status === "scripting" && (
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={() => onMoveToShoot(item)}
-          className="w-full py-2 rounded-xl text-[10px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1.5"
+          className="w-full py-2 rounded-xl text-[12px] font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1.5"
           style={{ background: "#fff", color: "#374151", border: "1.5px solid #E5E7EB", marginTop: 6 }}>
-          <Camera size={10} /> Move to Shoot
+          <Camera size={11} /> Move to Shoot
         </button>
       )}
     </div>
@@ -1144,9 +1144,9 @@ function ShootTitleList({ titles, accent }: { titles: ShootTitleRef[]; accent: s
 
   return (
     <div style={{ marginTop: 8 }}>
-      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-lg"
+      <span className="inline-flex items-center gap-1.5 text-[12px] font-bold px-2 py-1 rounded-lg"
         style={{ background: `${accent}18`, color: accentDark }}>
-        <Video size={10} /> {titles.length} video{titles.length === 1 ? "" : "s"}
+        <Video size={11} /> {titles.length} video{titles.length === 1 ? "" : "s"}
       </span>
 
       <div className="flex flex-col" style={{ marginTop: 6 }}>
@@ -1154,14 +1154,14 @@ function ShootTitleList({ titles, accent }: { titles: ShootTitleRef[]; accent: s
           <div key={t.id} className="flex items-center gap-2"
             style={{ padding: "5px 0", borderBottom: "1px solid #F3F4F6" }}>
             <span style={{ width: 4, height: 4, borderRadius: "50%", background: accentDark, flexShrink: 0 }} />
-            <span className="text-[11px] truncate" style={{ color: "#374151" }}>{t.title}</span>
+            <span className="text-[13px] truncate" style={{ color: "#374151" }}>{t.title}</span>
           </div>
         ))}
       </div>
 
       {titles.length > COLLAPSED && (
         <button onPointerDown={e => e.stopPropagation()} onClick={() => setExpanded(v => !v)}
-          className="text-[10px] font-bold"
+          className="text-[12px] font-bold"
           style={{ marginTop: 6, background: "none", border: "none", padding: 0, cursor: "pointer", color: expanded ? "#9CA3AF" : accentDark }}>
           {expanded ? "Show less" : `+ ${hidden} more`}
         </button>
@@ -1188,7 +1188,7 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
   const accent = SHOOT_STATUS_CFG[shoot.status].color
   const accentDark = darken(accent, 0.7)
   return (
-    <div className="rounded-2xl p-3.5 mb-2.5 select-none"
+    <div className="rounded-2xl p-4 mb-2.5 select-none"
       style={{
         background: isDragging ? "#F3F4F6" : "#fff",
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
@@ -1198,8 +1198,8 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
       }}>
       <div className="flex items-start justify-between gap-2">
         <div style={{ minWidth: 0 }}>
-          <p className="text-[12px] font-bold leading-snug" style={{ color: "#111827", margin: 0 }}>{shoot.legacyTitle}</p>
-          <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>
+          <p className="text-[14px] font-bold leading-snug" style={{ color: "#111827", margin: 0 }}>{shoot.legacyTitle}</p>
+          <p className="text-[12px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>
             {shoot.client} · {fmtDate(shoot.start_time.split("T")[0])}
           </p>
         </div>
@@ -1213,20 +1213,20 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
           editable at any point so older shoots with nobody recorded can be filled in. */}
       {onEditCrew && (
         <div style={{ marginTop: 8 }}>
-          <span className="text-[9px] font-bold uppercase tracking-[0.06em]" style={{ color: "#9CA3AF" }}>Who went</span>
+          <span className="text-[11px] font-bold uppercase tracking-[0.06em]" style={{ color: "#9CA3AF" }}>Who went</span>
           {shoot.goingByUsers.length === 0 ? (
             <button onPointerDown={e => e.stopPropagation()} onClick={() => onEditCrew(shoot)}
-              className="block text-[10px] font-bold"
+              className="block text-[12px] font-bold"
               style={{ marginTop: 3, background: "none", border: "none", padding: 0, cursor: "pointer", color: accentDark }}>
               + Add crew
             </button>
           ) : (
             <div className="flex flex-wrap items-center gap-1" style={{ marginTop: 3 }}>
               {shoot.goingByUsers.map(u => (
-                <span key={u.id} className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                <span key={u.id} className="flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-full"
                   title={u.name}
                   style={{ background: `${accent}18`, color: accentDark }}>
-                  <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
+                  <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black"
                     style={{ background: accentDark, color: "#fff" }}>
                     {initials(u.name)}
                   </span>
@@ -1238,17 +1238,17 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
         </div>
       )}
 
-      {shoot.notes && <p className="text-[10px]" style={{ color: "#6B7280", margin: "6px 0 0" }}>{shoot.notes}</p>}
+      {shoot.notes && <p className="text-[12px]" style={{ color: "#6B7280", margin: "6px 0 0" }}>{shoot.notes}</p>}
 
       {shoot.status === "scheduled" && (
         <div className="flex flex-wrap gap-1.5" style={{ marginTop: 10 }}>
           <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "completed")}
-            className="text-[9px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
+            className="text-[11px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
             style={{ border: "none", background: "#15803D", color: "#fff", cursor: "pointer" }}>
             Mark Done
           </button>
           <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "cancelled")}
-            className="text-[9px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
+            className="text-[11px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
             style={{ border: "none", background: "#B91C1C", color: "#fff", cursor: "pointer" }}>
             Cancel
           </button>
@@ -4041,9 +4041,12 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             ))}
           </div>
 
-          <div className="hidden md:block">
+          {/* Fixed-width columns instead of squeezing all of them to fit — comfortable card
+              size stays constant regardless of how many stages there are; extra columns
+              scroll into view horizontally instead of shrinking. */}
+          <div className="hidden md:block overflow-x-auto">
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver as never} onDragEnd={handleDragEnd}>
-              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${pipelineOrder.length}, minmax(0, 1fr))` }}>
+              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${pipelineOrder.length}, minmax(300px, 1fr))` }}>
                 {pipelineOrder.map(status => {
                   const list = colItems(status)
                   const cfg = STATUS_CFG[status]

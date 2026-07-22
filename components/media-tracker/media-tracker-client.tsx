@@ -4202,21 +4202,35 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             })}
           </div>
 
-          <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
-            <div style={{ overflowX: "auto" }}>
+          <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden", boxShadow: "0 1px 3px rgba(16,24,40,0.06)" }}>
+            <div className="flex items-center justify-between" style={{
+              padding: "12px 16px", borderBottom: "1px solid #F3F4F6",
+              background: logKind === "ads" ? "linear-gradient(135deg,rgba(217,119,6,0.07),rgba(217,119,6,0.01))" : "linear-gradient(135deg,rgba(34,197,94,0.07),rgba(34,197,94,0.01))",
+            }}>
+              <div className="flex items-center gap-2">
+                <span style={{ width: 7, height: 7, borderRadius: 99, background: logKind === "ads" ? "#D97706" : "#16A34A" }} />
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  {logKind === "ads" ? "Ads Log" : "Posting Log"}
+                </span>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF" }}>{logRows.length} {logRows.length === 1 ? "entry" : "entries"}</span>
+            </div>
+            <div style={{ maxHeight: 560, overflowY: "auto", overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
-                  <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
+                  <tr>
                     {["Video/Poster", "Client", "Type", "Platforms", "Posted By", "Posted Date", "Actions"].map(h => (
-                      <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
+                      <th key={h} style={{ position: "sticky", top: 0, zIndex: 2, textAlign: "left", padding: "10px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em", background: "#F9FAFB", boxShadow: "0 1px 0 #E5E7EB" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {logRows.length === 0 ? (
                     <tr><td colSpan={7} style={{ padding: "32px 14px", textAlign: "center", color: "#374151", fontWeight: 600, fontSize: 12 }}>No posts logged yet</td></tr>
-                  ) : logRows.map(item => (
-                    <tr key={item.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
+                  ) : logRows.map((item, i) => (
+                    <tr key={item.id} style={{ borderBottom: "1px solid #F3F4F6", background: i % 2 === 1 ? "#FAFAFB" : "#fff", transition: "background .12s ease" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
+                      onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 1 ? "#FAFAFB" : "#fff")}>
                       <td style={{ padding: "10px 14px", fontWeight: 700, color: "#111827" }}>{item.title}</td>
                       <td style={{ padding: "10px 14px", color: "#6366F1", fontWeight: 600 }}>{item.client_name}</td>
                       <td style={{ padding: "10px 14px", color: "#374151", fontWeight: 600, textTransform: "capitalize" }}>{item.content_type}</td>

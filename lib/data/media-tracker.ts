@@ -29,6 +29,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     // shouldn't show up as a pickable "who shot/edited/posted this" crew member here.
     // Admin accounts aren't real working staff either, so they're excluded too — only
     // MEMBER (full-time + part-time) shows up as a pickable person anywhere in the tracker.
+    // Posted By/Ad Run By deliberately stay unfiltered — every full-time member is eligible.
     admin.from('users').select('id, name, media_tracker_roles').eq('company_id', companyId).eq('role', 'MEMBER'),
     admin.from('ads_tracker').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
     admin.from('ad_revisions').select('*').eq('company_id', companyId).order('revision_date', { ascending: false }),

@@ -69,3 +69,41 @@ export function calcNetWorkHours(entries: WorkEntryForCalc[], workLayout?: 'medi
 
   return Math.round((timedMins / 60 + untimedH) * 10) / 10
 }
+
+export type OverlapCheckEntry = {
+  id?: string | null
+  task_type?: string
+  start_time?: string | null
+  end_time?: string | null
+  title?: string | null
+}
+
+// Server-side guard so an overlap can never reach the database, regardless of which
+// form/action wrote it — mirrors the tolerance (3 min, to absorb rounding) of the
+// client-side check in app/member/update/daily-update-form.tsx's timesOverlap(), but
+// this is the one place ALL write paths (submitDailyUpdate, updatePastDailyUpdate,
+// addEntryToDate) funnel through, so it can't be bypassed by any of them.
+// Any two timed entries overlapping — work-vs-work, work-vs-break, break-vs-break,
+// or vs a leave block — is rejected; task_type is never distinguished.
+export function findEntryOverlap(entries: OverlapCheckEntry[], thresholdMins = 3): string | null {
+  function toMins(t: string) { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+  function overlaps(s1: string, e1: string, s2: string, e2: string): boolean {
+    const a = toMins(s1), c = toMins(s2)
+    let b = toMins(e1), d = toMins(e2)
+    if (b <= a) b += 1440 // crosses midnight into the next day
+    if (d <= c) d += 1440
+    return Math.min(b, d) - Math.max(a, c) > thresholdMins
+  }
+  const timed = entries.filter(e => e.start_time && e.end_time)
+  for (let i = 0; i < timed.length; i++) {
+    for (let j = i + 1; j < timed.length; j++) {
+      const a = timed[i], b = timed[j]
+      if (overlaps(a.start_time!, a.end_time!, b.start_time!, b.end_time!)) {
+        const aLabel = a.title || a.task_type || 'entry'
+        const bLabel = b.title || b.task_type || 'entry'
+        return `Time ${a.start_time}–${a.end_time} (${aLabel}) overlaps with ${b.start_time}–${b.end_time} (${bLabel}). Fix the times before saving.`
+      }
+    }
+  }
+  return null
+}

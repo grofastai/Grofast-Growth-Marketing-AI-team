@@ -116,6 +116,7 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
     updated_at:   new Date().toISOString(),
   }
   if (parsed.data.edited_by) updates.edited_by = parsed.data.edited_by
+  if (parsed.data.edited_date) updates.edited_date = parsed.data.edited_date
 
   const { error } = await ctx.admin.from('content_items').update(updates).eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
@@ -223,7 +224,8 @@ export async function updateContentItemStatus(
   id: string,
   status: ContentPipelineStatus,
   editorId?: string,
-  cancelledBy?: 'client' | 'us'
+  cancelledBy?: 'client' | 'us',
+  editedDate?: string
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
@@ -239,7 +241,7 @@ export async function updateContentItemStatus(
   const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
 
   if (status === 'on_review') {
-    updates.edited_date = todayIST()
+    updates.edited_date = editedDate || todayIST()
     // Reaching On Review is where the editor is recorded — that's the accountability
     // moment ("who edited this?"), asked right at this move since there's no separate
     // Edited stage to stop at first.

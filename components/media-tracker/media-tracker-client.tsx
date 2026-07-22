@@ -456,33 +456,42 @@ function TrackerNav({ mode, onMode, tab, onTab, modeCounts, sections }: {
       </div>
 
       {sections.length > 0 && (
-        <div style={{ display: "flex", gap: "clamp(14px,3vw,26px)", padding: "0 clamp(12px,3vw,18px)", overflowX: "auto" }}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
+          style={{ gap: 10, padding: "clamp(10px,2.4vw,16px)", background: "#F8FAFC", borderTop: "1px solid #E5E7EB" }}>
           {sections.map(s => {
             const on = s.key === tab
             const Icon = s.icon
             return (
               <button key={s.key} onClick={() => onTab(s.key)} aria-current={on ? "page" : undefined}
-                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:rounded"
+                className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
                 style={{
-                  position: "relative", display: "flex", alignItems: "center", gap: 7, flexShrink: 0,
-                  padding: "13px 2px", background: "none", border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 9, cursor: "pointer",
+                  padding: "11px 14px", borderRadius: 14,
+                  border: on ? "none" : "1px solid #E2E8F0",
+                  background: on ? accent.grad : "linear-gradient(180deg,#FFFFFF,#F8FAFC)",
+                  boxShadow: on
+                    ? `0 8px 20px ${accent.glow}, inset 0 1px 0 rgba(255,255,255,0.35)`
+                    : "0 1px 2px rgba(16,24,40,0.06), inset 0 1px 0 #fff",
+                  transform: on ? "translateY(-1px)" : "none",
+                  transition: "transform .15s ease, box-shadow .15s ease, background .15s ease",
                 }}>
-                {/* Icons are decoration here — dropped on small screens so all three labels fit without scrolling. */}
-                <Icon size={13} className="hidden md:block" style={{ color: on ? accent.solid : "#94A3B8" }} />
                 <span style={{
-                  fontSize: 11, fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase",
-                  color: on ? "#0F172A" : "#94A3B8", whiteSpace: "nowrap",
-                }}>{s.label}</span>
-                <span style={{
-                  fontSize: 10, fontWeight: 800, fontVariantNumeric: "tabular-nums", lineHeight: "15px",
-                  padding: "0 5px", borderRadius: 5,
-                  color: on ? accent.solid : "#94A3B8",
-                  background: on ? accent.soft : "#F1F5F9",
-                }}>{s.count}</span>
-                <span aria-hidden style={{
-                  position: "absolute", left: 0, right: 0, bottom: 0, height: 2.5, borderRadius: "3px 3px 0 0",
-                  background: on ? accent.grad : "transparent",
-                }} />
+                  display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: 10, flexShrink: 0,
+                  background: on ? "rgba(255,255,255,0.24)" : accent.soft,
+                  color: on ? "#fff" : accent.solid,
+                }}>
+                  <Icon size={15} />
+                </span>
+                <span style={{ minWidth: 0, textAlign: "left" }}>
+                  <span style={{
+                    display: "block", fontSize: 11, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase",
+                    color: on ? "#fff" : "#334155", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }}>{s.label}</span>
+                  <span style={{
+                    display: "block", fontSize: 13, fontWeight: 900, fontVariantNumeric: "tabular-nums", lineHeight: 1.2,
+                    color: on ? "#fff" : "#0F172A",
+                  }}>{s.count}</span>
+                </span>
               </button>
             )
           })}
@@ -624,24 +633,21 @@ function ContentCardInner({
             </div>
           </div>
         )}
-        {/* Once it's Edited, name the editor outright — the point of asking "who edited
-            this?" is that the rest of the team can see it without hovering. */}
-        {item.editedByUser && item.status === "on_review" ? (
+        {/* Once it's Edited, name the editor and date outright — the point of asking "who
+            edited this?" is that the rest of the team can see it without hovering. */}
+        {item.editedByUser ? (
           <span className="flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-            title={`Edited by ${item.editedByUser.name}`}
-            style={{ background: `${typeAccent}18`, color: typeAccentDark }}>
-            <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black"
+            title={`Edited by ${item.editedByUser.name}${item.edited_date ? ` on ${fmtDate(item.edited_date)}` : ""}`}
+            style={{
+              background: item.status === "on_review" ? `${typeAccent}18` : "#F1F5F9",
+              color: item.status === "on_review" ? typeAccentDark : "#475569",
+            }}>
+            <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0"
               style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.editedByUser.name)}
             </span>
-            {upper(item.editedByUser.name)}
+            {upper(item.editedByUser.name)}{item.edited_date ? ` · ${fmtDate(item.edited_date)}` : ""}
           </span>
-        ) : item.editedByUser ? (
-          <div className="flex items-center gap-1" title={`Edited by ${item.editedByUser.name}`}>
-            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-black flex-shrink-0" style={{ background: typeAccentDark, color: "#fff" }}>
-              {initials(item.editedByUser.name)}
-            </div>
-          </div>
         ) : null}
         <span className="text-[9px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(originDate(item))}</span>
       </div>
@@ -1731,7 +1737,7 @@ function EditContentModal({ item, clients, pastClients, members, onClose, onSave
   onSaved: (updates: {
     client_name: string; title: string; content_type: "video" | "poster"; shot_date: string; notes: string
     ready_platforms: Platform[]; scheduled_post_date: string; scheduled_post_time: string
-    editedByUser?: Person
+    editedByUser?: Person; edited_date?: string
   }) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
@@ -1748,6 +1754,7 @@ function EditContentModal({ item, clients, pastClients, members, onClose, onSave
   const contentType = item.content_type
   const [shotDate, setShotDate] = useState(item.shot_date || todayIST())
   const [editedBy, setEditedBy] = useState(item.editedByUser?.id ?? "")
+  const [editedDate, setEditedDate] = useState(item.edited_date || todayIST())
   const [notes, setNotes] = useState(item.notes || "")
   // Schedule/intent fields — only shown once the item has actually reached Ready to Post.
   // Saving these here never changes item.status; that transition stays owned by the Ready
@@ -1768,6 +1775,7 @@ function EditContentModal({ item, clients, pastClients, members, onClose, onSave
     const res = await updateContentItem(item.id, {
       client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() || undefined,
       edited_by: showEditor ? (editedBy || undefined) : undefined,
+      edited_date: showEditor ? (editedDate || undefined) : undefined,
       ready_platforms: showSchedule ? platforms : undefined,
       scheduled_post_date: showSchedule ? (scheduledDate || undefined) : undefined,
       scheduled_post_time: showSchedule ? (scheduledTime || undefined) : undefined,
@@ -1778,6 +1786,7 @@ function EditContentModal({ item, clients, pastClients, members, onClose, onSave
       client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim(),
       ready_platforms: platforms, scheduled_post_date: scheduledDate, scheduled_post_time: scheduledTime,
       editedByUser: showEditor ? (members.find(m => m.id === editedBy) ?? null) : undefined,
+      edited_date: showEditor ? editedDate : undefined,
     })
   }
 
@@ -1794,12 +1803,18 @@ function EditContentModal({ item, clients, pastClients, members, onClose, onSave
           <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
         </div>
         {showEditor && (
-          <div>
-            <label style={LABEL}>Editor</label>
-            <select style={{ ...FIELD, cursor: "pointer" }} value={editedBy} onChange={e => setEditedBy(e.target.value)}>
-              <option value="">— Not set —</option>
-              {members.map(m => <option key={m.id} value={m.id}>{upper(m.name)}</option>)}
-            </select>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={LABEL}>Editor</label>
+              <select style={{ ...FIELD, cursor: "pointer" }} value={editedBy} onChange={e => setEditedBy(e.target.value)}>
+                <option value="">— Not set —</option>
+                {members.map(m => <option key={m.id} value={m.id}>{upper(m.name)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={LABEL}>Edited Date</label>
+              <input type="date" style={FIELD} value={editedDate} onChange={e => setEditedDate(e.target.value)} />
+            </div>
           </div>
         )}
         {showSchedule && (
@@ -2320,6 +2335,16 @@ function MoveOnReviewModal({ item, onClose, onMoved, onCancelled }: {
   return (
     <Modal title={`Move — ${item.title}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
+        {item.editedByUser && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "#F1F5F9" }}>
+            <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0" style={{ background: "#334155", color: "#fff" }}>
+              {initials(item.editedByUser.name)}
+            </span>
+            <span className="text-[12px] font-bold" style={{ color: "#334155" }}>
+              Edited by {upper(item.editedByUser.name)}{item.edited_date ? ` · ${fmtDate(item.edited_date)}` : ""}
+            </span>
+          </div>
+        )}
         {!showCancelReasons ? (
           <>
             <button onClick={() => onMoved("branding_ready")}
@@ -2371,31 +2396,38 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
   members: Member[]
   currentUserId: string
   onClose: () => void
-  onConfirm: (editorId: string, editorName: string) => void
+  onConfirm: (editorId: string, editorName: string, editedDate: string) => void
 }) {
   // Defaults to whoever clicked — the common case is "I edited this" — but a manager
   // can reassign to anyone.
   const [editorId, setEditorId] = useState(
     members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
   )
+  const [editedDate, setEditedDate] = useState(todayIST())
   const [error, setError] = useState<string | null>(null)
 
   function submit() {
     const editor = members.find(m => m.id === editorId)
     if (!editor) { setError("Pick who edited this"); return }
-    onConfirm(editor.id, editor.name)
+    onConfirm(editor.id, editor.name, editedDate)
   }
 
   return (
     <Modal title={`Who edited this? — ${item.title}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <div>
-          <label style={LABEL}>Editor *</label>
-          <select style={{ ...FIELD, cursor: "pointer" }} value={editorId} onChange={e => setEditorId(e.target.value)}>
-            {members.map(m => (
-              <option key={m.id} value={m.id}>{upper(m.name)}{m.id === currentUserId ? " (me)" : ""}</option>
-            ))}
-          </select>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <label style={LABEL}>Editor *</label>
+            <select style={{ ...FIELD, cursor: "pointer" }} value={editorId} onChange={e => setEditorId(e.target.value)}>
+              {members.map(m => (
+                <option key={m.id} value={m.id}>{upper(m.name)}{m.id === currentUserId ? " (me)" : ""}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={LABEL}>Edited Date *</label>
+            <input type="date" style={FIELD} value={editedDate} onChange={e => setEditedDate(e.target.value)} />
+          </div>
         </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit}>Mark Edited</PrimaryButton>
@@ -3264,12 +3296,12 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     })
   }
 
-  function handleMarkEdited(item: ContentItem, editorId: string, editorName: string) {
+  function handleMarkEdited(item: ContentItem, editorId: string, editorName: string, editedDate: string) {
     setItems(prev => prev.map(i => i.id === item.id
-      ? { ...i, status: "on_review", edited_date: new Date().toISOString().split("T")[0], editedByUser: { id: editorId, name: editorName } }
+      ? { ...i, status: "on_review", edited_date: editedDate, editedByUser: { id: editorId, name: editorName } }
       : i))
     setMarkEditedItem(null)
-    startTransition(async () => { await updateContentItemStatus(item.id, "on_review", editorId) })
+    startTransition(async () => { await updateContentItemStatus(item.id, "on_review", editorId, undefined, editedDate) })
   }
 
   function handleVoiceOverRecorded(item: ContentItem, voiceoverBy: VoiceFreelancer, date: string) {
@@ -3721,7 +3753,6 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         eyebrow="MEDIA OPERATIONS"
         eyebrowIcon={<Sparkles size={14} style={{ color: "#FFD700" }} />}
         title="Media Tracker"
-        subtitle="Every video and poster from shoot to post — plus a full ad hooks & targeting history."
         chips={[
           { icon: <Video size={11} />, label: `${stats.readyToEdit + stats.edited} in pipeline` },
           { icon: <CalendarDays size={11} />, label: `${stats.readyToPost} ready to post` },
@@ -4388,6 +4419,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               scheduled_post_time: updates.scheduled_post_time || null,
               // undefined means "wasn't shown/editable this time" — keep whatever it already was.
               editedByUser: updates.editedByUser !== undefined ? updates.editedByUser : i.editedByUser,
+              edited_date: updates.edited_date !== undefined ? updates.edited_date : i.edited_date,
             } : i))
             if (updates.title !== editingItem.title) syncShootTitleFromContentItem(editingItem.id, updates.title)
             setEditingItem(null)
@@ -4454,7 +4486,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       {markEditedItem && (
         <MarkEditedModal item={markEditedItem} members={members} currentUserId={currentUserId}
           onClose={() => setMarkEditedItem(null)}
-          onConfirm={(editorId, editorName) => handleMarkEdited(markEditedItem, editorId, editorName)} />
+          onConfirm={(editorId, editorName, editedDate) => handleMarkEdited(markEditedItem, editorId, editorName, editedDate)} />
       )}
       {showNewAdsVideo && (
         <NewAdsVideoModal

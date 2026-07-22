@@ -35,9 +35,10 @@ export const updateContentItemSchema = z.object({
   content_type: z.enum(CONTENT_TYPES),
   shot_date:    z.string().optional(),
   notes:        z.string().optional(),
-  // Reassigning who edited it — only meaningful once the item has reached On Review or later
-  // (that's when it was first asked, at the Ready to Edit -> On Review move).
+  // Reassigning who/when edited it — only meaningful once the item has reached On Review or
+  // later (that's when it was first asked, at the Ready to Edit -> On Review move).
   edited_by:    z.string().uuid().optional(),
+  edited_date:  z.string().optional(),
   // Schedule/intent fields — editable here independent of stage. Saving these does NOT
   // move the item to "ready_to_post"; that transition stays owned by markReadyToPost.
   ready_platforms:     z.array(z.enum(PLATFORMS)).optional(),

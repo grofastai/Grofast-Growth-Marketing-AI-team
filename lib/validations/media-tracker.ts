@@ -9,8 +9,8 @@ export const CONTENT_TYPES    = ['video', 'poster'] as const
 export const CONTENT_SOURCES  = ['shoot', 'ads_video', 'poster'] as const
 // "ads" is a valid posting destination, not just a script's intended use — an Ads
 // Video can be scheduled/posted straight to Ads with no organic platform attached.
-export const PLATFORMS        = ['instagram', 'youtube', 'facebook', 'linkedin', 'gmb', 'ads', 'meta_ads', 'google_ads', 'other'] as const
-export const USE_FOR_OPTIONS  = ['ads', 'instagram', 'youtube', 'facebook', 'linkedin', 'gmb', 'meta_ads', 'google_ads', 'other'] as const
+export const PLATFORMS        = ['instagram', 'youtube', 'facebook', 'linkedin', 'gmb', 'twitter', 'ads', 'meta_ads', 'google_ads', 'other'] as const
+export const USE_FOR_OPTIONS  = ['ads', 'instagram', 'youtube', 'facebook', 'linkedin', 'gmb', 'twitter', 'meta_ads', 'google_ads', 'other'] as const
 export const PRIORITY_LEVELS  = ['low', 'medium', 'high', 'urgent'] as const
 export const TARGETING_TYPES  = ['broad', 'interest', 'lookalike', 'retargeting'] as const
 export const AD_STATUSES      = ['active', 'paused', 'testing', 'stopped'] as const

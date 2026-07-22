@@ -8,7 +8,7 @@ import {
 } from "@dnd-kit/core"
 import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
-  Building2, Store, Search, Trash2, Sparkles, Pencil,
+  Building2, Store, Search, Trash2, Sparkles, Pencil, AtSign,
   Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw, LayoutDashboard,
   MoreVertical, Users, Clock, XCircle,
 } from "lucide-react"
@@ -32,7 +32,7 @@ import { computeOverview, type AttentionItem } from "@/lib/media-tracker/overvie
 // ── Types ────────────────────────────────────────────────────────────────────
 // "ads" is a real posting destination — an Ads Video can be scheduled/posted straight
 // to Ads with no organic platform attached, so it lives in Platform, not just UseFor.
-type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb" | "ads" | "meta_ads" | "google_ads" | "other"
+type Platform = "instagram" | "youtube" | "facebook" | "linkedin" | "gmb" | "twitter" | "ads" | "meta_ads" | "google_ads" | "other"
 type UseFor = Platform
 type Priority = "low" | "medium" | "high" | "urgent"
 type ContentSource = "shoot" | "ads_video" | "poster"
@@ -216,6 +216,7 @@ const PLATFORM_CFG: Record<Platform, { label: string; color: string; icon: typeo
   facebook:   { label: "Facebook",   color: "#1877F2", icon: ThumbsUp },
   linkedin:   { label: "LinkedIn",   color: "#0A66C2", icon: Building2 },
   gmb:        { label: "GMB",        color: "#1E8E3E", icon: Store },
+  twitter:    { label: "Twitter/X",  color: "#000000", icon: AtSign },
   ads:        { label: "Ads",        color: "#D97706", icon: Megaphone },
   meta_ads:   { label: "Meta Ads",   color: "#0866FF", icon: Target },
   google_ads: { label: "Google Ads", color: "#EA4335", icon: Target },

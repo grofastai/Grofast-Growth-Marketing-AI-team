@@ -262,67 +262,61 @@ export async function completeShootWithTitles(
   const finalEnd = `${shotDate}T${actualTime.to}:00+05:30`
   if (finalStart >= finalEnd) return { success: false, error: 'End time must be after start time' }
 
-  // Spun off an Ads Video script via "Move to Shoot" — no shoot_titles/new content_items
-  // here, just advance the already-linked item and record the actual shoot time.
-  if (shoot.source_content_item_id) {
-    const { error: itemError } = await admin.from('content_items').update({
-      status: 'ready_to_edit', shot_by: user.id, shot_date: shotDate, updated_at: new Date().toISOString(),
-    }).eq('id', shoot.source_content_item_id)
-    if (itemError) return { success: false, error: itemError.message }
-
-    const completeUpdates: Record<string, unknown> = { status: 'completed', start_time: finalStart, end_time: finalEnd }
-    if (goingBy && goingBy.length > 0) completeUpdates.going_by = goingBy
-    const { error: statusError } = await admin.from('shoots').update(completeUpdates).eq('id', shootId)
-    if (statusError) return { success: false, error: statusError.message }
-
-    revalidatePath('/admin/shoots')
-    revalidatePath('/member/shoots')
-    revalidatePath('/admin/media-tracker')
-    revalidatePath('/member/media-tracker')
-    return { success: true, createdItems: [] }
-  }
-
+  // A shoot spun off an Ads Video script via "Move to Shoot" already has one guaranteed
+  // video (the script itself, advanced below) — the title list here is optional EXTRA
+  // footage from the same session (e.g. behind-the-scenes, alternate takes), not a
+  // replacement. A regular shoot has no video otherwise, so the list is required for it.
+  const isLinked = !!shoot.source_content_item_id
   const cleanTitles = titles.map(t => t.trim()).filter(Boolean)
-  if (cleanTitles.length === 0) return { success: false, error: 'Add at least one video title' }
-
-  const { data: insertedTitles, error: titlesError } = await admin.from('shoot_titles').insert(
-    cleanTitles.map(title => ({
-      shoot_id: shootId, company_id: shoot.company_id, title, created_by: user.id,
-    }))
-  ).select('id, title')
-  if (titlesError || !insertedTitles) return { success: false, error: titlesError?.message ?? 'Failed to save titles' }
-
-  const { data: insertedItems, error: itemsError } = await admin.from('content_items').insert(
-    insertedTitles.map(t => ({
-      company_id: shoot.company_id,
-      client_name: shoot.client,
-      title: t.title,
-      content_type: 'video',
-      source: 'shoot',
-      status: 'ready_to_edit',
-      shot_by: user.id,
-      shot_date: shotDate,
-      notes: shoot.notes,
-      created_by: user.id,
-    }))
-  ).select('id')
-  if (itemsError || !insertedItems) return { success: false, error: itemsError?.message ?? 'Failed to create content items' }
+  if (!isLinked && cleanTitles.length === 0) return { success: false, error: 'Add at least one video title' }
 
   const createdItems: CreatedShootItem[] = []
-  for (let i = 0; i < insertedTitles.length; i++) {
-    const t = insertedTitles[i]
-    const item = insertedItems[i]
-    await admin.from('shoot_titles').update({ content_item_id: item.id }).eq('id', t.id)
-    createdItems.push({
-      id: item.id,
-      shoot_title_id: t.id,
-      client_name: shoot.client,
-      title: t.title,
-      content_type: 'video',
-      status: 'ready_to_edit',
-      shot_date: shotDate,
-      notes: shoot.notes,
-    })
+  if (cleanTitles.length > 0) {
+    const { data: insertedTitles, error: titlesError } = await admin.from('shoot_titles').insert(
+      cleanTitles.map(title => ({
+        shoot_id: shootId, company_id: shoot.company_id, title, created_by: user.id,
+      }))
+    ).select('id, title')
+    if (titlesError || !insertedTitles) return { success: false, error: titlesError?.message ?? 'Failed to save titles' }
+
+    const { data: insertedItems, error: itemsError } = await admin.from('content_items').insert(
+      insertedTitles.map(t => ({
+        company_id: shoot.company_id,
+        client_name: shoot.client,
+        title: t.title,
+        content_type: 'video',
+        source: 'shoot',
+        status: 'ready_to_edit',
+        shot_by: user.id,
+        shot_date: shotDate,
+        notes: shoot.notes,
+        created_by: user.id,
+      }))
+    ).select('id')
+    if (itemsError || !insertedItems) return { success: false, error: itemsError?.message ?? 'Failed to create content items' }
+
+    for (let i = 0; i < insertedTitles.length; i++) {
+      const t = insertedTitles[i]
+      const item = insertedItems[i]
+      await admin.from('shoot_titles').update({ content_item_id: item.id }).eq('id', t.id)
+      createdItems.push({
+        id: item.id,
+        shoot_title_id: t.id,
+        client_name: shoot.client,
+        title: t.title,
+        content_type: 'video',
+        status: 'ready_to_edit',
+        shot_date: shotDate,
+        notes: shoot.notes,
+      })
+    }
+  }
+
+  if (isLinked) {
+    const { error: itemError } = await admin.from('content_items').update({
+      status: 'ready_to_edit', shot_by: user.id, shot_date: shotDate, updated_at: new Date().toISOString(),
+    }).eq('id', shoot.source_content_item_id as string)
+    if (itemError) return { success: false, error: itemError.message }
   }
 
   // Crew is captured here, at completion — the only point in the shoot's lifecycle
@@ -338,6 +332,81 @@ export async function completeShootWithTitles(
   revalidatePath('/admin/media-tracker')
   revalidatePath('/member/media-tracker')
   return { success: true, createdItems }
+}
+
+// Fixing a typo, or renaming a video after the fact — keeps the shoot_titles row and its
+// linked content_items row (if the linked item still exists) in sync.
+export async function renameShootTitle(
+  shootTitleId: string,
+  newTitle: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const title = newTitle.trim()
+  if (!title) return { success: false, error: 'Title is required' }
+
+  const admin = adminSupabase()
+  const { data: st } = await admin.from('shoot_titles').select('id, content_item_id').eq('id', shootTitleId).single()
+  if (!st) return { success: false, error: 'Video title not found' }
+
+  const { error } = await admin.from('shoot_titles').update({ title }).eq('id', shootTitleId)
+  if (error) return { success: false, error: error.message }
+
+  if (st.content_item_id) {
+    await admin.from('content_items').update({ title, updated_at: new Date().toISOString() }).eq('id', st.content_item_id)
+  }
+
+  revalidatePath('/admin/shoots')
+  revalidatePath('/member/shoots')
+  revalidatePath('/admin/media-tracker')
+  revalidatePath('/member/media-tracker')
+  return { success: true }
+}
+
+// Adding a video that was missed at completion time — a Completed shoot only, since a
+// Scheduled one has no session to attribute the video to yet.
+export async function addShootTitle(
+  shootId: string,
+  title: string
+): Promise<{ success: boolean; error?: string; item?: CreatedShootItem }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const cleanTitle = title.trim()
+  if (!cleanTitle) return { success: false, error: 'Title is required' }
+
+  const admin = adminSupabase()
+  const { data: shoot } = await admin.from('shoots')
+    .select('id, status, client, start_time, notes, company_id').eq('id', shootId).single()
+  if (!shoot) return { success: false, error: 'Shoot not found' }
+  if (shoot.status !== 'completed') return { success: false, error: 'Only a Completed shoot can have videos added here' }
+
+  const shotDate = shoot.start_time.split('T')[0]
+  const { data: item, error: itemError } = await admin.from('content_items').insert({
+    company_id: shoot.company_id, client_name: shoot.client, title: cleanTitle, content_type: 'video',
+    source: 'shoot', status: 'ready_to_edit', shot_by: user.id, shot_date: shotDate, notes: shoot.notes, created_by: user.id,
+  }).select('id').single()
+  if (itemError || !item) return { success: false, error: itemError?.message ?? 'Failed to create video' }
+
+  const { data: st, error: stError } = await admin.from('shoot_titles').insert({
+    shoot_id: shootId, company_id: shoot.company_id, title: cleanTitle, created_by: user.id, content_item_id: item.id,
+  }).select('id, title').single()
+  if (stError || !st) return { success: false, error: stError?.message ?? 'Failed to save title' }
+
+  revalidatePath('/admin/shoots')
+  revalidatePath('/member/shoots')
+  revalidatePath('/admin/media-tracker')
+  revalidatePath('/member/media-tracker')
+  return {
+    success: true,
+    item: {
+      id: item.id, shoot_title_id: st.id, client_name: shoot.client, title: cleanTitle,
+      content_type: 'video', status: 'ready_to_edit', shot_date: shotDate, notes: shoot.notes,
+    },
+  }
 }
 
 // Edit a Tracker-created shoot's details. Deliberately does NOT touch status, crew, or the

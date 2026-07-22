@@ -24,7 +24,7 @@ import {
   createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, markReadyToPost, requestCorrection,
   createAdsVideoScript, recordVoiceOver, updateAdsVideoScript, updateVoiceOver,
 } from "@/lib/actions/media-tracker"
-import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, type CreatedShootItem } from "@/lib/actions/shoots"
+import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, renameShootTitle, addShootTitle, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
 import { isValidPipelineTransition } from "@/lib/media-tracker/pipeline-transitions"
 import { computeOverview, type AttentionItem } from "@/lib/media-tracker/overview"
@@ -2608,33 +2608,29 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
   return (
     <Modal title={`Shoot Done — ${shoot.legacyTitle}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        {!isLinked && (
-          <>
-            <div>
-              <label style={LABEL}>Video Titles *</label>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input style={FIELD} value={titleInput} onChange={e => setTitleInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTitle() } }}
-                  placeholder="e.g. Sports Day Highlights" />
-                <button type="button" onClick={addTitle}
-                  style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#DE1A1A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-                  Add
-                </button>
-              </div>
-              {titles.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-                  {titles.map(t => (
-                    <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: "rgba(222,26,26,0.08)", border: "1.5px solid rgba(222,26,26,0.25)", fontSize: 12, fontWeight: 600, color: "#de1a1a" }}>
-                      {t}
-                      <button type="button" onClick={() => setTitles(prev => prev.filter(x => x !== t))}
-                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#de1a1a", fontSize: 14, fontWeight: 700 }}>×</button>
-                    </span>
-                  ))}
-                </div>
-              )}
+        <div>
+          <label style={LABEL}>Video Titles {isLinked ? <span style={{ fontWeight: 600, textTransform: "none" }}>(optional — extra footage beyond the script itself)</span> : "*"}</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input style={FIELD} value={titleInput} onChange={e => setTitleInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTitle() } }}
+              placeholder="e.g. Sports Day Highlights" />
+            <button type="button" onClick={addTitle}
+              style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#DE1A1A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+              Add
+            </button>
+          </div>
+          {titles.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+              {titles.map(t => (
+                <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: "rgba(222,26,26,0.08)", border: "1.5px solid rgba(222,26,26,0.25)", fontSize: 12, fontWeight: 600, color: "#de1a1a" }}>
+                  {t}
+                  <button type="button" onClick={() => setTitles(prev => prev.filter(x => x !== t))}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#de1a1a", fontSize: 14, fontWeight: 700 }}>×</button>
+                </span>
+              ))}
             </div>
-          </>
-        )}
+          )}
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
             <label style={LABEL}>Actual Start Time *</label>
@@ -2821,6 +2817,98 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
   )
 }
 
+// ── Edit Completed Shoot — the video-titles list captured at Mark Done, fixable after the
+// fact: rename a title (fixes a typo, keeps its content_item's title in sync) or add one
+// that was missed. ────────────────────────────────────────────────────────
+function EditCompletedShootModal({ shoot, onClose, onRenamed, onAdded }: {
+  shoot: Shoot
+  onClose: () => void
+  onRenamed: (shootTitleId: string, newTitle: string) => void
+  onAdded: (item: CreatedShootItem) => void
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState("")
+  const [newTitle, setNewTitle] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function saveRename(id: string) {
+    const title = editValue.trim()
+    if (!title) { setError("Title is required"); return }
+    setSaving(true); setError(null)
+    const res = await renameShootTitle(id, title)
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onRenamed(id, title)
+    setEditingId(null)
+  }
+
+  async function addNew() {
+    const title = newTitle.trim()
+    if (!title) { setError("Title is required"); return }
+    setSaving(true); setError(null)
+    const res = await addShootTitle(shoot.id, title)
+    setSaving(false)
+    if (!res.success || !res.item) { setError(res.error ?? "Failed to save"); return }
+    onAdded(res.item)
+    setNewTitle("")
+  }
+
+  return (
+    <Modal title={`Edit Completed Shoot — ${shoot.legacyTitle} (${shoot.titles.length} video${shoot.titles.length === 1 ? "" : "s"})`} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <div>
+          <label style={LABEL}>Video Titles</label>
+          <div className="flex flex-col gap-2">
+            {shoot.titles.length === 0 && (
+              <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>No videos recorded for this shoot yet.</p>
+            )}
+            {shoot.titles.map(t => (
+              <div key={t.id} style={{ display: "flex", gap: 8 }}>
+                {editingId === t.id ? (
+                  <>
+                    <input style={FIELD} value={editValue} onChange={e => setEditValue(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); saveRename(t.id) } }} autoFocus />
+                    <button type="button" onClick={() => saveRename(t.id)} disabled={saving}
+                      style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                      Save
+                    </button>
+                    <button type="button" onClick={() => setEditingId(null)}
+                      style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#fff", color: "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ flex: 1, padding: "8px 10px", borderRadius: 10, background: "#F9FAFB", border: "1.5px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#374151" }}>{t.title}</span>
+                    <button type="button" onClick={() => { setEditingId(t.id); setEditValue(t.title) }}
+                      style={{ padding: "8px 10px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#fff", color: "#6B7280", cursor: "pointer", flexShrink: 0 }}>
+                      <Pencil size={12} />
+                    </button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label style={LABEL}>Add a Video <span style={{ fontWeight: 600, textTransform: "none" }}>(missed at completion)</span></label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input style={FIELD} value={newTitle} onChange={e => setNewTitle(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addNew() } }}
+              placeholder="e.g. Extra Behind the Scenes" />
+            <button type="button" onClick={addNew} disabled={saving}
+              style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#DE1A1A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+              Add
+            </button>
+          </div>
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+      </div>
+    </Modal>
+  )
+}
+
 // ── Delete shoot — choose whether the videos it produced go with it ─────────
 function DeleteShootModal({ shoot, onClose, onConfirm }: {
   shoot: Shoot
@@ -2968,6 +3056,13 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const [readyToPostItem, setReadyToPostItem] = useState<ContentItem | null>(null)
   const [editCrewFor, setEditCrewFor] = useState<Shoot | null>(null)
   const [editShootFor, setEditShootFor] = useState<Shoot | null>(null)
+  const [editCompletedShootFor, setEditCompletedShootFor] = useState<Shoot | null>(null)
+  // Scheduled -> Edit Shoot (basic details), Completed -> Edit Completed Shoot (the video
+  // titles list) — each stage edits only what was actually captured there.
+  function handleEditShoot(shoot: Shoot) {
+    if (shoot.status === "completed") { setEditCompletedShootFor(shoot); return }
+    setEditShootFor(shoot)
+  }
   const [deleteShootFor, setDeleteShootFor] = useState<Shoot | null>(null)
   const [editAdFor, setEditAdFor] = useState<Ad | null>(null)
   const [shootsClientFilter, setShootsClientFilter] = useState<string>("all")
@@ -3399,12 +3494,14 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       created_at: new Date().toISOString(), posts: [],
     }))
     setItems(prev => {
-      // A shoot spun off an Ads Video item via "Move to Shoot" has no new content_items —
-      // completing it just advances the already-linked item to Ready to Edit.
-      if (shoot.source_content_item_id) {
-        return prev.map(i => i.id === shoot.source_content_item_id ? { ...i, status: "ready_to_edit" } : i)
-      }
-      return [...newItems, ...prev]
+      // A shoot spun off an Ads Video item via "Move to Shoot" advances that already-linked
+      // item to Ready to Edit — plus any EXTRA videos listed at completion, same as a
+      // regular shoot.
+      let next = shoot.source_content_item_id
+        ? prev.map(i => i.id === shoot.source_content_item_id ? { ...i, status: "ready_to_edit" as ContentStatus } : i)
+        : prev
+      if (newItems.length > 0) next = [...newItems, ...next]
+      return next
     })
     setShoots(prev => prev.map(s => s.id === shoot.id ? {
       ...s,
@@ -3413,6 +3510,38 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       titles: created.map(ci => ({ id: ci.shoot_title_id, title: ci.title, content_item_id: ci.id })),
     } : s))
     setCompleteShootFor(null)
+  }
+
+  function handleShootTitleRenamed(shootId: string, shootTitleId: string, newTitle: string) {
+    let contentItemId: string | null = null
+    const renameTitles = (titles: ShootTitleRef[]) => titles.map(t => {
+      if (t.id !== shootTitleId) return t
+      contentItemId = t.content_item_id
+      return { ...t, title: newTitle }
+    })
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, titles: renameTitles(s.titles) } : s))
+    setEditCompletedShootFor(prev => prev && prev.id === shootId ? { ...prev, titles: renameTitles(prev.titles) } : prev)
+    if (contentItemId) {
+      setItems(prev => prev.map(i => i.id === contentItemId ? { ...i, title: newTitle } : i))
+    }
+  }
+
+  function handleShootTitleAdded(shootId: string, created: CreatedShootItem) {
+    const newItem: ContentItem = {
+      id: created.id, client_name: created.client_name, title: created.title, content_type: "video", source: "shoot",
+      status: "ready_to_edit", shot_date: created.shot_date, edited_date: null, notes: created.notes,
+      ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
+      hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
+      posted_branding: false, posted_ads: false,
+      created_at: new Date().toISOString(), posts: [],
+    }
+    setItems(prev => [newItem, ...prev])
+    setShoots(prev => prev.map(s => s.id === shootId
+      ? { ...s, titles: [...s.titles, { id: created.shoot_title_id, title: created.title, content_item_id: created.id }] }
+      : s))
+    setEditCompletedShootFor(prev => prev && prev.id === shootId
+      ? { ...prev, titles: [...prev.titles, { id: created.shoot_title_id, title: created.title, content_item_id: created.id }] }
+      : prev)
   }
 
   function handleCrewSaved(shootId: string, crew: Member[]) {
@@ -4151,7 +4280,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             {filteredShoots.filter(s => s.status === activeShootCol).length === 0 ? (
               <KanbanEmptyCell isOver={false} />
             ) : filteredShoots.filter(s => s.status === activeShootCol).map(shoot => (
-              <ShootCardInner key={shoot.id} shoot={shoot} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={setEditShootFor} onDelete={handleDeleteShoot} />
+              <ShootCardInner key={shoot.id} shoot={shoot} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={handleEditShoot} onDelete={handleDeleteShoot} />
             ))}
           </div>
 
@@ -4173,7 +4302,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                           <KanbanEmptyCell isOver={shootOverCol === status} />
                         ) : list.map(shoot => (
                           <KanbanCard key={shoot.id} id={shoot.id}>
-                            <ShootCardInner shoot={shoot} isDragging={shootDragId === shoot.id} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={setEditShootFor} onDelete={handleDeleteShoot} />
+                            <ShootCardInner shoot={shoot} isDragging={shootDragId === shoot.id} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={handleEditShoot} onDelete={handleDeleteShoot} />
                           </KanbanCard>
                         ))}
                       </div>
@@ -4259,6 +4388,12 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         <EditShootModal shoot={editShootFor} clients={clients} pastClients={pastClients}
           onClose={() => setEditShootFor(null)}
           onSaved={patch => handleShootSaved(editShootFor.id, patch)} />
+      )}
+      {editCompletedShootFor && (
+        <EditCompletedShootModal shoot={editCompletedShootFor}
+          onClose={() => setEditCompletedShootFor(null)}
+          onRenamed={(shootTitleId, newTitle) => handleShootTitleRenamed(editCompletedShootFor.id, shootTitleId, newTitle)}
+          onAdded={created => handleShootTitleAdded(editCompletedShootFor.id, created)} />
       )}
       {editAdFor && (
         <EditAdModal ad={editAdFor} clients={clients} pastClients={pastClients}

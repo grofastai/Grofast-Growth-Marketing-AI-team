@@ -682,7 +682,12 @@ function ContentCardInner({
             {upper(item.editedByUser.name)}{item.edited_date ? ` · ${fmtDate(item.edited_date)}` : ""}
           </span>
         ) : null}
-        <span className="text-[11px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(originDate(item))}</span>
+        {/* Once the editor badge above is showing (and carrying its own date), the shot
+            date is redundant clutter — only shown pre-review, where it's the only date
+            on the card at all. */}
+        {!["on_review", "branding_ready", "ads_ready", "cancelled"].includes(item.status) && (
+          <span className="text-[11px]" style={{ color: "#374151", fontWeight: 600 }}>{fmtDate(originDate(item))}</span>
+        )}
       </div>
 
       {/* Correction round-trips — shows this went back N times, and what for. */}
@@ -813,24 +818,8 @@ function AdsVideoCardInner({ item, isDragging, isCompleted, onAdvance, onEdit, o
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 mb-2">
-        {item.hook_count !== null && (
-          <span className="text-[11px] font-bold px-2 py-1 rounded-full" style={{ background: "#F3F4F6", color: "#374151", lineHeight: 1 }}>
-            {item.hook_count} hook{item.hook_count === 1 ? "" : "s"}
-          </span>
-        )}
-        {item.use_for.map(u => {
-          const cfg = USE_FOR_CFG[u]
-          const Icon = cfg.icon
-          return (
-            <span key={u} className="flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full"
-              style={{ background: `${cfg.color}18`, color: cfg.color, lineHeight: 1 }}>
-              <Icon size={10} /> {cfg.label}
-            </span>
-          )
-        })}
-      </div>
-
+      {/* Hook count and "use for" platforms are intentionally left off the card — still
+          editable via Edit details, just not needed for a glance at the board. */}
       {item.scriptedByUser && (
         <div className="flex items-center gap-1.5 mb-1.5" title={`Scripted by ${item.scriptedByUser.name}`}>
           <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0" style={{ background: "#374151", color: "#fff" }}>
@@ -895,6 +884,11 @@ function DroppableColumn({ status, isOver, children }: { status: ContentStatus; 
   const { setNodeRef } = useDroppable({ id: status })
   const accent = STATUS_CFG[status].accent
   return (
+    // Capped height + hidden overflow here (the scrollable body lives inside, in the
+    // "p-3 flex-1 overflow-y-auto" div each caller renders) — otherwise a column with 100+
+    // cards stretches the whole row to match via CSS Grid's default row-stretch, dragging
+    // every other column's background down with it and pushing the horizontal scrollbar
+    // for the row way down the page instead of staying near the filters.
     <div ref={setNodeRef} className="rounded-2xl transition-all flex flex-col"
       style={{
         border: isOver ? `2px solid ${accent}` : "1px solid #E8E9EF",
@@ -902,6 +896,8 @@ function DroppableColumn({ status, isOver, children }: { status: ContentStatus; 
           ? `linear-gradient(165deg, ${accent} 0%, ${darken(accent, 0.4)} 100%)`
           : `linear-gradient(165deg, ${accent} 0%, ${darken(accent, 0.55)} 100%)`,
         minHeight: 200,
+        maxHeight: "min(70vh, 720px)",
+        overflow: "hidden",
       }}>
       {children}
     </div>
@@ -931,6 +927,8 @@ function KanbanColumn({ id, accent, isOver, children }: { id: string; accent: st
           ? `linear-gradient(165deg, ${accent} 0%, ${darken(accent, 0.4)} 100%)`
           : `linear-gradient(165deg, ${accent} 0%, ${darken(accent, 0.55)} 100%)`,
         minHeight: 200,
+        maxHeight: "min(70vh, 720px)",
+        overflow: "hidden",
       }}>
       {children}
     </div>
@@ -4046,14 +4044,14 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               scroll into view horizontally instead of shrinking. */}
           <div className="hidden md:block overflow-x-auto">
             <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver as never} onDragEnd={handleDragEnd}>
-              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${pipelineOrder.length}, minmax(300px, 1fr))` }}>
+              <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${pipelineOrder.length}, minmax(380px, 1fr))` }}>
                 {pipelineOrder.map(status => {
                   const list = colItems(status)
                   const cfg = STATUS_CFG[status]
                   return (
                     <DroppableColumn key={status} status={status} isOver={overCol === status}>
                       <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.accent} />
-                      <div className="p-3 flex-1">
+                      <div className="p-3 flex-1 overflow-y-auto">
                         {list.length === 0 ? (
                           <KanbanEmptyCell isOver={overCol === status} />
                         ) : list.map(item => (
@@ -4124,7 +4122,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                   return (
                     <KanbanColumn key={status} id={status} accent={cfg.accent} isOver={adsVideoOverCol === status}>
                       <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.accent} />
-                      <div className="p-3 flex-1">
+                      <div className="p-3 flex-1 overflow-y-auto">
                         {list.length === 0 ? (
                           <KanbanEmptyCell isOver={adsVideoOverCol === status} />
                         ) : list.map(item => (
@@ -4136,9 +4134,9 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                     </KanbanColumn>
                   )
                 })}
-                <div className="rounded-2xl flex flex-col" style={{ border: "1px solid #E8E9EF", background: `linear-gradient(165deg, ${ADS_VIDEO_COMPLETED_CFG.accent} 0%, ${darken(ADS_VIDEO_COMPLETED_CFG.accent, 0.55)} 100%)`, minHeight: 200 }}>
+                <div className="rounded-2xl flex flex-col" style={{ border: "1px solid #E8E9EF", background: `linear-gradient(165deg, ${ADS_VIDEO_COMPLETED_CFG.accent} 0%, ${darken(ADS_VIDEO_COMPLETED_CFG.accent, 0.55)} 100%)`, minHeight: 200, maxHeight: "min(70vh, 720px)", overflow: "hidden" }}>
                   <KanbanColumnHeader label={ADS_VIDEO_COMPLETED_CFG.label} count={adsVideoCompletedItems.length} accent={ADS_VIDEO_COMPLETED_CFG.accent} />
-                  <div className="p-3 flex-1">
+                  <div className="p-3 flex-1 overflow-y-auto">
                     {adsVideoCompletedItems.length === 0 ? (
                       <KanbanEmptyCell isOver={false} />
                     ) : adsVideoCompletedItems.map(item => (
@@ -4388,7 +4386,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                   return (
                     <KanbanColumn key={status} id={status} accent={cfg.color} isOver={adOverCol === status}>
                       <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.color} />
-                      <div className="p-3 flex-1">
+                      <div className="p-3 flex-1 overflow-y-auto">
                         {list.length === 0 ? (
                           <KanbanEmptyCell isOver={adOverCol === status} />
                         ) : list.map(ad => (
@@ -4475,7 +4473,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                   return (
                     <KanbanColumn key={status} id={status} accent={cfg.color} isOver={shootOverCol === status}>
                       <KanbanColumnHeader label={cfg.label} count={list.length} accent={cfg.color} />
-                      <div className="p-3 flex-1">
+                      <div className="p-3 flex-1 overflow-y-auto">
                         {list.length === 0 ? (
                           <KanbanEmptyCell isOver={shootOverCol === status} />
                         ) : list.map(shoot => (

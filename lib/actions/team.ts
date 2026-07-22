@@ -127,6 +127,7 @@ export async function createMember(input: {
   work_layout?: 'media' | 'non_media' | 'freelance_media'
   is_management?: boolean
   enabled_blocks?: string[] | null
+  media_tracker_roles?: string[]
 }): Promise<{ success: boolean; error?: string; whatsappSent?: boolean; whatsappSkipped?: boolean; whatsappError?: string }> {
   // Admin-level roles use real email login (not employee_id-based internal email)
   const isAdmin = input.role === 'ADMIN' || input.role === 'FOUNDER' || input.role === 'CEO'
@@ -272,6 +273,7 @@ export async function createMember(input: {
     work_layout: input.work_layout ?? 'non_media',
     is_management: input.is_management ?? false,
     enabled_blocks: input.enabled_blocks ?? null,
+    media_tracker_roles: input.media_tracker_roles ?? [],
     // Derived from team, not a form field — "Freelance Media Production" is the
     // only freelance team with app login (the other 8 are no-login and never
     // reach this action; they go through createFreelancer instead). Deriving
@@ -391,6 +393,7 @@ export async function updateMember(input: {
   is_management?: boolean
   salaryEffectiveFrom?: string
   enabled_blocks?: string[] | null
+  media_tracker_roles?: string[]
 }): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -459,6 +462,7 @@ export async function updateMember(input: {
       ...(input.work_layout ? { work_layout: input.work_layout } : {}),
       is_management: input.is_management ?? false,
       ...(input.work_layout === 'non_media' ? { enabled_blocks: input.enabled_blocks ?? null } : {}),
+      ...(input.media_tracker_roles !== undefined ? { media_tracker_roles: input.media_tracker_roles } : {}),
       // Same derivation as createMember — keeps this in sync if a member's team
       // is ever changed to or away from the one login-enabled freelance team.
       is_freelancer_login: input.team === 'Freelance Media Production',

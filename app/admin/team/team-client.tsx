@@ -123,6 +123,7 @@ interface Member {
   is_management?: boolean | null
   is_freelancer_login?: boolean | null
   enabled_blocks?: string[] | null
+  media_tracker_roles?: string[] | null
 }
 
 function getInitials(name: string) {
@@ -271,6 +272,16 @@ const NON_MEDIA_BLOCK_OPTIONS: { value: string; label: string }[] = [
 ]
 const ALL_NON_MEDIA_BLOCKS = NON_MEDIA_BLOCK_OPTIONS.map(o => o.value)
 
+// Media Tracker's own pickable-people tags (Scripted By / Voice Over / Edited By / Shot
+// By) — a separate column from enabled_blocks so it never touches the Non-Media Daily
+// Update Blocks system above. Only Shooting/Editing are exposed here for now; Scripting
+// and Voice Over already have their own pickers (Media Tracker's own team + the Freelance
+// RJ Voiceover roster).
+const MEDIA_TRACKER_ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: "shooting", label: "Shooting" },
+  { value: "editing",  label: "Editing" },
+]
+
 function MemberSheet({ open, onClose, member, nextId, initialRole, teams = [], positions = [], initialPositionIds = [] }: SheetProps) {
   const isEdit = !!member
   const [step, setStep] = useState<"type" | "details">(isEdit || initialRole ? "details" : "type")
@@ -294,6 +305,7 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, teams = [], p
     work_layout: (member?.work_layout ?? "non_media") as "media" | "non_media" | "freelance_media",
     is_management: member?.is_management ?? false,
     enabled_blocks: (member?.enabled_blocks && member.enabled_blocks.length > 0) ? member.enabled_blocks : ALL_NON_MEDIA_BLOCKS,
+    media_tracker_roles: member?.media_tracker_roles ?? [],
     salary_effective_month: (() => {
       const d = new Date(); d.setMonth(d.getMonth() + 1)
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
@@ -364,13 +376,13 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, teams = [], p
       }
 
       if (isEdit) {
-        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, positionIds: form.positionIds, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, enabled_blocks: form.work_layout === "non_media" ? form.enabled_blocks : null, ...salaryFields, ...dateFields, salaryEffectiveFrom })
+        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, positionIds: form.positionIds, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, enabled_blocks: form.work_layout === "non_media" ? form.enabled_blocks : null, media_tracker_roles: (form.work_layout === "media" || form.work_layout === "freelance_media") ? form.media_tracker_roles : [], ...salaryFields, ...dateFields, salaryEffectiveFrom })
         if (result.success) { router.refresh(); onClose() }
         else setError(result.error ?? "Something went wrong")
       } else {
         const isAdminCreate = form.role === "ADMIN" || form.role === "FOUNDER" || form.role === "CEO" || form.role === "FREELANCER_MGR"
         const nameForCreate = form.name.trim() || (isAdminCreate ? form.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) : "")
-        const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, positionIds: form.positionIds, password: form.password, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, enabled_blocks: form.work_layout === "non_media" ? form.enabled_blocks : null, ...salaryFields, ...dateFields })
+        const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, positionIds: form.positionIds, password: form.password, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, enabled_blocks: form.work_layout === "non_media" ? form.enabled_blocks : null, media_tracker_roles: (form.work_layout === "media" || form.work_layout === "freelance_media") ? form.media_tracker_roles : [], ...salaryFields, ...dateFields })
         if (result.success) {
           if (form.phone && result.whatsappSent === false && !result.whatsappSkipped) {
             setWhatsappWarning(result.whatsappError ?? "Member created, but WhatsApp notification failed. Check the phone number or Meta template status.")
@@ -639,6 +651,48 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, teams = [], p
                                 enabled_blocks: checked
                                   ? prev.enabled_blocks.filter(v => v !== value)
                                   : [...prev.enabled_blocks, value],
+                              }))}
+                              style={{
+                                padding: "9px 10px", borderRadius: 10, fontSize: 12, fontWeight: 700,
+                                border: "1.5px solid", cursor: "pointer", transition: "all 0.15s", textAlign: "left",
+                                display: "flex", alignItems: "center", gap: 8,
+                                background: checked ? "rgba(222,26,26,0.08)" : "rgba(0,0,0,0.03)",
+                                borderColor: checked ? "#DE1A1A" : "#E5E7EB",
+                                color: checked ? "#DE1A1A" : "#6B7280",
+                              }}>
+                              <span style={{
+                                width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                                border: "1.5px solid", borderColor: checked ? "#DE1A1A" : "#D1D5DB",
+                                background: checked ? "#DE1A1A" : "transparent",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                              }}>
+                                {checked && <Check size={11} style={{ color: "#FFFFFF" }} />}
+                              </span>
+                              {label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Media Tracker roles — Media/Freelance Media only, controls who's
+                      pickable as Shot By / Edited By in the Media Tracker. */}
+                  {!isNoLoginTeam && form.team && (form.work_layout === "media" || form.work_layout === "freelance_media") && (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
+                        Media Tracker Roles
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {MEDIA_TRACKER_ROLE_OPTIONS.map(({ value, label }) => {
+                          const checked = form.media_tracker_roles.includes(value)
+                          return (
+                            <button key={value} type="button"
+                              onClick={() => setForm(prev => ({
+                                ...prev,
+                                media_tracker_roles: checked
+                                  ? prev.media_tracker_roles.filter(v => v !== value)
+                                  : [...prev.media_tracker_roles, value],
                               }))}
                               style={{
                                 padding: "9px 10px", borderRadius: 10, fontSize: 12, fontWeight: 700,

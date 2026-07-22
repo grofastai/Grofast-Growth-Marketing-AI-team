@@ -15,6 +15,10 @@ function adminSupabase() {
 export async function getMediaTrackerData(companyId: string): Promise<{
   items: ContentItem[]; ads: Ad[]; shoots: Shoot[]; members: { id: string; name: string }[]
   voiceoverFreelancers: { id: string; name: string }[]
+  scriptingMembers: { id: string; name: string }[]
+  editingMembers: { id: string; name: string }[]
+  shootingMembers: { id: string; name: string }[]
+  voiceoverMembers: { id: string; name: string }[]
 }> {
   const admin = adminSupabase()
 
@@ -23,7 +27,9 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     admin.from('content_item_posts').select('*').eq('company_id', companyId).order('posted_date', { ascending: false }),
     // Freelancers have their own separate work-logging flow (app/admin/freelancers) — they
     // shouldn't show up as a pickable "who shot/edited/posted this" crew member here.
-    admin.from('users').select('id, name').eq('company_id', companyId).in('role', ['ADMIN', 'MEMBER']),
+    // Admin accounts aren't real working staff either, so they're excluded too — only
+    // MEMBER (full-time + part-time) shows up as a pickable person anywhere in the tracker.
+    admin.from('users').select('id, name, media_tracker_roles').eq('company_id', companyId).eq('role', 'MEMBER'),
     admin.from('ads_tracker').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
     admin.from('ad_revisions').select('*').eq('company_id', companyId).order('revision_date', { ascending: false }),
     admin.from('ad_performance_entries').select('*').eq('company_id', companyId).order('entry_date', { ascending: false }),
@@ -48,7 +54,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     cancelled_by: 'client' | 'us' | null
   }
   type PostRow = { id: string; content_item_id: string; platform: 'instagram' | 'youtube' | 'facebook' | 'linkedin' | 'gmb' | 'twitter' | 'ads' | 'meta_ads' | 'google_ads' | 'other'; posted_date: string; posted_by: string | null; post_link: string | null; ad_run_date: string | null }
-  type UserRow = { id: string; name: string }
+  type UserRow = { id: string; name: string; media_tracker_roles: string[] | null }
   type AdRow = { id: string; client_name: string; ad_name: string; platform: string; launch_date: string | null; hook_count: number; targeting_type: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null; targeting_notes: string | null; status: 'active' | 'paused' | 'testing' | 'stopped'; created_at: string }
   type RevisionRow = { id: string; ad_id: string; revision_date: string; notes: string; hook_count_after: number | null; targeting_type_after: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null }
   type PerformanceRow = { id: string; ad_id: string; entry_date: string; spend: number; impressions: number; reach: number; clicks: number; ctr: number; results: number; note: string | null }
@@ -80,6 +86,16 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     .filter(f => f.team === 'Freelance RJ Voiceover' && f.status === 'active')
     .map(f => ({ id: f.id, name: f.name }))
     .sort((a, b) => a.name.localeCompare(b.name))
+  // Media Tracker's own picker eligibility tags — separate from the Non-Media-only Daily
+  // Update Blocks checklist, so tagging someone here can't collide with that system.
+  const byRole = (role: string) => userRows
+    .filter(u => (u.media_tracker_roles ?? []).includes(role))
+    .map(u => ({ id: u.id, name: u.name }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+  const scriptingMembers = byRole('scripting')
+  const editingMembers = byRole('editing')
+  const shootingMembers = byRole('shooting')
+  const voiceoverMembers = byRole('voiceover')
   const postsByItem = new Map<string, PostRow[]>()
   for (const p of postRows) {
     if (!postsByItem.has(p.content_item_id)) postsByItem.set(p.content_item_id, [])
@@ -133,7 +149,15 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     editedByUser: row.edited_by ? (userMap.get(row.edited_by) ?? null) : null,
     scriptedByUser: row.scripted_by ? (userMap.get(row.scripted_by) ?? null) : null,
     reviewedByUser: row.reviewed_by ? (userMap.get(row.reviewed_by) ?? null) : null,
-    voiceoverBy: row.voiceover_by ? (freelancerMap.get(row.voiceover_by) ? { id: row.voiceover_by, name: freelancerMap.get(row.voiceover_by)!.name } : null) : null,
+    // voiceover_by can now be either a freelancer (the RJ Voiceover roster) or a member
+    // (media-layout staff tagged with the Voice Over role) — no FK ties it to one table.
+    voiceoverBy: row.voiceover_by
+      ? (freelancerMap.get(row.voiceover_by)
+          ? { id: row.voiceover_by, name: freelancerMap.get(row.voiceover_by)!.name }
+          : userMap.get(row.voiceover_by)
+            ? { id: row.voiceover_by, name: userMap.get(row.voiceover_by)!.name }
+            : null)
+      : null,
     corrections: (correctionsByItem.get(row.id) ?? []).map(c => ({
       id: c.id,
       content_item_id: c.content_item_id,
@@ -185,5 +209,5 @@ export async function getMediaTrackerData(companyId: string): Promise<{
 
   const members = userRows.map(u => ({ id: u.id, name: u.name })).sort((a, b) => a.name.localeCompare(b.name))
 
-  return { items, ads, shoots, members, voiceoverFreelancers }
+  return { items, ads, shoots, members, voiceoverFreelancers, scriptingMembers, editingMembers, shootingMembers, voiceoverMembers }
 }

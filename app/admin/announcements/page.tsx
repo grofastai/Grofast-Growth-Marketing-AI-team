@@ -13,7 +13,12 @@ function adminClient() {
   )
 }
 
-export default async function AnnouncementsPage() {
+export default async function AnnouncementsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string }>
+}) {
+  const { search: initialSearch } = await searchParams
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
@@ -51,6 +56,7 @@ export default async function AnnouncementsPage() {
     <AnnouncementsClient
       announcements={announcements ?? []}
       memberCount={memberCount ?? 0}
+      initialSearch={initialSearch ?? ""}
     />
   )
 }

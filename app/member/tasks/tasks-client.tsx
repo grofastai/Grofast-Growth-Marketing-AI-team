@@ -509,6 +509,7 @@ export default function MemberTasksClient({
   clients = [],
   pastClients = [],
   userRole = "MEMBER",
+  initialSearch = "",
 }: {
   tasks: Task[]
   todayHours: number
@@ -518,11 +519,12 @@ export default function MemberTasksClient({
   clients?: { id: string; name: string }[]
   pastClients?: { id: string; name: string }[]
   userRole?: string
+  initialSearch?: string
 }) {
   const router = useRouter()
 
   const [tasks, setTasks]           = useState(initialTasks)
-  const [search, setSearch]         = useState("")
+  const [search, setSearch]         = useState(initialSearch)
   const [filter, setFilter]         = useState("all")
   const [sortBy, setSortBy]         = useState<"priority" | "due_date">("priority")
   const [showAssign, setShowAssign]   = useState(false)

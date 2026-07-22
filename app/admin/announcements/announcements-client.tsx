@@ -87,9 +87,11 @@ function PerfBar({ label, pct, color }: { label: string; pct: number; color: str
 export default function AnnouncementsClient({
   announcements,
   memberCount,
+  initialSearch = "",
 }: {
   announcements: Announcement[]
   memberCount: number
+  initialSearch?: string
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -102,7 +104,7 @@ export default function AnnouncementsClient({
   const [pushResult, setPushResult] = useState<string | null>(null)
   const [pushBusy, setPushBusy] = useState(false)
   const [activeFilter, setActiveFilter] = useState("All")
-  const [search, setSearch] = useState("")
+  const [search, setSearch] = useState(initialSearch)
   const [state, action, formPending] = useActionState<ActionState, FormData>(createAnnouncement, null)
 
   useEffect(() => {

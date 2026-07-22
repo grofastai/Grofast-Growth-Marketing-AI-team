@@ -48,9 +48,9 @@ function lastDayOfMonth(year: number, month: number): string {
 export default async function ClientsUnifiedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string; mode?: string; period?: string; from?: string; to?: string }>
+  searchParams: Promise<{ client?: string; mode?: string; period?: string; from?: string; to?: string; search?: string }>
 }) {
-  const { client: selectedClient, mode: rawMode, period: rawPeriod, from: rawFrom, to: rawTo } = await searchParams
+  const { client: selectedClient, mode: rawMode, period: rawPeriod, from: rawFrom, to: rawTo, search: initialSearch } = await searchParams
 
   const todayStr = todayIST()
   const mode: 'month' | 'all' | 'custom' =
@@ -274,6 +274,7 @@ export default async function ClientsUnifiedPage({
       selectedClientName={selectedClient ?? null}
       selectedClientRow={selectedClientRow}
       deliverables={deliverables}
+      initialSearch={initialSearch ?? ''}
 
       mode={mode}
       period={period}

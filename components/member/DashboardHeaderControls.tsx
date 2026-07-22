@@ -6,6 +6,9 @@ import { Search, X, Bell, Megaphone, CheckCircle2, ClipboardList, Calendar, Load
 import Link from "next/link"
 import { createBrowserClient } from "@/lib/supabase/client"
 
+type TaskHit = { id: string; title: string }
+type AnnHit  = { id: string; title: string }
+
 const QUICK_LINKS = [
   { label: "My Tasks",      href: "/member/tasks" },
   { label: "Attendance",    href: "/member/attendance" },
@@ -62,6 +65,10 @@ export default function DashboardHeaderControls({
   const [query, setQuery]       = useState("")
   const [open, setOpen]         = useState(false)
   const inputRef                = useRef<HTMLInputElement>(null)
+  const debounceRef             = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [taskHits, setTaskHits]   = useState<TaskHit[]>([])
+  const [annHits, setAnnHits]     = useState<AnnHit[]>([])
 
   const [notifOpen, setNotifOpen]     = useState(false)
   const [notifs, setNotifs]           = useState<Notif[]>([])
@@ -74,13 +81,44 @@ export default function DashboardHeaderControls({
     ? QUICK_LINKS.filter(l => l.label.toLowerCase().includes(query.toLowerCase()))
     : QUICK_LINKS
 
+  // Live search over real content (tasks assigned to me, announcements) once the
+  // query is long enough to be meaningful — the quick-links list above only ever
+  // matches 6 hardcoded nav labels, so anything else typed needs real data.
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    const q = query.trim()
+    if (q.length < 2) { setTaskHits([]); setAnnHits([]); setSearching(false); return }
+
+    setSearching(true)
+    debounceRef.current = setTimeout(async () => {
+      const supabase = createBrowserClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      const [taskRes, annRes] = await Promise.all([
+        user
+          ? supabase.from("tasks").select("id, title").eq("assigned_to", user.id).ilike("title", `%${q}%`).limit(5)
+          : Promise.resolve({ data: [] as TaskHit[] }),
+        supabase.from("announcements").select("id, title").ilike("title", `%${q}%`).limit(5),
+      ])
+      setTaskHits((taskRes.data ?? []) as TaskHit[])
+      setAnnHits((annRes.data ?? []) as AnnHit[])
+      setSearching(false)
+    }, 300)
+
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [query])
+
+  function goTasks(title: string) { router.push(`/member/tasks?search=${encodeURIComponent(title)}`); setOpen(false); setQuery("") }
+  function goAnnouncements(title: string) { router.push(`/member/announcements?search=${encodeURIComponent(title)}`); setOpen(false); setQuery("") }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const match = QUICK_LINKS.find(l => l.label.toLowerCase().includes(query.toLowerCase()))
-    if (match) router.push(match.href)
-    else if (query.trim()) router.push(`/member/tasks?search=${encodeURIComponent(query.trim())}`)
-    setOpen(false)
-    setQuery("")
+    if (match) { router.push(match.href); setOpen(false); setQuery(""); return }
+    const q = query.trim()
+    if (!q) { setOpen(false); return }
+    if (taskHits.length > 0) { goTasks(q); return }
+    if (annHits.length > 0) { goAnnouncements(q); return }
+    goTasks(q)
   }
 
   const fetchNotifs = useCallback(async () => {
@@ -216,10 +254,9 @@ export default function DashboardHeaderControls({
         {/* Search Dropdown */}
         {open && (
           <div className="absolute top-full mt-1.5 left-0 right-0 rounded-xl overflow-hidden z-50"
-            style={{ background: "#FFFFFF", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid #E5E7EB", minWidth: 200 }}>
-            {filtered.length === 0
-              ? <p className="px-4 py-3 text-[12px]" style={{ color: "#9CA3AF" }}>No results</p>
-              : filtered.map(l => (
+            style={{ background: "#FFFFFF", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid #E5E7EB", minWidth: 220 }}>
+            {query.trim().length === 0 ? (
+              filtered.map(l => (
                 <Link key={l.href} href={l.href}
                   className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium transition-colors hover:bg-gray-50"
                   style={{ color: "#374151" }}
@@ -228,7 +265,52 @@ export default function DashboardHeaderControls({
                   {l.label}
                 </Link>
               ))
-            }
+            ) : searching ? (
+              <div className="flex items-center gap-2 px-4 py-3" style={{ color: "#9CA3AF" }}>
+                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                <span className="text-[12px]">Searching…</span>
+              </div>
+            ) : filtered.length === 0 && taskHits.length === 0 && annHits.length === 0 ? (
+              <p className="px-4 py-3 text-[12px]" style={{ color: "#9CA3AF" }}>No results for &ldquo;{query.trim()}&rdquo;</p>
+            ) : (
+              <>
+                {filtered.map(l => (
+                  <Link key={l.href} href={l.href}
+                    className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium transition-colors hover:bg-gray-50"
+                    style={{ color: "#374151" }}
+                    onMouseDown={() => { router.push(l.href); setOpen(false) }}>
+                    <Search size={11} style={{ color: "#9CA3AF" }} />
+                    {l.label}
+                  </Link>
+                ))}
+                {taskHits.length > 0 && (
+                  <div>
+                    <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>Tasks</p>
+                    {taskHits.map(t => (
+                      <button key={t.id} type="button" onMouseDown={() => goTasks(t.title)}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-left hover:bg-gray-50"
+                        style={{ color: "#374151" }}>
+                        <ClipboardList size={12} style={{ color: "#9CA3AF" }} />
+                        {t.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {annHits.length > 0 && (
+                  <div>
+                    <p className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>Announcements</p>
+                    {annHits.map(a => (
+                      <button key={a.id} type="button" onMouseDown={() => goAnnouncements(a.title)}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-[13px] font-medium text-left hover:bg-gray-50"
+                        style={{ color: "#374151" }}>
+                        <Megaphone size={12} style={{ color: "#9CA3AF" }} />
+                        {a.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

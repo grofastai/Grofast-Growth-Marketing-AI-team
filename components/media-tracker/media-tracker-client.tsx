@@ -4285,7 +4285,18 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                       </td>
                       <td style={{ padding: "10px 14px", color: "#374151" }}>{fmtDateRange(item.posts.map(p => p.posted_date))}</td>
                       <td style={{ padding: "10px 14px" }}>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {/* Same video can go out both ways — e.g. an ad shoot's hook+body
+                              also reused as one organic post. Both stay clickable regardless
+                              of which side it's already posted under. */}
+                          <button onClick={() => { setPlatformModalKind("branding"); setPlatformModalItem(item) }} title="Add a Branding post"
+                            style={{ display: "flex", alignItems: "center", gap: 3, padding: "5px 8px", borderRadius: 8, border: "none", background: "rgba(34,197,94,0.1)", color: "#16A34A", cursor: "pointer", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>
+                            <Plus size={10} /> {item.posted_branding ? "Branding" : "Also Branding"}
+                          </button>
+                          <button onClick={() => { setPlatformModalKind("ads"); setPlatformModalItem(item) }} title="Add an Ads post"
+                            style={{ display: "flex", alignItems: "center", gap: 3, padding: "5px 8px", borderRadius: 8, border: "none", background: "rgba(217,119,6,0.1)", color: "#D97706", cursor: "pointer", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>
+                            <Plus size={10} /> {item.posted_ads ? "Ads" : "Also Ads"}
+                          </button>
                           <button onClick={() => setEditingItem(item)} title="Edit"
                             style={{ display: "flex", padding: 6, borderRadius: 8, border: "1px solid #E5E7EB", background: "#fff", color: "#6B7280", cursor: "pointer" }}>
                             <Pencil size={12} />

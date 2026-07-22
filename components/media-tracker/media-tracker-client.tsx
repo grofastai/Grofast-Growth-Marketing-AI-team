@@ -1891,25 +1891,44 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
   const [postedBy, setPostedBy] = useState(
     members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
   )
+  // A batch of hooks from one ad shoot often gets one hook+body also reused as a single
+  // organic post — this is the one place that decision gets made, right when the primary
+  // side is being marked posted, instead of a separate always-on control elsewhere.
+  const otherKind: "branding" | "ads" = kind === "ads" ? "branding" : "ads"
+  const otherAlreadyDone = otherKind === "ads" ? item.posted_ads : item.posted_branding
+  const otherSelectablePlatforms = useMemo(
+    () => (Object.keys(PLATFORM_CFG) as Platform[]).filter(p => otherKind === "ads" ? ADS_PLATFORM_SET.has(p) : !ADS_PLATFORM_SET.has(p)),
+    [otherKind]
+  )
+  const [alsoOther, setAlsoOther] = useState(false)
+  const [otherPlatforms, setOtherPlatforms] = useState<Platform[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function toggle(p: Platform) {
     setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
   }
+  function toggleOther(p: Platform) {
+    setOtherPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+  }
 
   async function submit() {
     if (platforms.length === 0) { setError("Pick at least one platform"); return }
+    if (alsoOther && otherPlatforms.length === 0) { setError(`Pick at least one ${otherKind === "ads" ? "Ads" : "Branding"} platform, or untick "Also post to ${otherKind === "ads" ? "Ads" : "Branding"}"`); return }
     setSaving(true); setError(null)
 
+    const submissions = [
+      ...platforms.map(platform => ({ platform, isAds: kind === "ads" })),
+      ...(alsoOther ? otherPlatforms.map(platform => ({ platform, isAds: otherKind === "ads" })) : []),
+    ]
     // One post row per platform — the date, link and poster are shared across the batch.
-    const results = await Promise.all(platforms.map(platform =>
+    const results = await Promise.all(submissions.map(({ platform, isAds }) =>
       addContentPost({
         content_item_id: item.id, platform, posted_date: postedDate,
         post_link: postLink.trim() || undefined,
         posted_by: postedBy || undefined,
-        ad_run_date: kind === "ads" ? adRunDate : undefined,
-      }).then(res => ({ res, platform }))
+        ad_run_date: isAds ? adRunDate : undefined,
+      }).then(res => ({ res, platform, isAds }))
     ))
     setSaving(false)
 
@@ -1917,10 +1936,10 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
     if (failed) { setError(failed.res.error ?? "Failed to save"); return }
 
     const poster = members.find(m => m.id === postedBy) ?? null
-    onAdded(results.map(({ res, platform }) => ({
+    onAdded(results.map(({ res, platform, isAds }) => ({
       id: res.id!, content_item_id: item.id, platform,
       posted_date: postedDate, post_link: postLink.trim() || null,
-      ad_run_date: kind === "ads" ? adRunDate : null,
+      ad_run_date: isAds ? adRunDate : null,
       postedByUser: poster,
     })))
   }
@@ -1964,7 +1983,7 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
           <label style={LABEL}>Posted Date *</label>
           <input type="date" style={FIELD} value={postedDate} onChange={e => setPostedDate(e.target.value)} />
         </div>
-        {kind === "ads" && (
+        {(kind === "ads" || (alsoOther && otherKind === "ads")) && (
           <div>
             <label style={LABEL}>Ad Run Date *</label>
             <input type="date" style={FIELD} value={adRunDate} onChange={e => setAdRunDate(e.target.value)} />
@@ -1974,6 +1993,37 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
           <label style={LABEL}>Post Link</label>
           <input style={FIELD} value={postLink} onChange={e => setPostLink(e.target.value)} placeholder="Optional URL" />
         </div>
+        {!otherAlreadyDone && (
+          <div>
+            <label className="flex items-center gap-2" style={{ cursor: "pointer" }}>
+              <span style={{
+                width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: "1.5px solid", cursor: "pointer",
+                borderColor: alsoOther ? "#DE1A1A" : "#D1D5DB", background: alsoOther ? "#DE1A1A" : "transparent",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }} onClick={() => setAlsoOther(v => !v)}>
+                {alsoOther && <Check size={11} style={{ color: "#fff" }} />}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }} onClick={() => setAlsoOther(v => !v)}>
+                Also post to {otherKind === "ads" ? "Ads" : "Branding"}
+              </span>
+            </label>
+            {alsoOther && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                {otherSelectablePlatforms.map(p => {
+                  const cfg = PLATFORM_CFG[p]
+                  const Icon = cfg.icon
+                  const on = otherPlatforms.includes(p)
+                  return (
+                    <button key={p} onClick={() => toggleOther(p)}
+                      style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                      <Icon size={12} /> {cfg.label} {on && <Check size={10} />}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>
           {saving ? "Saving…" : `${kind === "ads" ? "Confirm Ads" : "Confirm Posted"}${platforms.length > 0 ? ` (${platforms.length})` : ""}`}
@@ -4217,7 +4267,22 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                     <tr><td colSpan={7} style={{ padding: "32px 14px", textAlign: "center", color: "#374151", fontWeight: 600, fontSize: 12 }}>No posts logged yet</td></tr>
                   ) : logRows.map(item => (
                     <tr key={item.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
-                      <td style={{ padding: "10px 14px", fontWeight: 700, color: "#111827" }}>{item.title}</td>
+                      <td style={{ padding: "10px 14px", fontWeight: 700, color: "#111827" }}>
+                        <div className="flex items-center gap-1.5">
+                          {item.title}
+                          {/* Informational only — went out both organically and as an ad.
+                              The actual "also post" decision happens at Mark as Posted /
+                              Ads Completed, not here. */}
+                          {item.posted_branding && item.posted_ads && (
+                            <span title="Posted to both Branding and Ads" style={{
+                              display: "inline-flex", alignItems: "center", padding: "1px 6px", borderRadius: 99,
+                              fontSize: 9, fontWeight: 800, color: "#7C3AED", background: "rgba(124,58,237,0.12)", flexShrink: 0,
+                            }}>
+                              DUAL
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td style={{ padding: "10px 14px", color: "#6366F1", fontWeight: 600 }}>{item.client_name}</td>
                       <td style={{ padding: "10px 14px", color: "#374151", fontWeight: 600, textTransform: "capitalize" }}>{item.content_type}</td>
                       <td style={{ padding: "10px 14px" }}>
@@ -4263,17 +4328,6 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                       <td style={{ padding: "10px 14px", color: "#374151" }}>{fmtDateRange(item.posts.map(p => p.posted_date))}</td>
                       <td style={{ padding: "10px 14px" }}>
                         <div className="flex items-center gap-1 flex-wrap">
-                          {/* Same video can go out both ways — e.g. an ad shoot's hook+body
-                              also reused as one organic post. Both stay clickable regardless
-                              of which side it's already posted under. */}
-                          <button onClick={() => { setPlatformModalKind("branding"); setPlatformModalItem(item) }} title="Add a Branding post"
-                            style={{ display: "flex", alignItems: "center", gap: 3, padding: "5px 8px", borderRadius: 8, border: "none", background: "rgba(34,197,94,0.1)", color: "#16A34A", cursor: "pointer", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>
-                            <Plus size={10} /> {item.posted_branding ? "Branding" : "Also Branding"}
-                          </button>
-                          <button onClick={() => { setPlatformModalKind("ads"); setPlatformModalItem(item) }} title="Add an Ads post"
-                            style={{ display: "flex", alignItems: "center", gap: 3, padding: "5px 8px", borderRadius: 8, border: "none", background: "rgba(217,119,6,0.1)", color: "#D97706", cursor: "pointer", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>
-                            <Plus size={10} /> {item.posted_ads ? "Ads" : "Also Ads"}
-                          </button>
                           <button onClick={() => setEditingItem(item)} title="Edit"
                             style={{ display: "flex", padding: 6, borderRadius: 8, border: "1px solid #E5E7EB", background: "#fff", color: "#6B7280", cursor: "pointer" }}>
                             <Pencil size={12} />

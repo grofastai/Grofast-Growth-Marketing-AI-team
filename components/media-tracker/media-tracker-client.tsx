@@ -1737,7 +1737,7 @@ function EditVoiceOverModal({ item, freelancers, onClose, onSaved }: {
 // ── Edit Content modal ───────────────────────────────────────────────────────
 // Shows only what's actually relevant to the item's current stage — a Ready to Edit item
 // has no schedule yet to edit, and only Edited-or-later items have an editor to reassign.
-function EditContentModal({ item, clients, pastClients, members, onClose, onSaved }: {
+function EditContentModal({ item, clients, pastClients, members, onClose, onSaved, onAddPlatform }: {
   item: ContentItem
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   members: Member[]
@@ -1747,6 +1747,7 @@ function EditContentModal({ item, clients, pastClients, members, onClose, onSave
     ready_platforms: Platform[]; scheduled_post_date: string; scheduled_post_time: string
     editedByUser?: Person; edited_date?: string
   }) => void
+  onAddPlatform: (item: ContentItem, kind: "branding" | "ads") => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
@@ -1853,6 +1854,34 @@ function EditContentModal({ item, clients, pastClients, members, onClose, onSave
               </div>
             </div>
           </>
+        )}
+        {item.status === "posted" && (
+          <div>
+            <label style={LABEL}>Platforms — Currently Posted</label>
+            {item.posts.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1 mb-2">
+                {item.posts.map(p => {
+                  const cfg = PLATFORM_CFG[p.platform]
+                  return (
+                    <span key={p.id} className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={{ background: `${cfg.color}14`, color: cfg.color }}>
+                      <cfg.icon size={9} /> {cfg.label}
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+            <div className="flex gap-1.5">
+              <button type="button" onClick={() => { onAddPlatform(item, "branding"); onClose() }}
+                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: "none", background: "rgba(34,197,94,0.1)", color: "#16A34A", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                <Plus size={11} /> {item.posted_branding ? "Branding Post" : "Add Branding Post"}
+              </button>
+              <button type="button" onClick={() => { onAddPlatform(item, "ads"); onClose() }}
+                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: "none", background: "rgba(217,119,6,0.1)", color: "#D97706", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                <Plus size={11} /> {item.posted_ads ? "Ads Post" : "Add Ads Post"}
+              </button>
+            </div>
+          </div>
         )}
         <div>
           <label style={LABEL}>Notes</label>
@@ -4538,6 +4567,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       )}
       {editingItem && (
         <EditContentModal item={editingItem} clients={clients} pastClients={pastClients} members={editingMembers} onClose={() => setEditingItem(null)}
+          onAddPlatform={(item, kind) => { setPlatformModalKind(kind); setPlatformModalItem(item) }}
           onSaved={updates => {
             setItems(prev => prev.map(i => i.id === editingItem.id ? {
               ...i, ...updates,

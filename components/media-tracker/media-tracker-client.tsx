@@ -4188,14 +4188,14 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
-                    {["Video/Poster", "Client", "Type", "Platforms", "Posted By", "Posted Date"].map(h => (
+                    {["Video/Poster", "Client", "Type", "Platforms", "Posted By", "Posted Date", "Actions"].map(h => (
                       <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {logRows.length === 0 ? (
-                    <tr><td colSpan={6} style={{ padding: "32px 14px", textAlign: "center", color: "#374151", fontWeight: 600, fontSize: 12 }}>No posts logged yet</td></tr>
+                    <tr><td colSpan={7} style={{ padding: "32px 14px", textAlign: "center", color: "#374151", fontWeight: 600, fontSize: 12 }}>No posts logged yet</td></tr>
                   ) : logRows.map(item => (
                     <tr key={item.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
                       <td style={{ padding: "10px 14px", fontWeight: 700, color: "#111827" }}>{item.title}</td>
@@ -4242,6 +4242,18 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                         </div>
                       </td>
                       <td style={{ padding: "10px 14px", color: "#374151" }}>{fmtDateRange(item.posts.map(p => p.posted_date))}</td>
+                      <td style={{ padding: "10px 14px" }}>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => setEditingItem(item)} title="Edit"
+                            style={{ display: "flex", padding: 6, borderRadius: 8, border: "1px solid #E5E7EB", background: "#fff", color: "#6B7280", cursor: "pointer" }}>
+                            <Pencil size={12} />
+                          </button>
+                          <button onClick={() => handleDeleteItem(item.id)} title="Delete"
+                            style={{ display: "flex", padding: 6, borderRadius: 8, border: "1px solid #FEE2E2", background: "#FEF2F2", color: "#DE1A1A", cursor: "pointer" }}>
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

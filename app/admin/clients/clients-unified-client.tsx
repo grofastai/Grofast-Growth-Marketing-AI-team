@@ -249,6 +249,7 @@ export default function ClientsUnifiedClient({
   activeClients, pastClients, serviceOptions,
   selectedClientName, selectedClientRow,
   deliverables,
+  initialSearch = '',
   mode, period, today,
   dateFrom, dateTo,
 }: {
@@ -258,6 +259,7 @@ export default function ClientsUnifiedClient({
   selectedClientName: string | null
   selectedClientRow: ClientRow | null
   deliverables: DeliverableResult | null
+  initialSearch?: string
   mode: 'month' | 'all' | 'custom'
   period: string
   today: string
@@ -265,7 +267,7 @@ export default function ClientsUnifiedClient({
   dateTo: string
 }) {
   const router = useRouter()
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(initialSearch)
   const [clientModal, setClientModal] = useState<'add' | 'edit' | null>(null)
   const [isSaving, startSaving] = useTransition()
 

@@ -1567,42 +1567,42 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
         <div style={{ position: "absolute", bottom: -30, right: 220, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", top: 10, right: 380, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
 
-        <div className="flex flex-col sm:grid sm:grid-cols-[auto_1fr_auto] sm:items-center gap-3" style={{ padding: "12px 22px", position: "relative", zIndex: 1 }}>
+        <div className="flex flex-col sm:grid sm:grid-cols-[auto_auto_auto] sm:items-center sm:justify-between gap-2" style={{ padding: "10px 20px", position: "relative", zIndex: 1 }}>
           {/* Text + mobile illustration share a row so the image stays pinned to the right; text wraps to a second line instead of running under it */}
           <div className="flex items-start justify-between gap-3 sm:contents">
             <div className="flex-1" style={{ minWidth: 0 }}>
-              <div className="hidden sm:flex" style={{ alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <div className="hidden sm:flex" style={{ alignItems: "center", gap: 10, marginBottom: 4 }}>
                 <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
                   <Sparkles size={16} style={{ color: "#FFD700" }} />
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
               </div>
-              <h1 className="text-[26px] sm:text-[32px] font-black text-white leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>Team</h1>
+              <h1 className="text-[24px] sm:text-[28px] font-black text-white leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>Team</h1>
               <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>Manage your employees and their access</p>
             </div>
 
             {/* Mobile-only illustration — fixed to the right of the text row so it never overlaps; text wraps instead */}
             <div className="flex sm:hidden justify-end flex-shrink-0">
-              <div style={{ position: "relative", width: "clamp(64px,20vw,96px)", height: "clamp(82px,26vw,124px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
+              <div style={{ position: "relative", width: "clamp(52px,16vw,76px)", height: "clamp(66px,20vw,98px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
                 <Image src="/brand/team-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
               </div>
             </div>
           </div>
 
-          {/* Desktop illustration — its own grid column (1fr), pinned to the right side next to the Add Member button */}
+          {/* Desktop illustration — its own grid column, pinned right next to the Add Member button */}
           <div className="hidden sm:flex justify-end">
-            <div style={{ position: "relative", width: "clamp(92px,13vw,182px)", height: "clamp(118px,16.5vw,234px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
+            <div style={{ position: "relative", width: "clamp(64px,8vw,110px)", height: "clamp(82px,10.5vw,141px)", flexShrink: 0, filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.3))" }}>
               <Image src="/brand/team-admin-hero.png" alt="" fill style={{ objectFit: "contain" }} />
             </div>
           </div>
 
           {/* Right: Add Member button */}
-          <div className="flex items-center gap-2 sm:gap-3 self-start sm:self-center" style={{ flexShrink: 0 }}>
+          <div className="flex items-center gap-2 self-start sm:self-center" style={{ flexShrink: 0 }}>
             <button
               onClick={() => { setEditMember(null); setSheetOpen(true) }}
-              className="flex items-center gap-2 px-3.5 sm:px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap"
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-[12px] font-bold transition-all whitespace-nowrap"
               style={{ background: "#FFFFFF", color: "#DE1A1A", boxShadow: "0 4px 16px rgba(0,0,0,0.15)" }}>
-              <Plus size={14} /> <span>Add Member</span>
+              <Plus size={13} /> <span>Add Member</span>
             </button>
           </div>
         </div>

@@ -25,8 +25,8 @@ function timeAgo(dateStr: string) {
 
 const CATEGORIES = ["All Categories", "General", "Policy", "Events", "Urgent"]
 
-export default function AnnouncementsClient({ announcements }: { announcements: AnnouncementRow[] }) {
-  const [search, setSearch]     = useState("")
+export default function AnnouncementsClient({ announcements, initialSearch = "" }: { announcements: AnnouncementRow[]; initialSearch?: string }) {
+  const [search, setSearch]     = useState(initialSearch)
   const [category, setCategory] = useState("All Categories")
   const [catOpen, setCatOpen]   = useState(false)
   const catRef                  = useRef<HTMLDivElement>(null)

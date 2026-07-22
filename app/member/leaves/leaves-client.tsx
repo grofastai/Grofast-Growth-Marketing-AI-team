@@ -412,8 +412,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
             <h1 style={{ fontSize: "clamp(26px,3vw,40px)", fontWeight: 900, letterSpacing: "-0.025em", lineHeight: 1.05, fontFamily: "var(--font-jakarta)", margin: "0 0 10px", color: "#FFFFFF" }}>
               Leave Requests
             </h1>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: 0, lineHeight: 1.65, maxWidth: 260 }}>
-              Apply for leave and track your requests<br />in one beautiful place.
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: 0, lineHeight: 1.5, maxWidth: 200 }}>
+              Apply and track your leave requests.
             </p>
           </div>
 

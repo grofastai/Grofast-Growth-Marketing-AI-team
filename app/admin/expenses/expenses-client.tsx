@@ -7,7 +7,7 @@ import {
   IndianRupee, Plus, Trash2, Pencil,
   Car, Megaphone, Monitor, Building2,
   Receipt, Layers, CheckCircle2, AlertCircle,
-  ChevronRight, Search, MoreVertical, TrendingUp,
+  ChevronRight, ChevronDown, Search, MoreVertical, TrendingUp, Users,
 } from "lucide-react"
 import { FlatCard } from "@/components/ui/FlatCard"
 import { SegmentedControl } from "@/components/ui/SegmentedControl"
@@ -20,6 +20,7 @@ import {
   upsertCommonExpense,
   deleteCommonExpense,
 } from "@/lib/actions/client-expenses"
+import { setCommonExpenseParticipation } from "@/lib/actions/clients"
 import { todayIST } from "@/lib/utils/ist-date"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -65,6 +66,14 @@ type CommonExpense = {
 
 type ActiveClient = {
   name: string
+}
+
+type CommonParticipant = {
+  id: string
+  name: string
+  status: string
+  isInternal: boolean
+  included: boolean
 }
 
 
@@ -126,7 +135,6 @@ const TYPE_BG: Record<string, string> = {
 }
 
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-const INTERNAL_BRANDS = 3
 const INTERNAL_BRAND_NAMES = new Set(["GROFAST DIGITAL", "GROFAST AI", "KARTHICK BRANDS"])
 
 // ── Client Expense Modal ──────────────────────────────────────────────────────
@@ -211,7 +219,7 @@ function ClientExpenseModalBody({ clients, selectedMonth, editing, onClose }: {
         <button onClick={save} disabled={isPending}
           className="w-full py-3 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-60"
           style={{ background: done ? "rgba(22,163,74,0.1)" : "rgba(222,26,26,0.08)", color: done ? "#16A34A" : "#de1a1a", border: `1.5px solid ${done ? "rgba(22,163,74,0.2)" : "rgba(222,26,26,0.15)"}` }}>
-          {done ? <><CheckCircle2 size={14} /> Saved!</> : isPending ? "Saving…" : <><Plus size={14} /> Add Expense</>}
+          {done ? <><CheckCircle2 size={14} /> Saved!</> : isPending ? "Saving…" : editing ? <><Pencil size={14} /> Save Changes</> : <><Plus size={14} /> Add Expense</>}
         </button>
       </div>
   )
@@ -282,7 +290,7 @@ function CommonExpenseModalBody({ selectedMonth, overheadDivisor, editing, onClo
         <button onClick={save} disabled={isPending}
           className="w-full py-3 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-60"
           style={{ background: done ? "rgba(22,163,74,0.1)" : "rgba(222,26,26,0.08)", color: done ? "#16A34A" : "#de1a1a", border: `1.5px solid ${done ? "rgba(22,163,74,0.2)" : "rgba(222,26,26,0.15)"}` }}>
-          {done ? <><CheckCircle2 size={14} /> Saved!</> : isPending ? "Saving…" : <><Plus size={14} /> Add Expense</>}
+          {done ? <><CheckCircle2 size={14} /> Saved!</> : isPending ? "Saving…" : editing ? <><Pencil size={14} /> Save Changes</> : <><Plus size={14} /> Add Expense</>}
         </button>
       </div>
   )
@@ -290,9 +298,43 @@ function CommonExpenseModalBody({ selectedMonth, overheadDivisor, editing, onClo
 
 // ── Travel Tab ────────────────────────────────────────────────────────────────
 
-function TravelTab({ shoots, savedTravel }: {
+// Raised "3D" pill select — used centered in the Client Direct / Travel tab headers
+// so admins can jump straight to one client's rows without leaving that tab.
+function HeaderClientFilter({ value, onChange, options }: {
+  value: string
+  onChange: (v: string) => void
+  options: string[]
+}) {
+  return (
+    <div
+      className="relative flex items-center gap-1.5 pl-3 pr-7 py-2 rounded-xl"
+      style={{
+        background: "linear-gradient(180deg,#ffffff,#F3F4F6)",
+        border: "1px solid #E5E7EB",
+        boxShadow: "0 1px 0 rgba(255,255,255,0.9) inset, 0 6px 14px rgba(59,130,246,0.16), 0 2px 4px rgba(0,0,0,0.06)",
+      }}
+    >
+      <Users size={12} style={{ color: "#3B82F6", flexShrink: 0 }} />
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="appearance-none text-[12px] font-bold outline-none cursor-pointer max-w-[140px]"
+        style={{ background: "transparent", color: "#3B82F6", border: "none" }}
+      >
+        <option value="all">All Clients</option>
+        {options.map(name => <option key={name} value={name}>{name}</option>)}
+      </select>
+      <ChevronDown size={12} style={{ color: "#3B82F6", position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+    </div>
+  )
+}
+
+function TravelTab({ shoots, savedTravel, clientFilter, onClientFilterChange, clientOptions }: {
   shoots: ShootRow[]
   savedTravel: Record<string, number>
+  clientFilter: string
+  onClientFilterChange: (v: string) => void
+  clientOptions: string[]
 }) {
   const [localAmounts, setLocal] = useState<Record<string, string>>(() => {
     const m: Record<string, string> = {}
@@ -324,16 +366,14 @@ function TravelTab({ shoots, savedTravel }: {
           <Car size={15} style={{ color: "#3B82F6" }} />
           <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Travel</span>
         </div>
-        {totalEntered > 0 && (
-          <span className="text-[12px]" style={{ color: "#6B1D3A" }}>
-            Total entered: <strong style={{ color: "#3B82F6" }}>₹{Math.round(totalEntered).toLocaleString("en-IN")}</strong>
-          </span>
-        )}
+        <HeaderClientFilter value={clientFilter} onChange={onClientFilterChange} options={clientOptions} />
       </div>
       {shoots.length === 0 ? (
         <div className="flex flex-col items-center py-16">
           <Car size={32} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[13px]" style={{ color: "#6B1D3A" }}>No shoots logged this month</p>
+          <p className="text-[13px]" style={{ color: "#6B1D3A" }}>
+            {clientFilter === "all" ? "No shoots logged this month" : "No shoots for this client this month"}
+          </p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -382,6 +422,17 @@ function TravelTab({ shoots, savedTravel }: {
                 )
               })}
             </tbody>
+            <tfoot>
+              <tr style={{ background: "#FAFAFA", borderTop: "2px solid #EDEDED" }}>
+                <td colSpan={5} className="px-6 py-3 text-[11px] font-black uppercase tracking-wider" style={{ color: "#6B1D3A" }}>
+                  {clientFilter === "all" ? "Total" : "Total (filtered)"}
+                </td>
+                <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#3B82F6" }}>
+                  ₹{Math.round(totalEntered).toLocaleString("en-IN")}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
@@ -391,16 +442,20 @@ function TravelTab({ shoots, savedTravel }: {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
+const PRODUCTIVITY_GAP_NAME = "PRODUCTIVITY GAP"
+
 export default function ExpensesClient({
-  updates, users, clientExpenses, commonExpenses, activeClients, selectedMonth, employeeCostByClient,
+  updates, users, clientExpenses, commonExpenses, activeClients, commonParticipation, selectedMonth, employeeCostByClient, productivityGapCost,
 }: {
   updates: UpdateRow[]
   users: MemberUser[]
   clientExpenses: ClientExpense[]
   commonExpenses: CommonExpense[]
   activeClients: ActiveClient[]
+  commonParticipation: CommonParticipant[]
   selectedMonth: string
   employeeCostByClient: Record<string, number>
+  productivityGapCost: number
 }) {
   const router = useRouter()
   const [modal, setModal]             = useState<"client" | "common" | null>(null)
@@ -408,6 +463,7 @@ export default function ExpensesClient({
   const [editingCommon, setEditCommon] = useState<CommonExpense | null>(null)
   const [isPending, start]             = useTransition()
   const [activeTab, setActiveTab]      = useState<"summary" | "direct" | "common" | "travel">("summary")
+  const [showParticipation, setShowParticipation] = useState(false)
   const [clientFilter, setClientFilter] = useState("all")
   const [search, setSearch]            = useState("")
   const [viewDetailsClient, setViewDetailsClient] = useState<string | null>(null)
@@ -421,7 +477,12 @@ export default function ExpensesClient({
     router.push(`/admin/expenses?month=${ny}-${String(nm).padStart(2, "0")}`)
   }
 
-  const overheadDivisor = activeClients.length + INTERNAL_BRANDS
+  // Who actually shares this month's common cost — the admin's explicit checklist
+  // choice (see the Common tab), not an inferred active/past status or date range.
+  // Internal Brands are now real checklist entries too (see commonParticipation), so
+  // they're counted here once via the checklist — no separate hardcoded addition.
+  const includedNames = new Set(commonParticipation.filter(c => c.included).map(c => c.name))
+  const overheadDivisor = includedNames.size
 
   const userMap = useMemo(() => {
     const m: Record<string, string> = {}
@@ -469,6 +530,18 @@ export default function ExpensesClient({
     return Array.from(set).sort()
   }, [activeClients, clientExpenses])
 
+  // Each tab's filter only lists clients that actually have a row in that tab —
+  // the shared clientSummaryRows list (employee cost + roster + direct expenses merged)
+  // was showing clients here with nothing to filter to, landing on an empty table.
+  const directClientNames = useMemo(
+    () => Array.from(new Set(clientExpenses.map(e => e.client_name))).sort(),
+    [clientExpenses]
+  )
+  const travelClientNames = useMemo(
+    () => Array.from(new Set(shootRows.map(r => r.clientName))).sort(),
+    [shootRows]
+  )
+
   const totalClientDirect = useMemo(() => clientExpenses.reduce((s, e) => s + e.amount, 0), [clientExpenses])
   const totalCommon       = useMemo(() => commonExpenses.reduce((s, e) => s + e.amount, 0), [commonExpenses])
   const perClientOverhead = overheadDivisor > 0 ? totalCommon / overheadDivisor : 0
@@ -483,18 +556,35 @@ export default function ExpensesClient({
     for (const name of Object.keys(employeeCostByClient)) allNames.add(name)
     for (const c of activeClients) if (c.name) allNames.add(c.name)
     for (const n of Object.keys(directMap)) allNames.add(n)
-    return Array.from(allNames).map(name => {
+    const rows = Array.from(allNames).map(name => {
       const empCost = employeeCostByClient[name] ?? 0
       const direct  = directMap[name] ?? 0
+      // Only clients checked in the Common tab's list share this month's overhead —
+      // a client with real employee/direct cost but not checked still shows their real
+      // cost, just with zero common share, instead of being forced into the split.
+      const overhead = includedNames.has(name) ? perClientOverhead : 0
       return {
         name,
         empCost,
         direct,
-        overhead: perClientOverhead,
-        total: direct + perClientOverhead + empCost,
+        overhead,
+        total: direct + overhead + empCost,
       }
-    }).sort((a, b) => b.total - a.total)
-  }, [clientExpenses, activeClients, perClientOverhead, employeeCostByClient])
+    })
+      // A client with zero employee cost, zero direct cost, and zero common share had
+      // nothing happen this month at all — showing them is pure clutter, not signal.
+      // Every real past client (any actual work or expense that month) still shows.
+      .filter(r => r.total > 0)
+      .sort((a, b) => b.total - a.total)
+
+    // Productivity Gap is a pseudo "client" row — idle salary cost from regular staff
+    // (management/freelancers excluded) with no client to attribute it to. Pinned first
+    // (not sorted in by value) since it's negative/waste data, not a real client's cost.
+    // Direct/Common are forced to 0: only the Employee column carries a real number here.
+    return productivityGapCost > 0
+      ? [{ name: PRODUCTIVITY_GAP_NAME, empCost: productivityGapCost, direct: 0, overhead: 0, total: productivityGapCost }, ...rows]
+      : rows
+  }, [clientExpenses, activeClients, perClientOverhead, employeeCostByClient, includedNames, productivityGapCost])
 
   const activeClientNames = useMemo(() => new Set(activeClients.map(c => c.name)), [activeClients])
 
@@ -503,6 +593,25 @@ export default function ExpensesClient({
       .filter(r => clientFilter === "all" || r.name === clientFilter)
       .filter(r => !search.trim() || r.name.toLowerCase().includes(search.trim().toLowerCase()))
   }, [clientSummaryRows, clientFilter, search])
+
+  // Same client filter + search, applied to the raw Client Direct rows so that tab
+  // can also be narrowed down to one client instead of always showing the whole month.
+  const filteredClientExpenses = useMemo(() => {
+    return clientExpenses
+      .filter(e => clientFilter === "all" || e.client_name === clientFilter)
+      .filter(e => !search.trim() || e.client_name.toLowerCase().includes(search.trim().toLowerCase()))
+  }, [clientExpenses, clientFilter, search])
+  const filteredClientDirectTotal = useMemo(
+    () => filteredClientExpenses.reduce((s, e) => s + e.amount, 0),
+    [filteredClientExpenses]
+  )
+
+  // Same client filter + search, applied to Travel's raw shoot rows.
+  const filteredShootRows = useMemo(() => {
+    return shootRows
+      .filter(r => clientFilter === "all" || r.clientName === clientFilter)
+      .filter(r => !search.trim() || r.clientName.toLowerCase().includes(search.trim().toLowerCase()))
+  }, [shootRows, clientFilter, search])
 
   const viewDetailsRow = useMemo(
     () => clientSummaryRows.find(r => r.name === viewDetailsClient) ?? null,
@@ -518,6 +627,9 @@ export default function ExpensesClient({
   }
   function handleDeleteCommon(id: string) {
     start(async () => { await deleteCommonExpense(id); router.refresh() })
+  }
+  function handleToggleParticipation(clientId: string, included: boolean) {
+    start(async () => { await setCommonExpenseParticipation(clientId, selectedMonth, included); router.refresh() })
   }
 
   const pctOfTotal = (v: number) => grandTotal > 0 ? Math.round((v / grandTotal) * 100) : 0
@@ -685,11 +797,14 @@ export default function ExpensesClient({
                 <Receipt size={15} style={{ color: "#3B82F6" }} />
                 <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Client Direct</span>
               </div>
+              <HeaderClientFilter value={clientFilter} onChange={setClientFilter} options={directClientNames} />
             </div>
-            {clientExpenses.length === 0 ? (
+            {filteredClientExpenses.length === 0 ? (
               <div className="flex flex-col items-center py-12">
                 <AlertCircle size={28} style={{ color: "#E5E7EB" }} className="mb-2" />
-                <p className="text-[13px]" style={{ color: "#6B1D3A" }}>No client expenses this month</p>
+                <p className="text-[13px]" style={{ color: "#6B1D3A" }}>
+                  {clientExpenses.length === 0 ? "No client expenses this month" : "No expenses for this client this month"}
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -705,17 +820,13 @@ export default function ExpensesClient({
                     </tr>
                   </thead>
                   <tbody>
-                    {clientExpenses.map((e, i) => (
-                      <tr key={e.id} style={{ borderBottom: i < clientExpenses.length - 1 ? "1px solid #F5F5F5" : "none" }}>
+                    {filteredClientExpenses.map((e, i) => (
+                      <tr key={e.id} style={{ borderBottom: i < filteredClientExpenses.length - 1 ? "1px solid #F5F5F5" : "none" }}>
                         <td className="px-6 py-3 text-[12px] font-bold uppercase whitespace-nowrap" style={{ color: "#6B1D3A" }}>{fmtDate(e.date)}</td>
                         <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>{e.client_name}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          {e.type !== "other" ? (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase"
-                              style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>{e.type}</span>
-                          ) : (
-                            <span style={{ color: "#003b49" }}>—</span>
-                          )}
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase"
+                            style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>{e.type}</span>
                         </td>
                         <td className="px-4 py-3 text-[12px] font-semibold uppercase" style={{ color: "#800080" }}>
                           {e.shoot_title ? e.shoot_title : ""}{e.notes ? (e.shoot_title ? ` · ${e.notes}` : e.notes) : (!e.shoot_title ? "—" : "")}
@@ -738,8 +849,10 @@ export default function ExpensesClient({
                   </tbody>
                   <tfoot>
                     <tr style={{ background: "#FAFAFA", borderTop: "2px solid #EDEDED" }}>
-                      <td colSpan={4} className="px-6 py-3 text-[11px] font-black uppercase tracking-wider" style={{ color: "#6B1D3A" }}>Total</td>
-                      <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#3B82F6" }}>{fmtRupee(totalClientDirect)}</td>
+                      <td colSpan={4} className="px-6 py-3 text-[11px] font-black uppercase tracking-wider" style={{ color: "#6B1D3A" }}>
+                        {clientFilter === "all" ? "Total" : "Total (filtered)"}
+                      </td>
+                      <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#3B82F6" }}>{fmtRupee(filteredClientDirectTotal)}</td>
                       <td />
                     </tr>
                   </tfoot>
@@ -752,9 +865,26 @@ export default function ExpensesClient({
         {/* Common / Shared */}
         {activeTab === "common" && (
           <FlatCard className="overflow-hidden">
-            <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: "1px solid #EDEDED" }}>
-              <Layers size={15} style={{ color: "#8B5CF6" }} />
-              <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#8B5CF6" }}>Common / Shared</span>
+            <div className="flex items-center justify-between gap-2 px-6 py-4" style={{ borderBottom: "1px solid #EDEDED" }}>
+              <div className="flex items-center gap-2">
+                <Layers size={15} style={{ color: "#8B5CF6" }} />
+                <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#8B5CF6" }}>Common / Shared</span>
+              </div>
+              <button onClick={() => setShowParticipation(true)}
+                className="flex items-center gap-2 transition-all duration-100 active:translate-y-[3px] shadow-[0_4px_0_#6D28D9] active:shadow-[0_0px_0_#6D28D9] hover:brightness-105"
+                style={{
+                  border: "none", cursor: "pointer", flexShrink: 0,
+                  background: "linear-gradient(180deg, #A78BFA 0%, #8B5CF6 100%)",
+                  padding: "10px 14px", borderRadius: 12,
+                }}>
+                <Users size={14} style={{ color: "#fff" }} strokeWidth={2.5} />
+                <span className="text-[11px] font-black uppercase tracking-wide whitespace-nowrap" style={{ color: "#fff" }}>
+                  Pick Common Clients
+                </span>
+                <span className="text-[11px] font-black px-2 py-0.5 rounded-full whitespace-nowrap" style={{ color: "#fff", background: "rgba(255,255,255,0.25)" }}>
+                  {includedNames.size}/{commonParticipation.length}
+                </span>
+              </button>
             </div>
             {commonExpenses.length === 0 ? (
               <div className="flex flex-col items-center py-12">
@@ -817,7 +947,13 @@ export default function ExpensesClient({
 
         {/* Travel */}
         {activeTab === "travel" && (
-          <TravelTab shoots={shootRows} savedTravel={savedTravel} />
+          <TravelTab
+            shoots={filteredShootRows}
+            savedTravel={savedTravel}
+            clientFilter={clientFilter}
+            onClientFilterChange={setClientFilter}
+            clientOptions={travelClientNames}
+          />
         )}
 
         {/* Client & Brand Cost Summary — table */}
@@ -843,16 +979,22 @@ export default function ExpensesClient({
                   {filteredSummaryRows.length === 0 ? (
                     <tr><td colSpan={6} className="px-6 py-10 text-center text-[13px]" style={{ color: "#6B1D3A" }}>No clients match this filter</td></tr>
                   ) : filteredSummaryRows.map((row, i) => {
-                    const color = avatarColor(row.name)
-                    const isActive = activeClientNames.has(row.name) || INTERNAL_BRAND_NAMES.has(row.name.toUpperCase())
+                    const isGapRow = row.name === PRODUCTIVITY_GAP_NAME
+                    const color = isGapRow ? "#DC2626" : avatarColor(row.name)
+                    const isActive = !isGapRow && (activeClientNames.has(row.name) || INTERNAL_BRAND_NAMES.has(row.name.toUpperCase()))
                     return (
-                      <tr key={row.name} style={{ borderBottom: i < filteredSummaryRows.length - 1 ? "1px solid #F5F5F5" : "none" }}>
+                      <tr key={row.name} style={{
+                        borderBottom: i < filteredSummaryRows.length - 1 ? "1px solid #F5F5F5" : "none",
+                        background: isGapRow ? "rgba(220,38,38,0.05)" : undefined,
+                        borderLeft: isGapRow ? "3px solid #DC2626" : undefined,
+                      }}>
                         <td className="px-6 py-3">
                           <div className="flex items-center gap-2.5">
                             <div className="rounded-full flex items-center justify-center flex-shrink-0" style={{ width: 32, height: 32, background: `${color}18`, color, fontSize: 11, fontWeight: 900 }}>{getInitials(row.name)}</div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="text-[13px] font-bold break-words" style={{ color: "#111111" }}>{row.name}</span>
+                                <span className="text-[13px] font-bold break-words" style={{ color: isGapRow ? "#DC2626" : "#111111" }}>{row.name}</span>
+                                {isGapRow && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>Unproductive</span>}
                                 {isActive && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(16,185,129,0.1)", color: "#10B981" }}>Active</span>}
                               </div>
                             </div>
@@ -934,6 +1076,62 @@ export default function ExpensesClient({
             onClose={() => { setModal(null); setEditCommon(null) }}
           />
         )}
+      </DrawerPanel>
+
+      {/* Common-cost participation — toggle list, internal brands pinned first */}
+      <DrawerPanel
+        open={showParticipation}
+        onClose={() => setShowParticipation(false)}
+        header={
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] font-black" style={{ color: "#111111" }}>Common Cost Sharing</span>
+            <span className="text-[11px] font-black px-2 py-0.5 rounded-full" style={{ color: "#8B5CF6", background: "rgba(139,92,246,0.1)" }}>
+              {includedNames.size}/{commonParticipation.length}
+            </span>
+          </div>
+        }
+      >
+        <div className="space-y-1">
+          {commonParticipation.length === 0 ? (
+            <p className="text-[12px]" style={{ color: "#6B1D3A" }}>No clients yet.</p>
+          ) : commonParticipation.map((c, i) => {
+            const prevWasInternal = i > 0 && commonParticipation[i - 1].isInternal
+            const showDivider = c.isInternal ? i === 0 : (i === 0 || (prevWasInternal && !c.isInternal))
+            return (
+              <div key={c.id}>
+                {showDivider && (
+                  <p className="text-[9px] font-black uppercase tracking-wider px-1 pt-2 pb-1.5" style={{ color: "#9CA3AF" }}>
+                    {c.isInternal ? "Internal Brands" : "Clients"}
+                  </p>
+                )}
+                <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: c.included ? "rgba(139,92,246,0.05)" : "transparent" }}>
+                  <span className="flex-1 text-[13px] font-bold truncate" style={{ color: "#111111" }}>{c.name}</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full flex-shrink-0"
+                    style={{ color: c.status === "active" ? "#0F9D64" : "#7F1D2B", background: c.status === "active" ? "rgba(15,157,100,0.1)" : "rgba(127,29,43,0.1)" }}>
+                    {c.status}
+                  </span>
+                  {/* Toggle switch */}
+                  <button
+                    onClick={() => handleToggleParticipation(c.id, !c.included)}
+                    disabled={isPending}
+                    aria-pressed={c.included}
+                    style={{
+                      width: 38, height: 22, borderRadius: 999, flexShrink: 0, position: "relative",
+                      background: c.included ? "#8B5CF6" : "#E5E7EB",
+                      border: "none", cursor: isPending ? "not-allowed" : "pointer", transition: "background 0.15s",
+                    }}
+                  >
+                    <span style={{
+                      position: "absolute", top: 2, left: c.included ? 18 : 2,
+                      width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.3)", transition: "left 0.15s",
+                    }} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </DrawerPanel>
 
       {/* Client details drawer */}

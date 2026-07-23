@@ -162,20 +162,42 @@ export async function editCollaborationTime(
 
   const { data: conf } = await admin
     .from('collaboration_confirmations')
-    .select('date')
+    .select('date, status, confirmed_start_time, confirmed_end_time, confirmed_hours, original_start_time, original_end_time, original_duration_hours, edit_log')
     .eq('id', id)
     .eq('collaborator_id', effectiveUserId)
     .single()
 
   if (!conf) return { success: false, error: 'Not found' }
+  const c = conf as {
+    date: string; status: string
+    confirmed_start_time: string | null; confirmed_end_time: string | null; confirmed_hours: number | null
+    original_start_time: string | null; original_end_time: string | null; original_duration_hours: number | null
+    edit_log: unknown[] | null
+  }
 
   const overlapErr = await checkCollabOverlapsWork(
     admin, effectiveUserId,
-    (conf as { date: string }).date,
+    c.date,
     startTime, endTime,
     id  // exclude this collab from the "other collabs" check (editing in place)
   )
   if (overlapErr) return { success: false, error: overlapErr }
+
+  // Edit is allowed whether this is still pending (first-time correction before
+  // confirming) or already confirmed/edited_confirmed (a later correction after the
+  // fact) — either way, append what changed so a later discrepancy is explainable
+  // instead of another from-scratch DB investigation.
+  const wasAlreadyDecided = c.status === 'confirmed' || c.status === 'edited_confirmed'
+  const previousStart = wasAlreadyDecided ? c.confirmed_start_time : c.original_start_time
+  const previousEnd   = wasAlreadyDecided ? c.confirmed_end_time   : c.original_end_time
+  const previousHours = wasAlreadyDecided ? c.confirmed_hours      : c.original_duration_hours
+  const logEntry = {
+    at: new Date().toISOString(),
+    edited_by: effectiveUserId,
+    was_already_confirmed: wasAlreadyDecided,
+    previous_start: previousStart, previous_end: previousEnd, previous_hours: previousHours,
+    new_start: startTime, new_end: endTime, new_hours: hours,
+  }
 
   const { error } = await admin
     .from('collaboration_confirmations')
@@ -184,6 +206,7 @@ export async function editCollaborationTime(
       confirmed_start_time: startTime,
       confirmed_end_time: endTime,
       confirmed_hours: hours,
+      edit_log: [...(Array.isArray(c.edit_log) ? c.edit_log : []), logEntry],
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)

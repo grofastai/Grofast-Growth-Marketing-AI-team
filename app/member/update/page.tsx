@@ -216,6 +216,7 @@ export default async function UpdatePage() {
         todayClockedIn={todayClockedIn}
         requiresClockIn={requiresClockIn}
         defaultDate={defaultDate}
+        lockedDate={unfiledDate ?? undefined}
         activeLeavesList={(activeLeavesList ?? []) as ActiveLeave[]}
         collabWindows={
           ((collabWindowsRaw ?? []) as { date: string; confirmed_start_time: string | null; confirmed_end_time: string | null }[])

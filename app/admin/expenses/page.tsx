@@ -12,6 +12,12 @@ import {
   type FreelancerWorkEntry,
   type CollabConfirmationRow,
 } from "@/lib/clients-deliverables"
+import { hourlyRateOnDate } from "@/lib/salary"
+import { calcNetWorkHours } from "@/lib/utils/work-hours"
+
+// Same monthly target used by Team Insights' Team Utilization widget — kept identical
+// so the two pages can never quietly disagree on what "a full month" means.
+const MONTHLY_TARGET_HRS = 25 * 8.5 // 212.5h
 
 function adminClient() {
   return createClient(
@@ -63,7 +69,8 @@ export default async function AdminExpensesPage({
     { data: usersRaw },
     { data: clientExpensesRaw },
     { data: commonExpensesRaw },
-    { data: activeClientsRaw },
+    { data: allClientsRaw },
+    { data: statusHistoryRaw },
     { data: pricingRaw },
     { data: freelancerRaw },
     { data: salaryHistoryRaw },
@@ -78,7 +85,7 @@ export default async function AdminExpensesPage({
       .order("date", { ascending: false }),
     admin
       .from("users")
-      .select("id, name, employee_id, hourly_rate, monthly_salary, team")
+      .select("id, name, employee_id, hourly_rate, monthly_salary, team, is_management, employment_type, role")
       .eq("company_id", cid)
       .eq("status", "active"),
     admin
@@ -96,9 +103,13 @@ export default async function AdminExpensesPage({
       .order("created_at", { ascending: false }),
     admin
       .from("clients")
-      .select("name")
+      .select("id, name, status, is_internal")
+      .eq("company_id", cid),
+    admin
+      .from("client_common_expense_participation")
+      .select("client_id, included")
       .eq("company_id", cid)
-      .eq("status", "active"),
+      .eq("month", monthParam),
     admin
       .from("pricing_rates")
       .select("video_type, rate_per_video")
@@ -137,11 +148,16 @@ export default async function AdminExpensesPage({
     freelancer_name:  (r.freelancers as { name: string } | null)?.name ?? "Freelancer",
   }))
 
-  // Compute per-client employee cost using the same logic as the Clients page
-  const allClientNames = [
-    ...INTERNAL_BRAND_NAMES,
-    ...((activeClientsRaw ?? []).map((c: { name: string }) => c.name).filter(n => !INTERNAL_BRAND_NAMES.includes(n))),
-  ]
+  type ClientRow = { id: string; name: string; status: string; is_internal: boolean }
+  const allClients = (allClientsRaw ?? []) as ClientRow[]
+  const nonInternalClients = allClients.filter(c => !c.is_internal)
+  const activeClients = nonInternalClients.filter(c => c.status === "active")
+
+  // Real labor/direct cost is a fact — compute it for every client with actual logged
+  // work this month, active or not. Whether they also SHARE this month's common/overhead
+  // cost is a separate, deliberate admin decision (see participation below) — a past
+  // client's real hours must never silently show ₹0 just because they're not active.
+  const allClientNames = [...INTERNAL_BRAND_NAMES, ...nonInternalClients.map(c => c.name)]
 
   const employeeCostByClient: Record<string, number> = {}
   for (const clientName of allClientNames) {
@@ -159,13 +175,71 @@ export default async function AdminExpensesPage({
     employeeCostByClient[clientName] = result.totalCost
   }
 
+  // "Productivity Gap" cost — same wastedCost formula as Team Insights' Team Utilization
+  // widget (untracked hours × hourly rate against a fixed 212.5h/month target), but
+  // company-wide (not per-client) since idle time isn't attributable to any one client.
+  // Deliberately excludes management (is_management) and freelancers (employment_type
+  // !== 'regular') — those two never appear in the Team Utilization table either, since
+  // management's real value isn't hour-logged the same way regular staff's is.
+  type GapWorkEntry = { task_type?: string; start_time?: string; end_time?: string; duration_hours?: number }
+  const gapEligibleUsers = ((usersRaw ?? []) as (MemberUser & { is_management?: boolean; employment_type?: string; role?: string })[])
+    .filter(u => u.role === "MEMBER" && u.is_management !== true && u.employment_type === "regular")
+  const gapHoursByUser: Record<string, number> = {}
+  for (const row of (updatesRaw ?? []) as UpdateRow[]) {
+    if (row.date < monthStart || row.date > monthEnd) continue
+    if (!gapEligibleUsers.some(u => u.id === row.user_id)) continue
+    const entries = (row.work_entries ?? []) as GapWorkEntry[]
+    gapHoursByUser[row.user_id] = (gapHoursByUser[row.user_id] ?? 0) + calcNetWorkHours(entries as Parameters<typeof calcNetWorkHours>[0])
+  }
+  for (const c of (collabRaw ?? []) as CollabConfirmationRow[]) {
+    if (c.date < monthStart || c.date > monthEnd) continue
+    if (!gapEligibleUsers.some(u => u.id === c.collaborator_id)) continue
+    gapHoursByUser[c.collaborator_id] = (gapHoursByUser[c.collaborator_id] ?? 0) + (c.confirmed_hours ?? 0)
+  }
+  let productivityGapCost = 0
+  for (const u of gapEligibleUsers) {
+    const tracked = gapHoursByUser[u.id] ?? 0
+    const untracked = Math.max(0, MONTHLY_TARGET_HRS - tracked)
+    productivityGapCost += untracked * hourlyRateOnDate(u, monthStart, salaryHistoryRaw ?? [])
+  }
+
+  const directExpenseNames = new Set(
+    ((clientExpensesRaw ?? []) as { client_name: string }[]).map(e => e.client_name)
+  )
+
+  // Common-cost checklist — only clients actually relevant to THIS month: currently
+  // active (always shown, so you can opt one out), or a past client with real employee/
+  // direct cost this specific month (something to actually decide about). A past client
+  // with zero activity this month has nothing to decide — it must not clutter a list
+  // that has to stay usable whether there are 50 clients or 5,000.
+  const participationMap = new Map<string, boolean>(
+    ((statusHistoryRaw ?? []) as { client_id: string; included: boolean }[])
+      .map(r => [r.client_id, r.included])
+  )
+  // Internal Brands are always shown as an option — they're few and always relevant,
+  // no need to filter them by monthly activity — but whether each one actually shares
+  // common cost is still the admin's explicit call, same as any real client, not
+  // auto-excluded. Pinned first in the list since they're a fixed, known set.
+  const internalClients = allClients.filter(c => c.is_internal)
+  const relevantClients = nonInternalClients
+    .filter(c => c.status === "active" || (employeeCostByClient[c.name] ?? 0) > 0 || directExpenseNames.has(c.name))
+  const commonParticipation = [...internalClients, ...relevantClients].map(c => ({
+    id: c.id,
+    name: c.name,
+    status: c.status,
+    isInternal: c.is_internal,
+    included: participationMap.has(c.id) ? participationMap.get(c.id)! : c.status === "active",
+  }))
+
   return (
     <ExpensesClient
       updates={updatesRaw ?? []}
       users={usersRaw ?? []}
       clientExpenses={clientExpensesRaw ?? []}
       commonExpenses={commonExpensesRaw ?? []}
-      activeClients={activeClientsRaw ?? []}
+      activeClients={activeClients.map(c => ({ name: c.name }))}
+      commonParticipation={commonParticipation}
+      productivityGapCost={productivityGapCost}
       selectedMonth={monthParam}
       employeeCostByClient={employeeCostByClient}
     />

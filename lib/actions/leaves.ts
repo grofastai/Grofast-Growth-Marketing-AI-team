@@ -49,6 +49,52 @@ function parseCompanyId(accessToken: string): string | null {
   }
 }
 
+// full_day counts every calendar day in the range; half_day is always 0.5; anything
+// else (permission/wfh/shoot_day) doesn't count against the monthly cap at all.
+function leaveDayCount(leaveType: string, fromDate: string, toDate: string): number {
+  if (leaveType === 'full_day') {
+    return Math.ceil((new Date(toDate).getTime() - new Date(fromDate).getTime()) / 86400000) + 1
+  }
+  if (leaveType === 'half_day') return 0.5
+  return 0
+}
+
+// Shared by submitLeaveRequest (new request) and updateLeaveRequest (editing a still-
+// pending one) — both must check the SAME monthly cap, otherwise editing a pending
+// request is a silent backdoor around the limit a fresh submission would have hit.
+// excludeLeaveId lets an edit compare against every OTHER leave that month without
+// double-counting the very row being edited.
+async function checkMonthlyLeaveLimit(
+  adminCl: ReturnType<typeof createAdminClient>,
+  userId: string,
+  leaveType: string,
+  fromDate: string,
+  toDate: string,
+  excludeLeaveId?: string
+): Promise<string | null> {
+  if (leaveType !== 'full_day' && leaveType !== 'half_day') return null
+
+  const currentMonth = fromDate.slice(0, 7)
+  let query = adminCl
+    .from('leaves')
+    .select('from_date, to_date, leave_type')
+    .eq('user_id', userId)
+    .gte('from_date', `${currentMonth}-01`)
+    .lte('from_date', `${currentMonth}-31`)
+    .in('status', ['approved', 'pending'])
+  if (excludeLeaveId) query = query.neq('id', excludeLeaveId)
+  const { data: monthLeaves } = await query
+
+  const used = (monthLeaves ?? []).reduce(
+    (s: number, l: { from_date: string; to_date: string; leave_type: string | null }) =>
+      s + leaveDayCount(l.leave_type ?? 'full_day', l.from_date, l.to_date),
+    0
+  )
+  const thisRequestDays = leaveDayCount(leaveType, fromDate, toDate)
+  if (used + thisRequestDays > 5) return 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.'
+  return null
+}
+
 export async function submitLeaveRequest(
   _prev: { error: string } | { success: true } | null,
   formData: FormData
@@ -112,24 +158,15 @@ export async function submitLeaveRequest(
     .eq('id', effectiveUserId)
     .single()
 
-  // Monthly limit check (full_day + half_day only; permission/wfh/shoot_day excluded)
+  // Monthly limit check (full_day + half_day only; permission/wfh/shoot_day excluded).
+  // Counts THIS request's own days on top of what's already on file — not just
+  // whether the existing total alone has already hit the cap.
   const isExceptional = formData.get('is_exceptional') === 'true'
-  if (!isExceptional && (parsed.data.leave_type === 'full_day' || parsed.data.leave_type === 'half_day')) {
-    const currentMonth = parsed.data.from_date.slice(0, 7)
-    const { data: monthLeaves } = await adminCl
-      .from('leaves')
-      .select('from_date, to_date, leave_type')
-      .eq('user_id', effectiveUserId)
-      .gte('from_date', `${currentMonth}-01`)
-      .lte('from_date', `${currentMonth}-31`)
-      .in('status', ['approved', 'pending'])
-    const used = (monthLeaves ?? []).reduce((s, l) => {
-      const t = l.leave_type ?? 'full_day'
-      if (t === 'full_day') return s + (Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1)
-      if (t === 'half_day') return s + 0.5
-      return s
-    }, 0)
-    if (used >= 5) return { error: 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.' }
+  if (!isExceptional) {
+    const limitError = await checkMonthlyLeaveLimit(
+      adminCl, effectiveUserId, parsed.data.leave_type, parsed.data.from_date, parsed.data.to_date
+    )
+    if (limitError) return { error: limitError }
   }
 
   const { data: overlapping } = await adminCl
@@ -345,6 +382,18 @@ export async function updateLeaveRequest(
   if (!existing) return { error: 'Leave request not found' }
   if (existing.user_id !== user.id) return { error: 'Not authorized' }
   if (existing.status !== 'pending') return { error: 'Can only edit pending requests' }
+
+  // Same monthly cap as a fresh submission — otherwise editing a still-pending
+  // request (e.g. stretching a 1-day request to 3 days) is a silent backdoor
+  // around the limit a brand-new submission would have been blocked by.
+  const isExceptional = formData.get('is_exceptional') === 'true'
+  if (!isExceptional) {
+    const adminCl = createAdminClient()
+    const limitError = await checkMonthlyLeaveLimit(
+      adminCl, user.id, parsed.data.leave_type, parsed.data.from_date, parsed.data.to_date, leaveId
+    )
+    if (limitError) return { error: limitError }
+  }
 
   const { error } = await (supabase.from('leaves') as any)
     .update({
@@ -766,6 +815,138 @@ export async function updateLeaveStatus(
   revalidatePath('/member/dashboard')
   revalidatePath('/member/history')
   revalidatePath('/admin/activities')
+  return { success: true }
+}
+
+// Admin applying leave/permission/WFH/shoot-day directly on a member's behalf — for a day
+// that already happened and nobody applied for or logged in on, which otherwise permanently
+// locks that member's account with no self-service way out (see attendance-gate.ts). The
+// member-facing form (submitLeaveRequest) refuses any past date on purpose; this is the
+// deliberate admin-only escape hatch, so it allows past dates and skips the pending step —
+// applying it here IS the approval, there's no separate person to confirm it.
+export async function adminApplyLeaveOnBehalf(input: {
+  userId: string
+  leaveType: 'full_day' | 'half_day' | 'permission' | 'wfh' | 'shoot_day'
+  fromDate: string
+  toDate: string
+  reason: string
+  halfDayPeriod?: string
+  halfDayFromTime?: string
+  halfDayToTime?: string
+  permissionTime?: string
+  permissionEndTime?: string
+  permissionHours?: number
+}): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = createAdminClient()
+  const { data: adminUser } = await admin.from('users').select('role').eq('id', user.id).single()
+  if (adminUser?.role !== 'ADMIN') return { success: false, error: 'Admin only' }
+
+  const parsed = leaveSchema.safeParse({
+    leave_type:          input.leaveType,
+    from_date:            input.fromDate,
+    to_date:              input.toDate,
+    half_day_period:      input.halfDayPeriod,
+    half_day_from_time:   input.halfDayFromTime,
+    half_day_to_time:     input.halfDayToTime,
+    permission_hours:     input.permissionHours,
+    permission_time:      input.permissionTime,
+    permission_end_time:  input.permissionEndTime,
+    reason:               input.reason,
+  })
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+  if (parsed.data.from_date > parsed.data.to_date) return { success: false, error: 'From date must be before To date' }
+
+  const { data: target } = await admin.from('users').select('company_id, name').eq('id', input.userId).single()
+  if (!target) return { success: false, error: 'Employee not found' }
+
+  // Every calendar day in the range, inclusive
+  const datesInRange: string[] = []
+  {
+    const cur = new Date(parsed.data.from_date + 'T12:00:00')
+    const end = new Date(parsed.data.to_date   + 'T12:00:00')
+    while (cur <= end) { datesInRange.push(cur.toISOString().split('T')[0]); cur.setDate(cur.getDate() + 1) }
+  }
+
+  // Safety check: refuse if the member already logged in (has a clock_in) OR already has
+  // real work logged on any day in this range — this exists to backfill a genuinely empty
+  // gap, never to quietly overwrite something that actually happened.
+  const [{ data: attRows }, { data: updateRows }] = await Promise.all([
+    admin.from('attendance_logs').select('date, clock_in')
+      .eq('company_id', target.company_id).eq('user_id', input.userId).in('date', datesInRange),
+    admin.from('daily_updates').select('date, work_entries')
+      .eq('company_id', target.company_id).eq('user_id', input.userId).in('date', datesInRange),
+  ])
+  const loginDates = new Set(
+    (attRows ?? []).filter(a => a.clock_in).map(a => a.date as string)
+  )
+  const workDates = new Set(
+    (updateRows ?? []).filter(u => {
+      const entries = Array.isArray(u.work_entries) ? u.work_entries as { task_type?: string; _is_leave?: boolean }[] : []
+      return entries.some(e => e.task_type !== 'break' && !e._is_leave)
+    }).map(u => u.date as string)
+  )
+  const conflictDates = datesInRange.filter(d => loginDates.has(d) || workDates.has(d))
+  if (conflictDates.length) {
+    return { success: false, error: `${target.name} already has a login or work logged on ${conflictDates.join(', ')} — cannot apply leave over an existing day.` }
+  }
+
+  const { data: inserted, error: insertError } = await admin.from('leaves').insert({
+    company_id:           target.company_id,
+    user_id:              input.userId,
+    from_date:            parsed.data.from_date,
+    to_date:              parsed.data.to_date,
+    reason:               parsed.data.reason,
+    leave_type:           parsed.data.leave_type,
+    permission_hours:     parsed.data.permission_hours ?? null,
+    permission_time:      parsed.data.permission_time ?? null,
+    permission_end_time:  parsed.data.permission_end_time ?? null,
+    half_day_period:      parsed.data.half_day_period ?? null,
+    half_day_from_time:   parsed.data.half_day_from_time ?? null,
+    half_day_to_time:     parsed.data.half_day_to_time ?? null,
+    status:               'pending',
+  }).select('id').single()
+  if (insertError || !inserted) return { success: false, error: insertError?.message ?? 'Failed to create leave' }
+
+  // Reuses the exact same approval side effects (attendance placeholder, notifications,
+  // WFH/shoot auto-clock-in) as a normal admin Approve click — this is what was missed
+  // when a leave got inserted by hand straight into the table.
+  const approveResult = await updateLeaveStatus(inserted.id, 'approved')
+  if (!approveResult.success) return approveResult
+
+  // updateLeaveStatus's WFH/shoot_day auto-clock-in only fires when applied on its own
+  // start date (the attendance-page "same day" flow) — a backfilled past WFH/shoot day
+  // would otherwise get NO attendance row at all and just trade one gate for another.
+  // Give it a plain present/9:30–7:00 placeholder instead, same as any other backfilled day.
+  if (parsed.data.leave_type === 'wfh' || parsed.data.leave_type === 'shoot_day') {
+    const workType = parsed.data.leave_type === 'shoot_day' ? 'shoot' : 'wfh'
+    for (const d of datesInRange) {
+      const { data: existing } = await admin.from('attendance_logs').select('id, clock_in')
+        .eq('company_id', target.company_id).eq('user_id', input.userId).eq('date', d).maybeSingle()
+      if (!existing) {
+        await admin.from('attendance_logs').insert({
+          company_id: target.company_id, user_id: input.userId, date: d,
+          status: 'present', work_type: workType,
+          clock_in:  `${d} 04:00:00+00`, // 9:30 AM IST
+          clock_out: `${d} 13:30:00+00`, // 7:00 PM IST
+        })
+      } else if (!existing.clock_in) {
+        await admin.from('attendance_logs').update({
+          status: 'present', work_type: workType,
+          clock_in:  `${d} 04:00:00+00`,
+          clock_out: `${d} 13:30:00+00`,
+        }).eq('id', existing.id)
+      }
+    }
+  }
+
+  revalidatePath('/admin/leaves')
+  revalidatePath('/member/leaves')
+  revalidatePath('/member/dashboard')
+  revalidatePath('/member/history')
   return { success: true }
 }
 

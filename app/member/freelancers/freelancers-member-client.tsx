@@ -995,7 +995,10 @@ export default function FreelancersMemberClient({
   ]
 
   return (
-    <div style={{ ...(isEmbedded ? { flex: 1, minHeight: 0 } : { height: "100vh" }), display: "flex", flexDirection: "column", background: "#F5F6FA", overflow: "hidden" }}>
+    <div
+      className={(isEmbedded ? "flex-1 min-h-0" : "md:h-screen") + " md:overflow-hidden"}
+      style={{ display: "flex", flexDirection: "column", background: "#F5F6FA" }}
+    >
 
       {/* Hero — admin embeds this component inside its own gradient hero already, so skip it here to avoid stacking two */}
       {!isEmbedded && (
@@ -1047,10 +1050,10 @@ export default function FreelancersMemberClient({
       </div>
 
       {/* Two-panel body */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div className="md:overflow-hidden" style={{ flex: 1, display: "flex" }}>
 
         {/* LEFT panel */}
-        {!hideLeftPanel && <div className={mobileView === 'detail' ? 'hidden md:flex md:flex-col' : 'flex flex-col'} style={{ width: "100%", maxWidth: 276, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", overflow: "hidden" }}>
+        {!hideLeftPanel && <div className={(mobileView === 'detail' ? 'hidden md:flex md:flex-col' : 'flex flex-col') + ' md:overflow-hidden'} style={{ width: "100%", maxWidth: 276, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB" }}>
           <div style={{ borderBottom: "1px solid #F5F5F7", padding: "8px 10px", display: "flex", gap: 4, flexWrap: "wrap", flexShrink: 0, alignItems: "center", overflowX: "auto" }}>
             <button onClick={() => { setTeamFilter("all"); setSelectedId(null); setMobileView("detail") }} style={{ padding: "6px 12px", borderRadius: 10, fontSize: 12, fontWeight: 700, border: `1.5px solid ${teamFilter === "all" && !selectedId ? "#111" : "#E5E7EB"}`, cursor: "pointer", background: teamFilter === "all" && !selectedId ? "#111" : "#FFFFFF", color: teamFilter === "all" && !selectedId ? "#fff" : "#374151", transition: "all 0.15s", flexShrink: 0, boxShadow: teamFilter === "all" && !selectedId ? "0 2px 8px rgba(0,0,0,0.15)" : "none" }}>
               All Members
@@ -1064,7 +1067,7 @@ export default function FreelancersMemberClient({
               )
             })}
           </div>
-          <div style={{ flex: 1, overflowY: "auto" }}>
+          <div className="md:overflow-y-auto" style={{ flex: 1 }}>
             {filteredFreelancers.map(f => {
               const fEntries = entriesByFreelancer[f.id] ?? []
               const fTotal = fEntries.reduce((s, e) => s + (e.amount ?? 0), 0)
@@ -1083,7 +1086,7 @@ export default function FreelancersMemberClient({
         </div>}
 
         {/* RIGHT panel */}
-        <div className={!hideLeftPanel && mobileView === 'list' ? 'hidden md:flex md:flex-col md:flex-1' : 'flex flex-col flex-1'} style={{ overflowY: "auto" }}>
+        <div className={(!hideLeftPanel && mobileView === 'list' ? 'hidden md:flex md:flex-col md:flex-1' : 'flex flex-col flex-1') + ' md:overflow-y-auto'}>
           {/* Mobile back button — only shown when in detail view on mobile */}
           {!hideLeftPanel && mobileView === 'detail' && (
             <button className="md:hidden flex items-center gap-2 px-4 py-3 border-b border-gray-100 bg-white flex-shrink-0"

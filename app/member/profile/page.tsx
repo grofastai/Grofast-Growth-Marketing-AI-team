@@ -6,6 +6,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import ProfileClient from "./profile-client"
 import { getMyPayslipHistory } from "@/lib/actions/profile"
+import { todayIST, nowISTShifted } from "@/lib/utils/ist-date"
 
 function adminClient() {
   return createClient(
@@ -24,19 +25,22 @@ export default async function ProfilePage() {
   const effectiveUserId = impersonateId ?? user.id
 
   // ── Date helpers ─────────────────────────────────────────────
-  const todayDt  = new Date()
-  const today    = todayDt.toISOString().split("T")[0]
+  // nowISTShifted() reads as IST wall-clock time via its UTC getters — plain new Date()
+  // reads the server's own clock (UTC on Vercel), wrong for "today"/"this week" during
+  // the 00:00-05:30 IST window every day.
+  const todayDt  = nowISTShifted()
+  const today    = todayIST()
 
   // Last 7 days inclusive (today-6 … today)
   const day7Start = new Date(todayDt)
-  day7Start.setDate(day7Start.getDate() - 6)
+  day7Start.setUTCDate(day7Start.getUTCDate() - 6)
   const sevenDaysAgo = day7Start.toISOString().split("T")[0]
 
   // This week Mon → today
-  const dow = todayDt.getDay() // 0=Sun
+  const dow = todayDt.getUTCDay() // 0=Sun
   const diffMon = dow === 0 ? -6 : 1 - dow
   const weekMon = new Date(todayDt)
-  weekMon.setDate(todayDt.getDate() + diffMon)
+  weekMon.setUTCDate(todayDt.getUTCDate() + diffMon)
   const weekStart = weekMon.toISOString().split("T")[0]
 
   // ── Types ─────────────────────────────────────────────────────
@@ -140,9 +144,9 @@ export default async function ProfilePage() {
   // 7-day chart data: build array for each of last 7 days
   const sevenDayChart = Array.from({ length: 7 }).map((_, i) => {
     const dt = new Date(day7Start)
-    dt.setDate(day7Start.getDate() + i)
+    dt.setUTCDate(day7Start.getUTCDate() + i)
     const dateStr  = dt.toISOString().split("T")[0]
-    const dayLabel = dt.toLocaleDateString("en-US", { weekday: "short" })
+    const dayLabel = dt.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })
     const entry    = allUpdates.find(u => u.date === dateStr)
     const hours    = (entry?.working_hours ?? 0) + (collabByDate.get(dateStr) ?? 0)
     return { date: dateStr, label: dayLabel, hours, isFuture: dateStr > today }

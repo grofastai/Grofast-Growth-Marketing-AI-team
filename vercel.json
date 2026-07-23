@@ -71,14 +71,6 @@
       "path": "/api/cron/auto-absent",
       "schedule": "30 18 * * *"
     },
-    { "path": "/api/cron/sync-clients", "schedule": "30 1 * * *" },
-    { "path": "/api/cron/sync-clients", "schedule": "30 3 * * *" },
-    { "path": "/api/cron/sync-clients", "schedule": "30 5 * * *" },
-    { "path": "/api/cron/sync-clients", "schedule": "30 7 * * *" },
-    { "path": "/api/cron/sync-clients", "schedule": "30 9 * * *" },
-    { "path": "/api/cron/sync-clients", "schedule": "30 11 * * *" },
-    { "path": "/api/cron/sync-clients", "schedule": "30 13 * * *" },
-    { "path": "/api/cron/sync-clients", "schedule": "30 18 * * *" },
     { "path": "/api/cron/db-backup", "schedule": "30 3 * * 0" }
   ]
 }

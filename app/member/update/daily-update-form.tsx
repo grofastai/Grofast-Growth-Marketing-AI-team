@@ -6,7 +6,7 @@ import Image from "next/image"
 import {
   Camera, Film, Plus, Trash2, CheckCircle2,
   Loader2, SendHorizonal, Clock, BookOpen, Coffee,
-  ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal, Calendar, X,
+  ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal, Calendar, X, Lock,
 } from "lucide-react"
 import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
 import { buildClientOptions } from "@/lib/utils/client-options"
@@ -96,7 +96,7 @@ function TimePicker({ value, onChange, allowEmpty, style: extraStyle }: { value:
   )
 }
 function calcDuration(start: string, end: string) {
-  if (!start || !end) return 0
+  if (!start || !end || start === end) return 0
   const [sh, sm] = start.split(":").map(Number)
   const [eh, em] = end.split(":").map(Number)
   let diff = (eh * 60 + em) - (sh * 60 + sm)
@@ -219,6 +219,11 @@ function fmtTravel(h: number) {
 }
 
 const DRAFT_KEY = "gf_daily_update_draft"
+// Remembers the last gate-locked date the member has already been shown the
+// "this is a past date, not today" popup for — so a new locked date (e.g. the
+// gate moving from one unfiled day to the next after the first is filed) pops
+// up again, but re-opening/refreshing on the SAME locked date doesn't nag twice.
+const LOCKED_POPUP_SEEN_KEY = "gf_locked_gap_popup_seen"
 function getTodayStr() { return new Date().toLocaleDateString("en-CA") }
 function loadDraft(): TimeBlock[] {
   try {
@@ -282,10 +287,11 @@ function newLearningBlock(): LearningBlock {
   return { id: crypto.randomUUID(), client: "", topic: "", from: "09:00", to: "09:00", notes: "" }
 }
 function calcLearningHours(from: string, to: string): number {
-  if (!from || !to) return 0
+  if (!from || !to || from === to) return 0
   const [fh, fm] = from.split(":").map(Number)
   const [th, tm] = to.split(":").map(Number)
-  const diff = (th * 60 + tm) - (fh * 60 + fm)
+  let diff = (th * 60 + tm) - (fh * 60 + fm)
+  if (diff <= 0) diff += 1440 // crosses midnight into the next day
   return diff > 0 ? Math.round(diff / 60 * 100) / 100 : 0
 }
 function parseExistingLearningBlocks(existingUpdate: Record<string, unknown>): LearningBlock[] {
@@ -543,7 +549,7 @@ function clampDate(v: string) { if (!v) return v; const [yr = '', mo = '', dy = 
 
 export default function DailyUpdateForm({
   projects, sheetClientNames = [], pastClientNames = [], userName, team, workLayout, enabledBlocks, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
-  todayClockedIn = true, requiresClockIn = false, defaultDate, activeLeavesList = [], collabWindows = [],
+  todayClockedIn = true, requiresClockIn = false, defaultDate, lockedDate, activeLeavesList = [], collabWindows = [],
 }: {
   projects: Project[]; sheetClientNames?: string[]; pastClientNames?: string[]; userName: string; team?: string | null
   workLayout?: 'media' | 'non_media' | 'freelance_media'
@@ -551,6 +557,9 @@ export default function DailyUpdateForm({
   existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
   teamMembers?: TeamMember[]; approvedLeaveDates?: string[]
   todayClockedIn?: boolean; requiresClockIn?: boolean; defaultDate?: string
+  // When set, there's an older unfiled day pending — the date picker locks to exactly
+  // this date so it can't be switched away to dodge it (GF011, 2026-07-18).
+  lockedDate?: string
   activeLeavesList?: ActiveLeave[]
   collabWindows?: CollabWindow[]
 }) {
@@ -583,8 +592,22 @@ export default function DailyUpdateForm({
   const isToday = selectedDate === todayStr
   const isPastDate = !isToday
 
+  // One-time popup for a gate-locked date — see LOCKED_POPUP_SEEN_KEY above.
+  const [showLockedPopup, setShowLockedPopup] = useState(false)
+  useEffect(() => {
+    if (!lockedDate) { setShowLockedPopup(false); return }
+    let seen: string | null = null
+    try { seen = localStorage.getItem(LOCKED_POPUP_SEEN_KEY) } catch { /* ignore */ }
+    setShowLockedPopup(seen !== lockedDate)
+  }, [lockedDate])
+  function dismissLockedPopup() {
+    if (lockedDate) { try { localStorage.setItem(LOCKED_POPUP_SEEN_KEY, lockedDate) } catch { /* ignore */ } }
+    setShowLockedPopup(false)
+  }
+
   function handleDateChange(date: string) {
     if (date > todayStr) return
+    if (lockedDate && date !== lockedDate) return
     setSelectedDate(date)
 
     let found: Record<string, unknown> | null = null
@@ -957,7 +980,7 @@ export default function DailyUpdateForm({
     for (let i = 0; i < filledBlocks.length; i++) {
       const b = filledBlocks[i]
       const label = filledBlocks.length > 1 ? `Block ${i + 1}: ` : ""
-      if (!b.startTime || !b.endTime || toMins(b.endTime) <= toMins(b.startTime)) {
+      if (!b.startTime || !b.endTime || b.endTime === b.startTime) {
         setWorkingError(`${label}End time must be after start time.`); return
       }
       if (!b.description.trim()) {
@@ -994,7 +1017,7 @@ export default function DailyUpdateForm({
       if (!v.title.trim()) { setWorkingError(`${label}Enter a script name.`); return }
       if (!v.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!v.endTime)   { setWorkingError(`${label}Enter end time.`); return }
-      if (toMins(v.endTime) <= toMins(v.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+      if (v.endTime === v.startTime) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
     // Poster mandatory: client, title, start time, end time
@@ -1006,7 +1029,7 @@ export default function DailyUpdateForm({
       if (!p.title.trim()) { setWorkingError(`${label}Enter a poster name.`); return }
       if (!p.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!p.endTime)   { setWorkingError(`${label}Enter end time.`); return }
-      if (toMins(p.endTime) <= toMins(p.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+      if (p.endTime === p.startTime) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
     // Scripting mandatory: client, title, start time, end time
@@ -1017,7 +1040,7 @@ export default function DailyUpdateForm({
       if (!s.title.trim()) { setWorkingError(`${label}Enter a script title.`); return }
       if (!s.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!s.endTime)   { setWorkingError(`${label}Enter end time.`); return }
-      if (toMins(s.endTime) <= toMins(s.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+      if (s.endTime === s.startTime) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
     // Development mandatory: client, project, sub-title, start/end time
@@ -1029,7 +1052,7 @@ export default function DailyUpdateForm({
       if (!d.subtitle.trim()) { setWorkingError(`${label}Enter what you worked on today.`); return }
       if (!d.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!d.endTime)   { setWorkingError(`${label}Enter end time.`); return }
-      if (toMins(d.endTime) <= toMins(d.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+      if (d.endTime === d.startTime) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
     // Editing (non-media) mandatory: client, video name, video type, start/end time
@@ -1042,7 +1065,7 @@ export default function DailyUpdateForm({
       if (!n.videoType || n.videoType === "") { setWorkingError(`${label}Select a video type.`); return }
       if (!n.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!n.endTime)   { setWorkingError(`${label}Enter end time.`); return }
-      if (toMins(n.endTime) <= toMins(n.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+      if (n.endTime === n.startTime) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
     const work_entries = [
@@ -1201,7 +1224,7 @@ export default function DailyUpdateForm({
       if (!s.clientName || s.clientName === "") { setError(`${label}Select a client.`); return }
       if (!s.title.trim()) { setError(`${label}Enter a shoot name.`); return }
       if (!s.startTime || !s.endTime) { setError(`${label}Set start and end time.`); return }
-      if (toMins(s.endTime) <= toMins(s.startTime)) { setError(`${label}End time must be after start time.`); return }
+      if (s.endTime === s.startTime) { setError(`${label}End time must be after start time.`); return }
     }
     for (let i = 0; i < edits.length; i++) {
       const e = edits[i]
@@ -1215,7 +1238,7 @@ export default function DailyUpdateForm({
       if (e.revisions === null || e.revisions === undefined || isNaN(Number(e.revisions)) || !Number.isInteger(Number(e.revisions)) || Number(e.revisions) < 0) { setError(`${label}Revisions must be a whole number (0, 1, 2…).`); return }
       if (e.hooksCompleted === null || e.hooksCompleted === undefined || isNaN(Number(e.hooksCompleted)) || !Number.isInteger(Number(e.hooksCompleted)) || Number(e.hooksCompleted) < 0) { setError(`${label}Hooks Completed must be a whole number (0, 1, 2…).`); return }
       if (!e.startTime || !e.endTime) { setError(`${label}Set start and end time.`); return }
-      if (toMins(e.endTime) <= toMins(e.startTime)) { setError(`${label}End time must be after start time.`); return }
+      if (e.endTime === e.startTime) { setError(`${label}End time must be after start time.`); return }
       if (!e.videoLink?.trim()) { setError(`${label}Add the Drive / Video link.`); return }
     }
 
@@ -1301,7 +1324,7 @@ export default function DailyUpdateForm({
         return setEntryErrors(p => ({ ...p, [entryId]: "Enter a shoot name before saving." }))
       if (!shootEntry.startTime || !shootEntry.endTime)
         return setEntryErrors(p => ({ ...p, [entryId]: "Set start and end time before saving." }))
-      if (toMins(shootEntry.endTime) <= toMins(shootEntry.startTime))
+      if (shootEntry.endTime === shootEntry.startTime)
         return setEntryErrors(p => ({ ...p, [entryId]: "End time must be after start time." }))
       // Overlap check against all other shoots and edits
       const otherShoots = shoots.filter(s => s.id !== entryId)
@@ -1329,7 +1352,7 @@ export default function DailyUpdateForm({
         return setEntryErrors(p => ({ ...p, [entryId]: "Set the Date Finished before saving." }))
       if (!editEntry.startTime || !editEntry.endTime)
         return setEntryErrors(p => ({ ...p, [entryId]: "Set start and end time before saving." }))
-      if (toMins(editEntry.endTime) <= toMins(editEntry.startTime))
+      if (editEntry.endTime === editEntry.startTime)
         return setEntryErrors(p => ({ ...p, [entryId]: "End time must be after start time." }))
       if (!editEntry.videoDuration)
         return setEntryErrors(p => ({ ...p, [entryId]: "Select the video length (e.g. 30 sec, 1 min) before saving." }))
@@ -1402,6 +1425,7 @@ export default function DailyUpdateForm({
   // ── Submit: learning ─────────────────────────────────────────────────────
   function handleLearningSubmit() {
     setLearningError(null)
+    if (requiresClockIn && !todayClockedIn && selectedDate === todayStr) { setLearningError("Please clock in on the Attendance page before submitting today's work log."); return }
     for (let i = 0; i < learningBlocks.length; i++) {
       const b = learningBlocks[i]
       const hasAny = b.client.trim() || b.topic.trim() || calcLearningHours(b.from, b.to) > 0
@@ -1419,7 +1443,7 @@ export default function DailyUpdateForm({
       if (!o.title.trim()) { setLearningError(`${label}Enter a title.`); return }
       if (!o.startTime) { setLearningError(`${label}Enter start time.`); return }
       if (!o.endTime)   { setLearningError(`${label}Enter end time.`); return }
-      if (toMins(o.endTime) <= toMins(o.startTime)) { setLearningError(`${label}End time must be after start time.`); return }
+      if (o.endTime === o.startTime) { setLearningError(`${label}End time must be after start time.`); return }
     }
     if (filledLearningBlocks.length === 0 && others.length === 0) {
       setLearningError("Add at least one learning block or other activity."); return
@@ -1470,6 +1494,7 @@ export default function DailyUpdateForm({
 
   function handleBreakSubmit() {
     setError(null)
+    if (requiresClockIn && !todayClockedIn && selectedDate === todayStr) { setError("Please clock in on the Attendance page before submitting today's work log."); return }
     const breaks = isMediaTeam ? mediaBreaks : nonMediaBreaks
     if (breaks.length === 0) { setError("Add at least one break."); return }
     for (let i = 0; i < breaks.length; i++) {
@@ -1637,11 +1662,19 @@ export default function DailyUpdateForm({
             <p style={{ fontSize:13, fontWeight:800, color: isPastDate ? "#D97706" : "#111827", margin:0 }}>{dateLabel}</p>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            {isPastDate && <button onClick={() => handleDateChange(todayStr)} style={{ fontSize:11, fontWeight:700, padding:"5px 12px", borderRadius:8, border:"1.5px solid #DE1A1A", background:"rgba(222,26,26,0.06)", color:"#DE1A1A", cursor:"pointer" }}>Back to Today</button>}
-            <label style={{ fontSize:11, fontWeight:700, color:"#6B7280", display:"flex", alignItems:"center", gap:6, cursor:"pointer" }}>
-              <span style={{ whiteSpace:"nowrap" }}>{isPastDate ? "Change date" : "Pick past date"}</span>
-              <input type="date" value={selectedDate} max={todayStr} min="2025-01-01" onChange={e => e.target.value && handleDateChange(e.target.value)} style={{ fontSize:12, fontWeight:600, color:"#374151", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }} />
-            </label>
+            {lockedDate ? (
+              <span style={{ fontSize:11, fontWeight:700, padding:"5px 12px", borderRadius:8, background:"rgba(217,119,6,0.1)", color:"#D97706", display:"flex", alignItems:"center", gap:6 }}>
+                <Lock size={11} /> Locked to this day until filed
+              </span>
+            ) : (
+              <>
+                {isPastDate && <button onClick={() => handleDateChange(todayStr)} style={{ fontSize:11, fontWeight:700, padding:"5px 12px", borderRadius:8, border:"1.5px solid #DE1A1A", background:"rgba(222,26,26,0.06)", color:"#DE1A1A", cursor:"pointer" }}>Back to Today</button>}
+                <label style={{ fontSize:11, fontWeight:700, color:"#6B7280", display:"flex", alignItems:"center", gap:6, cursor:"pointer" }}>
+                  <span style={{ whiteSpace:"nowrap" }}>{isPastDate ? "Change date" : "Pick past date"}</span>
+                  <input type="date" value={selectedDate} max={todayStr} min="2025-01-01" onChange={e => e.target.value && handleDateChange(e.target.value)} style={{ fontSize:12, fontWeight:600, color:"#374151", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }} />
+                </label>
+              </>
+            )}
           </div>
         </div>
 
@@ -1935,6 +1968,26 @@ export default function DailyUpdateForm({
           </label>
         </div>
       </div>
+
+      {/* ── LOCKED PAST-DATE POPUP (shown once per newly-locked date) ────── */}
+      {showLockedPopup && lockedDate && (
+        <div style={{ position:"fixed", inset:0, zIndex:10000, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(10,8,6,0.5)", padding:"0 22px" }}>
+          <div style={{ background:"#fff", borderRadius:20, padding:"22px 20px 18px", textAlign:"center", width:"100%", maxWidth:320, boxShadow:"0 24px 60px rgba(0,0,0,0.35)", animation:"gf-pop 0.3s cubic-bezier(0.34,1.56,0.64,1)" }}>
+            <style>{`@keyframes gf-pop{from{opacity:0;transform:scale(0.7)}to{opacity:1;transform:scale(1)}}`}</style>
+            <div style={{ width:52, height:52, borderRadius:16, margin:"0 auto 12px", background:"linear-gradient(135deg,#F59E0B,#B45309)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <p style={{ fontSize:15, fontWeight:900, margin:"0 0 6px", color:"#111827" }}>This is {dateLabel.split(",")[0]}, not today</p>
+            <p style={{ fontSize:12, color:"#6B7280", lineHeight:1.55, margin:"0 0 16px" }}>
+              You have no work logged for {dateLabel}. Fill it in to unlock today&apos;s update.
+            </p>
+            <button onClick={dismissLockedPopup}
+              style={{ width:"100%", padding:11, borderRadius:11, border:"none", background:"#DE1A1A", color:"#fff", fontWeight:800, fontSize:13, cursor:"pointer" }}>
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── SUCCESS POPUP (all dates, all tabs) ─────────────────────────── */}
       {successPopup && (

@@ -48,9 +48,16 @@ export async function findUnresolvedLogoutDate(
 // Neither is a break entry on its own — logging a single "Lunch Break" and nothing
 // else is a real, repeated pattern (GF009: 2026-07-02, -07, -14) for dodging this
 // check without reporting any actual work.
+// hasCollabCredit: a confirmed collaboration_confirmations row for this date — being
+// credited as a helper on someone else's shoot is real recorded work even though it
+// never touches this member's own work_entries. Without this, a member whose entire
+// day was covered by a collab credit (plus leave for the rest) gets wrongly flagged
+// as having filed nothing.
 export function hasFiledUpdate(
-  update: { work_entries?: unknown; learning_hours?: number | string | null } | null | undefined
+  update: { work_entries?: unknown; learning_hours?: number | string | null } | null | undefined,
+  hasCollabCredit = false
 ): boolean {
+  if (hasCollabCredit) return true
   if (!update) return false
   const entries = Array.isArray(update.work_entries) ? update.work_entries : []
   if (entries.some(e => {
@@ -74,11 +81,12 @@ export const UPDATE_LOOKBACK_DAYS = 60
 export function pickUnfiledDate(
   workedDates: string[],
   updatesByDate: Map<string, GateUpdateRow>,
-  leaveDates: Set<string>
+  leaveDates: Set<string>,
+  collabDates: Set<string> = new Set()
 ): string | null {
   for (const date of workedDates) {
     if (leaveDates.has(date)) continue
-    if (!hasFiledUpdate(updatesByDate.get(date))) return date
+    if (!hasFiledUpdate(updatesByDate.get(date), collabDates.has(date))) return date
   }
   return null
 }
@@ -128,7 +136,16 @@ export async function findUnfiledUpdateDate(
     (updates ?? []).map(u => [u.date as string, u as GateUpdateRow])
   )
 
-  return pickUnfiledDate(workedDates, updatesByDate, new Set())
+  const { data: collabRows } = await admin
+    .from('collaboration_confirmations')
+    .select('date')
+    .eq('company_id', companyId)
+    .eq('collaborator_id', userId)
+    .in('status', ['confirmed', 'edited_confirmed'])
+    .in('date', workedDates)
+  const collabDates = new Set((collabRows ?? []).map(r => r.date as string))
+
+  return pickUnfiledDate(workedDates, updatesByDate, new Set(), collabDates)
 }
 
 export function formatGateDate(date: string): string {

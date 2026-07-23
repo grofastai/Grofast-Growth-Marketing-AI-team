@@ -3,8 +3,6 @@ export const dynamic = 'force-dynamic'
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
-import { fetchSheetClients, stripFinancialFields } from '@/lib/google/sheets'
-import { syncSheetClientsToSupabase } from '@/lib/actions/clients'
 import {
   computeDeliverables,
   type MemberUser,
@@ -30,11 +28,18 @@ export type ClientRow = {
   name: string
   industry: string | null
   location: string | null
-  service: string | null
   package_name: string | null
   status: string
   contact_name: string | null
+  period: string | null
+  phone: string | null
+  email: string | null
+  is_internal: boolean
+  serviceIds: string[]
+  serviceNames: string[]
 }
+
+export type ServiceOption = { id: string; name: string }
 
 function lastDayOfMonth(year: number, month: number): string {
   return new Date(year, month, 0).toISOString().split('T')[0]
@@ -43,9 +48,9 @@ function lastDayOfMonth(year: number, month: number): string {
 export default async function ClientsUnifiedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ client?: string; mode?: string; period?: string; from?: string; to?: string }>
+  searchParams: Promise<{ client?: string; mode?: string; period?: string; from?: string; to?: string; search?: string }>
 }) {
-  const { client: selectedClient, mode: rawMode, period: rawPeriod, from: rawFrom, to: rawTo } = await searchParams
+  const { client: selectedClient, mode: rawMode, period: rawPeriod, from: rawFrom, to: rawTo, search: initialSearch } = await searchParams
 
   const todayStr = todayIST()
   const mode: 'month' | 'all' | 'custom' =
@@ -91,80 +96,70 @@ export default async function ClientsUnifiedPage({
 
   const cid = profile.company_id
 
-  // ── Always: fetch client list ──────────────────────────────────────────────
-  const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
-  const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
-  const pastGid  = process.env.GOOGLE_PAST_CLIENTS_SHEET_GID
-
-  const INTERNAL_BRAND_ROWS: ClientRow[] = [
-    { id: 'grofast-digital',  name: 'GROFAST DIGITAL',  industry: 'Internal Brand', location: null, service: null, package_name: null, status: 'active', contact_name: null },
-    { id: 'grofast-ai',       name: 'GROFAST AI',        industry: 'Internal Brand', location: null, service: null, package_name: null, status: 'active', contact_name: null },
-    { id: 'karthick-brands',  name: 'KARTHICK BRANDS',   industry: 'Internal Brand', location: null, service: null, package_name: null, status: 'active', contact_name: null },
-  ]
-
-  let activeClients: ClientRow[] = []
-  let pastClients:   ClientRow[] = []
-
-  if (sheetId) {
-    const [rawActive, rawPast] = await Promise.all([
-      fetchSheetClients(sheetId, sheetGid).catch(() => []),
-      pastGid ? fetchSheetClients(sheetId, pastGid).catch(() => []) : Promise.resolve([]),
-    ])
-    const stripped     = stripFinancialFields(rawActive)
-    const strippedPast = stripFinancialFields(rawPast)
-
-    const toRow = (c: (typeof stripped)[0], status: string): ClientRow => ({
-      id:           (c.company_name || c.customer_name).toLowerCase().replace(/\s+/g, '-'),
-      name:         (c.company_name || c.customer_name).trim().replace(/\s+/g, ' '),
-      industry:     c.industry     || null,
-      location:     c.place        || null,
-      service:      c.service      || null,
-      package_name: c.package_name || null,
-      status,
-      contact_name: c.customer_name || null,
-    })
-
-    const sheetActive = stripped.filter(c => c.company_name || c.customer_name).map(c => toRow(c, 'active'))
-    const sheetPast   = strippedPast.filter(c => c.company_name || c.customer_name).map(c => toRow(c, 'past'))
-
-    const internalIds = new Set(INTERNAL_BRAND_ROWS.map(r => r.id))
-    activeClients = [...INTERNAL_BRAND_ROWS, ...sheetActive.filter(c => !internalIds.has(c.id))]
-    pastClients   = sheetPast
-
-    syncSheetClientsToSupabase(
-      cid,
-      activeClients.map(c => ({ name: c.name, industry: c.industry ?? undefined, location: c.location ?? undefined, service: c.service ?? undefined, package_name: c.package_name ?? undefined })),
-      pastClients.map(c => ({ name: c.name, industry: c.industry ?? undefined, location: c.location ?? undefined, service: c.service ?? undefined, package_name: c.package_name ?? undefined })),
-    ).catch(() => {})
-  } else {
-    const { data: dbRows } = await admin
+  // ── Fetch client list — the database is the only source of truth now, no more
+  // Google Sheet dependency. Internal Brands are real rows (is_internal = true),
+  // not hardcoded — rename, add, or remove them the same way as any client.
+  const [{ data: dbRows }, { data: serviceOptionsRaw }] = await Promise.all([
+    admin
       .from('clients')
-      .select('id, name, industry, location, service, package_name, status, contact_name')
+      .select('id, name, industry, location, package_name, status, contact_name, period, phone, email, is_internal, client_services(service_option_id, service_options(name))')
       .eq('company_id', cid)
-      .order('name')
-    const dbActive = ((dbRows ?? []) as ClientRow[]).filter(c => c.status === 'active')
-    const internalIds = new Set(INTERNAL_BRAND_ROWS.map(r => r.id))
-    activeClients = [...INTERNAL_BRAND_ROWS, ...dbActive.filter(c => !internalIds.has(c.id))]
-    pastClients   = ((dbRows ?? []) as ClientRow[]).filter(c => c.status !== 'active')
+      .order('name'),
+    admin
+      .from('service_options')
+      .select('id, name')
+      .eq('company_id', cid)
+      .order('name'),
+  ])
+
+  const serviceOptions: ServiceOption[] = serviceOptionsRaw ?? []
+
+  type DbRow = {
+    id: string; name: string; industry: string | null; location: string | null
+    package_name: string | null; status: string; contact_name: string | null
+    period: string | null; phone: string | null; email: string | null; is_internal: boolean
+    client_services: { service_option_id: string; service_options: { name: string } | { name: string }[] | null }[] | null
   }
 
+  const allRows: ClientRow[] = ((dbRows ?? []) as DbRow[]).map(r => {
+    const services = r.client_services ?? []
+    return {
+      id: r.id, name: r.name, industry: r.industry, location: r.location,
+      package_name: r.package_name, status: r.status, contact_name: r.contact_name,
+      period: r.period, phone: r.phone, email: r.email, is_internal: r.is_internal,
+      serviceIds: services.map(s => s.service_option_id),
+      serviceNames: services.flatMap(s => {
+        const opt = s.service_options
+        if (!opt) return []
+        return Array.isArray(opt) ? opt.map(o => o.name) : [opt.name]
+      }),
+    }
+  })
+  const activeClients: ClientRow[] = allRows.filter(c => c.status === 'active')
+  const pastClients:   ClientRow[] = allRows.filter(c => c.status !== 'active')
+
   // ── Virtual aggregate clients ─────────────────────────────────────────────
-  const regularActive = activeClients.filter(c => c.industry !== 'Internal Brand')
-  const internalBrands = activeClients.filter(c => c.industry === 'Internal Brand')
+  const regularActive = activeClients.filter(c => !c.is_internal)
+  const internalBrands = activeClients.filter(c => c.is_internal)
+
+  const virtualRow = (id: string, name: string, industry: string, location: string, status: string): ClientRow => ({
+    id, name, industry, location, package_name: null, status, contact_name: null,
+    period: null, phone: null, email: null, is_internal: false, serviceIds: [], serviceNames: [],
+  })
 
   const VIRTUAL_CLIENTS: Record<string, { row: ClientRow; filter: string[] | null; isInternal: boolean }> = {
     '__all_active__': {
-      row: { id: '__all_active__', name: 'All Active Clients', industry: '__virtual__', location: `${regularActive.length} clients`, service: null, package_name: null, status: 'active', contact_name: null },
+      row: virtualRow('__all_active__', 'All Active Clients', '__virtual__', `${regularActive.length} clients`, 'active'),
       filter: regularActive.map(c => c.name),
       isInternal: false,
     },
     '__all_past__': {
-      row: { id: '__all_past__', name: 'All Past Clients', industry: '__virtual__', location: `${pastClients.length} clients`, service: null, package_name: null, status: 'past', contact_name: null },
+      row: virtualRow('__all_past__', 'All Past Clients', '__virtual__', `${pastClients.length} clients`, 'past'),
       filter: pastClients.map(c => c.name),
       isInternal: false,
     },
     '__internal__': {
-      row: { id: '__internal__', name: 'All Internal Brands', industry: '__virtual_internal__', location: `${internalBrands.length} brands`, service: null, package_name: null, status: 'active', contact_name: null },
+      row: virtualRow('__internal__', 'All Internal Brands', '__virtual_internal__', `${internalBrands.length} brands`, 'active'),
       // "Internal" is the generic client_name fallback saved by Technical/Other entries
       // with no specific client picked — must match here too, or that work silently
       // never shows up in this view at all.
@@ -275,9 +270,11 @@ export default async function ClientsUnifiedPage({
     <ClientsUnifiedClient
       activeClients={activeClients}
       pastClients={pastClients}
+      serviceOptions={serviceOptions}
       selectedClientName={selectedClient ?? null}
       selectedClientRow={selectedClientRow}
       deliverables={deliverables}
+      initialSearch={initialSearch ?? ''}
 
       mode={mode}
       period={period}

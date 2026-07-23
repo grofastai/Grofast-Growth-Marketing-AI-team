@@ -184,6 +184,11 @@ export async function submitLeaveRequest(
       ? overlapping.filter(l => l.leave_type !== 'permission')
       : overlapping
     if (blocking.length > 0) {
+      // WFH is a work arrangement, not an absence — point to the actual fix
+      // (withdraw that WFH date first) instead of a dead-end message.
+      if (blocking.every(l => l.leave_type === 'wfh')) {
+        return { error: 'That date is part of an approved WFH request. Withdraw WFH for that date on the Leaves page, then re-apply.' }
+      }
       return { error: parsed.data.leave_type === 'permission'
         ? 'You already have a full-day or half-day leave on that date.'
         : 'You already have a leave request for those dates.' }

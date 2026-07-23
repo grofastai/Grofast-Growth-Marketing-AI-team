@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import ActivitiesClient from "./activities-client"
 import { todayIST } from "@/lib/utils/ist-date"
+import { listTeams } from "@/lib/actions/teams"
 
 function adminSupabase() {
   return createClient(
@@ -37,6 +38,7 @@ export default async function ActivitiesPage({
     .single()
 
   const companyId = profile?.company_id ?? ""
+  const teams = await listTeams()
 
   const [
     { data: members },
@@ -166,6 +168,7 @@ export default async function ActivitiesPage({
       collabHoursMap={collabHoursMap}
       pendingLeaves={pendingLeavesRaw ?? []}
       pendingCollabs={pendingCollabsRaw ?? []}
+      teams={teams}
     />
   )
 }

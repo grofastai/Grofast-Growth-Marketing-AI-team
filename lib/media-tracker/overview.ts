@@ -4,7 +4,7 @@
 
 export type OverviewStatus =
   | 'scripting' | 'voiceover' | 'design' | 'ready_to_edit'
-  | 'edited' | 'on_review' | 'ready_to_post' | 'posted' | 'cancelled'
+  | 'on_review' | 'branding_ready' | 'ads_ready' | 'posted' | 'cancelled'
 export type OverviewShootStatus = 'scheduled' | 'completed' | 'cancelled'
 export type OverviewAdStatus = 'active' | 'testing' | 'paused' | 'stopped'
 
@@ -18,7 +18,6 @@ export type OverviewItem = {
   shot_date: string | null
   voiceover_date: string | null
   created_at: string
-  scheduled_post_date: string | null
   corrections: { correction_date: string }[]
 }
 export type OverviewShoot = { id: string; status: OverviewShootStatus; start_time: string; created_at: string }
@@ -33,17 +32,19 @@ export type OverviewInput = {
   today: string // YYYY-MM-DD
   // Scopes the stage-count blocks (videos/posters/shoots/ads) to items created in this
   // window. Posting and attention stay unfiltered — those are about right-now urgency,
-  // not a reporting window, so a past date range shouldn't hide an overdue post.
+  // not a reporting window, so a past date range shouldn't hide a waiting-to-post item.
   range?: OverviewDateRange | null
 }
 
 export type StageCounts = Record<OverviewStatus, number>
-export type PostingCounts = { dueToday: number; dueThisWeek: number; overdue: number }
+// The lane is decided at On Review now, not by a scheduled date — so "posting" is just
+// how many are sitting in each Ready lane, waiting for someone to actually post them.
+export type PostingCounts = { brandingWaiting: number; adsWaiting: number }
 export type ShootCounts = Record<OverviewShootStatus, number>
 export type AdCounts = Record<OverviewAdStatus, number>
 
-export type AttentionKind = 'overdue' | 'stuck-editing' | 'shoots-today' | 'repeat-corrections' | 'awaiting-review' | 'in-scripting'
-export type AttentionTarget = { mode: 'video' | 'poster' | 'ads'; tab: 'shoots' | 'adsvideo' | 'pipeline' | 'log' | null }
+export type AttentionKind = 'branding-waiting' | 'ads-waiting' | 'stuck-editing' | 'shoots-today' | 'repeat-corrections' | 'awaiting-review' | 'in-scripting'
+export type AttentionTarget = { mode: 'video' | 'poster' | 'ads'; tab: 'shoots' | 'adsvideo' | 'pipeline' | 'log' | 'adlog' | null }
 export type AttentionItem = {
   kind: AttentionKind
   count: number
@@ -63,14 +64,6 @@ export type Overview = {
 export const STUCK_EDITING_DAYS = 7
 export const REPEAT_CORRECTION_THRESHOLD = 2
 
-// All dates are YYYY-MM-DD strings, so plain string compare is a correct date compare and
-// avoids timezone drift entirely. Only day-offset maths needs a Date.
-function addDays(date: string, days: number): string {
-  const d = new Date(date + 'T00:00:00Z')
-  d.setUTCDate(d.getUTCDate() + days)
-  return d.toISOString().split('T')[0]
-}
-
 function daysBetween(from: string, to: string): number {
   const a = new Date(from + 'T00:00:00Z').getTime()
   const b = new Date(to + 'T00:00:00Z').getTime()
@@ -80,7 +73,7 @@ function daysBetween(from: string, to: string): number {
 function emptyStages(): StageCounts {
   return {
     scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0,
-    edited: 0, on_review: 0, ready_to_post: 0, posted: 0, cancelled: 0,
+    on_review: 0, branding_ready: 0, ads_ready: 0, posted: 0, cancelled: 0,
   }
 }
 
@@ -92,7 +85,7 @@ function countStages(items: OverviewItem[], type: 'video' | 'poster'): StageCoun
   return counts
 }
 
-// When did this item most recently ENTER its current pre-Edited state (Ready to Edit /
+// When did this item most recently ENTER its current pre-review state (Ready to Edit /
 // Design)? Takes the LATEST of every date that could mark that moment: shot_date (shoot
 // origin), voiceover_date (ads-video origin), created_at (fallback for either), and any
 // correction bounce. An item bounced back for a correction has an old shot_date but has
@@ -112,21 +105,9 @@ function inRange(createdAt: string, range: OverviewDateRange | null | undefined)
 }
 
 export function computeOverview({ items, shoots, ads, today, range }: OverviewInput): Overview {
-  const weekEnd = addDays(today, 6)
-
-  const readyWithDate = items.filter(
-    (i): i is OverviewItem & { scheduled_post_date: string } =>
-      i.status === 'ready_to_post' && !!i.scheduled_post_date
-  )
-
   const posting: PostingCounts = {
-    overdue: readyWithDate.filter(i => i.scheduled_post_date < today).length,
-    dueToday: readyWithDate.filter(i => i.scheduled_post_date === today).length,
-    // Superset that INCLUDES today, not a remainder — "this week" reads naturally as
-    // "everything coming up", so today's items belong in both buckets.
-    dueThisWeek: readyWithDate.filter(
-      i => i.scheduled_post_date >= today && i.scheduled_post_date <= weekEnd
-    ).length,
+    brandingWaiting: items.filter(i => i.status === 'branding_ready').length,
+    adsWaiting: items.filter(i => i.status === 'ads_ready').length,
   }
 
   // Stage-count blocks only — scoped to the selected creation-date window, unlike
@@ -159,13 +140,19 @@ export function computeOverview({ items, shoots, ads, today, range }: OverviewIn
   const inScripting = items.filter(i => i.status === 'scripting' || i.status === 'voiceover').length
 
   // Most actionable first. Zero-count entries are omitted entirely rather than shown as
-  // "0 overdue" — a clean board should look clean.
+  // "0 waiting" — a clean board should look clean.
   const candidates: AttentionItem[] = [
     {
-      kind: 'overdue',
-      count: posting.overdue,
-      label: `${posting.overdue} post${posting.overdue === 1 ? '' : 's'} overdue`,
+      kind: 'branding-waiting',
+      count: posting.brandingWaiting,
+      label: `${posting.brandingWaiting} video${posting.brandingWaiting === 1 ? '' : 's'} waiting to post as Branding`,
       target: { mode: 'video', tab: 'log' },
+    },
+    {
+      kind: 'ads-waiting',
+      count: posting.adsWaiting,
+      label: `${posting.adsWaiting} video${posting.adsWaiting === 1 ? '' : 's'} waiting to post as Ads`,
+      target: { mode: 'video', tab: 'adlog' },
     },
     {
       kind: 'awaiting-review',

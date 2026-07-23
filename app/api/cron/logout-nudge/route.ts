@@ -27,7 +27,7 @@ function isAuthorized(request: NextRequest): boolean {
   return false
 }
 
-// Fires across a short window around 7:10 PM IST (see vercel.json — same Hobby
+// Fires across a short window from 7:10 PM IST (see vercel.json — same Hobby
 // cron imprecision reasoning as attendance-nudge). Finds anyone clocked in today
 // with no clock_out yet and sends a reminder to clock out. Full-day leave never
 // has a clock_in, so it's excluded automatically — no separate leave check needed.

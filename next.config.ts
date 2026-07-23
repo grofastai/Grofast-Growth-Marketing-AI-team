@@ -22,6 +22,13 @@ const nextConfig: NextConfig = {
       },
     ]
   },
+  // Content Tracker was renamed to Media Tracker — keep old bookmarks/links working.
+  async redirects() {
+    return [
+      { source: "/admin/content-tracker", destination: "/admin/media-tracker", permanent: true },
+      { source: "/member/content-tracker", destination: "/member/media-tracker", permanent: true },
+    ]
+  },
 };
 
 export default nextConfig;

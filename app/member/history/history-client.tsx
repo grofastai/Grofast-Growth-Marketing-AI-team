@@ -779,13 +779,23 @@ export default function HistoryClient({
     const q = search.toLowerCase()
     return base.filter(u => {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      return entries.some(e =>
+      const matchesEntry = entries.some(e =>
         (e.title ?? "").toLowerCase().includes(q) ||
         (e.client_name ?? "").toLowerCase().includes(q) ||
+        // Multi-client entries keep the real client list in client_names[] —
+        // client_name alone can be stale/blank for those (see display logic
+        // elsewhere in this file, which checks is_multi_client the same way).
+        (e.is_multi_client && e.client_names?.some(cn => cn.toLowerCase().includes(q))) ||
         (e.notes ?? "").toLowerCase().includes(q) ||
         (e.description ?? "").toLowerCase().includes(q) ||
         (e.project_name ?? "").toLowerCase().includes(q)
       )
+      // Old-format learning entries live on the daily_update row itself
+      // (u.learning_topic / u.learning_notes), not inside work_entries.
+      const matchesLegacyLearning =
+        (u.learning_topic ?? "").toLowerCase().includes(q) ||
+        (u.learning_notes ?? "").toLowerCase().includes(q)
+      return matchesEntry || matchesLegacyLearning
     })
   }, [monthFiltered, updates, search, searchActive, selectedDate, dateActive])
 

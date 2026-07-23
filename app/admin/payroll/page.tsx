@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import PayrollClient from "./payroll-client"
 import { calcNetWorkHours } from "@/lib/utils/work-hours"
 import { getPayrollSettings } from "@/lib/actions/payroll-settings"
+import { listTeams } from "@/lib/actions/teams"
 
 export default async function PayrollPage({
   searchParams,
@@ -33,6 +34,7 @@ export default async function PayrollPage({
   if (!profile) redirect("/login")
   const cid = profile.company_id
   const payrollSettings = await getPayrollSettings(cid)
+  const teams = await listTeams()
 
   const [
     { data: membersRaw },
@@ -295,6 +297,7 @@ export default async function PayrollPage({
       pendingLeaveCount={pendingLeaveCount ?? 0}
       pendingUpdateCount={pendingUpdateCount}
       payrollSettings={payrollSettings}
+      teams={teams}
     />
   )
 }

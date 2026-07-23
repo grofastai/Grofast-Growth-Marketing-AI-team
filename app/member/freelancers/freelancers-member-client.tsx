@@ -73,6 +73,26 @@ function hexToRgba(hex: string, alpha: number) {
 
 const NO_LOGIN_TEAMS = Object.keys(TEAM_CFG) as FreelancerTeam[]
 
+// If a team gets renamed via Manage Teams, an existing freelancer's `team`
+// value no longer matches any of the 8 hardcoded FreelancerTeam keys above,
+// so TEAM_CFG[team] would be undefined — every one of the ~10 call sites
+// below does .color/.emoji/.image etc. on it with no null-check, which would
+// throw and break that freelancer's page. This is a pure safety net (default
+// look, no special fields) — it does NOT change which fields render for a
+// recognized team; isVoiceover/isDevType and the task_description encoding
+// elsewhere in this file still compare the raw team string directly and are
+// untouched.
+const DEFAULT_TEAM_CFG = {
+  color: "#6B7280", bg: "rgba(107,114,128,0.07)", border: "rgba(107,114,128,0.2)",
+  shortLabel: "Freelancer", entryLabel: "Task", emoji: "👤", costLabel: "Amount (INR)",
+  heroBg: "linear-gradient(135deg, #1F2937 0%, #4B5563 45%, #111827 100%)",
+  image: "/brand/freelancer-graphics-character.png", tagline: "",
+} as (typeof TEAM_CFG)[FreelancerTeam]
+
+function safeCfg(team: FreelancerTeam): (typeof TEAM_CFG)[FreelancerTeam] {
+  return TEAM_CFG[team] ?? DEFAULT_TEAM_CFG
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getInitials(name: string) {
@@ -184,7 +204,7 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
   onRemove: () => void
   canRemove: boolean
 }) {
-  const cfg = TEAM_CFG[team]
+  const cfg = safeCfg(team)
   const isITMedia = team === "Freelance AI Development & Creative Production"
   const itCat = isITMedia ? (entry.it_category || "") : ""
 
@@ -546,7 +566,7 @@ function WorkEntrySheet({ freelancer, activeClients, pastClients, onClose, onSav
   onClose: () => void
   onSaved: (entries: WorkEntry[]) => void
 }) {
-  const cfg = TEAM_CFG[freelancer.team]
+  const cfg = safeCfg(freelancer.team)
   const today = todayIST()
   const [entries, setEntries] = useState<EntryItem[]>([blankEntry(today)])
   const [error, setError] = useState("")
@@ -714,7 +734,7 @@ function FreelancerListItem({ freelancer, works, total, unpaid, isSelected, onCl
   freelancer: Freelancer; works: number; total: number; unpaid: number
   isSelected: boolean; onClick: () => void
 }) {
-  const cfg = TEAM_CFG[freelancer.team]
+  const cfg = safeCfg(freelancer.team)
   return (
     <button onClick={onClick} style={{ width: "100%", textAlign: "left", padding: "10px 14px", background: "transparent", border: "none", borderBottom: "1px solid #F5F5F7", cursor: "pointer", transition: "all 0.15s", borderLeft: `3px solid ${isSelected ? cfg.color : "transparent"}`, backgroundColor: isSelected ? `${cfg.color}0D` : "transparent" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
@@ -739,7 +759,7 @@ function FreelancerListItem({ freelancer, works, total, unpaid, isSelected, onCl
 function DetailHistoryRow({ entry, onEdit, onDelete, onTogglePaid }: {
   entry: WorkEntry; onEdit: () => void; onDelete: () => void; onTogglePaid: () => void
 }) {
-  const cfg = TEAM_CFG[entry.team]
+  const cfg = safeCfg(entry.team)
   const date = new Date(entry.date_finished + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })
   const isPaid = entry.payment_status === "paid"
   const durMins = entry.duration_mins ?? 0
@@ -790,7 +810,7 @@ function EditEntrySheet({ entry, activeClients, pastClients, onClose, onSaved }:
   entry: WorkEntry; activeClients: string[]; pastClients: string[]
   onClose: () => void; onSaved: (updated: WorkEntry) => void
 }) {
-  const cfg = TEAM_CFG[entry.team]
+  const cfg = safeCfg(entry.team)
   const [formEntry, setFormEntry] = useState<EntryItem>({
     date_given: entry.date_finished,
     client_name: entry.client_name, title: entry.title,
@@ -1059,7 +1079,7 @@ export default function FreelancersMemberClient({
               All Members
             </button>
             {NO_LOGIN_TEAMS.filter(t => (teamCounts[t] ?? 0) > 0).map(t => {
-              const c = TEAM_CFG[t]; const active = teamFilter === t
+              const c = safeCfg(t); const active = teamFilter === t
               return (
                 <button key={t} onClick={() => setTeamFilter(t)} title={c.shortLabel} style={{ width: 32, height: 32, borderRadius: 10, border: "none", cursor: "pointer", background: active ? c.color : "#F5F5F7", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", boxShadow: active ? `0 3px 10px ${c.color}50` : "none", flexShrink: 0 }}>
                   <span style={{ fontSize: 15 }}>{c.emoji}</span>
@@ -1077,7 +1097,7 @@ export default function FreelancersMemberClient({
                   <FreelancerListItem freelancer={f} works={fEntries.length} total={fTotal} unpaid={fUnpaid}
                     isSelected={f.id === selectedId} onClick={() => { setSelectedId(f.id); setMobileView('detail') }} />
                   <div style={{ padding: "0 14px 6px", opacity: 0.45 }}>
-                    <Sparkline data={sparkData[f.id] ?? []} color={TEAM_CFG[f.team].color} />
+                    <Sparkline data={sparkData[f.id] ?? []} color={safeCfg(f.team).color} />
                   </div>
                 </div>
               )
@@ -1114,7 +1134,7 @@ export default function FreelancersMemberClient({
                       <div>
                         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
                           {NO_LOGIN_TEAMS.filter(t => activeFreelancers.some(f => f.team === t)).slice(0, 5).map(t => (
-                            <span key={t} style={{ fontSize: 16 }}>{TEAM_CFG[t].emoji}</span>
+                            <span key={t} style={{ fontSize: 16 }}>{safeCfg(t).emoji}</span>
                           ))}
                         </div>
                         <h2 style={{ fontSize: 22, fontWeight: 900, color: "#fff", margin: 0, fontFamily: "var(--font-jakarta)" }}>All Freelancers</h2>
@@ -1166,7 +1186,7 @@ export default function FreelancersMemberClient({
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px" }}>
                       {allEntries.map(e => {
                         const fl = activeFreelancers.find(f => f.id === e.freelancer_id)
-                        const cfg = TEAM_CFG[e.team]
+                        const cfg = safeCfg(e.team)
                         return (
                           <div key={e.id} style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F0F5", padding: "14px 18px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)", display: "flex", alignItems: "flex-start", gap: 14, transition: "box-shadow 0.15s" }}
                             onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.boxShadow = "0 6px 24px rgba(0,0,0,0.09)"}
@@ -1236,7 +1256,7 @@ export default function FreelancersMemberClient({
               </div>
             )
           })() : (() => {
-            const cfg = TEAM_CFG[selectedFreelancer.team]
+            const cfg = safeCfg(selectedFreelancer.team)
             const joinedDate = selectedFreelancer.created_at
               ? new Date(selectedFreelancer.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
               : null

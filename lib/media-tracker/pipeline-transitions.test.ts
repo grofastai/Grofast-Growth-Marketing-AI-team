@@ -6,40 +6,50 @@ describe('isValidPipelineTransition', () => {
     expect(isValidPipelineTransition('scripting', 'voiceover')).toBe(true)
     expect(isValidPipelineTransition('voiceover', 'ready_to_edit')).toBe(true)
   })
-  it('allows the poster front half: design -> edited', () => {
-    expect(isValidPipelineTransition('design', 'edited')).toBe(true)
+  it('allows the poster front half: design -> on_review', () => {
+    expect(isValidPipelineTransition('design', 'on_review')).toBe(true)
   })
-  it('allows the shared production chain', () => {
-    expect(isValidPipelineTransition('ready_to_edit', 'edited')).toBe(true)
-    expect(isValidPipelineTransition('edited', 'on_review')).toBe(true)
-    expect(isValidPipelineTransition('ready_to_post', 'posted')).toBe(true)
+  it('allows ready_to_edit -> on_review directly (no separate Edited stage)', () => {
+    expect(isValidPipelineTransition('ready_to_edit', 'on_review')).toBe(true)
   })
-  it('on_review branches two ways: approve to ready_to_post, or bounce back to edited', () => {
-    expect(isValidPipelineTransition('on_review', 'ready_to_post')).toBe(true)
-    expect(isValidPipelineTransition('on_review', 'edited')).toBe(true)
+  it('on_review branches three ways: Branding Ready, Ads Ready, or Cancelled', () => {
+    expect(isValidPipelineTransition('on_review', 'branding_ready')).toBe(true)
+    expect(isValidPipelineTransition('on_review', 'ads_ready')).toBe(true)
+    expect(isValidPipelineTransition('on_review', 'cancelled')).toBe(true)
+  })
+  it('rejects on_review skipping straight to posted', () => {
+    expect(isValidPipelineTransition('on_review', 'posted')).toBe(false)
+  })
+  it('allows both ready lanes to complete to posted', () => {
+    expect(isValidPipelineTransition('branding_ready', 'posted')).toBe(true)
+    expect(isValidPipelineTransition('ads_ready', 'posted')).toBe(true)
   })
   it('rejects skipping a stage', () => {
     expect(isValidPipelineTransition('scripting', 'ready_to_edit')).toBe(false)
-    expect(isValidPipelineTransition('edited', 'ready_to_post')).toBe(false)
+    expect(isValidPipelineTransition('ready_to_edit', 'posted')).toBe(false)
   })
   it('rejects posted -> anything (terminal state)', () => {
-    expect(isValidPipelineTransition('posted', 'edited')).toBe(false)
-    expect(isValidPipelineTransition('posted', 'ready_to_post')).toBe(false)
+    expect(isValidPipelineTransition('posted', 'on_review')).toBe(false)
+    expect(isValidPipelineTransition('posted', 'branding_ready')).toBe(false)
   })
   it('rejects a status transitioning to itself', () => {
-    expect(isValidPipelineTransition('edited', 'edited')).toBe(false)
+    expect(isValidPipelineTransition('on_review', 'on_review')).toBe(false)
   })
   it('allows cancelling from Ready to Edit or Design', () => {
     expect(isValidPipelineTransition('ready_to_edit', 'cancelled')).toBe(true)
     expect(isValidPipelineTransition('design', 'cancelled')).toBe(true)
   })
-  it('rejects cancelling from any other stage', () => {
-    expect(isValidPipelineTransition('edited', 'cancelled')).toBe(false)
-    expect(isValidPipelineTransition('on_review', 'cancelled')).toBe(false)
+  it('allows cancelling an Ads Video script before it reaches a shoot or edit', () => {
+    expect(isValidPipelineTransition('scripting', 'cancelled')).toBe(true)
+    expect(isValidPipelineTransition('voiceover', 'cancelled')).toBe(true)
+  })
+  it('rejects cancelling from Branding Ready or Ads Ready (already approved out of review)', () => {
+    expect(isValidPipelineTransition('branding_ready', 'cancelled')).toBe(false)
+    expect(isValidPipelineTransition('ads_ready', 'cancelled')).toBe(false)
   })
   it('rejects cancelled -> anything (terminal state)', () => {
     expect(isValidPipelineTransition('cancelled', 'ready_to_edit')).toBe(false)
-    expect(isValidPipelineTransition('cancelled', 'edited')).toBe(false)
+    expect(isValidPipelineTransition('cancelled', 'on_review')).toBe(false)
   })
 })
 
@@ -56,8 +66,9 @@ describe('isStatusAllowedForSource', () => {
   })
   it('shared stages are reachable by every source', () => {
     for (const source of ['shoot', 'ads_video', 'poster'] as const) {
-      expect(isStatusAllowedForSource('edited', source)).toBe(true)
       expect(isStatusAllowedForSource('on_review', source)).toBe(true)
+      expect(isStatusAllowedForSource('branding_ready', source)).toBe(true)
+      expect(isStatusAllowedForSource('ads_ready', source)).toBe(true)
       expect(isStatusAllowedForSource('posted', source)).toBe(true)
     }
   })

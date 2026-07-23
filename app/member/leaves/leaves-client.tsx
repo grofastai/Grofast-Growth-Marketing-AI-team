@@ -283,10 +283,22 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
       cur.setDate(cur.getDate() + 1)
     }
 
-    const conflict = leaves.some(l => !(toDate < l.from_date || fromDate > l.to_date))
-    if (conflict) {
+    const overlapping = leaves.filter(l => l.status !== "rejected" && !(toDate < l.from_date || fromDate > l.to_date))
+    if (overlapping.length > 0) {
       e.preventDefault()
-      setNewFormError("You already have a leave request on this date. Only one leave per date is allowed.")
+      // WFH is a work arrangement, not an absence — if the only thing in the way is
+      // an approved WFH day, send the user straight to withdrawing that one date
+      // (see withdrawWfhForDate) instead of a dead-end "already have a leave" block.
+      const wfhOnly = overlapping.every(l => l.leave_type === "wfh" && l.status === "approved")
+      if (wfhOnly && overlapping.length === 1) {
+        const wfh = overlapping[0]
+        setWfhWithdrawError(null)
+        setWfhWithdrawDate(fromDate)
+        setWfhWithdraw(wfh)
+        setNewFormError(`${fromDate} is part of your approved WFH (${fmtShort(wfh.from_date)} – ${fmtShort(wfh.to_date)}). Withdraw WFH for that date below, then re-apply.`)
+      } else {
+        setNewFormError("You already have a leave request on this date. Only one leave per date is allowed.")
+      }
     }
   }
 

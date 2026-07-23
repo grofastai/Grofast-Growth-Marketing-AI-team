@@ -6,6 +6,7 @@ import FreelancersMemberClient from "@/app/member/freelancers/freelancers-member
 import type { Freelancer, WorkEntry } from "@/app/member/freelancers/freelancers-member-client"
 import type { FlMediaMember, FlMediaEntry } from "./fl-media-client"
 import { FreelancersHero } from "@/components/freelancers/FreelancersHero"
+import type { TeamRow } from "@/lib/actions/teams"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -56,6 +57,7 @@ export default function AdminFreelancersTabs({
   workEntries,
   clientNames,
   pastClientNames,
+  teams = [],
 }: {
   flMembers: FlMediaMember[]
   flEntries: FlMediaEntry[]
@@ -63,7 +65,9 @@ export default function AdminFreelancersTabs({
   workEntries: WorkEntry[]
   clientNames: string[]
   pastClientNames: string[]
+  teams?: TeamRow[]
 }) {
+  const teamRow = (name: string | null | undefined) => teams.find(t => t.name === name)
   const [selected, setSelected] = useState<{ type: "media" | "fl"; id: string } | null>(null)
   const [mobileShowRight, setMobileShowRight] = useState(false)
   const [teamFilter, setTeamFilter] = useState<string | "all">("all")
@@ -160,8 +164,9 @@ export default function AdminFreelancersTabs({
                 ✨
               </button>
               {teamsPresent.map(t => {
-                const color = TEAM_COLOR[t] ?? "#6B7280"
-                const emoji = TEAM_EMOJI[t] ?? "👤"
+                const row = teamRow(t)
+                const color = row?.color ?? TEAM_COLOR[t] ?? "#6B7280"
+                const emoji = row?.emoji ?? TEAM_EMOJI[t] ?? "👤"
                 const active = teamFilter === t
                 return (
                   <button key={t} onClick={() => setTeamFilter(active ? "all" : t)} title={TEAM_SHORT[t] ?? t}
@@ -215,8 +220,9 @@ export default function AdminFreelancersTabs({
             {visibleFreelancers.map(f => {
               const isActive = selected?.type === "fl" && selected.id === f.id
               const total = flTotals[f.id] ?? 0
-              const color = TEAM_COLOR[f.team] ?? "#6B7280"
-              const emoji = TEAM_EMOJI[f.team] ?? "👤"
+              const row = teamRow(f.team)
+              const color = row?.color ?? TEAM_COLOR[f.team] ?? "#6B7280"
+              const emoji = row?.emoji ?? TEAM_EMOJI[f.team] ?? "👤"
               const short = TEAM_SHORT[f.team] ?? f.team
               return (
                 <button key={f.id} onClick={() => setSelected(s => s?.id === f.id ? null : { type: "fl", id: f.id })}

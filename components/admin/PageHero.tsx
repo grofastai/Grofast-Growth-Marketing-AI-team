@@ -27,7 +27,7 @@ export function PageHero({
   eyebrow?: string
   eyebrowIcon?: ReactNode
   title: string
-  subtitle: string
+  subtitle?: string
   chips?: HeroChip[]
   actions?: ReactNode
   rightSlot?: ReactNode
@@ -80,9 +80,11 @@ export function PageHero({
           <h1 style={{ fontSize: "clamp(22px,5.5vw,30px)", fontWeight: 900, color: "#FFFFFF", margin: "0 0 5px", fontFamily: "var(--font-jakarta)", lineHeight: 1.15 }}>
             {title}
           </h1>
-          <p style={{ fontSize: "clamp(12px,2.8vw,13px)", color: "rgba(255,255,255,0.68)", margin: 0 }}>
-            {subtitle}
-          </p>
+          {subtitle && (
+            <p style={{ fontSize: "clamp(12px,2.8vw,13px)", color: "rgba(255,255,255,0.68)", margin: 0 }}>
+              {subtitle}
+            </p>
+          )}
           {chips && chips.length > 0 ? (
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
               {chips.map((c, i) => (

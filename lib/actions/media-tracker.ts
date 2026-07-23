@@ -4,10 +4,10 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import {
-  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema,
-  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput,
-} from '@/lib/validations/content-tracker'
-import { isValidPipelineTransition, type ContentPipelineStatus } from '@/lib/content-tracker/pipeline-transitions'
+  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema, updateVoiceOverSchema,
+  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput, type UpdateVoiceOverInput,
+} from '@/lib/validations/media-tracker'
+import { isValidPipelineTransition, type ContentPipelineStatus } from '@/lib/media-tracker/pipeline-transitions'
 import { todayIST } from '@/lib/utils/ist-date'
 
 function adminSupabase() {
@@ -19,8 +19,24 @@ function adminSupabase() {
 }
 
 function revalidateTracker() {
-  revalidatePath('/admin/content-tracker')
-  revalidatePath('/member/content-tracker')
+  revalidatePath('/admin/media-tracker')
+  revalidatePath('/member/media-tracker')
+}
+
+// Ads-destination platforms vs organic/branding platforms — drives the two independent
+// posted_ads/posted_branding flags on content_items (see addContentPost/deleteContentPost).
+const ADS_PLATFORMS = new Set(['ads', 'meta_ads', 'google_ads'])
+
+// Recomputes posted_ads/posted_branding from the current content_item_posts rows and
+// persists them. Derived rather than manually toggled so they can never drift from the
+// actual per-platform posting log.
+async function syncPostedFlags(ctx: { admin: ReturnType<typeof adminSupabase> }, contentItemId: string) {
+  const { data: posts } = await ctx.admin.from('content_item_posts')
+    .select('platform').eq('content_item_id', contentItemId)
+  const platforms = new Set((posts ?? []).map(p => p.platform as string))
+  const posted_ads = [...platforms].some(p => ADS_PLATFORMS.has(p))
+  const posted_branding = [...platforms].some(p => !ADS_PLATFORMS.has(p))
+  await ctx.admin.from('content_items').update({ posted_ads, posted_branding }).eq('id', contentItemId)
 }
 
 async function currentUser() {
@@ -74,6 +90,7 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
     }))
     const { error: postsError } = await ctx.admin.from('content_item_posts').insert(rows)
     if (postsError) return { success: false, error: postsError.message }
+    await syncPostedFlags(ctx, data.id)
   }
 
   revalidateTracker()
@@ -87,7 +104,7 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
 
-  const { error } = await ctx.admin.from('content_items').update({
+  const updates: Record<string, unknown> = {
     client_name:  parsed.data.client_name,
     title:        parsed.data.title,
     content_type: parsed.data.content_type,
@@ -97,8 +114,17 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
     scheduled_post_date: parsed.data.scheduled_post_date || null,
     scheduled_post_time: parsed.data.scheduled_post_time || null,
     updated_at:   new Date().toISOString(),
-  }).eq('id', id).eq('company_id', ctx.companyId)
+  }
+  if (parsed.data.edited_by) updates.edited_by = parsed.data.edited_by
+  if (parsed.data.edited_date) updates.edited_date = parsed.data.edited_date
+
+  const { error } = await ctx.admin.from('content_items').update(updates).eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
+
+  // Two-way sync with the shoot it came from, if any — a rename here keeps the shoot's own
+  // video-titles list (and its Edit Completed Shoot view) showing the same name, not a
+  // stale one. No-op if this item didn't come from a shoot.
+  await ctx.admin.from('shoot_titles').update({ title: parsed.data.title }).eq('content_item_id', id)
 
   revalidateTracker()
   return { success: true }
@@ -138,10 +164,10 @@ export async function requestCorrection(
   }).select('id, correction_date').single()
   if (error) return { success: false, error: error.message }
 
-  // Back to Edited for rework — there's no separate Editing stage to bounce into. If the
-  // correction was assigned to someone, they become the editor — otherwise whoever
+  // Back to Ready to Edit for rework — there's no separate Editing stage to bounce into. If
+  // the correction was assigned to someone, they become the editor — otherwise whoever
   // already edited it keeps it.
-  const updates: Record<string, unknown> = { status: 'edited', updated_at: new Date().toISOString() }
+  const updates: Record<string, unknown> = { status: 'ready_to_edit', updated_at: new Date().toISOString() }
   if (parsed.data.assigned_to) updates.edited_by = parsed.data.assigned_to
 
   const { error: statusError } = await ctx.admin.from('content_items')
@@ -197,7 +223,9 @@ export async function markReadyToPost(input: MarkReadyToPostInput): Promise<{ su
 export async function updateContentItemStatus(
   id: string,
   status: ContentPipelineStatus,
-  editorId?: string
+  editorId?: string,
+  cancelledBy?: 'client' | 'us',
+  editedDate?: string
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
@@ -212,13 +240,15 @@ export async function updateContentItemStatus(
 
   const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
 
-  if (status === 'edited') {
-    updates.edited_date = todayIST()
-    // Reaching Edited is where the editor is recorded — that's the accountability moment
-    // ("who edited this?"), since there's no separate Editing stage to capture it at.
+  if (status === 'on_review') {
+    updates.edited_date = editedDate || todayIST()
+    // Reaching On Review is where the editor is recorded — that's the accountability
+    // moment ("who edited this?"), asked right at this move since there's no separate
+    // Edited stage to stop at first.
     if (editorId) updates.edited_by = editorId
     else if (!current.edited_by) updates.edited_by = ctx.id
   }
+  if (status === 'cancelled' && cancelledBy) updates.cancelled_by = cancelledBy
 
   const { error } = await ctx.admin.from('content_items').update(updates).eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
@@ -230,6 +260,10 @@ export async function updateContentItemStatus(
 export async function deleteContentItem(id: string): Promise<{ success: boolean; error?: string }> {
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  // If this came from a shoot, clear the shoot_titles link too — otherwise the shoot's
+  // own video-titles list keeps showing an orphaned entry for a video that no longer exists.
+  await ctx.admin.from('shoot_titles').delete().eq('content_item_id', id)
 
   const { error } = await ctx.admin.from('content_items').delete().eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
@@ -254,6 +288,7 @@ export async function addContentPost(input: AddContentPostInput): Promise<{ succ
     posted_date:     parsed.data.posted_date,
     post_link:       parsed.data.post_link || null,
     posted_by:       parsed.data.posted_by || ctx.id,
+    ad_run_date:     parsed.data.ad_run_date || null,
   }).select('id').single()
   if (error) return { success: false, error: error.message }
 
@@ -262,6 +297,7 @@ export async function addContentPost(input: AddContentPostInput): Promise<{ succ
     .update({ status: 'posted', updated_at: new Date().toISOString() })
     .eq('id', parsed.data.content_item_id)
     .eq('company_id', ctx.companyId)
+  await syncPostedFlags(ctx, parsed.data.content_item_id)
 
   revalidateTracker()
   return { success: true, id: data.id }
@@ -271,23 +307,24 @@ export async function deleteContentPost(id: string, contentItemId: string): Prom
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
 
+  const { data: deletedPost } = await ctx.admin.from('content_item_posts').select('platform').eq('id', id).single()
+
   const { error } = await ctx.admin.from('content_item_posts').delete().eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
 
-  // If that was the last platform post for this item, it's no longer "posted". Fall back
-  // to "ready" if it still has a scheduled slot (so it returns to the queue rather than
-  // losing its schedule), otherwise to "edited".
+  // If that was the last platform post for this item, it's no longer "posted" — fall back
+  // to whichever Ready lane matches the platform that was just removed.
   const { count } = await ctx.admin.from('content_item_posts')
     .select('id', { count: 'exact', head: true })
     .eq('content_item_id', contentItemId)
   if (!count) {
-    const { data: item } = await ctx.admin.from('content_items')
-      .select('scheduled_post_date').eq('id', contentItemId).eq('company_id', ctx.companyId).single()
+    const isAds = deletedPost ? ADS_PLATFORMS.has(deletedPost.platform as string) : false
     await ctx.admin.from('content_items')
-      .update({ status: item?.scheduled_post_date ? 'ready_to_post' : 'edited', updated_at: new Date().toISOString() })
+      .update({ status: isAds ? 'ads_ready' : 'branding_ready', updated_at: new Date().toISOString() })
       .eq('id', contentItemId)
       .eq('company_id', ctx.companyId)
   }
+  await syncPostedFlags(ctx, contentItemId)
 
   revalidateTracker()
   return { success: true }
@@ -443,8 +480,8 @@ export async function createAdsVideoScript(input: CreateAdsVideoScriptInput): Pr
     status:       'scripting',
     hook_count:   parsed.data.hook_count,
     use_for:      parsed.data.use_for,
-    priority:     parsed.data.priority,
-    scripted_by:  ctx.id,
+    shoot_type:   parsed.data.shoot_type,
+    scripted_by:  parsed.data.scripted_by,
     notes:        parsed.data.notes || null,
     created_by:   ctx.id,
   }).select('id').single()
@@ -494,9 +531,36 @@ export async function updateAdsVideoScript(input: UpdateAdsVideoScriptInput): Pr
     title:       parsed.data.title,
     hook_count:  parsed.data.hook_count,
     use_for:     parsed.data.use_for,
-    priority:    parsed.data.priority,
+    shoot_type:  parsed.data.shoot_type,
+    scripted_by: parsed.data.scripted_by,
     notes:       parsed.data.notes || null,
     updated_at:  new Date().toISOString(),
+  }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true }
+}
+
+// Correcting a Voice Over assignment after the fact — the artist became unavailable, or the
+// date was wrong. Deliberately NOT a pipeline transition (item is already at "voiceover",
+// and "voiceover -> voiceover" isn't a valid move) — just an in-place field update.
+export async function updateVoiceOver(input: UpdateVoiceOverInput): Promise<{ success: boolean; error?: string }> {
+  const parsed = updateVoiceOverSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { data: current } = await ctx.admin
+    .from('content_items').select('status').eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId).single()
+  if (!current) return { success: false, error: 'Content item not found' }
+  if (current.status !== 'voiceover') return { success: false, error: 'Only items in Voice Over can be edited here' }
+
+  const { error } = await ctx.admin.from('content_items').update({
+    voiceover_by:   parsed.data.voiceover_by,
+    voiceover_date: parsed.data.voiceover_date,
+    updated_at:     new Date().toISOString(),
   }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
 

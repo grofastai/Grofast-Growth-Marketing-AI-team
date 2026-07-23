@@ -208,21 +208,26 @@ function isMediaTeam(team: string | null): boolean {
   return t === 'media team' || t === 'media production team'
 }
 
-function freelancerTaskType(team: string, taskDescription: string | null): 'shoot' | 'edit' | 'voiceover' | 'poster' | 'other' {
+function freelancerTaskType(team: string, taskDescription: string | null): 'shoot' | 'edit' | 'voiceover' | 'poster' | 'scripting' | 'development' | 'other' {
   if (team === 'Freelance Videography')        return 'shoot'
   if (team === 'Freelance Video Editing')      return 'edit'
   if (team === 'Freelance Media Production')   return 'edit'
   if (team === 'Freelance RJ Voiceover')       return 'voiceover'
   if (team === 'Freelance Graphics Designer')  return 'poster'
+  // Matches the same task_type values full-time non-media employees use
+  // (NON_MEDIA_BLOCK_OPTIONS in app/admin/team/team-client.tsx) — 'other' IS
+  // "Technical" by that convention, not a vague leftover bucket.
+  if (team === 'Freelance Content Writer')     return 'scripting'
+  if (team === 'Freelance Software Development & Automation') return 'development'
+  if (team === 'Freelance Marketing & Operations') return 'other' // = Technical
   if (team === 'Freelance AI Development & Creative Production') {
     try {
       const cat = JSON.parse(taskDescription ?? '{}').category ?? ''
       if (cat === 'voiceover') return 'voiceover'
       if (cat === 'poster')    return 'poster'
     } catch { /* fallthrough */ }
-    return 'other'
+    return 'other' // = Technical (their "Technical" self-picked category)
   }
-  // Content Writer, Dev & Automation, Marketing & Ops → technical/other
   return 'other'
 }
 
@@ -490,6 +495,19 @@ export function computeDeliverables(
       const pe = { date, clientName: fe.client_name, memberName: name, title, hours: hrs, cost }
       otherWork.push(pe); posterWork.push(pe)
       dayMap[date].push({ date, memberName: name, taskType: 'poster', itemCount: 1, hours: hrs, cost, label: title })
+
+    } else if (tt === 'scripting') {
+      if (!(fe as unknown as Record<string,unknown>).is_rework) scriptingCountAcc++
+      scriptingHoursAcc += hrs
+      const se = { date, clientName: fe.client_name, memberName: name, title, hours: hrs, cost }
+      otherWork.push(se); scriptingWork.push(se)
+      dayMap[date].push({ date, memberName: name, taskType: 'scripting', itemCount: 1, hours: hrs, cost, label: title })
+
+    } else if (tt === 'development') {
+      developmentHoursAcc += hrs
+      const de = { date, clientName: fe.client_name, memberName: name, title, hours: hrs, cost }
+      otherWork.push(de); developmentWork.push(de)
+      dayMap[date].push({ date, memberName: name, taskType: 'development', itemCount: 1, hours: hrs, cost, label: title })
 
     } else {
       const te = { date, clientName: fe.client_name, memberName: name, title, hours: hrs, cost }

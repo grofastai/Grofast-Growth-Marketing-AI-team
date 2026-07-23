@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { dailyUpdateSchema, type DailyUpdateInput } from '@/lib/validations/daily-update'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertManyNotifications } from './notifications'
-import { calcNetWorkHours } from '@/lib/utils/work-hours'
+import { calcNetWorkHours, findEntryOverlap, type OverlapCheckEntry } from '@/lib/utils/work-hours'
 import { todayIST } from '@/lib/utils/ist-date'
 import { findUnfiledUpdateDate } from '@/lib/attendance-gate'
 
@@ -405,6 +405,9 @@ export async function submitDailyUpdate(
     const filteredPrev = prevEntries.filter(e => !newIds.has(e.id as string))
     let combinedEntries: Array<Record<string, unknown>> = [...filteredPrev, ...d.work_entries]
 
+    const overlapErr = findEntryOverlap(combinedEntries as OverlapCheckEntry[])
+    if (overlapErr) return { success: false, error: overlapErr }
+
     // Always sync duration_hours to time span before saving
     combinedEntries = fixEntryDurations(combinedEntries)
     // Recalculate all aggregates from combined entries — never use incremental addition
@@ -452,6 +455,8 @@ export async function submitDailyUpdate(
     await syncCollaborationConfirmations(admin, existingRecord.id, userId, profile.company_id, today, d.work_entries as Record<string, unknown>[])
   } else {
     isFirstSubmission = true
+    const overlapErr = findEntryOverlap(d.work_entries as OverlapCheckEntry[])
+    if (overlapErr) return { success: false, error: overlapErr }
     const fixedNewEntries = fixEntryDurations(d.work_entries as Record<string, unknown>[])
     const { data: inserted, error: insertError } = await admin
       .from('daily_updates')
@@ -646,6 +651,9 @@ export async function updatePastDailyUpdate(
   const entriesWithoutLeave = entries.filter(e => !e._is_leave)
   const finalEntries = fixEntryDurations([...entriesWithoutLeave, ...existingLeaveEntries])
 
+  const overlapErr = findEntryOverlap(finalEntries as OverlapCheckEntry[])
+  if (overlapErr) return { success: false, error: overlapErr }
+
   const finalLearnHours = Math.round(
     finalEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10
   ) / 10
@@ -787,6 +795,9 @@ export async function addEntryToDate(
     ...(existing && Array.isArray(existing.work_entries) ? existing.work_entries : []),
     entry,
   ]
+
+  const overlapErr = findEntryOverlap(allEntries as OverlapCheckEntry[])
+  if (overlapErr) return { success: false, error: overlapErr }
 
   // Recomputed from scratch off allEntries (the actual final set for this date) — see
   // updatePastDailyUpdate above for why unioning with the old column value is wrong.

@@ -34,7 +34,7 @@ const navItems = [
   { label: "Daily Update",     href: "/member/update",             icon: ClipboardList },
   { label: "History",          href: "/member/history",            icon: History },
   { label: "My Tasks",         href: "/member/tasks",              icon: Target },
-  { label: "Content Tracker",  href: "/member/content-tracker",    icon: Layers },
+  { label: "Media Tracker",    href: "/member/media-tracker",      icon: Layers },
   { label: "Leaves",           href: "/member/leaves",             icon: CalendarOff },
   { label: "Announcements",    href: "/member/announcements",      icon: Megaphone },
   { label: "Notes",            href: "/member/notes",              icon: StickyNote },
@@ -52,7 +52,7 @@ const mainBottomNav = [
 
 const moreNavItems = [
   { label: "My Tasks",       href: "/member/tasks",            icon: Target },
-  { label: "Content Tracker", href: "/member/content-tracker", icon: Layers },
+  { label: "Media Tracker",   href: "/member/media-tracker",   icon: Layers },
   { label: "Leaves",         href: "/member/leaves",           icon: CalendarOff },
   { label: "Announcements",  href: "/member/announcements",    icon: Megaphone },
   { label: "Notes",          href: "/member/notes",            icon: StickyNote },

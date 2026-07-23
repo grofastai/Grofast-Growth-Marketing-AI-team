@@ -295,7 +295,7 @@ export async function updateClientDetails(
   revalidatePath('/admin/insights')
   revalidatePath('/admin/freelancers')
   revalidatePath('/admin/shoots')
-  revalidatePath('/admin/content-tracker')
+  revalidatePath('/admin/media-tracker')
   revalidatePath('/member/update')
   revalidatePath('/member/clients')
   revalidatePath('/member/history')

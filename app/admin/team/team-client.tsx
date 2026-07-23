@@ -8,7 +8,7 @@ import {
   Search, Plus, Shield, UserCheck,
   MoreVertical, Phone, CalendarDays, X, Pencil,
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
-  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy, Check, Users, Sparkles,
+  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy, Check, Users, Sparkles, Lock,
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
@@ -17,6 +17,9 @@ import { todayIST } from "@/lib/utils/ist-date"
 import { createFreelancer, updateFreelancer, toggleFreelancerStatus, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
 import { addManagerToAllFreelancers, removeManagerFromAllFreelancers } from "@/lib/actions/freelancer-manager"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
+import { addTeam, updateTeam, toggleTeamActive, deleteTeam, getTeamMemberCounts, type TeamRow, type TeamScope } from "@/lib/actions/teams"
+import { hexToRgba } from "@/lib/utils/team-colors"
+import { addPosition, renamePosition, togglePositionActive, deletePosition, getPositionAssignmentCounts, type PositionRow } from "@/lib/actions/positions"
 
 type FreelancerBasic = {
   id: string; name: string; type: string; team: string | null; phone: string | null; upi_id: string | null
@@ -52,6 +55,15 @@ const FL_TYPE_CFG: Record<string, { label: string; color: string; bg: string; em
   "Freelance Marketing & Operations":   { label: "Marketing & Ops", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  emoji: "📊" },
   "Freelance AI Development & Creative Production": { label: "AI & Creative Production", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🖥️" },
   "Freelance Media Production":         { label: "Media Production", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  emoji: "🎥" },
+}
+
+// Same DB-first pattern as teamColor()/teamShort() — a renamed or brand-new
+// freelancer team gets its real color/emoji/name instead of falling straight
+// to the generic grey "other" config.
+function resolveFlTypeCfg(teamKey: string, teams: TeamRow[]): { label: string; color: string; bg: string; emoji: string } {
+  const row = teams.find(t => t.name === teamKey)
+  if (row) return { label: row.name, color: row.color ?? "#6B7280", bg: hexToRgba(row.color ?? "#6B7280", 0.08), emoji: row.emoji ?? "👤" }
+  return FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
 }
 
 function getFreelancerTeamKey(f: FreelancerBasic): string {
@@ -111,6 +123,7 @@ interface Member {
   is_management?: boolean | null
   is_freelancer_login?: boolean | null
   enabled_blocks?: string[] | null
+  media_tracker_roles?: string[] | null
 }
 
 function getInitials(name: string) {
@@ -159,8 +172,13 @@ const FIELD: React.CSSProperties = {
   fontFamily: "inherit",
 }
 
-function teamColor(team: string | null): { bg: string; color: string } {
+// Looks up the color from the admin-managed teams table first (so a rename or
+// a brand-new team always gets its real color), and only falls back to the old
+// hardcoded matching for legacy data that somehow has no matching teams row.
+function teamColor(team: string | null, teams: TeamRow[] = []): { bg: string; color: string } {
   if (!team) return { bg: "#F3F4F6", color: "#6B7280" }
+  const row = teams.find(t => t.name === team)
+  if (row?.color) return { bg: hexToRgba(row.color, 0.1), color: row.color }
   if (team === "Media Production Team" || team === "Freelance Media Production" || team === "Media Team" || team === "Media") return { bg: "rgba(236,72,153,0.1)", color: "#EC4899" }
   if (team === "Creative Studio" || team === "Creative Team" || team === "Creative") return { bg: "rgba(245,158,11,0.1)", color: "#F59E0B" }
   if (team === "Software Development & Automation" || team === "Freelance Software Development & Automation") return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
@@ -174,7 +192,11 @@ function teamColor(team: string | null): { bg: string; color: string } {
   return { bg: "#F3F4F6", color: "#6B7280" }
 }
 
-function teamShort(team: string | null) {
+// Unlike teamColor(), this one was never actually broken by a rename — its
+// final fallback already returns the raw (current, correct) team name for
+// anything it doesn't have a hand-picked abbreviation for. `teams` param kept
+// only so both functions share the same call signature at their call sites.
+function teamShort(team: string | null, _teams: TeamRow[] = []) {
   if (!team) return "—"
   if (team === "Media Production Team" || team === "Media Team" || team === "Media") return "Media Production"
   if (team === "Creative Studio" || team === "Creative Team" || team === "Creative") return "Creative Studio"
@@ -201,6 +223,9 @@ interface SheetProps {
   member?: Member | null
   nextId?: string
   initialRole?: "ADMIN" | "MEMBER" | "FREELANCER_MGR"
+  teams?: TeamRow[]
+  positions?: PositionRow[]
+  initialPositionIds?: string[]
 }
 
 const ACCOUNT_TYPES = [
@@ -247,7 +272,17 @@ const NON_MEDIA_BLOCK_OPTIONS: { value: string; label: string }[] = [
 ]
 const ALL_NON_MEDIA_BLOCKS = NON_MEDIA_BLOCK_OPTIONS.map(o => o.value)
 
-function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps) {
+// Media Tracker's own pickable-people tags (Scripted By / Voice Over / Edited By / Shot
+// By) — a separate column from enabled_blocks so it never touches the Non-Media Daily
+// Update Blocks system above. Only Shooting/Editing are exposed here for now; Scripting
+// and Voice Over already have their own pickers (Media Tracker's own team + the Freelance
+// RJ Voiceover roster).
+const MEDIA_TRACKER_ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: "shooting", label: "Shooting" },
+  { value: "editing",  label: "Editing" },
+]
+
+function MemberSheet({ open, onClose, member, nextId, initialRole, teams = [], positions = [], initialPositionIds = [] }: SheetProps) {
   const isEdit = !!member
   const [step, setStep] = useState<"type" | "details">(isEdit || initialRole ? "details" : "type")
   const [form, setForm] = useState({
@@ -258,6 +293,7 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
     role: (member?.role ?? initialRole ?? "MEMBER") as "ADMIN" | "MEMBER" | "FREELANCER_MGR" | "FOUNDER" | "CEO",
     team: member?.team ?? "",
     position: member?.position ?? "",
+    positionIds: initialPositionIds,
     password: "",
     employment_type: ((member?.employment_type === "regular" || member?.employment_type === "freelancer") ? member.employment_type : "regular") as "regular" | "freelancer",
     monthly_salary: member?.monthly_salary?.toString() ?? "",
@@ -269,6 +305,7 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
     work_layout: (member?.work_layout ?? "non_media") as "media" | "non_media" | "freelance_media",
     is_management: member?.is_management ?? false,
     enabled_blocks: (member?.enabled_blocks && member.enabled_blocks.length > 0) ? member.enabled_blocks : ALL_NON_MEDIA_BLOCKS,
+    media_tracker_roles: member?.media_tracker_roles ?? [],
     salary_effective_month: (() => {
       const d = new Date(); d.setMonth(d.getMonth() + 1)
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
@@ -305,6 +342,7 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
           phone: form.phone || undefined,
           gender: form.gender || undefined,
           position: form.position || undefined,
+          positionIds: form.positionIds,
           email: form.email || undefined,
           date_of_birth: form.date_of_birth || null,
           joined_at: form.joined_at || null,
@@ -338,13 +376,13 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
       }
 
       if (isEdit) {
-        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, enabled_blocks: form.work_layout === "non_media" ? form.enabled_blocks : null, ...salaryFields, ...dateFields, salaryEffectiveFrom })
+        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, positionIds: form.positionIds, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, enabled_blocks: form.work_layout === "non_media" ? form.enabled_blocks : null, media_tracker_roles: (form.work_layout === "media" || form.work_layout === "freelance_media") ? form.media_tracker_roles : [], ...salaryFields, ...dateFields, salaryEffectiveFrom })
         if (result.success) { router.refresh(); onClose() }
         else setError(result.error ?? "Something went wrong")
       } else {
         const isAdminCreate = form.role === "ADMIN" || form.role === "FOUNDER" || form.role === "CEO" || form.role === "FREELANCER_MGR"
         const nameForCreate = form.name.trim() || (isAdminCreate ? form.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) : "")
-        const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, enabled_blocks: form.work_layout === "non_media" ? form.enabled_blocks : null, ...salaryFields, ...dateFields })
+        const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, positionIds: form.positionIds, password: form.password, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, enabled_blocks: form.work_layout === "non_media" ? form.enabled_blocks : null, media_tracker_roles: (form.work_layout === "media" || form.work_layout === "freelance_media") ? form.media_tracker_roles : [], ...salaryFields, ...dateFields })
         if (result.success) {
           if (form.phone && result.whatsappSent === false && !result.whatsappSkipped) {
             setWhatsappWarning(result.whatsappError ?? "Member created, but WhatsApp notification failed. Check the phone number or Meta template status.")
@@ -365,7 +403,13 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
   const selectedType = ACCOUNT_TYPES.find(t => t.role === form.role) ?? ACCOUNT_TYPES[0]
   const isFreelancerMgr = form.role === "FREELANCER_MGR"
   const isAdmin = form.role === "ADMIN" || form.role === "FOUNDER" || form.role === "CEO"
-  const isNoLoginTeam = !isEdit && NO_LOGIN_TEAMS.has(form.team)
+  // Team options now come from the DB (Manage Teams), falling back to the
+  // hardcoded lists only if that fetch came back empty for some reason.
+  const dbFullTimeTeams    = teams.filter(t => t.scope === "full_time" && t.is_active)
+  const dbLoginFlTeams     = teams.filter(t => t.scope === "freelance_login" && t.is_active)
+  const dbNoLoginFlTeams   = teams.filter(t => t.scope === "freelance_no_login" && t.is_active)
+  const noLoginTeamNames   = teams.length > 0 ? new Set(dbNoLoginFlTeams.map(t => t.name)) : NO_LOGIN_TEAMS
+  const isNoLoginTeam = !isEdit && noLoginTeamNames.has(form.team)
 
   return (
     <>
@@ -539,14 +583,14 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                         style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}>
                         <option value="">Select a team…</option>
                         {form.employment_type === "regular" ? (
-                          FULL_TIME_TEAMS.map(t => <option key={t} value={t}>{t}</option>)
+                          dbFullTimeTeams.map(t => <option key={t.id} value={t.name}>{t.emoji ? `${t.emoji} ` : ""}{t.name}</option>)
                         ) : (
                           <>
                             <optgroup label="── Login (has app access)">
-                              {(["Freelance Media Production"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                              {dbLoginFlTeams.map(t => <option key={t.id} value={t.name}>{t.emoji ? `${t.emoji} ` : ""}{t.name}</option>)}
                             </optgroup>
                             <optgroup label="── No Login (manager enters work)">
-                              {(["Freelance Video Editing","Freelance Videography","Freelance RJ Voiceover","Freelance Graphics Designer","Freelance Content Writer","Freelance Software Development & Automation","Freelance Marketing & Operations","Freelance AI Development & Creative Production"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                              {dbNoLoginFlTeams.map(t => <option key={t.id} value={t.name}>{t.emoji ? `${t.emoji} ` : ""}{t.name}</option>)}
                             </optgroup>
                           </>
                         )}
@@ -632,6 +676,48 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                     </div>
                   )}
 
+                  {/* Media Tracker roles — Media/Freelance Media only, controls who's
+                      pickable as Shot By / Edited By in the Media Tracker. */}
+                  {!isNoLoginTeam && form.team && (form.work_layout === "media" || form.work_layout === "freelance_media") && (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
+                        Media Tracker Roles
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {MEDIA_TRACKER_ROLE_OPTIONS.map(({ value, label }) => {
+                          const checked = form.media_tracker_roles.includes(value)
+                          return (
+                            <button key={value} type="button"
+                              onClick={() => setForm(prev => ({
+                                ...prev,
+                                media_tracker_roles: checked
+                                  ? prev.media_tracker_roles.filter(v => v !== value)
+                                  : [...prev.media_tracker_roles, value],
+                              }))}
+                              style={{
+                                padding: "9px 10px", borderRadius: 10, fontSize: 12, fontWeight: 700,
+                                border: "1.5px solid", cursor: "pointer", transition: "all 0.15s", textAlign: "left",
+                                display: "flex", alignItems: "center", gap: 8,
+                                background: checked ? "rgba(222,26,26,0.08)" : "rgba(0,0,0,0.03)",
+                                borderColor: checked ? "#DE1A1A" : "#E5E7EB",
+                                color: checked ? "#DE1A1A" : "#6B7280",
+                              }}>
+                              <span style={{
+                                width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                                border: "1.5px solid", borderColor: checked ? "#DE1A1A" : "#D1D5DB",
+                                background: checked ? "#DE1A1A" : "transparent",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                              }}>
+                                {checked && <Check size={11} style={{ color: "#FFFFFF" }} />}
+                              </span>
+                              {label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Full Name — always shown */}
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#5C3D1F" }}>Full Name *</label>
@@ -662,10 +748,33 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                     {!isNoLoginTeam && <p className="text-[11px] mt-1.5" style={{ color: "#5C3D1F" }}>Credentials will be sent here after account creation.</p>}
                   </div>
 
-                  {/* Position — shown for all (full time + login + no-login) */}
+                  {/* Position — shown for all (full time + login + no-login) — multi-select from Manage Positions */}
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#5C3D1F" }}>Position / Designation</label>
-                    <input className="sheet-input" value={form.position} onChange={set("position")} placeholder="e.g. Voice Artist, Video Editor…" style={FIELD} />
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#5C3D1F" }}>
+                      Position / Designation <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(select any that apply)</span>
+                    </label>
+                    {positions.length === 0 ? (
+                      <p className="text-[11px]" style={{ color: "#5C3D1F" }}>No positions set up yet — add some from &quot;Manage Teams &amp; Roles&quot;.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {positions.filter(p => p.is_active || form.positionIds.includes(p.id)).map(p => {
+                          const checked = form.positionIds.includes(p.id)
+                          return (
+                            <button key={p.id} type="button"
+                              onClick={() => setForm(prev => ({
+                                ...prev,
+                                positionIds: checked ? prev.positionIds.filter(id => id !== p.id) : [...prev.positionIds, p.id],
+                              }))}
+                              className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full transition-all"
+                              style={checked
+                                ? { background: "rgba(222,26,26,0.1)", color: "#DE1A1A", border: "1px solid #DE1A1A" }
+                                : { background: "rgba(0,0,0,0.03)", color: "#5C3D1F", border: "1px solid #E5E7EB" }}>
+                              {checked ? "✓ " : ""}{p.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Employee ID — full time + login freelancers only */}
@@ -1104,27 +1213,36 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
 
 // ── Freelancer Edit Sheet ────────────────────────────────────────────────────
 
-function FreelancerEditSheet({ freelancer, open, onClose, onSaved }: {
+function FreelancerEditSheet({ freelancer, open, onClose, onSaved, teams = [], positions = [], initialPositionIds = [] }: {
   freelancer: FreelancerBasic | null; open: boolean
   onClose: () => void; onSaved: (updated: FreelancerBasic) => void
+  teams?: TeamRow[]; positions?: PositionRow[]; initialPositionIds?: string[]
 }) {
   const [team, setTeam] = useState(freelancer?.team ?? "")
   const [name, setName] = useState(freelancer?.name ?? "")
   const [phone, setPhone] = useState(freelancer?.phone ?? "")
   const [gender, setGender] = useState(freelancer?.gender ?? "")
   const [status, setStatus] = useState<"active" | "inactive">(freelancer?.status ?? "active")
+  const [positionIds, setPositionIds] = useState<string[]>(initialPositionIds)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
 
   useEffect(() => {
     if (freelancer) {
       setTeam(freelancer.team ?? ""); setName(freelancer.name); setPhone(freelancer.phone ?? "")
-      setGender(freelancer.gender ?? ""); setStatus(freelancer.status); setErr("")
+      setGender(freelancer.gender ?? ""); setStatus(freelancer.status); setPositionIds(initialPositionIds); setErr("")
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [freelancer])
 
   if (!open || !freelancer) return null
-  const cfg = NO_LOGIN_FL_TYPES.find(t => t.key === team)
+  const dbNoLoginFlTeams = teams.filter(t => t.scope === "freelance_no_login" && (t.is_active || t.name === team))
+  const cfg = dbNoLoginFlTeams.length > 0
+    ? dbNoLoginFlTeams.find(t => t.name === team)
+    : NO_LOGIN_FL_TYPES.find(t => t.key === team)
+  const cfgLabel = cfg ? ("label" in cfg ? cfg.label : cfg.name) : null
+  const cfgColor = cfg?.color ?? "#F97316"
+  const cfgEmoji = cfg?.emoji ?? "👤"
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -1133,7 +1251,7 @@ function FreelancerEditSheet({ freelancer, open, onClose, onSaved }: {
     setSaving(true); setErr("")
     const res = await updateFreelancer(freelancer!.id, {
       name: name.trim(), type: "other", team, phone: phone || undefined,
-      gender: gender || undefined, status,
+      gender: gender || undefined, status, positionIds,
     })
     if (!res.success) { setErr(res.error ?? "Failed to save"); setSaving(false); return }
     onSaved({ ...freelancer!, name: name.trim(), team, phone: phone || null, gender: gender || null, status })
@@ -1148,7 +1266,7 @@ function FreelancerEditSheet({ freelancer, open, onClose, onSaved }: {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
             <h2 className="text-[16px] font-bold text-gray-900">Edit Freelancer</h2>
-            {cfg && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block" style={{ background: cfg.bg, color: cfg.color }}>{cfg.emoji} {cfg.label}</span>}
+            {cfg && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block" style={{ background: `${cfgColor}18`, color: cfgColor }}>{cfgEmoji} {cfgLabel}</span>}
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#5C3D1F] font-semibold hover:text-gray-600 hover:bg-gray-100 transition-all">
             <X size={16} />
@@ -1159,7 +1277,16 @@ function FreelancerEditSheet({ freelancer, open, onClose, onSaved }: {
           <div>
             <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#5C3D1F] font-semibold mb-2">Team *</label>
             <div className="grid grid-cols-3 gap-2">
-              {NO_LOGIN_FL_TYPES.map(t => (
+              {dbNoLoginFlTeams.length > 0 ? dbNoLoginFlTeams.map(t => (
+                <button key={t.id} type="button" onClick={() => setTeam(t.name)}
+                  className="flex flex-col items-center gap-1.5 p-3 rounded-xl text-center transition-all"
+                  style={team === t.name
+                    ? { background: t.color ?? "#F97316", border: `2px solid ${t.color ?? "#F97316"}` }
+                    : { background: `${t.color ?? "#F97316"}12`, border: `2px solid ${t.color ?? "#F97316"}4D` }}>
+                  <span style={{ fontSize: 20 }}>{t.emoji ?? "👤"}</span>
+                  <span className="text-[10px] font-bold leading-tight" style={{ color: team === t.name ? "#fff" : "#5C3D1F" }}>{t.name}</span>
+                </button>
+              )) : NO_LOGIN_FL_TYPES.map(t => (
                 <button key={t.key} type="button" onClick={() => setTeam(t.key)}
                   className="flex flex-col items-center gap-1.5 p-3 rounded-xl text-center transition-all"
                   style={team === t.key ? { background: t.color, border: `2px solid ${t.color}` } : { background: t.bg, border: `2px solid ${t.border}` }}>
@@ -1208,6 +1335,29 @@ function FreelancerEditSheet({ freelancer, open, onClose, onSaved }: {
               ))}
             </div>
           </div>
+          {/* Position — multi-select from Manage Positions */}
+          {positions.length > 0 && (
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#5C3D1F] font-semibold mb-2">
+                Position / Designation <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(select any that apply)</span>
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {positions.filter(p => p.is_active || positionIds.includes(p.id)).map(p => {
+                  const checked = positionIds.includes(p.id)
+                  return (
+                    <button key={p.id} type="button"
+                      onClick={() => setPositionIds(prev => checked ? prev.filter(id => id !== p.id) : [...prev, p.id])}
+                      className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-full transition-all"
+                      style={checked
+                        ? { background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1px solid #F97316" }
+                        : { background: "#F9FAFB", color: "#5C3D1F", border: "1px solid #E5E7EB" }}>
+                      {checked ? "✓ " : ""}{p.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           {err && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-xl">{err}</p>}
         </form>
         <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
@@ -1413,10 +1563,272 @@ function AssignManagerSheet({
   )
 }
 
+// ── Manage Teams & Positions ─────────────────────────────────────────────────
+
+function ManageTeamsPositionsPanel({
+  open, onClose, teams, positions,
+}: {
+  open: boolean
+  onClose: () => void
+  teams: TeamRow[]
+  positions: PositionRow[]
+}) {
+  const router = useRouter()
+  const [tab, setTab] = useState<"teams" | "positions">("teams")
+  const [teamCounts, setTeamCounts] = useState<Record<string, number>>({})
+  const [positionCounts, setPositionCounts] = useState<Record<string, number>>({})
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState("")
+
+  const [newTeamName, setNewTeamName] = useState("")
+  const [newTeamScope, setNewTeamScope] = useState<TeamScope>("full_time")
+  const [newPositionName, setNewPositionName] = useState("")
+
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
+  const [editingTeamName, setEditingTeamName] = useState("")
+  const [editingPositionId, setEditingPositionId] = useState<string | null>(null)
+  const [editingPositionName, setEditingPositionName] = useState("")
+
+  useEffect(() => {
+    if (!open) return
+    setError("")
+    getTeamMemberCounts().then(setTeamCounts)
+    getPositionAssignmentCounts().then(setPositionCounts)
+  }, [open])
+
+  if (!open) return null
+
+  const scopeGroups: { scope: TeamScope; label: string }[] = [
+    { scope: "full_time", label: "Full Time" },
+    { scope: "freelance_login", label: "Freelance — Has Login" },
+    { scope: "freelance_no_login", label: "Freelance — No Login" },
+  ]
+
+  function handleAddTeam() {
+    if (!newTeamName.trim()) return
+    setError("")
+    startTransition(async () => {
+      const res = await addTeam({ name: newTeamName.trim(), scope: newTeamScope })
+      if (!res.success) { setError(res.error ?? "Failed to add team"); return }
+      setNewTeamName("")
+      router.refresh()
+    })
+  }
+
+  function handleRenameTeam(id: string) {
+    if (!editingTeamName.trim()) return
+    setError("")
+    startTransition(async () => {
+      const res = await updateTeam(id, { name: editingTeamName.trim() })
+      if (!res.success) { setError(res.error ?? "Failed to rename team"); return }
+      setEditingTeamId(null)
+      router.refresh()
+    })
+  }
+
+  function handleToggleTeam(t: TeamRow) {
+    setError("")
+    startTransition(async () => {
+      const res = await toggleTeamActive(t.id, !t.is_active)
+      if (!res.success) setError(res.error ?? "Failed to update team")
+      router.refresh()
+    })
+  }
+
+  function handleDeleteTeam(t: TeamRow) {
+    setError("")
+    startTransition(async () => {
+      const res = await deleteTeam(t.id)
+      if (!res.success) { setError(res.error ?? "Failed to delete team"); return }
+      router.refresh()
+    })
+  }
+
+  function handleAddPosition() {
+    if (!newPositionName.trim()) return
+    setError("")
+    startTransition(async () => {
+      const res = await addPosition(newPositionName.trim())
+      if (!res.success) { setError(res.error ?? "Failed to add position"); return }
+      setNewPositionName("")
+      router.refresh()
+    })
+  }
+
+  function handleRenamePosition(id: string) {
+    if (!editingPositionName.trim()) return
+    setError("")
+    startTransition(async () => {
+      const res = await renamePosition(id, editingPositionName.trim())
+      if (!res.success) { setError(res.error ?? "Failed to rename position"); return }
+      setEditingPositionId(null)
+      router.refresh()
+    })
+  }
+
+  function handleTogglePosition(p: PositionRow) {
+    setError("")
+    startTransition(async () => {
+      const res = await togglePositionActive(p.id, !p.is_active)
+      if (!res.success) setError(res.error ?? "Failed to update position")
+      router.refresh()
+    })
+  }
+
+  function handleDeletePosition(p: PositionRow) {
+    setError("")
+    startTransition(async () => {
+      const res = await deletePosition(p.id)
+      if (!res.success) { setError(res.error ?? "Failed to delete position"); return }
+      router.refresh()
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative ml-auto h-full w-full max-w-[420px] bg-white shadow-2xl flex flex-col overflow-hidden">
+        <div className="px-6 py-5 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid #E5E7EB" }}>
+          <div>
+            <h2 className="text-[17px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+              {tab === "teams" ? "Manage Teams" : "Manage Positions"}
+            </h2>
+            <p className="text-[12px] mt-0.5" style={{ color: "#5C3D1F" }}>
+              {tab === "teams" ? "Controls what shows in the Team dropdown" : "The picklist each member's Position is chosen from"}
+            </p>
+          </div>
+          <button onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-gray-100"
+            style={{ border: "1px solid #E5E7EB" }}>
+            <X size={14} style={{ color: "#5C3D1F" }} />
+          </button>
+        </div>
+
+        <div className="px-6 pt-4 flex-shrink-0">
+          <div className="flex gap-1 p-1 rounded-xl" style={{ background: "rgba(0,0,0,0.035)", border: "1px solid #E5E7EB" }}>
+            {(["teams", "positions"] as const).map(t => (
+              <button key={t} type="button" onClick={() => setTab(t)}
+                className="flex-1 py-2 rounded-lg text-[12px] font-bold transition-all"
+                style={tab === t ? { background: "#DE1A1A", color: "#fff" } : { background: "transparent", color: "#5C3D1F" }}>
+                {t === "teams" ? "Teams" : "Positions / Roles"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {error && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-xl">{error}</p>}
+
+          {tab === "teams" ? (
+            scopeGroups.map(g => {
+              const rows = teams.filter(t => t.scope === g.scope)
+              return (
+                <div key={g.scope} className="space-y-2">
+                  <p className="text-[10.5px] font-bold uppercase tracking-[0.06em]" style={{ color: "#9CA3AF" }}>{g.label}</p>
+                  {rows.map(t => (
+                    <div key={t.id} className="flex items-center gap-2.5 p-2.5 rounded-xl" style={{ border: "1px solid #E5E7EB", opacity: t.is_active ? 1 : 0.5 }}>
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-[13px]" style={{ background: t.color ? `${t.color}18` : "#F3F4F6" }}>{t.emoji ?? "👥"}</div>
+                      {editingTeamId === t.id ? (
+                        <input autoFocus value={editingTeamName} onChange={e => setEditingTeamName(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") handleRenameTeam(t.id); if (e.key === "Escape") setEditingTeamId(null) }}
+                          className="flex-1 min-w-0 text-[12.5px] rounded-lg px-2 py-1" style={{ border: "1px solid #DE1A1A" }} />
+                      ) : (
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12.5px] font-semibold truncate flex items-center gap-1" style={{ color: "#111111" }}>
+                            {t.name}
+                            {t.is_locked && <Lock size={10} style={{ color: "#9CA3AF", flexShrink: 0 }} />}
+                          </p>
+                          <p className="text-[10.5px]" style={{ color: "#9CA3AF" }}>
+                            {t.is_locked ? "Locked — name can't be changed" : `${teamCounts[t.id] ?? 0} member${teamCounts[t.id] === 1 ? "" : "s"}`}
+                          </p>
+                        </div>
+                      )}
+                      {editingTeamId === t.id ? (
+                        <button type="button" onClick={() => handleRenameTeam(t.id)} disabled={isPending} className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#DE1A1A", color: "#fff" }}><Check size={12} /></button>
+                      ) : !t.is_locked ? (
+                        <button type="button" onClick={() => { setEditingTeamId(t.id); setEditingTeamName(t.name) }} className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ border: "1px solid #E5E7EB", color: "#5C3D1F" }}><Pencil size={11} /></button>
+                      ) : null}
+                      <button type="button" onClick={() => handleToggleTeam(t)} disabled={isPending} title={t.is_active ? "Deactivate" : "Reactivate"}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ border: "1px solid #E5E7EB", color: t.is_active ? "#F97316" : "#16A34A" }}>
+                        {t.is_active ? <Ban size={11} /> : <RotateCcw size={11} />}
+                      </button>
+                      {!t.is_locked && (teamCounts[t.id] ?? 0) === 0 && (
+                        <button type="button" onClick={() => handleDeleteTeam(t)} disabled={isPending} className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ border: "1px solid #FCA5A5", color: "#DC2626" }}><Trash2 size={11} /></button>
+                      )}
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <input value={newTeamScope === g.scope ? newTeamName : ""} onFocus={() => setNewTeamScope(g.scope)}
+                      onChange={e => { setNewTeamScope(g.scope); setNewTeamName(e.target.value) }}
+                      onKeyDown={e => { if (e.key === "Enter") handleAddTeam() }}
+                      placeholder={`+ Add ${g.label.toLowerCase()} team`}
+                      className="flex-1 min-w-0 text-[12px] rounded-xl px-3 py-2" style={{ border: "1px dashed #E5E7EB", background: "transparent", outline: "none" }} />
+                    {newTeamScope === g.scope && newTeamName.trim() && (
+                      <button type="button" onClick={handleAddTeam} disabled={isPending} className="px-3 rounded-xl text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#DE1A1A" }}>Add</button>
+                    )}
+                  </div>
+                </div>
+              )
+            })
+          ) : (
+            <div className="space-y-2">
+              {positions.map(p => (
+                <div key={p.id} className="flex items-center gap-2.5 p-2.5 rounded-xl" style={{ border: "1px solid #E5E7EB", opacity: p.is_active ? 1 : 0.5 }}>
+                  {editingPositionId === p.id ? (
+                    <input autoFocus value={editingPositionName} onChange={e => setEditingPositionName(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") handleRenamePosition(p.id); if (e.key === "Escape") setEditingPositionId(null) }}
+                      className="flex-1 min-w-0 text-[12.5px] rounded-lg px-2 py-1" style={{ border: "1px solid #DE1A1A" }} />
+                  ) : (
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12.5px] font-semibold truncate" style={{ color: "#111111" }}>{p.name}</p>
+                      <p className="text-[10.5px]" style={{ color: "#9CA3AF" }}>{positionCounts[p.id] ?? 0} people</p>
+                    </div>
+                  )}
+                  {editingPositionId === p.id ? (
+                    <button type="button" onClick={() => handleRenamePosition(p.id)} disabled={isPending} className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#DE1A1A", color: "#fff" }}><Check size={12} /></button>
+                  ) : (
+                    <button type="button" onClick={() => { setEditingPositionId(p.id); setEditingPositionName(p.name) }} className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ border: "1px solid #E5E7EB", color: "#5C3D1F" }}><Pencil size={11} /></button>
+                  )}
+                  <button type="button" onClick={() => handleTogglePosition(p)} disabled={isPending} title={p.is_active ? "Deactivate" : "Reactivate"}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ border: "1px solid #E5E7EB", color: p.is_active ? "#F97316" : "#16A34A" }}>
+                    {p.is_active ? <Ban size={11} /> : <RotateCcw size={11} />}
+                  </button>
+                  {(positionCounts[p.id] ?? 0) === 0 && (
+                    <button type="button" onClick={() => handleDeletePosition(p)} disabled={isPending} className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ border: "1px solid #FCA5A5", color: "#DC2626" }}><Trash2 size={11} /></button>
+                  )}
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <input value={newPositionName} onChange={e => setNewPositionName(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") handleAddPosition() }}
+                  placeholder="+ Add position"
+                  className="flex-1 min-w-0 text-[12px] rounded-xl px-3 py-2" style={{ border: "1px dashed #E5E7EB", background: "transparent", outline: "none" }} />
+                {newPositionName.trim() && (
+                  <button type="button" onClick={handleAddPosition} disabled={isPending} className="px-3 rounded-xl text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#DE1A1A" }}>Add</button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function TeamClient({ members, pastMembers, freelancers: initFreelancers = [], pastFreelancers: initPastFreelancers = [], initialSearch = "", assignedManagerIds = [] }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; pastFreelancers?: FreelancerBasic[]; initialSearch?: string; assignedManagerIds?: string[] }) {
+export default function TeamClient({
+  members, pastMembers, freelancers: initFreelancers = [], pastFreelancers: initPastFreelancers = [],
+  initialSearch = "", assignedManagerIds = [], teams = [], positions = [],
+  positionIdsByUser = {}, positionIdsByFreelancer = {},
+}: {
+  members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; pastFreelancers?: FreelancerBasic[]
+  initialSearch?: string; assignedManagerIds?: string[]
+  teams?: TeamRow[]; positions?: PositionRow[]
+  positionIdsByUser?: Record<string, string[]>; positionIdsByFreelancer?: Record<string, string[]>
+}) {
   const router = useRouter()
+  const [manageOpen, setManageOpen] = useState(false)
   const confirm = useConfirm()
   const nextId = useMemo(() => computeNextEmployeeId(members), [members])
   const [search, setSearch] = useState(initialSearch)
@@ -1596,8 +2008,14 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
             </div>
           </div>
 
-          {/* Right: Add Member button */}
+          {/* Right: Manage Teams/Roles + Add Member buttons */}
           <div className="flex items-center gap-2 self-start sm:self-center" style={{ flexShrink: 0 }}>
+            <button
+              onClick={() => setManageOpen(true)}
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-[12px] font-bold transition-all whitespace-nowrap"
+              style={{ background: "rgba(255,255,255,0.12)", color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.35)" }}>
+              <Users size={13} /> <span className="hidden sm:inline">Manage Teams &amp; Roles</span>
+            </button>
             <button
               onClick={() => { setEditMember(null); setSheetOpen(true) }}
               className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-[12px] font-bold transition-all whitespace-nowrap"
@@ -1718,7 +2136,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                       {loginFreelancerMembers.map((m, i) => {
                         const initials = m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
                         const teamKey = m.team ?? "other"
-                        const teamCfg = FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
+                        const teamCfg = resolveFlTypeCfg(teamKey, teams)
                         return (
                           <tr key={m.id} style={{ borderBottom: i < loginFreelancerMembers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
                             <td className="px-5 py-3">
@@ -1842,7 +2260,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                       </td></tr>
                     ) : freelancers.map((f, i) => {
                       const teamKey = getFreelancerTeamKey(f)
-                      const teamCfg = FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
+                      const teamCfg = resolveFlTypeCfg(teamKey, teams)
                       const joinedSource = f.first_work_date ?? f.created_at
                       const added = joinedSource
                         ? new Date(joinedSource).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
@@ -1976,7 +2394,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
               </thead>
               <tbody>
                 {filtered.map((member, i) => {
-                  const tc = teamColor(member.team)
+                  const tc = teamColor(member.team, teams)
                   return (
                     <tr key={member.id}
                       style={{ borderBottom: i < filtered.length - 1 ? "1px solid #F9FAFB" : "none" }}
@@ -2237,7 +2655,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                 <p className="text-center text-[12px] py-6" style={{ color: "#5C3D1F" }}>No team members yet</p>
               ) : (
                 recentActivity.map((m) => {
-                  const tc = teamColor(m.team)
+                  const tc = teamColor(m.team, teams)
                   return (
                     <div key={m.id} className="flex items-center gap-3 py-1">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
@@ -2355,7 +2773,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                 <tbody>
                   {pastFreelancers.map((f, i) => {
                     const teamKey = getFreelancerTeamKey(f)
-                    const teamCfg = FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
+                    const teamCfg = resolveFlTypeCfg(teamKey, teams)
                     const initials = f.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
                     return (
                       <tr key={f.id} style={{ borderBottom: i < pastFreelancers.length - 1 ? "1px solid #F9FAFB" : "none", opacity: 0.65 }}>
@@ -2551,7 +2969,11 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
 
       {assignTarget && <AssignTaskModal member={assignTarget} onClose={() => setAssignTarget(null)} />}
 
-      <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} nextId={nextId} />
+      <MemberSheet
+        key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} nextId={nextId}
+        teams={teams} positions={positions}
+        initialPositionIds={editMember ? (positionIdsByUser[editMember.id] ?? []) : []}
+      />
 
       <AssignManagerSheet
         open={assignSheetOpen}
@@ -2568,7 +2990,11 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
           setFreelancers(prev => prev.map(f => f.id === updated.id ? updated : f))
           setEditingFreelancer(null)
         }}
+        teams={teams} positions={positions}
+        initialPositionIds={editingFreelancer ? (positionIdsByFreelancer[editingFreelancer.id] ?? []) : []}
       />
+
+      <ManageTeamsPositionsPanel open={manageOpen} onClose={() => setManageOpen(false)} teams={teams} positions={positions} />
     </div>
   )
 }

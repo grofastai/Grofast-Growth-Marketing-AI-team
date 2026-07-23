@@ -14,6 +14,8 @@ import { savePayrollSettings } from "@/lib/actions/payroll-settings"
 import type { PayrollSettings } from "@/lib/payroll-settings-defaults"
 import { useToast } from "@/components/ui/useToast"
 import { PageHero } from "@/components/admin/PageHero"
+import type { TeamRow } from "@/lib/actions/teams"
+import { hexToRgba } from "@/lib/utils/team-colors"
 
 type PayrollRow = {
   id: string; name: string; employee_id: string; team: string | null
@@ -214,14 +216,24 @@ const TEAM_CLR: Record<string, { bg: string; color: string }> = {
 }
 const DEF_TEAM = { bg: "#F3F4F6", color: "#6B7280" }
 
+// DB-first: a renamed or brand-new team gets its real color instead of falling
+// straight to grey. Falls back to the hardcoded map for legacy data with no
+// matching teams row.
+function resolveTeamClr(team: string | null, teams: TeamRow[]): { bg: string; color: string } {
+  const row = teams.find(t => t.name === team)
+  if (row?.color) return { bg: hexToRgba(row.color, 0.1), color: row.color }
+  return TEAM_CLR[team ?? ""] ?? DEF_TEAM
+}
+
 // ── Expandable Employee Card ────────────────────────────────────────────────
 function EmployeeCard({
   r, month, year, mon, workDays, isExpanded, onToggle,
-  selectMode = false, selected = false, onToggleSelect,
+  selectMode = false, selected = false, onToggleSelect, teams = [],
 }: {
   r: PayrollRow; month: string; year: number; mon: number; workDays: number
   isExpanded: boolean; onToggle: () => void
   selectMode?: boolean; selected?: boolean; onToggleSelect?: () => void
+  teams?: TeamRow[]
 }) {
   const [isPending, startTransition] = useTransition()
   const [savingBonus, setSavingBonus] = useState(false)
@@ -234,7 +246,7 @@ function EmployeeCard({
   const attendPct = effectiveDays > 0
     ? Math.round(((r.presentDays + r.halfDays * 0.5 + r.leaveDays) / effectiveDays) * 100)
     : 0
-  const tClr = TEAM_CLR[r.team ?? ""] ?? DEF_TEAM
+  const tClr = resolveTeamClr(r.team, teams)
 
   function handleTogglePaid() {
     startTransition(async () => {
@@ -544,7 +556,7 @@ function EmployeeCard({
 export default function PayrollClient({
   rows, month, workDays,
   pendingCollabCount, pendingLeaveCount, pendingUpdateCount,
-  payrollSettings,
+  payrollSettings, teams = [],
 }: {
   rows: PayrollRow[]
   month: string
@@ -553,6 +565,7 @@ export default function PayrollClient({
   pendingLeaveCount: number
   pendingUpdateCount: number
   payrollSettings: PayrollSettings
+  teams?: TeamRow[]
 }) {
   const router   = useRouter()
   const pathname = usePathname()
@@ -1124,6 +1137,7 @@ export default function PayrollClient({
                     selectMode={selectMode}
                     selected={selectedIds.has(r.id)}
                     onToggleSelect={() => toggleSelectId(r.id)}
+                    teams={teams}
                   />
                 ))}
               </div>

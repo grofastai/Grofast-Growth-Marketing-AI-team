@@ -28,7 +28,7 @@ function isAuthorized(request: NextRequest): boolean {
   return false
 }
 
-// Fires across a short window around 9:40 AM IST (see vercel.json) — Vercel Hobby
+// Fires across a short window from 9:30 AM IST (see vercel.json) — Vercel Hobby
 // cron can't be trusted to fire at an exact minute, so several entries cover the
 // window instead of one, and filterAlreadyNotifiedToday/markNotifiedToday below
 // stop that from turning into repeat nudges for anyone still unmarked at the next

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { getOrCreateMemberFolder } from '@/lib/google/drive'
 import { normalizePhone } from '@/lib/utils/phone'
 import { todayIST } from '@/lib/utils/ist-date'
+import { setUserPositions } from './positions'
 
 function adminSupabase() {
   return createClient(
@@ -13,6 +14,16 @@ function adminSupabase() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
+}
+
+// Teams are now an admin-managed table (see 104_teams_positions_tables.sql) —
+// the form still submits the team by name (unchanged UI wiring), this just
+// resolves the matching row so team_id can be dual-written alongside the
+// legacy `team` text column until the rest of the app reads team_id directly.
+async function resolveTeamId(admin: ReturnType<typeof adminSupabase>, companyId: string, teamName: string | null | undefined): Promise<string | null> {
+  if (!teamName) return null
+  const { data } = await admin.from('teams').select('id').eq('company_id', companyId).eq('name', teamName).maybeSingle()
+  return (data as { id: string } | null)?.id ?? null
 }
 
 async function notifyWhatsApp(
@@ -104,6 +115,7 @@ export async function createMember(input: {
   role: 'ADMIN' | 'MEMBER' | 'FREELANCER_MGR' | 'FOUNDER' | 'CEO'
   team: string
   position?: string | null
+  positionIds?: string[]
   password: string
   employment_type?: 'regular' | 'part_time' | 'freelancer'
   monthly_salary?: number | null
@@ -115,6 +127,7 @@ export async function createMember(input: {
   work_layout?: 'media' | 'non_media' | 'freelance_media'
   is_management?: boolean
   enabled_blocks?: string[] | null
+  media_tracker_roles?: string[]
 }): Promise<{ success: boolean; error?: string; whatsappSent?: boolean; whatsappSkipped?: boolean; whatsappError?: string }> {
   // Admin-level roles use real email login (not employee_id-based internal email)
   const isAdmin = input.role === 'ADMIN' || input.role === 'FOUNDER' || input.role === 'CEO'
@@ -235,6 +248,8 @@ export async function createMember(input: {
     authUserId = authData.user.id
   }
 
+  const team_id = await resolveTeamId(admin, company_id, input.team)
+
   const { error: insertError } = await admin.from('users').insert({
     id: authUserId,
     company_id,
@@ -244,6 +259,7 @@ export async function createMember(input: {
     phone: input.phone || null,
     email: input.email,
     team: input.team || null,
+    team_id,
     position: input.position ?? null,
     status: 'active',
     must_change_password: isAdmin ? false : true,
@@ -257,6 +273,7 @@ export async function createMember(input: {
     work_layout: input.work_layout ?? 'non_media',
     is_management: input.is_management ?? false,
     enabled_blocks: input.enabled_blocks ?? null,
+    media_tracker_roles: input.media_tracker_roles ?? [],
     // Derived from team, not a form field — "Freelance Media Production" is the
     // only freelance team with app login (the other 8 are no-login and never
     // reach this action; they go through createFreelancer instead). Deriving
@@ -268,6 +285,8 @@ export async function createMember(input: {
     if (!authError) await admin.auth.admin.deleteUser(authUserId)
     return { success: false, error: insertError.message }
   }
+
+  if (input.positionIds) await setUserPositions(authUserId, input.positionIds)
 
   // Per-type cooldown: skip if an onboarding notification was sent in the last 60 seconds
   const { data: existingUser } = await admin
@@ -362,6 +381,7 @@ export async function updateMember(input: {
   role: 'ADMIN' | 'MEMBER' | 'FREELANCER_MGR' | 'FOUNDER' | 'CEO'
   team: string
   position?: string | null
+  positionIds?: string[]
   employment_type?: 'regular' | 'part_time' | 'freelancer'
   monthly_salary?: number | null
   hourly_rate?: number | null
@@ -373,6 +393,7 @@ export async function updateMember(input: {
   is_management?: boolean
   salaryEffectiveFrom?: string
   enabled_blocks?: string[] | null
+  media_tracker_roles?: string[]
 }): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -419,6 +440,8 @@ export async function updateMember(input: {
     }
   }
 
+  const team_id = editorProfile?.company_id ? await resolveTeamId(admin, editorProfile.company_id, input.team) : null
+
   const { error } = await admin
     .from('users')
     .update({
@@ -427,6 +450,7 @@ export async function updateMember(input: {
       phone: input.phone || null,
       role: input.role,
       team: input.team || null,
+      team_id,
       position: input.position ?? null,
       employment_type: input.employment_type ?? 'regular',
       monthly_salary: input.monthly_salary ?? null,
@@ -438,6 +462,7 @@ export async function updateMember(input: {
       ...(input.work_layout ? { work_layout: input.work_layout } : {}),
       is_management: input.is_management ?? false,
       ...(input.work_layout === 'non_media' ? { enabled_blocks: input.enabled_blocks ?? null } : {}),
+      ...(input.media_tracker_roles !== undefined ? { media_tracker_roles: input.media_tracker_roles } : {}),
       // Same derivation as createMember — keeps this in sync if a member's team
       // is ever changed to or away from the one login-enabled freelance team.
       is_freelancer_login: input.team === 'Freelance Media Production',
@@ -445,6 +470,8 @@ export async function updateMember(input: {
     .eq('id', input.id)
 
   if (error) return { success: false, error: error.message }
+
+  if (input.positionIds) await setUserPositions(input.id, input.positionIds)
 
   // Keep the real login account in sync — this table's `email` column is only a display
   // field. Without this, changing someone's email here silently updates nothing about how

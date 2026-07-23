@@ -36,10 +36,14 @@ export default async function TeamPage({
     { data: pastFreelancersData },
     { data: assignmentRows },
     { data: workEntryDates },
+    { data: teamsData },
+    { data: positionsData },
+    { data: userPositionRows },
+    { data: freelancerPositionRows },
   ] = await Promise.all([
     admin
       .from('users')
-      .select('id, name, employee_id, role, email, phone, status, team, position, created_at, employment_type, monthly_salary, hourly_rate, paid_leave_days, deleted_at, date_of_birth, joined_at, gender, passport_photo_url, drive_folder_id, is_support_handler, work_layout, is_management, is_freelancer_login, enabled_blocks')
+      .select('id, name, employee_id, role, email, phone, status, team, position, created_at, employment_type, monthly_salary, hourly_rate, paid_leave_days, deleted_at, date_of_birth, joined_at, gender, passport_photo_url, drive_folder_id, is_support_handler, work_layout, is_management, is_freelancer_login, enabled_blocks, media_tracker_roles')
       .eq('company_id', profile.company_id)
       .neq('role', 'FREELANCER')
       .is('deleted_at', null)
@@ -76,6 +80,26 @@ export default async function TeamPage({
       .select('freelancer_id, date_finished')
       .eq('company_id', profile.company_id)
       .order('date_finished', { ascending: true }),
+    admin
+      .from('teams')
+      .select('id, name, scope, template_key, color, emoji, is_active, is_locked')
+      .eq('company_id', profile.company_id)
+      .order('sort_order')
+      .order('name'),
+    admin
+      .from('positions')
+      .select('id, name, is_active')
+      .eq('company_id', profile.company_id)
+      .order('sort_order')
+      .order('name'),
+    admin
+      .from('user_positions')
+      .select('user_id, position_id')
+      .eq('company_id', profile.company_id),
+    admin
+      .from('freelancer_positions')
+      .select('freelancer_id, position_id')
+      .eq('company_id', profile.company_id),
   ])
 
   if (membersError) {
@@ -95,6 +119,15 @@ export default async function TeamPage({
   const withFirstWorkDate = <T extends { id: string }>(rows: T[] | null) =>
     (rows ?? []).map(f => ({ ...f, first_work_date: firstWorkDateByFreelancer.get(f.id) ?? null }))
 
+  const positionIdsByUser: Record<string, string[]> = {}
+  for (const row of (userPositionRows ?? []) as { user_id: string; position_id: string }[]) {
+    (positionIdsByUser[row.user_id] ??= []).push(row.position_id)
+  }
+  const positionIdsByFreelancer: Record<string, string[]> = {}
+  for (const row of (freelancerPositionRows ?? []) as { freelancer_id: string; position_id: string }[]) {
+    (positionIdsByFreelancer[row.freelancer_id] ??= []).push(row.position_id)
+  }
+
   return (
     <TeamClient
       members={members ?? []}
@@ -103,6 +136,10 @@ export default async function TeamPage({
       pastFreelancers={withFirstWorkDate(pastFreelancersData)}
       initialSearch={initialSearch ?? ""}
       assignedManagerIds={assignedManagerIds}
+      teams={teamsData ?? []}
+      positions={positionsData ?? []}
+      positionIdsByUser={positionIdsByUser}
+      positionIdsByFreelancer={positionIdsByFreelancer}
     />
   )
 }

@@ -5,6 +5,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import type { Freelancer, WorkEntry } from "@/app/member/freelancers/freelancers-member-client"
 import type { FlMediaMember, FlMediaEntry } from "./fl-media-client"
+import { listTeams } from "@/lib/actions/teams"
 
 function adminSupabase() {
   return createClient(
@@ -28,6 +29,7 @@ export default async function AdminFreelancersPage() {
     .single()
   if (!profile?.company_id) redirect("/login")
   const cid = profile.company_id
+  const teams = await listTeams()
 
   // Fetch all data in parallel
   const [freelancersResult, workEntriesResult, clientsResult, pastClientsResult, flMembersResult] = await Promise.all([
@@ -101,6 +103,7 @@ export default async function AdminFreelancersPage() {
       workEntries={workEntries}
       clientNames={clientNames}
       pastClientNames={pastClientNames}
+      teams={teams}
     />
   )
 }

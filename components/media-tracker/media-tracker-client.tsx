@@ -258,12 +258,26 @@ const USE_FOR_CFG: Record<UseFor, { label: string; color: string; icon: typeof C
 // local state right after a backfill create; the server always recomputes the real value.
 const ADS_PLATFORM_SET = new Set<Platform>(["ads", "meta_ads", "google_ads"])
 
+// Which side "owns" a dual-posted item for reporting purposes — a video posted both
+// organically and to Ads still has exactly one true origin. An Ads Video script's origin
+// is Ads even if also posted to Branding; anything else (a regular shoot or poster)
+// originates as Branding even if also pushed to Ads via "Also post to Ads/Branding".
+function primaryPostedKind(postedBranding: boolean, postedAds: boolean, source: ContentSource): "branding" | "ads" | null {
+  if (!postedBranding && !postedAds) return null
+  return postedAds && (!postedBranding || source === "ads_video") ? "ads" : "branding"
+}
+
 // Per-client Posted / Unposted (edited, awaiting THIS kind's post) / Unedited breakdown for
 // one kind — powers the Overview "Per-Client KPIs" tables. Combines video + poster by default
 // (Overview is a bird's-eye view, not scoped to one content type) — pass contentType to scope
 // it, as the Waiting to Post stats box does, so its numbers match the queue right next to it.
-function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFilter: string, contentType?: "video" | "poster") {
-  const isDone = (i: ContentItem) => kind === "branding" ? i.posted_branding : i.posted_ads
+// primaryOnly credits a dual-posted item to its origin only (Overview's business-analytics
+// tables) instead of both sides (the per-client stats box on the Branding/Ads log tabs,
+// where a reused item should still show up under whichever tab you're viewing).
+function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFilter: string, contentType?: "video" | "poster", primaryOnly = false) {
+  const isDone = (i: ContentItem) => primaryOnly
+    ? primaryPostedKind(i.posted_branding, i.posted_ads, i.source) === kind
+    : kind === "branding" ? i.posted_branding : i.posted_ads
   // On Review hasn't branched yet, so an item sitting there isn't known to be Branding or
   // Ads — it only counts as "unposted" for THIS kind once it's actually reached this kind's
   // own Ready lane. The other kind's Ready lane (or a posted-via-the-other-side item) means
@@ -293,12 +307,8 @@ function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFi
     .sort((a, b) => b.total - a.total)
 }
 
-// A single, non-duplicated count for Overview — the Branding/Advertisement tables above
-// deliberately keep showing a dual-posted video in both (that's the point of "Also post to
-// X"), but this total counts every posted video exactly once. A dual-posted video (posted
-// both ways) is attributed to whichever side is its actual origin — an Ads Video script
-// counts as Ads even if also posted to Branding; anything else (a regular shoot or poster)
-// counts as Branding even if also posted to Ads.
+// A single, non-duplicated count for Overview, matching primaryOnly attribution in
+// buildClientKPIs above — every posted video counts exactly once, credited to its origin.
 function countUniquePosted(items: ContentItem[], monthFilter: string) {
   const inMonth = (kind: "branding" | "ads") => (item: ContentItem) => {
     if (monthFilter === "all") return true
@@ -310,9 +320,9 @@ function countUniquePosted(items: ContentItem[], monthFilter: string) {
     if (item.status === "cancelled") continue
     const postedAds = item.posted_ads && inMonth("ads")(item)
     const postedBranding = item.posted_branding && inMonth("branding")(item)
-    if (!postedAds && !postedBranding) continue
-    if (postedAds && (!postedBranding || item.source === "ads_video")) ads++
-    else branding++
+    const primary = primaryPostedKind(postedBranding, postedAds, item.source)
+    if (primary === "ads") ads++
+    else if (primary === "branding") branding++
   }
   return { ads, branding, total: ads + branding }
 }
@@ -3775,8 +3785,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
 
   // Per-client KPI tables live on Overview now (see overviewBrandingKPIs/overviewAdsKPIs
   // below) — not scoped to a single content type or tab, so they show the full picture.
-  const overviewBrandingKPIs = useMemo(() => buildClientKPIs(items, "branding", overviewKpiMonth), [items, overviewKpiMonth])
-  const overviewAdsKPIs = useMemo(() => buildClientKPIs(items, "ads", overviewKpiMonth), [items, overviewKpiMonth])
+  // primaryOnly=true: Overview is business analytics, so a dual-posted item is credited to
+  // its origin only, matching overviewUniquePosted below (not shown in both tables at once).
+  const overviewBrandingKPIs = useMemo(() => buildClientKPIs(items, "branding", overviewKpiMonth, undefined, true), [items, overviewKpiMonth])
+  const overviewAdsKPIs = useMemo(() => buildClientKPIs(items, "ads", overviewKpiMonth, undefined, true), [items, overviewKpiMonth])
   const overviewUniquePosted = useMemo(() => countUniquePosted(items, overviewKpiMonth), [items, overviewKpiMonth])
 
   // The per-client stats box next to Waiting to Post — only meaningful once a single
@@ -4205,8 +4217,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               <div>
                 <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
                 {/* One video posted both ways (e.g. an Ads Video also posted to Branding)
-                    still counts once here, attributed to its origin — the tables below keep
-                    showing it in both, this line doesn't double it up. */}
+                    counts once, attributed to its origin — the tables below (primaryOnly)
+                    credit it to that same side only, so this line and the tables always agree. */}
                 <p style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, margin: "2px 0 0" }}>
                   {overviewUniquePosted.total} unique video{overviewUniquePosted.total === 1 ? "" : "s"} posted — {overviewUniquePosted.ads} Ads · {overviewUniquePosted.branding} Branding
                 </p>

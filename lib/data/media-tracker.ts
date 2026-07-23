@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { ContentItem, Ad, Shoot } from '@/components/media-tracker/media-tracker-client'
+import type { ContentItem, Ad, Shoot, ClientTarget } from '@/components/media-tracker/media-tracker-client'
 
 function adminSupabase() {
   return createClient(
@@ -19,10 +19,11 @@ export async function getMediaTrackerData(companyId: string): Promise<{
   editingMembers: { id: string; name: string }[]
   shootingMembers: { id: string; name: string }[]
   voiceoverMembers: { id: string; name: string }[]
+  clientTargets: ClientTarget[]
 }> {
   const admin = adminSupabase()
 
-  const [itemsRes, postsRes, usersRes, adsRes, revisionsRes, performanceRes, shootsRes, shootTitlesRes, correctionsRes, freelancersRes] = await Promise.all([
+  const [itemsRes, postsRes, usersRes, adsRes, revisionsRes, performanceRes, shootsRes, shootTitlesRes, correctionsRes, freelancersRes, targetsRes] = await Promise.all([
     admin.from('content_items').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
     admin.from('content_item_posts').select('*').eq('company_id', companyId).order('posted_date', { ascending: false }),
     // Freelancers have their own separate work-logging flow (app/admin/freelancers) — they
@@ -38,6 +39,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     admin.from('shoot_titles').select('id, shoot_id, title, content_item_id').eq('company_id', companyId),
     admin.from('content_corrections').select('*').eq('company_id', companyId).order('correction_date', { ascending: false }),
     admin.from('freelancers').select('id, name, team, status').eq('company_id', companyId),
+    admin.from('content_client_targets').select('client_name, kind, month, target').eq('company_id', companyId),
   ])
 
   type ItemRow = {
@@ -210,5 +212,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
 
   const members = userRows.map(u => ({ id: u.id, name: u.name })).sort((a, b) => a.name.localeCompare(b.name))
 
-  return { items, ads, shoots, members, voiceoverFreelancers, scriptingMembers, editingMembers, shootingMembers, voiceoverMembers }
+  const clientTargets = (targetsRes.data ?? []) as ClientTarget[]
+
+  return { items, ads, shoots, members, voiceoverFreelancers, scriptingMembers, editingMembers, shootingMembers, voiceoverMembers, clientTargets }
 }

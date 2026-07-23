@@ -22,7 +22,7 @@ import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
   createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, requestCorrection,
-  createAdsVideoScript, recordVoiceOver, updateAdsVideoScript, updateVoiceOver,
+  createAdsVideoScript, recordVoiceOver, updateAdsVideoScript, updateVoiceOver, setClientMonthlyTarget,
 } from "@/lib/actions/media-tracker"
 import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, renameShootTitle, addShootTitle, updateShootActualTime, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
@@ -148,6 +148,15 @@ export type Shoot = {
 
 export type Member = { id: string; name: string }
 
+// Monthly posting target for a client, scoped to branding vs ads — set inline
+// from the per-client stats box next to Waiting to Post.
+export type ClientTarget = {
+  client_name: string
+  kind: "branding" | "ads"
+  month: string // 'YYYY-MM'
+  target: number
+}
+
 type Props = {
   initialItems: ContentItem[]
   initialAds: Ad[]
@@ -164,6 +173,7 @@ type Props = {
   editingMembers: Member[]
   shootingMembers: Member[]
   voiceoverMembers: Member[]
+  initialClientTargets: ClientTarget[]
 }
 
 // ── Design tokens ────────────────────────────────────────────────────────────
@@ -242,15 +252,17 @@ const USE_FOR_CFG: Record<UseFor, { label: string; color: string; icon: typeof C
 const ADS_PLATFORM_SET = new Set<Platform>(["ads", "meta_ads", "google_ads"])
 
 // Per-client Posted / Unposted (edited, awaiting THIS kind's post) / Unedited breakdown for
-// one kind — powers the Overview "Per-Client KPIs" tables. Combines video + poster on
-// purpose (Overview is a bird's-eye view, not scoped to one content type).
-function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFilter: string) {
+// one kind — powers the Overview "Per-Client KPIs" tables. Combines video + poster by default
+// (Overview is a bird's-eye view, not scoped to one content type) — pass contentType to scope
+// it, as the Waiting to Post stats box does, so its numbers match the queue right next to it.
+function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFilter: string, contentType?: "video" | "poster") {
   const isDone = (i: ContentItem) => kind === "branding" ? i.posted_branding : i.posted_ads
   const isDoneOtherKind = (i: ContentItem) => kind === "branding" ? i.posted_ads : i.posted_branding
   const inMonth = (d: string | null) => monthFilter === "all" || (!!d && d.slice(0, 7) === monthFilter)
   const map = new Map<string, { posted: number; unposted: number; unedited: number; dual: number }>()
   for (const item of items) {
     if (item.status === "cancelled") continue
+    if (contentType && item.content_type !== contentType) continue
     if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0, dual: 0 })
     const rec = map.get(item.client_name)!
     if (isDone(item)) {
@@ -992,6 +1004,60 @@ function DayFilter({ value, onChange }: { value: string; onChange: (v: string) =
           ✕
         </button>
       )}
+    </div>
+  )
+}
+
+// ── Per-client stats box — sits beside Waiting to Post once a single client is picked ──
+function ClientStatsBox({ client, stats, monthPicked, onSaveTarget }: {
+  client: string
+  stats: { posted: number; unposted: number; edited: number; target: number | null }
+  monthPicked: boolean
+  onSaveTarget: (n: number) => void
+}) {
+  const [editingTarget, setEditingTarget] = useState(false)
+  const [draft, setDraft] = useState(String(stats.target ?? 0))
+
+  function commit() {
+    const n = Math.max(0, Math.round(Number(draft) || 0))
+    setEditingTarget(false)
+    if (n !== stats.target) onSaveTarget(n)
+  }
+
+  const ROW: { key: keyof typeof stats; label: string; color: string }[] = [
+    { key: "target", label: "Target", color: "#7C3AED" },
+    { key: "posted", label: "Posted", color: "#16A34A" },
+    { key: "unposted", label: "Unposted", color: "#D97706" },
+    { key: "edited", label: "Edited", color: "#0EA5E9" },
+  ]
+
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
+      <p className="text-[10px] font-black uppercase truncate" style={{ color: "#6B7280", letterSpacing: "0.06em", margin: 0 }} title={client}>
+        {client}
+      </p>
+      {ROW.map(r => (
+        <div key={r.label} className="flex items-center justify-between" style={{ fontSize: 12 }}>
+          <span style={{ color: "#6B7280", fontWeight: 600 }}>{r.label}</span>
+          {r.key === "target" && !monthPicked ? (
+            <span style={{ color: "#9CA3AF", fontWeight: 800 }}>—</span>
+          ) : r.key === "target" && editingTarget ? (
+            <input autoFocus type="number" min={0} value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditingTarget(false) }}
+              style={{ width: 48, fontSize: 12, fontWeight: 800, textAlign: "right", border: `1.5px solid ${r.color}`, borderRadius: 6, padding: "1px 4px", color: r.color }} />
+          ) : (
+            <button
+              onClick={r.key === "target" ? () => { setDraft(String(stats.target ?? 0)); setEditingTarget(true) } : undefined}
+              className="flex items-center gap-1"
+              style={{ border: "none", background: "transparent", padding: 0, cursor: r.key === "target" ? "pointer" : "default", color: r.color, fontWeight: 800, fontSize: 12 }}>
+              {stats[r.key]}
+              {r.key === "target" && <Pencil size={9} />}
+            </button>
+          )}
+        </div>
+      ))}
     </div>
   )
 }
@@ -3216,10 +3282,11 @@ function EditAdModal({ ad, clients, pastClients, onClose, onSaved }: {
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
-export default function MediaTrackerClient({ initialItems, initialAds, initialShoots, members, currentUserId, clients, pastClients, voiceoverFreelancers, scriptingMembers, editingMembers, shootingMembers, voiceoverMembers }: Props) {
+export default function MediaTrackerClient({ initialItems, initialAds, initialShoots, members, currentUserId, clients, pastClients, voiceoverFreelancers, scriptingMembers, editingMembers, shootingMembers, voiceoverMembers, initialClientTargets }: Props) {
   const [items, setItems] = useState(initialItems)
   const [ads, setAds] = useState(initialAds)
   const [shoots, setShoots] = useState(initialShoots)
+  const [clientTargets, setClientTargets] = useState(initialClientTargets)
   // Voice Over is pickable from two rosters — media-tagged staff and the Freelance RJ
   // Voiceover team — combined into one list for the picker.
   const voiceoverOptions = useMemo(
@@ -3619,6 +3686,47 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   // below) — not scoped to a single content type or tab, so they show the full picture.
   const overviewBrandingKPIs = useMemo(() => buildClientKPIs(items, "branding", overviewKpiMonth), [items, overviewKpiMonth])
   const overviewAdsKPIs = useMemo(() => buildClientKPIs(items, "ads", overviewKpiMonth), [items, overviewKpiMonth])
+
+  // The per-client stats box next to Waiting to Post — only meaningful once a single
+  // client is picked (an "all clients" mash-up of targets makes no sense here), so this
+  // is null on "all" and the box simply doesn't render.
+  const logClientStats = useMemo(() => {
+    if (logClientFilter === "all") return null
+    const kpiRow = buildClientKPIs(items, logKind, logMonthFilter, contentTypeForMode)
+      .find(r => r.client === logClientFilter)
+    const edited = items.filter(i =>
+      i.client_name === logClientFilter && i.content_type === contentTypeForMode &&
+      i.edited_date && (logMonthFilter === "all" || i.edited_date.slice(0, 7) === logMonthFilter)
+    ).length
+    const targetRow = logMonthFilter === "all" ? undefined : clientTargets.find(
+      t => t.client_name === logClientFilter && t.kind === logKind && t.month === logMonthFilter
+    )
+    return {
+      posted: kpiRow?.posted ?? 0,
+      unposted: kpiRow?.unposted ?? 0,
+      edited,
+      target: logMonthFilter === "all" ? null : (targetRow?.target ?? 0),
+    }
+  }, [items, clientTargets, logClientFilter, logKind, logMonthFilter, contentTypeForMode])
+
+  function handleSetClientTarget(newTarget: number) {
+    if (logClientFilter === "all" || logMonthFilter === "all") return
+    const key = { client_name: logClientFilter, kind: logKind, month: logMonthFilter }
+    const previous = clientTargets.find(t => t.client_name === key.client_name && t.kind === key.kind && t.month === key.month)
+    setClientTargets(prev => {
+      const others = prev.filter(t => !(t.client_name === key.client_name && t.kind === key.kind && t.month === key.month))
+      return [...others, { ...key, target: newTarget }]
+    })
+    startTransition(async () => {
+      const res = await setClientMonthlyTarget({ ...key, target: newTarget })
+      if (!res.success) {
+        setClientTargets(prev => {
+          const others = prev.filter(t => !(t.client_name === key.client_name && t.kind === key.kind && t.month === key.month))
+          return previous ? [...others, previous] : others
+        })
+      }
+    })
+  }
 
   const logRows = useMemo(() => {
     let rows = postedItems
@@ -4283,31 +4391,42 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             <DayFilter value={logDayFilter} onChange={setLogDayFilter} />
           </div>
 
-          {/* Waiting queue — items sitting in this kind's Ready lane, not yet posted. */}
-          {readyQueue.length > 0 && (
-            <div style={{ background: "#fff", border: "1px solid #BAE6FD", borderRadius: 18, overflow: "hidden" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6", background: "rgba(14,165,233,0.05)" }}>
-                <CalendarDays size={13} style={{ color: "#0EA5E9" }} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#0EA5E9", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Waiting to Post — {readyQueue.length} queued
-                </span>
-              </div>
-              <div className="flex flex-col">
-                {readyQueue.map(item => (
-                  <div key={item.id} className="flex items-center justify-between flex-wrap gap-2"
-                    style={{ padding: "10px 16px", borderBottom: "1px solid #F9FAFB" }}>
-                    <div style={{ minWidth: 0 }}>
-                      <p className="text-[12px] font-bold" style={{ color: "#111827", margin: 0 }}>{item.title}</p>
-                      <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>{item.client_name}</p>
-                    </div>
-                    <button onClick={() => { setPlatformModalKind(logKind); setPlatformModalItem(item) }}
-                      className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
-                      style={{ border: "none", background: logKind === "ads" ? "rgba(217,119,6,0.1)" : "rgba(34,197,94,0.1)", color: logKind === "ads" ? "#D97706" : "#16A34A", cursor: "pointer" }}>
-                      {logKind === "ads" ? "Ads Completed" : "Mark as Posted"}
-                    </button>
+          {/* Waiting queue — items sitting in this kind's Ready lane, not yet posted. Paired
+              with a per-client stats box on the right (stacks below on mobile) once a single
+              client is picked — otherwise that side just isn't rendered, no empty gap held open. */}
+          {(readyQueue.length > 0 || logClientStats) && (
+            <div className="flex flex-col md:flex-row items-stretch gap-3">
+              {readyQueue.length > 0 && (
+                <div style={{ flex: "2 1 320px", minWidth: 0, background: "#fff", border: "1px solid #BAE6FD", borderRadius: 18, overflow: "hidden" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6", background: "rgba(14,165,233,0.05)" }}>
+                    <CalendarDays size={13} style={{ color: "#0EA5E9" }} />
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#0EA5E9", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      Waiting to Post — {readyQueue.length} queued
+                    </span>
                   </div>
-                ))}
-              </div>
+                  <div className="flex flex-col">
+                    {readyQueue.map(item => (
+                      <div key={item.id} className="flex items-center justify-between flex-wrap gap-2"
+                        style={{ padding: "10px 16px", borderBottom: "1px solid #F9FAFB" }}>
+                        <div style={{ minWidth: 0 }}>
+                          <p className="text-[12px] font-bold" style={{ color: "#111827", margin: 0 }}>{item.title}</p>
+                          <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>{item.client_name}</p>
+                        </div>
+                        <button onClick={() => { setPlatformModalKind(logKind); setPlatformModalItem(item) }}
+                          className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                          style={{ border: "none", background: logKind === "ads" ? "rgba(217,119,6,0.1)" : "rgba(34,197,94,0.1)", color: logKind === "ads" ? "#D97706" : "#16A34A", cursor: "pointer" }}>
+                          {logKind === "ads" ? "Ads Completed" : "Mark as Posted"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {logClientStats && (
+                <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+                  <ClientStatsBox client={logClientFilter} stats={logClientStats} monthPicked={logMonthFilter !== "all"} onSaveTarget={handleSetClientTarget} />
+                </div>
+              )}
             </div>
           )}
 

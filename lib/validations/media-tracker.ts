@@ -176,3 +176,11 @@ export const addAdPerformanceEntrySchema = z.object({
   note:        z.string().optional(),
 })
 export type AddAdPerformanceEntryInput = z.infer<typeof addAdPerformanceEntrySchema>
+
+export const setClientMonthlyTargetSchema = z.object({
+  client_name: z.string().min(1),
+  kind:        z.enum(['branding', 'ads']),
+  month:       z.string().regex(/^\d{4}-\d{2}$/, 'Month must be YYYY-MM'),
+  target:      z.number().int().min(0),
+})
+export type SetClientMonthlyTargetInput = z.infer<typeof setClientMonthlyTargetSchema>

@@ -28,7 +28,7 @@ export default async function MemberMediaTrackerPage() {
   const companyId = profile?.company_id
   if (!companyId) redirect("/login")
 
-  const [{ items, ads, shoots, members, voiceoverFreelancers, scriptingMembers, editingMembers, shootingMembers, voiceoverMembers }, clientsResult, pastClientsResult] = await Promise.all([
+  const [{ items, ads, shoots, members, voiceoverFreelancers, scriptingMembers, editingMembers, shootingMembers, voiceoverMembers, clientTargets }, clientsResult, pastClientsResult] = await Promise.all([
     getMediaTrackerData(companyId),
     admin.from("clients").select("id, name").eq("company_id", companyId).eq("status", "active").order("name"),
     admin.from("clients").select("id, name").eq("company_id", companyId).eq("status", "past").order("name"),
@@ -48,6 +48,7 @@ export default async function MemberMediaTrackerPage() {
       editingMembers={editingMembers}
       shootingMembers={shootingMembers}
       voiceoverMembers={voiceoverMembers}
+      initialClientTargets={clientTargets}
     />
   )
 }

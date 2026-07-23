@@ -4,8 +4,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import {
-  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema, updateVoiceOverSchema,
-  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput, type UpdateVoiceOverInput,
+  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema, updateVoiceOverSchema, setClientMonthlyTargetSchema,
+  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput, type UpdateVoiceOverInput, type SetClientMonthlyTargetInput,
 } from '@/lib/validations/media-tracker'
 import { isValidPipelineTransition, type ContentPipelineStatus } from '@/lib/media-tracker/pipeline-transitions'
 import { todayIST } from '@/lib/utils/ist-date'
@@ -562,6 +562,30 @@ export async function updateVoiceOver(input: UpdateVoiceOverInput): Promise<{ su
     voiceover_date: parsed.data.voiceover_date,
     updated_at:     new Date().toISOString(),
   }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true }
+}
+
+// ── Per-client monthly targets (Waiting to Post stats box) ─────────────────
+
+export async function setClientMonthlyTarget(input: SetClientMonthlyTargetInput): Promise<{ success: boolean; error?: string }> {
+  const parsed = setClientMonthlyTargetSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { error } = await ctx.admin.from('content_client_targets').upsert({
+    company_id:  ctx.companyId,
+    client_name: parsed.data.client_name,
+    kind:        parsed.data.kind,
+    month:       parsed.data.month,
+    target:      parsed.data.target,
+    updated_by:  ctx.id,
+    updated_at:  new Date().toISOString(),
+  }, { onConflict: 'company_id,client_name,kind,month' })
   if (error) return { success: false, error: error.message }
 
   revalidateTracker()

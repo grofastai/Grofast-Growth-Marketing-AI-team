@@ -57,6 +57,9 @@ export const addContentPostSchema = z.object({
   // Ads Completed only — when the ad actually started running, separate from posted_date
   // (when it was logged).
   ad_run_date:     z.string().optional(),
+  // Ticked independently of platform choice — flags the underlying content item as used
+  // for promotion, one-way (never unset here).
+  is_promotion:    z.boolean().optional(),
 })
 export type AddContentPostInput = z.infer<typeof addContentPostSchema>
 

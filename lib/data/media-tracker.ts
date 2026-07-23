@@ -56,6 +56,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     posted_branding: boolean; posted_ads: boolean
     cancelled_by: 'client' | 'us' | null
     edited_drive_link: string | null
+    is_promotion: boolean
   }
   type PostRow = { id: string; content_item_id: string; platform: 'instagram' | 'youtube' | 'facebook' | 'linkedin' | 'gmb' | 'twitter' | 'ads' | 'meta_ads' | 'google_ads' | 'other'; posted_date: string; posted_by: string | null; post_link: string | null; ad_run_date: string | null }
   type UserRow = { id: string; name: string; media_tracker_roles: string[] | null }
@@ -150,6 +151,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     posted_ads: row.posted_ads,
     cancelled_by: row.cancelled_by,
     edited_drive_link: row.edited_drive_link,
+    is_promotion: row.is_promotion,
     shotByUser: row.shot_by ? (userMap.get(row.shot_by) ?? null) : null,
     editedByUser: row.edited_by ? (userMap.get(row.edited_by) ?? null) : null,
     scriptedByUser: row.scripted_by ? (userMap.get(row.scripted_by) ?? null) : null,

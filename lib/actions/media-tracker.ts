@@ -302,8 +302,12 @@ export async function addContentPost(input: AddContentPostInput): Promise<{ succ
   if (error) return { success: false, error: error.message }
 
   // Posting to any platform marks the content item as posted.
+  const itemUpdates: Record<string, unknown> = { status: 'posted', updated_at: new Date().toISOString() }
+  // One-way — ticking it on one platform post is enough to flag the whole item; never
+  // reset to false here.
+  if (parsed.data.is_promotion) itemUpdates.is_promotion = true
   await ctx.admin.from('content_items')
-    .update({ status: 'posted', updated_at: new Date().toISOString() })
+    .update(itemUpdates)
     .eq('id', parsed.data.content_item_id)
     .eq('company_id', ctx.companyId)
   await syncPostedFlags(ctx, parsed.data.content_item_id)

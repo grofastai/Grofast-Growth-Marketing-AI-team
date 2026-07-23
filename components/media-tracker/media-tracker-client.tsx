@@ -95,6 +95,8 @@ export type ContentItem = {
   cancelled_by: CancelledBy | null
   // Required at the Ready to Edit -> On Review move — where the edit actually lives.
   edited_drive_link: string | null
+  // Ticked independently at Mark as Posted/Ads — one-way, never unset by the app.
+  is_promotion: boolean
   shotByUser?: Person
   editedByUser?: Person
   scriptedByUser?: Person
@@ -1031,6 +1033,9 @@ export type ClientStatsShape = {
   unedited: number
   remaining: number | null
   completionPct: number | null
+  // Independent of Branding/Ads (logKind) — same count shows on both tabs since the
+  // Promotion flag isn't tied to which side it posted to.
+  promotion: number
 }
 
 function ClientStatsBox({ client, stats, monthPicked, onSaveTarget }: {
@@ -1097,6 +1102,7 @@ function ClientStatsBox({ client, stats, monthPicked, onSaveTarget }: {
       <SectionLabel>Publishing Status</SectionLabel>
       <StatRow label="Scheduled" value={stats.unposted} color="#D97706" />
       <StatRow label="Published" value={stats.posted} color="#16A34A" />
+      <StatRow label="Promotion" value={stats.promotion} color="#DB2777" />
     </div>
   )
 }
@@ -1588,6 +1594,7 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
       posted_ads: alreadyPosted && postedPlatforms.some(p => ADS_PLATFORM_SET.has(p)),
       cancelled_by: null,
       edited_drive_link: null,
+      is_promotion: false,
       shot_date: shotDate, edited_date: alreadyPosted ? postedDate : null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({ id: `${res.id}-${i}`, content_item_id: res.id!, platform, posted_date: postedDate, post_link: null, ad_run_date: null })) : [],
     })
@@ -1678,7 +1685,7 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
       status: "scripting", shot_date: null, edited_date: null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: finalHookCount, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, scriptedByUser, posts: [],
+      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, is_promotion: false, scriptedByUser, posts: [],
     })
   }
 
@@ -1987,7 +1994,7 @@ function EditContentModal({ item, clients, pastClients, members, onClose, onSave
 // ── Add Platform Post modal ──────────────────────────────────────────────────
 function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded }: {
   item: ContentItem; kind: "branding" | "ads"; members: Member[]; currentUserId: string
-  onClose: () => void; onAdded: (posts: ContentPost[]) => void
+  onClose: () => void; onAdded: (posts: ContentPost[], isPromotion: boolean) => void
 }) {
   const already = useMemo(() => new Set(item.posts.map(p => p.platform)), [item.posts])
   // "Mark as Posted" only offers organic platforms, "Mark as Ads" only offers the ad
@@ -2021,6 +2028,8 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
   )
   const [alsoOther, setAlsoOther] = useState(false)
   const [otherPlatforms, setOtherPlatforms] = useState<Platform[]>([])
+  // Independent of platform choice entirely — just flags the item as used for promotion.
+  const [isPromotion, setIsPromotion] = useState(item.is_promotion)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -2041,12 +2050,15 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
       ...(alsoOther ? otherPlatforms.map(platform => ({ platform, isAds: otherKind === "ads" })) : []),
     ]
     // One post row per platform — the date, link and poster are shared across the batch.
+    // is_promotion only needs to land once, but sending it on every row is harmless (the
+    // server only ever sets it to true, never back to false).
     const results = await Promise.all(submissions.map(({ platform, isAds }) =>
       addContentPost({
         content_item_id: item.id, platform, posted_date: postedDate,
         post_link: postLink.trim() || undefined,
         posted_by: postedBy || undefined,
         ad_run_date: isAds ? adRunDate : undefined,
+        is_promotion: isPromotion || undefined,
       }).then(res => ({ res, platform, isAds }))
     ))
     setSaving(false)
@@ -2060,7 +2072,7 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
       posted_date: postedDate, post_link: postLink.trim() || null,
       ad_run_date: isAds ? adRunDate : null,
       postedByUser: poster,
-    })))
+    })), isPromotion)
   }
 
   return (
@@ -2123,7 +2135,7 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
                 {alsoOther && <Check size={11} style={{ color: "#fff" }} />}
               </span>
               <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }} onClick={() => setAlsoOther(v => !v)}>
-                Promotion <span style={{ fontWeight: 600, color: "#6B7280" }}>— also post to {otherKind === "ads" ? "Ads" : "Branding"}</span>
+                Also post to {otherKind === "ads" ? "Ads" : "Branding"}
               </span>
             </label>
             {alsoOther && (
@@ -2143,6 +2155,20 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
             )}
           </div>
         )}
+        <div>
+          <label className="flex items-center gap-2" style={{ cursor: "pointer" }}>
+            <span style={{
+              width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: "1.5px solid", cursor: "pointer",
+              borderColor: isPromotion ? "#DB2777" : "#D1D5DB", background: isPromotion ? "#DB2777" : "transparent",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }} onClick={() => setIsPromotion(v => !v)}>
+              {isPromotion && <Check size={11} style={{ color: "#fff" }} />}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }} onClick={() => setIsPromotion(v => !v)}>
+              Also use for Promotion
+            </span>
+          </label>
+        </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>
           {saving ? "Saving…" : `${kind === "ads" ? "Confirm Ads" : "Confirm Posted"}${platforms.length > 0 ? ` (${platforms.length})` : ""}`}
@@ -3704,6 +3730,12 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     )
     const posted = kpiRow?.posted ?? 0
     const target = logMonthFilter === "all" ? null : (targetRow?.target ?? 0)
+    // Not scoped to logKind — the same Promotion count shows on both the Branding and
+    // Ads tabs, since the flag isn't tied to which side it posted to.
+    const promotion = items.filter(i =>
+      i.client_name === logClientFilter && i.content_type === contentTypeForMode && i.is_promotion &&
+      (logMonthFilter === "all" || i.posts.some(p => p.posted_date.slice(0, 7) === logMonthFilter))
+    ).length
 
     return {
       posted,
@@ -3713,6 +3745,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       target,
       remaining: target === null ? null : Math.max(target - posted, 0),
       completionPct: target ? Math.round((posted / target) * 100) : null,
+      promotion,
     }
   }, [items, clientTargets, logClientFilter, logKind, logMonthFilter, contentTypeForMode])
 
@@ -3807,7 +3840,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       status: "ready_to_edit", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null,
+      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, is_promotion: false,
       created_at: new Date().toISOString(), posts: [],
     }))
     setItems(prev => {
@@ -3861,7 +3894,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       status: "ready_to_edit", shot_date: created.shot_date, edited_date: null, notes: created.notes,
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null,
+      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, is_promotion: false,
       created_at: new Date().toISOString(), posts: [],
     }
     setItems(prev => [newItem, ...prev])
@@ -3969,7 +4002,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const draggedShoot = shoots.find(s => s.id === shootDragId)
   const draggedAd = ads.find(a => a.id === adDragId)
 
-  function handlePostAdded(posts: ContentPost[]) {
+  function handlePostAdded(posts: ContentPost[], isPromotion: boolean) {
     if (posts.length === 0) return
     const itemId = posts[0].content_item_id
     setItems(prev => prev.map(i => {
@@ -3981,6 +4014,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         ...i, status: "posted", posts: allPosts,
         posted_ads: allPosts.some(p => ADS_PLATFORM_SET.has(p.platform)),
         posted_branding: allPosts.some(p => !ADS_PLATFORM_SET.has(p.platform)),
+        // One-way — never unset an existing true back to false here.
+        is_promotion: i.is_promotion || isPromotion,
       }
     }))
     setPlatformModalItem(null)

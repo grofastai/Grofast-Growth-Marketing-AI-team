@@ -4618,6 +4618,9 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                       <td style={{ padding: "10px 14px", fontWeight: 700, color: "#111827" }}>
                         <div className="flex items-center gap-1.5">
                           {item.title}
+                          {item.is_promotion && (
+                            <span style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", flexShrink: 0 }}>(Promotion)</span>
+                          )}
                           {/* Informational only — went out both organically and as an ad.
                               The actual "also post" decision happens at Mark as Posted /
                               Ads Completed, not here. */}

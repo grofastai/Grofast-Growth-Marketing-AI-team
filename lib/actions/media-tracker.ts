@@ -9,6 +9,7 @@ import {
 } from '@/lib/validations/media-tracker'
 import { isValidPipelineTransition, type ContentPipelineStatus } from '@/lib/media-tracker/pipeline-transitions'
 import { todayIST } from '@/lib/utils/ist-date'
+import { isValidDriveLink } from '@/lib/utils/drive-link'
 
 function adminSupabase() {
   return createClient(
@@ -225,7 +226,8 @@ export async function updateContentItemStatus(
   status: ContentPipelineStatus,
   editorId?: string,
   cancelledBy?: 'client' | 'us',
-  editedDate?: string
+  editedDate?: string,
+  editedDriveLink?: string
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
@@ -238,10 +240,17 @@ export async function updateContentItemStatus(
     return { success: false, error: `Cannot move from ${current.status} to ${status}` }
   }
 
+  // Enforced server-side too — the client can't be trusted to be the only gate on a
+  // pipeline transition that's supposed to always leave a real Drive link behind.
+  if (status === 'on_review' && !isValidDriveLink(editedDriveLink ?? '')) {
+    return { success: false, error: 'A valid Google Drive link is required' }
+  }
+
   const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
 
   if (status === 'on_review') {
     updates.edited_date = editedDate || todayIST()
+    updates.edited_drive_link = editedDriveLink!.trim()
     // Reaching On Review is where the editor is recorded — that's the accountability
     // moment ("who edited this?"), asked right at this move since there's no separate
     // Edited stage to stop at first.

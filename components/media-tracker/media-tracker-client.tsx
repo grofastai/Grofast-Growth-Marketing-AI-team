@@ -10,7 +10,7 @@ import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil, AtSign,
   Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw, LayoutDashboard,
-  MoreVertical, Users, Clock, XCircle,
+  MoreVertical, Users, Clock, XCircle, ExternalLink,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
@@ -28,6 +28,7 @@ import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateS
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
 import { isValidPipelineTransition } from "@/lib/media-tracker/pipeline-transitions"
 import { computeOverview, type AttentionItem } from "@/lib/media-tracker/overview"
+import { isValidDriveLink } from "@/lib/utils/drive-link"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 // "ads" is a real posting destination — an Ads Video can be scheduled/posted straight
@@ -92,6 +93,8 @@ export type ContentItem = {
   posted_branding: boolean
   posted_ads: boolean
   cancelled_by: CancelledBy | null
+  // Required at the Ready to Edit -> On Review move — where the edit actually lives.
+  edited_drive_link: string | null
   shotByUser?: Person
   editedByUser?: Person
   scriptedByUser?: Person
@@ -142,6 +145,8 @@ export type Shoot = {
   // Set when this shoot was spun off an Ads Video item via "Move to Shoot" — completing
   // it advances that linked item straight to Ready to Edit instead of creating new titles.
   source_content_item_id: string | null
+  // Required at Mark Done — where the raw footage actually lives.
+  drive_link: string | null
   goingByUsers: { id: string; name: string }[]
   titles: ShootTitleRef[]
 }
@@ -701,6 +706,15 @@ function ContentCardInner({
             {upper(item.editedByUser.name)}{item.edited_date ? ` · ${fmtDate(item.edited_date)}` : ""}
           </span>
         ) : null}
+        {/* The edit's actual home — captured once, at the Ready to Edit -> On Review move. */}
+        {item.edited_drive_link && (
+          <a href={item.edited_drive_link} target="_blank" rel="noopener noreferrer"
+            onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}
+            title="Open Drive link" className="flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{ background: "rgba(59,130,246,0.1)", color: "#3B82F6", textDecoration: "none" }}>
+            <ExternalLink size={10} /> Drive
+          </a>
+        )}
         {/* Who caused the cancellation — the whole point of asking at cancel time is that
             it's visible on the card afterwards without opening anything. */}
         {item.status === "cancelled" && item.cancelled_by && (
@@ -1009,9 +1023,20 @@ function DayFilter({ value, onChange }: { value: string; onChange: (v: string) =
 }
 
 // ── Per-client stats box — sits beside Waiting to Post once a single client is picked ──
+export type ClientStatsShape = {
+  target: number | null
+  posted: number
+  unposted: number
+  edited: number
+  editing: number
+  remaining: number | null
+  completionPct: number | null
+  platforms: Record<"instagram" | "facebook" | "linkedin" | "youtube", number>
+}
+
 function ClientStatsBox({ client, stats, monthPicked, onSaveTarget }: {
   client: string
-  stats: { posted: number; unposted: number; edited: number; target: number | null }
+  stats: ClientStatsShape
   monthPicked: boolean
   onSaveTarget: (n: number) => void
 }) {
@@ -1024,39 +1049,59 @@ function ClientStatsBox({ client, stats, monthPicked, onSaveTarget }: {
     if (n !== stats.target) onSaveTarget(n)
   }
 
-  const ROW: { key: keyof typeof stats; label: string; color: string }[] = [
-    { key: "target", label: "Target", color: "#7C3AED" },
-    { key: "posted", label: "Posted", color: "#16A34A" },
-    { key: "unposted", label: "Unposted", color: "#D97706" },
-    { key: "edited", label: "Edited", color: "#0EA5E9" },
-  ]
+  function StatRow({ label, value, color, editable }: { label: string; value: string | number; color: string; editable?: boolean }) {
+    return (
+      <div className="flex items-center justify-between" style={{ fontSize: 12 }}>
+        <span style={{ color: "#6B7280", fontWeight: 600 }}>{label}</span>
+        {editable && !monthPicked ? (
+          <span style={{ color: "#9CA3AF", fontWeight: 800 }}>—</span>
+        ) : editable && editingTarget ? (
+          <input autoFocus type="number" min={0} value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditingTarget(false) }}
+            style={{ width: 48, fontSize: 12, fontWeight: 800, textAlign: "right", border: `1.5px solid ${color}`, borderRadius: 6, padding: "1px 4px", color }} />
+        ) : (
+          <button
+            onClick={editable ? () => { setDraft(String(stats.target ?? 0)); setEditingTarget(true) } : undefined}
+            className="flex items-center gap-1"
+            style={{ border: "none", background: "transparent", padding: 0, cursor: editable ? "pointer" : "default", color, fontWeight: 800, fontSize: 12 }}>
+            {value}
+            {editable && <Pencil size={9} />}
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  function SectionLabel({ children }: { children: React.ReactNode }) {
+    return <p className="text-[9px] font-black uppercase" style={{ color: "#9CA3AF", letterSpacing: "0.06em", margin: "4px 0 0" }}>{children}</p>
+  }
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
+    <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
       <p className="text-[10px] font-black uppercase truncate" style={{ color: "#6B7280", letterSpacing: "0.06em", margin: 0 }} title={client}>
         {client}
       </p>
-      {ROW.map(r => (
-        <div key={r.label} className="flex items-center justify-between" style={{ fontSize: 12 }}>
-          <span style={{ color: "#6B7280", fontWeight: 600 }}>{r.label}</span>
-          {r.key === "target" && !monthPicked ? (
-            <span style={{ color: "#9CA3AF", fontWeight: 800 }}>—</span>
-          ) : r.key === "target" && editingTarget ? (
-            <input autoFocus type="number" min={0} value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onBlur={commit}
-              onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditingTarget(false) }}
-              style={{ width: 48, fontSize: 12, fontWeight: 800, textAlign: "right", border: `1.5px solid ${r.color}`, borderRadius: 6, padding: "1px 4px", color: r.color }} />
-          ) : (
-            <button
-              onClick={r.key === "target" ? () => { setDraft(String(stats.target ?? 0)); setEditingTarget(true) } : undefined}
-              className="flex items-center gap-1"
-              style={{ border: "none", background: "transparent", padding: 0, cursor: r.key === "target" ? "pointer" : "default", color: r.color, fontWeight: 800, fontSize: 12 }}>
-              {stats[r.key]}
-              {r.key === "target" && <Pencil size={9} />}
-            </button>
-          )}
-        </div>
+
+      <SectionLabel>Monthly Goal</SectionLabel>
+      <StatRow label="Monthly Target" value={stats.target ?? 0} color="#7C3AED" editable />
+      <StatRow label="Published" value={stats.posted} color="#16A34A" />
+      <StatRow label="Remaining" value={stats.remaining ?? "—"} color="#D97706" />
+      <StatRow label="Completion %" value={stats.completionPct !== null ? `${stats.completionPct}%` : "—"} color="#0EA5E9" />
+
+      <SectionLabel>Production Status</SectionLabel>
+      <StatRow label="Editing" value={stats.editing} color="#F97316" />
+      <StatRow label="Edited" value={stats.edited} color="#0EA5E9" />
+      <StatRow label="Ready to Publish" value={stats.unposted} color="#D97706" />
+
+      <SectionLabel>Publishing Status</SectionLabel>
+      <StatRow label="Scheduled" value={stats.unposted} color="#D97706" />
+      <StatRow label="Published" value={stats.posted} color="#16A34A" />
+
+      <SectionLabel>Platform Distribution</SectionLabel>
+      {(["instagram", "facebook", "linkedin", "youtube"] as const).map(p => (
+        <StatRow key={p} label={PLATFORM_CFG[p].label} value={stats.platforms[p]} color={PLATFORM_CFG[p].color} />
       ))}
     </div>
   )
@@ -1291,6 +1336,16 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
 
       {/* Video titles only exist once the shoot is marked Done — that's when they're captured. */}
       {shoot.titles.length > 0 && <ShootTitleList titles={shoot.titles} accent={accent} />}
+
+      {/* Where the footage actually lives — captured once, at Mark Done. */}
+      {shoot.drive_link && (
+        <a href={shoot.drive_link} target="_blank" rel="noopener noreferrer"
+          onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}
+          title="Open Drive link" className="inline-flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-full"
+          style={{ marginTop: 8, background: "rgba(59,130,246,0.1)", color: "#3B82F6", textDecoration: "none" }}>
+          <ExternalLink size={10} /> Drive
+        </a>
+      )}
 
       {/* Who covered the shoot. Always shown — an empty crew is itself worth seeing, and it's
           editable at any point so older shoots with nobody recorded can be filled in. */}
@@ -1538,6 +1593,7 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
       posted_branding: alreadyPosted && postedPlatforms.some(p => !ADS_PLATFORM_SET.has(p)),
       posted_ads: alreadyPosted && postedPlatforms.some(p => ADS_PLATFORM_SET.has(p)),
       cancelled_by: null,
+      edited_drive_link: null,
       shot_date: shotDate, edited_date: alreadyPosted ? postedDate : null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({ id: `${res.id}-${i}`, content_item_id: res.id!, platform, posted_date: postedDate, post_link: null, ad_run_date: null })) : [],
     })
@@ -1630,7 +1686,7 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
       status: "scripting", shot_date: null, edited_date: null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: finalHookCount, use_for: [], priority: null, shoot_type: shootType, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false, cancelled_by: null, scriptedByUser, posts: [],
+      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, scriptedByUser, posts: [],
     })
   }
 
@@ -2380,6 +2436,7 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
       status: "scheduled",
       shoot_type: shootType,
       source_content_item_id: null,
+      drive_link: null,
       goingByUsers: [],
       titles: [],
     })
@@ -2585,7 +2642,7 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
   members: Member[]
   currentUserId: string
   onClose: () => void
-  onConfirm: (editorId: string, editorName: string, editedDate: string) => void
+  onConfirm: (editorId: string, editorName: string, editedDate: string, driveLink: string) => void
 }) {
   // Defaults to whoever clicked — the common case is "I edited this" — but a manager
   // can reassign to anyone.
@@ -2593,12 +2650,16 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
     members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
   )
   const [editedDate, setEditedDate] = useState(todayIST())
+  // Where the edited file actually lives — required so On Review always has somewhere
+  // to open the edit from, without asking around for it.
+  const [driveLink, setDriveLink] = useState(item.edited_drive_link ?? "")
   const [error, setError] = useState<string | null>(null)
 
   function submit() {
     const editor = members.find(m => m.id === editorId)
     if (!editor) { setError("Pick who edited this"); return }
-    onConfirm(editor.id, editor.name, editedDate)
+    if (!isValidDriveLink(driveLink)) { setError("A valid Google Drive link is required"); return }
+    onConfirm(editor.id, editor.name, editedDate, driveLink.trim())
   }
 
   return (
@@ -2617,6 +2678,14 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
             <label style={LABEL}>Edited Date *</label>
             <input type="date" style={FIELD} value={editedDate} onChange={e => setEditedDate(e.target.value)} />
           </div>
+        </div>
+        <div>
+          <label style={LABEL}>Drive Link *</label>
+          <input type="url" style={FIELD} value={driveLink} onChange={e => setDriveLink(e.target.value)}
+            placeholder="https://drive.google.com/…" />
+          {driveLink.trim().length > 0 && !isValidDriveLink(driveLink) && (
+            <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>Must be a drive.google.com or docs.google.com link</p>
+          )}
         </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit}>Mark Edited</PrimaryButton>
@@ -2711,6 +2780,7 @@ function MoveToShootModal({ item, onClose, onMoved }: {
       status: "scheduled",
       shoot_type: shootType,
       source_content_item_id: item.id,
+      drive_link: null,
       goingByUsers: [],
       titles: [],
     })
@@ -2765,10 +2835,13 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
   members: Member[]
   currentUserId: string
   onClose: () => void
-  onCompleted: (created: CreatedShootItem[], crew: Member[]) => void
+  onCompleted: (created: CreatedShootItem[], crew: Member[], driveLink: string) => void
 }) {
   const [titleInput, setTitleInput] = useState("")
   const [titles, setTitles] = useState<string[]>([])
+  // The footage's actual home — required so the edit team always has somewhere to pull
+  // from without asking around. A plain URL isn't enough; it has to be Drive/Docs.
+  const [driveLink, setDriveLink] = useState(shoot.drive_link ?? "")
   // Actual shoot time is re-entered here, at completion — it can run longer than
   // scheduled, and this is saved as the final/authoritative shoot time.
   const [fromTime, setFromTime] = useState(toISTTimeString(shoot.start_time) || "09:00")
@@ -2798,11 +2871,12 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
     if (!isLinked && titles.length === 0) { setError("Add at least one video title"); return }
     if (!fromTime) { setError("Start time is required"); return }
     if (!toTime) { setError("End time is required"); return }
+    if (!isValidDriveLink(driveLink)) { setError("A valid Google Drive link is required"); return }
     setSaving(true); setError(null)
-    const res = await completeShootWithTitles(shoot.id, titles, crew, { from: fromTime, to: toTime })
+    const res = await completeShootWithTitles(shoot.id, titles, crew, { from: fromTime, to: toTime }, driveLink.trim())
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to complete shoot"); return }
-    onCompleted(res.createdItems ?? [], members.filter(m => crew.includes(m.id)))
+    onCompleted(res.createdItems ?? [], members.filter(m => crew.includes(m.id)), driveLink.trim())
   }
 
   return (
@@ -2840,6 +2914,15 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
             <label style={LABEL}>Actual End Time *</label>
             <input type="time" style={FIELD} value={toTime} onChange={e => setToTime(e.target.value)} />
           </div>
+        </div>
+
+        <div>
+          <label style={LABEL}>Drive Link *</label>
+          <input type="url" style={FIELD} value={driveLink} onChange={e => setDriveLink(e.target.value)}
+            placeholder="https://drive.google.com/…" />
+          {driveLink.trim().length > 0 && !isValidDriveLink(driveLink) && (
+            <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>Must be a drive.google.com or docs.google.com link</p>
+          )}
         </div>
 
         {members.length > 0 && (
@@ -3503,12 +3586,19 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     })
   }
 
-  function handleMarkEdited(item: ContentItem, editorId: string, editorName: string, editedDate: string) {
+  function handleMarkEdited(item: ContentItem, editorId: string, editorName: string, editedDate: string, driveLink: string) {
+    const previous = item.status
     setItems(prev => prev.map(i => i.id === item.id
-      ? { ...i, status: "on_review", edited_date: editedDate, editedByUser: { id: editorId, name: editorName } }
+      ? { ...i, status: "on_review", edited_date: editedDate, edited_drive_link: driveLink, editedByUser: { id: editorId, name: editorName } }
       : i))
     setMarkEditedItem(null)
-    startTransition(async () => { await updateContentItemStatus(item.id, "on_review", editorId, undefined, editedDate) })
+    startTransition(async () => {
+      const res = await updateContentItemStatus(item.id, "on_review", editorId, undefined, editedDate, driveLink)
+      if (!res.success) {
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: previous, edited_drive_link: item.edited_drive_link } : i))
+        alert(res.error ?? "Failed to mark edited")
+      }
+    })
   }
 
   function handleVoiceOverRecorded(item: ContentItem, voiceoverBy: VoiceFreelancer, date: string) {
@@ -3690,6 +3780,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   // The per-client stats box next to Waiting to Post — only meaningful once a single
   // client is picked (an "all clients" mash-up of targets makes no sense here), so this
   // is null on "all" and the box simply doesn't render.
+  // Fixed set for the Platform Distribution rows — these are always organic/branding
+  // destinations, so they naturally read as zero while on the Advertisement tab.
+  const DISTRIBUTION_PLATFORMS: Platform[] = ["instagram", "facebook", "linkedin", "youtube"]
+
   const logClientStats = useMemo(() => {
     if (logClientFilter === "all") return null
     const kpiRow = buildClientKPIs(items, logKind, logMonthFilter, contentTypeForMode)
@@ -3701,11 +3795,28 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     const targetRow = logMonthFilter === "all" ? undefined : clientTargets.find(
       t => t.client_name === logClientFilter && t.kind === logKind && t.month === logMonthFilter
     )
+    const posted = kpiRow?.posted ?? 0
+    const target = logMonthFilter === "all" ? null : (targetRow?.target ?? 0)
+
+    const platforms = Object.fromEntries(DISTRIBUTION_PLATFORMS.map(p => [p, 0])) as Record<Platform, number>
+    for (const item of items) {
+      if (item.client_name !== logClientFilter || item.content_type !== contentTypeForMode) continue
+      for (const post of item.posts) {
+        if (!DISTRIBUTION_PLATFORMS.includes(post.platform)) continue
+        if (logMonthFilter !== "all" && post.posted_date.slice(0, 7) !== logMonthFilter) continue
+        platforms[post.platform]++
+      }
+    }
+
     return {
-      posted: kpiRow?.posted ?? 0,
+      posted,
       unposted: kpiRow?.unposted ?? 0,
       edited,
-      target: logMonthFilter === "all" ? null : (targetRow?.target ?? 0),
+      editing: kpiRow?.unedited ?? 0,
+      target,
+      remaining: target === null ? null : Math.max(target - posted, 0),
+      completionPct: target ? Math.round((posted / target) * 100) : null,
+      platforms,
     }
   }, [items, clientTargets, logClientFilter, logKind, logMonthFilter, contentTypeForMode])
 
@@ -3794,13 +3905,13 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     })
   }
 
-  function handleShootCompleted(shoot: Shoot, created: CreatedShootItem[], crew: Member[]) {
+  function handleShootCompleted(shoot: Shoot, created: CreatedShootItem[], crew: Member[], driveLink: string) {
     const newItems: ContentItem[] = created.map(ci => ({
       id: ci.id, client_name: ci.client_name, title: ci.title, content_type: "video", source: "shoot",
       status: "ready_to_edit", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false, cancelled_by: null,
+      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null,
       created_at: new Date().toISOString(), posts: [],
     }))
     setItems(prev => {
@@ -3816,6 +3927,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     setShoots(prev => prev.map(s => s.id === shoot.id ? {
       ...s,
       status: "completed",
+      drive_link: driveLink,
       goingByUsers: crew.length > 0 ? crew : s.goingByUsers,
       titles: created.map(ci => ({ id: ci.shoot_title_id, title: ci.title, content_item_id: ci.id })),
     } : s))
@@ -3853,7 +3965,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       status: "ready_to_edit", shot_date: created.shot_date, edited_date: null, notes: created.notes,
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false, cancelled_by: null,
+      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null,
       created_at: new Date().toISOString(), posts: [],
     }
     setItems(prev => [newItem, ...prev])
@@ -4395,7 +4507,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               with a per-client stats box on the right (stacks below on mobile) once a single
               client is picked — otherwise that side just isn't rendered, no empty gap held open. */}
           {(readyQueue.length > 0 || logClientStats) && (
-            <div className="flex flex-col md:flex-row items-stretch gap-3">
+            <div className="flex flex-col md:flex-row items-start gap-3">
               {readyQueue.length > 0 && (
                 <div style={{ flex: "2 1 320px", minWidth: 0, background: "#fff", border: "1px solid #BAE6FD", borderRadius: 18, overflow: "hidden" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6", background: "rgba(14,165,233,0.05)" }}>
@@ -4776,7 +4888,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       {completeShootFor && (
         <CompleteShootModal shoot={completeShootFor} members={shootingMembers} currentUserId={currentUserId}
           onClose={() => setCompleteShootFor(null)}
-          onCompleted={(created, crew) => handleShootCompleted(completeShootFor, created, crew)} />
+          onCompleted={(created, crew, driveLink) => handleShootCompleted(completeShootFor, created, crew, driveLink)} />
       )}
       {deleteShootFor && (
         <DeleteShootModal shoot={deleteShootFor} onClose={() => setDeleteShootFor(null)}
@@ -4808,7 +4920,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       {markEditedItem && (
         <MarkEditedModal item={markEditedItem} members={editingMembers} currentUserId={currentUserId}
           onClose={() => setMarkEditedItem(null)}
-          onConfirm={(editorId, editorName, editedDate) => handleMarkEdited(markEditedItem, editorId, editorName, editedDate)} />
+          onConfirm={(editorId, editorName, editedDate, driveLink) => handleMarkEdited(markEditedItem, editorId, editorName, editedDate, driveLink)} />
       )}
       {showNewAdsVideo && (
         <NewAdsVideoModal

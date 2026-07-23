@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { isValidShootTransition, type ShootStatus } from '@/lib/shoots/status-transitions'
 import { moveScriptToShootSchema, type MoveScriptToShootInput } from '@/lib/validations/media-tracker'
+import { isValidDriveLink } from '@/lib/utils/drive-link'
 
 function adminSupabase() {
   return createClient(
@@ -236,7 +237,8 @@ export async function completeShootWithTitles(
   shootId: string,
   titles: string[],
   goingBy: string[] | undefined,
-  actualTime: { from: string; to: string }
+  actualTime: { from: string; to: string },
+  driveLink: string
 ): Promise<{ success: boolean; error?: string; createdItems?: CreatedShootItem[] }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -244,6 +246,9 @@ export async function completeShootWithTitles(
 
   if (!actualTime?.from) return { success: false, error: 'Start time is required' }
   if (!actualTime?.to) return { success: false, error: 'End time is required' }
+  // Enforced server-side too — the client can't be trusted to be the only gate on a
+  // pipeline transition that's supposed to always leave a real Drive link behind.
+  if (!isValidDriveLink(driveLink)) return { success: false, error: 'A valid Google Drive link is required' }
 
   const admin = adminSupabase()
   const { data: shoot } = await admin
@@ -321,7 +326,7 @@ export async function completeShootWithTitles(
 
   // Crew is captured here, at completion — the only point in the shoot's lifecycle
   // where "who went" is known.
-  const completeUpdates: Record<string, unknown> = { status: 'completed', start_time: finalStart, end_time: finalEnd }
+  const completeUpdates: Record<string, unknown> = { status: 'completed', start_time: finalStart, end_time: finalEnd, drive_link: driveLink.trim() }
   if (goingBy && goingBy.length > 0) completeUpdates.going_by = goingBy
 
   const { error: statusError } = await admin.from('shoots').update(completeUpdates).eq('id', shootId)

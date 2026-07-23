@@ -3035,19 +3035,27 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
   )
 }
 
-// ── Edit Completed Shoot — everything captured at Mark Done, fixable after the fact: video
-// titles (rename keeps the linked content_item's title in sync, add one that was missed),
-// the actual shoot time, and who went. ──────────────────────────────────────
-function EditCompletedShootModal({ shoot, members, currentUserId, onClose, onRenamed, onAdded, onTimeSaved, onCrewSaved }: {
+// ── Edit Completed Shoot — everything captured at Mark Done, fixable after the fact: the
+// client (kept in sync with the linked Ads Video item, if any), video titles (rename keeps
+// the linked content_item's title in sync, add one that was missed), the actual shoot time,
+// and who went. ──────────────────────────────────────
+function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastClients, onClose, onRenamed, onAdded, onTimeSaved, onCrewSaved, onClientSaved }: {
   shoot: Shoot
   members: Member[]
   currentUserId: string
+  clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   onClose: () => void
   onRenamed: (shootTitleId: string, newTitle: string) => void
   onAdded: (item: CreatedShootItem) => void
   onTimeSaved: (fromTime: string, toTime: string) => void
   onCrewSaved: (crew: Member[]) => void
+  onClientSaved: (client: string) => void
 }) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const [client, setClient] = useState(shoot.client)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const [newTitle, setNewTitle] = useState("")
@@ -3056,6 +3064,21 @@ function EditCompletedShootModal({ shoot, members, currentUserId, onClose, onRen
   const [crew, setCrew] = useState<string[]>(shoot.goingByUsers.map(u => u.id))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  async function saveClient() {
+    if (!client) { setError("Client is required"); return }
+    setSaving(true); setError(null)
+    const shotDate = shoot.start_time.split("T")[0]
+    const res = await updateTrackerShoot(shoot.id, {
+      client, title: shoot.legacyTitle, shot_date: shotDate,
+      shot_time_from: toISTTimeString(shoot.start_time) || "00:00",
+      shot_time_to: toISTTimeString(shoot.end_time) || "00:00",
+      notes: shoot.notes ?? undefined,
+    })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onClientSaved(client)
+  }
 
   async function saveRename(id: string) {
     const title = editValue.trim()
@@ -3103,6 +3126,23 @@ function EditCompletedShootModal({ shoot, members, currentUserId, onClose, onRen
   return (
     <Modal title={`Edit Completed Shoot — ${shoot.legacyTitle} (${shoot.titles.length} video${shoot.titles.length === 1 ? "" : "s"})`} onClose={onClose}>
       <div className="flex flex-col gap-3">
+        <div>
+          <label style={LABEL}>Client</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
+            </div>
+            <button type="button" onClick={saveClient} disabled={saving || client === shoot.client}
+              style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: client === shoot.client ? "#E5E7EB" : "#16A34A", color: client === shoot.client ? "#9CA3AF" : "#fff", fontSize: 12, fontWeight: 700, cursor: client === shoot.client ? "default" : "pointer", flexShrink: 0 }}>
+              Save
+            </button>
+          </div>
+          {shoot.source_content_item_id && (
+            <p style={{ fontSize: 10, color: "#9CA3AF", margin: "4px 0 0" }}>
+              This shoot came from an Ads Video script — saving also corrects that script&apos;s client.
+            </p>
+          )}
+        </div>
         <div>
           <label style={LABEL}>Video Titles</label>
           <div className="flex flex-col gap-2">
@@ -3915,6 +3955,17 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   // own state already reflects the pick), so it doesn't close editCrewFor.
   function handleCompletedShootCrewSaved(shootId: string, crew: Member[]) {
     setShoots(prev => prev.map(s => s.id === shootId ? { ...s, goingByUsers: crew } : s))
+  }
+
+  // Same client-sync as handleShootSaved, but from Edit Completed Shoot — that modal stays
+  // open (its own state already reflects the pick), so it doesn't close editCompletedShootFor.
+  function handleShootCompletedClientSaved(shootId: string, client: string) {
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, client } : s))
+    setEditCompletedShootFor(prev => prev && prev.id === shootId ? { ...prev, client } : prev)
+    const shoot = shoots.find(s => s.id === shootId)
+    if (shoot?.source_content_item_id) {
+      setItems(prev => prev.map(i => i.id === shoot.source_content_item_id ? { ...i, client_name: client } : i))
+    }
   }
 
   function handleShootActualTimeSaved(shootId: string, fromTime: string, toTime: string) {
@@ -4852,11 +4903,13 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       )}
       {editCompletedShootFor && (
         <EditCompletedShootModal shoot={editCompletedShootFor} members={shootingMembers} currentUserId={currentUserId}
+          clients={clients} pastClients={pastClients}
           onClose={() => setEditCompletedShootFor(null)}
           onRenamed={(shootTitleId, newTitle) => handleShootTitleRenamed(editCompletedShootFor.id, shootTitleId, newTitle)}
           onAdded={created => handleShootTitleAdded(editCompletedShootFor.id, created)}
           onTimeSaved={(fromTime, toTime) => handleShootActualTimeSaved(editCompletedShootFor.id, fromTime, toTime)}
-          onCrewSaved={crew => handleCompletedShootCrewSaved(editCompletedShootFor.id, crew)} />
+          onCrewSaved={crew => handleCompletedShootCrewSaved(editCompletedShootFor.id, crew)}
+          onClientSaved={client => handleShootCompletedClientSaved(editCompletedShootFor.id, client)} />
       )}
       {editAdFor && (
         <EditAdModal ad={editAdFor} clients={clients} pastClients={pastClients}

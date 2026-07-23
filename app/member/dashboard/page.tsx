@@ -11,6 +11,7 @@ import DashboardHeaderControls from "@/components/member/DashboardHeaderControls
 import MonthFilterTabs from "@/components/member/MonthFilterTabs"
 import { calcNetWorkHours } from "@/lib/utils/work-hours"
 import { todayIST, nowISTShifted } from "@/lib/utils/ist-date"
+import { sumLeaveDays } from "@/lib/utils/leave-balance"
 
 function adminClient() {
   return createClient(
@@ -82,7 +83,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   type WorkEntryLike = { task_type: string; start_time?: string | null; end_time?: string | null; duration_hours?: number | null; _travel_hours?: number | null }
   type MonthlyUpdate = { date: string; working_hours: number | null; attendance_status: string; learning_hours: number | null; shoot_count: number | null; editing_count: number | null; work_entries: WorkEntryLike[] | null }
   type MonthlyAttLog = { work_type: string | null; status: string; date: string; break_total_mins: number | null; clock_in: string | null; clock_out: string | null }
-  type LeaveRow      = { from_date: string; to_date: string; leave_type: string | null }
+  type LeaveRow      = { from_date: string; to_date: string; leave_type: string | null; permission_hours: number | string | null }
 
   const [
     { data: profileRaw },
@@ -106,7 +107,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     db.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", effectiveUserId).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
     db.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
     db.from("daily_updates").select("date, working_hours, attendance_status, learning_hours, shoot_count, editing_count, work_entries").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
-    adminClient().from("leaves").select("from_date, to_date, leave_type").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
+    adminClient().from("leaves").select("from_date, to_date, leave_type, permission_hours").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
     db.from("attendance_logs").select("work_type, status, date, break_total_mins, clock_in, clock_out").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
     db.from("collaboration_confirmations").select("date, confirmed_hours, entry_snapshot").eq("collaborator_id", effectiveUserId).in("status", ["confirmed", "edited_confirmed"]).gte("date", monthStart).lte("date", monthEnd),
     // Ever-logged type detection (all-time, not month-scoped) — decides which
@@ -206,16 +207,8 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
   // LEAVE-1: cap leave date ranges to current month [monthStart..today]
   // LEAVE-2: only count approved leave records (not absence logs)
-  // half_day counts as 0.5 not 1
-  let leaveDays = 0
-  for (const l of approvedLeaves) {
-    if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") continue
-    const start = l.from_date > monthStart ? l.from_date : monthStart
-    const end   = l.to_date   < today      ? l.to_date   : today
-    if (start > end) continue
-    const days = Math.ceil((new Date(end + "T12:00:00").getTime() - new Date(start + "T12:00:00").getTime()) / 86400000) + 1
-    leaveDays += l.leave_type === "half_day" ? days * 0.5 : days
-  }
+  // half_day counts as 0.5, permission = cumulative hours converted to day-equivalents
+  const leaveDays = sumLeaveDays(approvedLeaves, monthStart, today)
 
   // Login hours — raw clock_in → clock_out span, no break deduction
   const logsWithClockData = presentAttLogs.filter(l => l.clock_in && l.clock_out)

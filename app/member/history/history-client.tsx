@@ -10,6 +10,7 @@ import ClientSelector from "@/components/ui/ClientSelector"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
 import { confirmCollaboration, editCollaborationTime, rejectCollaboration, deleteCollaborationsByEntry } from "@/lib/actions/collaboration"
 import { toISTDateString, todayIST } from "@/lib/utils/ist-date"
+import { sumLeaveDays } from "@/lib/utils/leave-balance"
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 import Image from "next/image"
@@ -875,20 +876,12 @@ export default function HistoryClient({
       presentDays++
     }
 
-    // Leave days: count full approved leave range (incl. future dates within an approved leave)
-    // WFH, shoot_day, permission are NOT leaves — they don't count against quota
-    let leaveDays = 0
-    for (const leave of approvedLeaves) {
-      if (leave.leave_type === "permission" || leave.leave_type === "wfh" || leave.leave_type === "shoot_day") continue
-      const isHalfDay = leave.leave_type === "half_day"
-      const start = new Date(leave.from_date + "T12:00:00")
-      const end = new Date(leave.to_date + "T12:00:00")
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const ds = d.toISOString().split("T")[0]
-        if (monthPrefix && !ds.startsWith(monthPrefix)) continue
-        leaveDays += isHalfDay ? 0.5 : 1
-      }
-    }
+    // Leave days: count full approved leave range (incl. future dates within an approved leave).
+    // WFH/shoot_day are NOT leaves — they don't count against quota. Permission = cumulative
+    // hours converted to day-equivalents (see lib/utils/leave-balance.ts).
+    const leaveRangeStart = monthPrefix ? `${monthPrefix}-01` : "0000-01-01"
+    const leaveRangeEnd   = monthPrefix ? `${monthPrefix}-31` : "9999-12-31"
+    const leaveDays = sumLeaveDays(approvedLeaves, leaveRangeStart, leaveRangeEnd)
 
     // Office holiday days in the selected month period (include future holidays in the month)
     let holidayDays = 0

@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertNotification, insertManyNotifications } from './notifications'
 import { formatLeaveDetail } from '@/lib/leave-approval-effects'
+import { sumLeaveDays } from '@/lib/utils/leave-balance'
 import { z } from 'zod'
 
 function createAdminClient() {
@@ -97,49 +98,42 @@ function parseCompanyId(accessToken: string): string | null {
   }
 }
 
-// full_day counts every calendar day in the range; half_day is always 0.5; anything
-// else (permission/wfh/shoot_day) doesn't count against the monthly cap at all.
-function leaveDayCount(leaveType: string, fromDate: string, toDate: string): number {
-  if (leaveType === 'full_day') {
-    return Math.ceil((new Date(toDate).getTime() - new Date(fromDate).getTime()) / 86400000) + 1
-  }
-  if (leaveType === 'half_day') return 0.5
-  return 0
-}
-
 // Shared by submitLeaveRequest (new request) and updateLeaveRequest (editing a still-
 // pending one) — both must check the SAME monthly cap, otherwise editing a pending
 // request is a silent backdoor around the limit a fresh submission would have hit.
 // excludeLeaveId lets an edit compare against every OTHER leave that month without
-// double-counting the very row being edited.
+// double-counting the very row being edited. Permission hours now count toward this
+// cap too (converted via sumLeaveDays/permissionHoursToDays) — previously excluded
+// entirely, so a month of small permissions never showed as "used" anywhere.
 async function checkMonthlyLeaveLimit(
   adminCl: ReturnType<typeof createAdminClient>,
   userId: string,
   leaveType: string,
   fromDate: string,
   toDate: string,
-  excludeLeaveId?: string
+  excludeLeaveId?: string,
+  permissionHours?: number
 ): Promise<string | null> {
-  if (leaveType !== 'full_day' && leaveType !== 'half_day') return null
-
   const currentMonth = fromDate.slice(0, 7)
+  const monthStart = `${currentMonth}-01`
+  const monthEnd = `${currentMonth}-31`
   let query = adminCl
     .from('leaves')
-    .select('from_date, to_date, leave_type')
+    .select('from_date, to_date, leave_type, permission_hours')
     .eq('user_id', userId)
-    .gte('from_date', `${currentMonth}-01`)
-    .lte('from_date', `${currentMonth}-31`)
+    .gte('from_date', monthStart)
+    .lte('from_date', monthEnd)
     .in('status', ['approved', 'pending'])
   if (excludeLeaveId) query = query.neq('id', excludeLeaveId)
   const { data: monthLeaves } = await query
 
-  const used = (monthLeaves ?? []).reduce(
-    (s: number, l: { from_date: string; to_date: string; leave_type: string | null }) =>
-      s + leaveDayCount(l.leave_type ?? 'full_day', l.from_date, l.to_date),
-    0
-  )
-  const thisRequestDays = leaveDayCount(leaveType, fromDate, toDate)
-  if (used + thisRequestDays > 5) return 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.'
+  // Combined into ONE sumLeaveDays call, not summed separately then added — the
+  // permission-hours conversion isn't linear (3h alone + 2h alone both round to
+  // 0 days, but 5h combined crosses the 4.5h threshold = 0.5 days), so existing
+  // rows and this new request must accumulate together before the one conversion.
+  const newRow = { leave_type: leaveType, from_date: fromDate, to_date: toDate, permission_hours: permissionHours ?? null }
+  const combinedDays = sumLeaveDays([...((monthLeaves ?? []) as { leave_type: string | null; from_date: string; to_date: string; permission_hours: number | string | null }[]), newRow], monthStart, monthEnd)
+  if (combinedDays > 5) return 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.'
   return null
 }
 
@@ -226,13 +220,15 @@ export async function submitLeaveRequest(
   const permCapError = permissionHoursCapError(parsed.data.leave_type, parsed.data.permission_time, parsed.data.permission_end_time)
   if (permCapError) return { error: permCapError }
 
-  // Monthly limit check (full_day + half_day only; permission/wfh/shoot_day excluded).
-  // Counts THIS request's own days on top of what's already on file — not just
-  // whether the existing total alone has already hit the cap.
+  // Monthly limit check — Full Day, Half Day, AND cumulative Permission hours
+  // (converted to day-equivalents) all count toward this cap now. Counts THIS
+  // request's own days on top of what's already on file — not just whether the
+  // existing total alone has already hit the cap.
   const isExceptional = formData.get('is_exceptional') === 'true'
   if (!isExceptional) {
     const limitError = await checkMonthlyLeaveLimit(
-      adminCl, effectiveUserId, parsed.data.leave_type, parsed.data.from_date, parsed.data.to_date
+      adminCl, effectiveUserId, parsed.data.leave_type, parsed.data.from_date, parsed.data.to_date,
+      undefined, parsed.data.permission_hours
     )
     if (limitError) return { error: limitError }
   }
@@ -482,7 +478,7 @@ export async function updateLeaveRequest(
   const adminCl = createAdminClient()
   if (!isExceptional) {
     const limitError = await checkMonthlyLeaveLimit(
-      adminCl, user.id, parsed.data.leave_type, parsed.data.from_date, parsed.data.to_date, leaveId
+      adminCl, user.id, parsed.data.leave_type, parsed.data.from_date, parsed.data.to_date, leaveId, parsed.data.permission_hours
     )
     if (limitError) return { error: limitError }
 

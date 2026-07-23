@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest, withdrawWfhForDate } from "@/lib/actions/leaves"
 import { todayIST } from "@/lib/utils/ist-date"
+import { sumLeaveDays } from "@/lib/utils/leave-balance"
 
 interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
@@ -384,14 +385,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const MONTHLY_LIMIT = 5
   const currentMonth  = today.slice(0, 7) // "YYYY-MM"
   function calcMonthlyDays(entries: Leave[]) {
-    return entries
-      .filter(l => l.from_date.startsWith(currentMonth) && (l.status === "approved" || l.status === "pending"))
-      .reduce((s, l) => {
-        const type = l.leave_type ?? "full_day"
-        if (type === "full_day") return s + daysBetween(l.from_date, l.to_date)
-        if (type === "half_day") return s + 0.5
-        return s
-      }, 0)
+    const monthEntries = entries.filter(l => l.from_date.startsWith(currentMonth) && (l.status === "approved" || l.status === "pending"))
+    return sumLeaveDays(monthEntries, `${currentMonth}-01`, `${currentMonth}-31`)
   }
   const monthlyUsed     = calcMonthlyDays(leaves)
   const monthlyLimitHit = monthlyUsed >= MONTHLY_LIMIT

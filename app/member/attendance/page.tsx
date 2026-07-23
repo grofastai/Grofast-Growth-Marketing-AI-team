@@ -7,6 +7,7 @@ import { calcNetWorkHours } from "@/lib/utils/work-hours"
 import { blockFreelancerMedia } from "@/lib/utils/freelancer-guard"
 import { findLastWorkingDayIssues } from "@/lib/actions/attendance"
 import { todayIST, nowISTShifted } from "@/lib/utils/ist-date"
+import { sumLeaveDays } from "@/lib/utils/leave-balance"
 
 function adminSupabase() {
   return createClient(
@@ -116,7 +117,7 @@ export default async function AttendancePage() {
       .eq("status", "pending"),
     // Approved leaves this month
     admin.from("leaves")
-      .select("from_date, to_date, leave_type")
+      .select("from_date, to_date, leave_type, permission_hours")
       .eq("user_id", effectiveUserId)
       .eq("status", "approved")
       .gte("from_date", monthStart)
@@ -187,7 +188,7 @@ export default async function AttendancePage() {
   type MonthUpdate = { working_hours: number | null; learning_hours: number | null; work_entries: WorkEntryLike[] | null }
   const monthAttLogs   = (monthAttLogsRaw ?? []) as MonthAttLog[]
   const monthUpdates   = (monthUpdatesRaw ?? []) as MonthUpdate[]
-  const approvedLeaves = (approvedLeavesRaw ?? []) as { from_date: string; to_date: string; leave_type: string | null }[]
+  const approvedLeaves = (approvedLeavesRaw ?? []) as { from_date: string; to_date: string; leave_type: string | null; permission_hours: number | string | null }[]
 
   const profile      = profileRaw as { team?: string | null; is_management?: boolean | null; work_layout?: string | null; company_id?: string | null } | null
   const isMedia      = profile?.team === "Media Team" || profile?.team === "Media Production Team"
@@ -229,16 +230,9 @@ export default async function AttendancePage() {
     ? Math.round((monthTotalHrs / monthPresentDays) * 10) / 10
     : 0
 
-  // LEAVE-1 fix: cap leave dates to current month boundaries; half_day = 0.5
-  const monthLeaveDays = approvedLeaves
-    .filter(l => l.leave_type !== "permission" && l.leave_type !== "wfh" && l.leave_type !== "shoot_day")
-    .reduce((sum, l) => {
-      const start = l.from_date > monthStart ? l.from_date : monthStart
-      const end   = l.to_date   < today      ? l.to_date   : today
-      if (start > end) return sum
-      const days = Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 86400000) + 1
-      return sum + (l.leave_type === "half_day" ? days * 0.5 : days)
-    }, 0)
+  // LEAVE-1 fix: cap leave dates to current month boundaries; half_day = 0.5,
+  // permission = cumulative hours converted to day-equivalents
+  const monthLeaveDays = sumLeaveDays(approvedLeaves, monthStart, today)
 
   const elapsedDays     = Math.floor((new Date(today).getTime() - new Date(monthStart).getTime()) / 86400000) + 1
   const monthAbsentDays = Math.max(0, elapsedDays - monthPresentDays - monthLeaveDays)

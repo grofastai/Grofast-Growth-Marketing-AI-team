@@ -7,6 +7,7 @@ import { redirect } from "next/navigation"
 import MemberLeavesClient from "./leaves-client"
 import { blockFreelancerMedia } from "@/lib/utils/freelancer-guard"
 import { todayIST } from "@/lib/utils/ist-date"
+import { sumLeaveDays } from "@/lib/utils/leave-balance"
 
 function adminSupabase() {
   return createClient(
@@ -50,7 +51,7 @@ export default async function MemberLeavesPage() {
       .limit(50),
     admin
       .from("leaves")
-      .select("from_date, to_date, leave_type")
+      .select("from_date, to_date, leave_type, permission_hours")
       .eq("user_id", effectiveUserId)
       .eq("status", "approved")
       .gte("from_date", yearStart),
@@ -73,13 +74,10 @@ export default async function MemberLeavesPage() {
   const absentDays    = (absentResult.data ?? []) as { id: string; date: string }[]
   const companyLeaves = (companyLeavesResult.data ?? []) as { id: string; date: string; name: string }[]
 
-  // Calculate used days: full_day = exact days, half_day = 0.5, permission/wfh/shoot_day = 0, absent = 1
-  const leaveUsedDays = (usedResult.data ?? []).reduce((sum, l) => {
-    if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") return sum
-    if (l.leave_type === "half_day") return sum + 0.5
-    const days = Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
-    return sum + days
-  }, 0)
+  // Calculate used days: full_day = exact days, half_day = 0.5, permission = cumulative
+  // hours converted to day-equivalents, wfh/shoot_day = 0 (work arrangement, not absence), absent = 1
+  const yearEnd = `${todayIST().slice(0, 4)}-12-31`
+  const leaveUsedDays = sumLeaveDays((usedResult.data ?? []) as { leave_type: string | null; from_date: string; to_date: string; permission_hours: number | string | null }[], yearStart, yearEnd)
   const usedDays = leaveUsedDays + absentDays.length
 
   return (

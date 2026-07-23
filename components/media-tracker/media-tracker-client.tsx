@@ -1028,7 +1028,7 @@ export type ClientStatsShape = {
   posted: number
   unposted: number
   edited: number
-  editing: number
+  unedited: number
   remaining: number | null
   completionPct: number | null
   platforms: Record<"instagram" | "facebook" | "linkedin", number>
@@ -1091,7 +1091,7 @@ function ClientStatsBox({ client, stats, monthPicked, onSaveTarget }: {
       <StatRow label="Completion %" value={stats.completionPct !== null ? `${stats.completionPct}%` : "—"} color="#0EA5E9" />
 
       <SectionLabel>Production Status</SectionLabel>
-      <StatRow label="Editing" value={stats.editing} color="#F97316" />
+      <StatRow label="Unedited" value={stats.unedited} color="#F97316" />
       <StatRow label="Edited" value={stats.edited} color="#0EA5E9" />
       <StatRow label="Ready to Publish" value={stats.unposted} color="#D97706" />
 
@@ -3814,7 +3814,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       posted,
       unposted: kpiRow?.unposted ?? 0,
       edited,
-      editing: kpiRow?.unedited ?? 0,
+      unedited: kpiRow?.unedited ?? 0,
       target,
       remaining: target === null ? null : Math.max(target - posted, 0),
       completionPct: target ? Math.round((posted / target) * 100) : null,

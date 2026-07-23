@@ -293,6 +293,22 @@ function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFi
     .sort((a, b) => b.total - a.total)
 }
 
+// Per-client Promotion breakdown for Overview's Per-Client KPIs — separate tally from
+// buildClientKPIs above (which counts Branding/Ads posting), so a video flagged Promotion
+// AND posted to both Branding and Ads still counts as exactly 1 here, not 3. Keyed by
+// item, one increment per content item, never per platform post.
+function buildPromotionKPIs(items: ContentItem[], monthFilter: string) {
+  const map = new Map<string, number>()
+  for (const item of items) {
+    if (item.status === "cancelled" || !item.is_promotion) continue
+    if (monthFilter !== "all" && !item.posts.some(p => p.posted_date.slice(0, 7) === monthFilter)) continue
+    map.set(item.client_name, (map.get(item.client_name) ?? 0) + 1)
+  }
+  return Array.from(map.entries())
+    .map(([client, count]) => ({ client, count }))
+    .sort((a, b) => b.count - a.count)
+}
+
 const PRIORITY_CFG: Record<Priority, { label: string; color: string }> = {
   low:    { label: "Low",    color: "#6B7280" },
   medium: { label: "Medium", color: "#3B82F6" },
@@ -3713,6 +3729,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   // below) — not scoped to a single content type or tab, so they show the full picture.
   const overviewBrandingKPIs = useMemo(() => buildClientKPIs(items, "branding", overviewKpiMonth), [items, overviewKpiMonth])
   const overviewAdsKPIs = useMemo(() => buildClientKPIs(items, "ads", overviewKpiMonth), [items, overviewKpiMonth])
+  const overviewPromotionKPIs = useMemo(() => buildPromotionKPIs(items, overviewKpiMonth), [items, overviewKpiMonth])
 
   // The per-client stats box next to Waiting to Post — only meaningful once a single
   // client is picked (an "all clients" mash-up of targets makes no sense here), so this
@@ -4127,7 +4144,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                 {allMonthOptions.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
               </select>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2">
+            <div className="grid grid-cols-1 md:grid-cols-3">
               {[
                 { label: "Branding", rows: overviewBrandingKPIs, postedLabel: "Posted", dualLabel: "Also Used in Ads" },
                 { label: "Advertisement", rows: overviewAdsKPIs, postedLabel: "Ads Posted", dualLabel: "Also Used in Branding" },
@@ -4174,6 +4191,39 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                   )}
                 </div>
               ))}
+              {/* Promotion — its own tally, not summed with Branding/Advertisement above. A
+                  video flagged Promotion and posted to both Branding and Ads still counts
+                  as 1 here (see buildPromotionKPIs), never 3. */}
+              <div className="md:border-l" style={{ borderTop: "1px solid #F3F4F6", borderColor: "#F3F4F6" }}>
+                <div style={{ padding: "10px 16px", background: "#F9FAFB" }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#111827" }}>Promotion</span>
+                </div>
+                {overviewPromotionKPIs.length === 0 ? (
+                  <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "20px 0", margin: 0 }}>
+                    No activity {overviewKpiMonth === "all" ? "yet" : `in ${fmtMonth(overviewKpiMonth)}`}
+                  </p>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ background: "#F9FAFB" }}>
+                          {["Client", "Promotion"].map(h => (
+                            <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {overviewPromotionKPIs.map(row => (
+                          <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6" }}>
+                            <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
+                            <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: "#DB2777" }}>{row.count}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

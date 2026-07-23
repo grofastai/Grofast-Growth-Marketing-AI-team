@@ -1031,7 +1031,7 @@ export type ClientStatsShape = {
   editing: number
   remaining: number | null
   completionPct: number | null
-  platforms: Record<"instagram" | "facebook" | "linkedin" | "youtube", number>
+  platforms: Record<"instagram" | "facebook" | "linkedin", number>
 }
 
 function ClientStatsBox({ client, stats, monthPicked, onSaveTarget }: {
@@ -1100,7 +1100,7 @@ function ClientStatsBox({ client, stats, monthPicked, onSaveTarget }: {
       <StatRow label="Published" value={stats.posted} color="#16A34A" />
 
       <SectionLabel>Platform Distribution</SectionLabel>
-      {(["instagram", "facebook", "linkedin", "youtube"] as const).map(p => (
+      {(["instagram", "facebook", "linkedin"] as const).map(p => (
         <StatRow key={p} label={PLATFORM_CFG[p].label} value={stats.platforms[p]} color={PLATFORM_CFG[p].color} />
       ))}
     </div>
@@ -3784,7 +3784,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   // is null on "all" and the box simply doesn't render.
   // Fixed set for the Platform Distribution rows — these are always organic/branding
   // destinations, so they naturally read as zero while on the Advertisement tab.
-  const DISTRIBUTION_PLATFORMS: Platform[] = ["instagram", "facebook", "linkedin", "youtube"]
+  const DISTRIBUTION_PLATFORMS: Platform[] = ["instagram", "facebook", "linkedin"]
 
   const logClientStats = useMemo(() => {
     if (logClientFilter === "all") return null

@@ -293,6 +293,30 @@ function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFi
     .sort((a, b) => b.total - a.total)
 }
 
+// A single, non-duplicated count for Overview — the Branding/Advertisement tables above
+// deliberately keep showing a dual-posted video in both (that's the point of "Also post to
+// X"), but this total counts every posted video exactly once. A dual-posted video (posted
+// both ways) is attributed to whichever side is its actual origin — an Ads Video script
+// counts as Ads even if also posted to Branding; anything else (a regular shoot or poster)
+// counts as Branding even if also posted to Ads.
+function countUniquePosted(items: ContentItem[], monthFilter: string) {
+  const inMonth = (kind: "branding" | "ads") => (item: ContentItem) => {
+    if (monthFilter === "all") return true
+    const relevant = item.posts.filter(p => kind === "ads" ? ADS_PLATFORM_SET.has(p.platform) : !ADS_PLATFORM_SET.has(p.platform))
+    return relevant.some(p => p.posted_date.slice(0, 7) === monthFilter)
+  }
+  let ads = 0, branding = 0
+  for (const item of items) {
+    if (item.status === "cancelled") continue
+    const postedAds = item.posted_ads && inMonth("ads")(item)
+    const postedBranding = item.posted_branding && inMonth("branding")(item)
+    if (!postedAds && !postedBranding) continue
+    if (postedAds && (!postedBranding || item.source === "ads_video")) ads++
+    else branding++
+  }
+  return { ads, branding, total: ads + branding }
+}
+
 const PRIORITY_CFG: Record<Priority, { label: string; color: string }> = {
   low:    { label: "Low",    color: "#6B7280" },
   medium: { label: "Medium", color: "#3B82F6" },
@@ -3132,8 +3156,8 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
             <div style={{ flex: 1 }}>
               <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
             </div>
-            <button type="button" onClick={saveClient} disabled={saving || client === shoot.client}
-              style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: client === shoot.client ? "#E5E7EB" : "#16A34A", color: client === shoot.client ? "#9CA3AF" : "#fff", fontSize: 12, fontWeight: 700, cursor: client === shoot.client ? "default" : "pointer", flexShrink: 0 }}>
+            <button type="button" onClick={saveClient} disabled={saving}
+              style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: saving ? "default" : "pointer", flexShrink: 0 }}>
               Save
             </button>
           </div>
@@ -3753,6 +3777,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   // below) — not scoped to a single content type or tab, so they show the full picture.
   const overviewBrandingKPIs = useMemo(() => buildClientKPIs(items, "branding", overviewKpiMonth), [items, overviewKpiMonth])
   const overviewAdsKPIs = useMemo(() => buildClientKPIs(items, "ads", overviewKpiMonth), [items, overviewKpiMonth])
+  const overviewUniquePosted = useMemo(() => countUniquePosted(items, overviewKpiMonth), [items, overviewKpiMonth])
 
   // The per-client stats box next to Waiting to Post — only meaningful once a single
   // client is picked (an "all clients" mash-up of targets makes no sense here), so this
@@ -4177,7 +4202,15 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               both content types at once rather than needing a Video/Poster split. */}
           <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
+              <div>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
+                {/* One video posted both ways (e.g. an Ads Video also posted to Branding)
+                    still counts once here, attributed to its origin — the tables below keep
+                    showing it in both, this line doesn't double it up. */}
+                <p style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, margin: "2px 0 0" }}>
+                  {overviewUniquePosted.total} unique video{overviewUniquePosted.total === 1 ? "" : "s"} posted — {overviewUniquePosted.ads} Ads · {overviewUniquePosted.branding} Branding
+                </p>
+              </div>
               <select value={overviewKpiMonth} onChange={e => setOverviewKpiMonth(e.target.value)}
                 style={{ ...FIELD, width: "auto", cursor: "pointer", padding: "5px 10px", fontSize: 11 }}>
                 <option value="all">All Time</option>

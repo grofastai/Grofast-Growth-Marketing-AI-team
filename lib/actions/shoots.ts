@@ -176,7 +176,6 @@ export async function updateShootStatus(
 type CreateTrackerShootInput = {
   client: string
   title: string
-  shoot_type: 'ads_shoot' | 'branding_shoot'
   shot_date: string
   shot_time_from: string
   shot_time_to: string
@@ -195,7 +194,6 @@ export async function createTrackerShoot(
 
   if (!input.client.trim()) return { success: false, error: 'Client is required' }
   if (!input.title.trim()) return { success: false, error: 'Shoot title is required' }
-  if (!input.shoot_type) return { success: false, error: 'Shoot type is required' }
   if (!input.shot_date) return { success: false, error: 'Shot date is required' }
   if (!input.shot_time_from) return { success: false, error: 'From time is required' }
   if (!input.shot_time_to) return { success: false, error: 'To time is required' }
@@ -215,7 +213,6 @@ export async function createTrackerShoot(
     location: '',
     start_time,
     end_time,
-    shoot_type: input.shoot_type,
     notes: input.notes?.trim() || null,
     created_by: user.id,
     status: 'scheduled',
@@ -566,7 +563,6 @@ export async function moveScriptToShoot(
     location: '',
     start_time,
     end_time,
-    shoot_type: parsed.data.shoot_type,
     source_content_item_id: item.id,
     notes: parsed.data.notes?.trim() || null,
     created_by: user.id,

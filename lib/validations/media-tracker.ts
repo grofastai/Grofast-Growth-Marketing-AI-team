@@ -104,7 +104,7 @@ export const createAdsVideoScriptSchema = z.object({
   title:       z.string().min(1, 'Title is required'),
   hook_count:  z.number().int().min(0).default(0),
   use_for:     z.array(z.enum(USE_FOR_OPTIONS)).default([]),
-  shoot_type:  z.enum(SHOOT_TYPES),
+  shoot_type:  z.enum(SHOOT_TYPES).optional(),
   scripted_by: z.string().uuid('Pick who scripted this'),
   notes:       z.string().optional(),
 })
@@ -127,7 +127,7 @@ export const updateAdsVideoScriptSchema = z.object({
   title:           z.string().min(1, 'Title is required'),
   hook_count:      z.number().int().min(0).default(0),
   use_for:         z.array(z.enum(USE_FOR_OPTIONS)).default([]),
-  shoot_type:      z.enum(SHOOT_TYPES),
+  shoot_type:      z.enum(SHOOT_TYPES).optional(),
   scripted_by:     z.string().uuid('Pick who scripted this'),
   notes:           z.string().optional(),
 })
@@ -147,7 +147,7 @@ export type UpdateVoiceOverInput = z.infer<typeof updateVoiceOverSchema>
 // wants to speak the script on camera instead of using a recorded voice-over.
 export const moveScriptToShootSchema = z.object({
   content_item_id: z.string().uuid(),
-  shoot_type:       z.enum(SHOOT_TYPES),
+  shoot_type:       z.enum(SHOOT_TYPES).optional(),
   shot_date:        z.string().min(1, 'Shot date is required'),
   shot_time_from:   z.string().min(1, 'From time is required'),
   shot_time_to:     z.string().min(1, 'To time is required'),

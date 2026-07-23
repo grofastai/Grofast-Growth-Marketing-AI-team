@@ -1665,7 +1665,6 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
   const [client, setClient] = useState("")
   const [title, setTitle] = useState("")
   const [hookCount, setHookCount] = useState<number | "">(1)
-  const [shootType, setShootType] = useState<ShootType | "">("")
   const [scriptedBy, setScriptedBy] = useState(currentUserId)
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
@@ -1673,11 +1672,10 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
 
   async function submit() {
     if (!client || !title.trim()) { setError("Client and title are required"); return }
-    if (!shootType) { setError("Shoot type is required"); return }
     if (!scriptedBy) { setError("Pick who scripted this"); return }
     setSaving(true); setError(null)
     const finalHookCount = hookCount === "" ? 0 : hookCount
-    const res = await createAdsVideoScript({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: [], shoot_type: shootType, scripted_by: scriptedBy, notes: notes.trim() || undefined })
+    const res = await createAdsVideoScript({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: [], scripted_by: scriptedBy, notes: notes.trim() || undefined })
     setSaving(false)
     if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
     const scriptedByUser = members.find(m => m.id === scriptedBy) ?? null
@@ -1685,7 +1683,7 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
       id: res.id, client_name: client, title: title.trim(), content_type: "video", source: "ads_video",
       status: "scripting", shot_date: null, edited_date: null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
-      hook_count: finalHookCount, use_for: [], priority: null, shoot_type: shootType, voiceover_date: null, reviewed_at: null,
+      hook_count: finalHookCount, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
       posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, scriptedByUser, posts: [],
     })
   }
@@ -1711,21 +1709,6 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
           </select>
         </div>
         <div>
-          <label style={LABEL}>Shoot Type *</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
-              const cfg = SHOOT_TYPE_CFG[t]
-              const on = shootType === t
-              return (
-                <button key={t} type="button" onClick={() => setShootType(t)}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {cfg.label} {on && <Check size={10} />}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-        <div>
           <label style={LABEL}>Notes <span style={{ fontWeight: 600, textTransform: "none" }}>(the script brief)</span></label>
           <textarea style={{ ...FIELD, minHeight: 60, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
         </div>
@@ -1742,7 +1725,7 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   members: Member[]; currentUserId: string
   onClose: () => void
-  onSaved: (updates: { client_name: string; title: string; hook_count: number; use_for: UseFor[]; shoot_type: ShootType; scriptedByUser: Person; notes: string }) => void
+  onSaved: (updates: { client_name: string; title: string; hook_count: number; use_for: UseFor[]; scriptedByUser: Person; notes: string }) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
@@ -1751,7 +1734,6 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
   const [client, setClient] = useState(item.client_name)
   const [title, setTitle] = useState(item.title)
   const [hookCount, setHookCount] = useState<number | "">(item.hook_count ?? 0)
-  const [shootType, setShootType] = useState<ShootType | "">(item.shoot_type ?? "")
   const [scriptedBy, setScriptedBy] = useState(item.scriptedByUser?.id ?? currentUserId)
   const [notes, setNotes] = useState(item.notes || "")
   const [saving, setSaving] = useState(false)
@@ -1759,15 +1741,14 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
 
   async function submit() {
     if (!client || !title.trim()) { setError("Client and title are required"); return }
-    if (!shootType) { setError("Shoot type is required"); return }
     if (!scriptedBy) { setError("Pick who scripted this"); return }
     setSaving(true); setError(null)
     const finalHookCount = hookCount === "" ? 0 : hookCount
-    const res = await updateAdsVideoScript({ content_item_id: item.id, client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: item.use_for, shoot_type: shootType, scripted_by: scriptedBy, notes: notes.trim() || undefined })
+    const res = await updateAdsVideoScript({ content_item_id: item.id, client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: item.use_for, scripted_by: scriptedBy, notes: notes.trim() || undefined })
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to save"); return }
     const scriptedByUser = members.find(m => m.id === scriptedBy) ?? null
-    onSaved({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: item.use_for, shoot_type: shootType, scriptedByUser, notes: notes.trim() })
+    onSaved({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: item.use_for, scriptedByUser, notes: notes.trim() })
   }
 
   return (
@@ -1789,21 +1770,6 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
               <option key={m.id} value={m.id}>{upper(m.name)}{m.id === currentUserId ? " (me)" : ""}</option>
             ))}
           </select>
-        </div>
-        <div>
-          <label style={LABEL}>Shoot Type *</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
-              const cfg = SHOOT_TYPE_CFG[t]
-              const on = shootType === t
-              return (
-                <button key={t} type="button" onClick={() => setShootType(t)}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {cfg.label} {on && <Check size={10} />}
-                </button>
-              )
-            })}
-          </div>
         </div>
         <div>
           <label style={LABEL}>Notes</label>
@@ -2404,7 +2370,6 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   )
   const [client, setClient] = useState("")
   const [title, setTitle] = useState("")
-  const [shootType, setShootType] = useState<ShootType | "">("")
   const [shotDate, setShotDate] = useState(todayIST())
   const [fromTime, setFromTime] = useState("")
   const [toTime, setToTime] = useState("")
@@ -2415,12 +2380,11 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   async function submit() {
     if (!client) { setError("Client is required"); return }
     if (!title.trim()) { setError("Shoot title is required"); return }
-    if (!shootType) { setError("Shoot type is required"); return }
     if (!fromTime) { setError("From time is required"); return }
     if (!toTime) { setError("To time is required"); return }
     setSaving(true); setError(null)
     const res = await createTrackerShoot({
-      client, title: title.trim(), shoot_type: shootType, shot_date: shotDate,
+      client, title: title.trim(), shot_date: shotDate,
       shot_time_from: fromTime, shot_time_to: toTime, notes: notes.trim() || undefined,
     })
     setSaving(false)
@@ -2434,7 +2398,7 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
       created_at: new Date().toISOString(),
       notes: notes.trim() || null,
       status: "scheduled",
-      shoot_type: shootType,
+      shoot_type: null,
       source_content_item_id: null,
       drive_link: null,
       goingByUsers: [],
@@ -2450,21 +2414,6 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
           <label style={LABEL}>Shoot Title *</label>
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)}
             placeholder="e.g. SKB Silks Diwali Shoot" />
-        </div>
-        <div>
-          <label style={LABEL}>Shoot Type *</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
-              const cfg = SHOOT_TYPE_CFG[t]
-              const on = shootType === t
-              return (
-                <button key={t} type="button" onClick={() => setShootType(t)}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {cfg.label} {on && <Check size={10} />}
-                </button>
-              )
-            })}
-          </div>
         </div>
         <div>
           <label style={LABEL}>Shot Date *</label>
@@ -2749,8 +2698,6 @@ function MoveToShootModal({ item, onClose, onMoved }: {
   onClose: () => void
   onMoved: (shoot: Shoot) => void
 }) {
-  // Pre-fill from the script's own Shoot Type — same classification, no need to ask twice.
-  const [shootType, setShootType] = useState<ShootType | "">(item.shoot_type ?? "")
   const [shotDate, setShotDate] = useState(todayIST())
   const [fromTime, setFromTime] = useState("")
   const [toTime, setToTime] = useState("")
@@ -2759,12 +2706,11 @@ function MoveToShootModal({ item, onClose, onMoved }: {
   const [error, setError] = useState<string | null>(null)
 
   async function submit() {
-    if (!shootType) { setError("Shoot type is required"); return }
     if (!fromTime) { setError("From time is required"); return }
     if (!toTime) { setError("To time is required"); return }
     setSaving(true); setError(null)
     const res = await moveScriptToShoot({
-      content_item_id: item.id, shoot_type: shootType, shot_date: shotDate,
+      content_item_id: item.id, shot_date: shotDate,
       shot_time_from: fromTime, shot_time_to: toTime, notes: notes.trim() || undefined,
     })
     setSaving(false)
@@ -2778,7 +2724,7 @@ function MoveToShootModal({ item, onClose, onMoved }: {
       created_at: new Date().toISOString(),
       notes: notes.trim() || null,
       status: "scheduled",
-      shoot_type: shootType,
+      shoot_type: null,
       source_content_item_id: item.id,
       drive_link: null,
       goingByUsers: [],
@@ -2789,21 +2735,6 @@ function MoveToShootModal({ item, onClose, onMoved }: {
   return (
     <Modal title={`Move to Shoot — ${item.title}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <div>
-          <label style={LABEL}>Shoot Type *</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
-              const cfg = SHOOT_TYPE_CFG[t]
-              const on = shootType === t
-              return (
-                <button key={t} type="button" onClick={() => setShootType(t)}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {cfg.label} {on && <Check size={10} />}
-                </button>
-              )
-            })}
-          </div>
-        </div>
         <div>
           <label style={LABEL}>Shot Date *</label>
           <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
@@ -3015,7 +2946,6 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
   )
   const [client, setClient] = useState(shoot.client)
   const [title, setTitle] = useState(shoot.legacyTitle)
-  const [shootType, setShootType] = useState<ShootType | "">(shoot.shoot_type ?? "")
   const [shotDate, setShotDate] = useState(shoot.start_time.split("T")[0])
   const [fromTime, setFromTime] = useState(() => {
     const t = shoot.start_time.split("T")[1]
@@ -3036,7 +2966,7 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
     if (!toTime) { setError("To time is required"); return }
     setSaving(true); setError(null)
     const res = await updateTrackerShoot(shoot.id, {
-      client, title: title.trim(), shoot_type: shootType || undefined, shot_date: shotDate,
+      client, title: title.trim(), shot_date: shotDate,
       shot_time_from: fromTime, shot_time_to: toTime, notes: notes.trim() || undefined,
     })
     setSaving(false)
@@ -3056,21 +2986,6 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
         <div>
           <label style={LABEL}>Shoot Title *</label>
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
-        </div>
-        <div>
-          <label style={LABEL}>Shoot Type</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
-              const cfg = SHOOT_TYPE_CFG[t]
-              const on = shootType === t
-              return (
-                <button key={t} type="button" onClick={() => setShootType(t)}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {cfg.label} {on && <Check size={10} />}
-                </button>
-              )
-            })}
-          </div>
         </div>
         <div>
           <label style={LABEL}>Shot Date *</label>

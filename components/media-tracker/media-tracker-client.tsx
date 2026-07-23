@@ -1031,6 +1031,9 @@ export type ClientStatsShape = {
   unedited: number
   remaining: number | null
   completionPct: number | null
+  // Posted on both branding and ads sides — the same "dual" breakdown Overview's per-client
+  // KPI tables already track, just surfaced here under its business name.
+  promotion: number
 }
 
 function ClientStatsBox({ client, stats, monthPicked, onSaveTarget }: {
@@ -1097,6 +1100,7 @@ function ClientStatsBox({ client, stats, monthPicked, onSaveTarget }: {
       <SectionLabel>Publishing Status</SectionLabel>
       <StatRow label="Scheduled" value={stats.unposted} color="#D97706" />
       <StatRow label="Published" value={stats.posted} color="#16A34A" />
+      <StatRow label="Promotion" value={stats.promotion} color="#DB2777" />
     </div>
   )
 }
@@ -3713,6 +3717,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       target,
       remaining: target === null ? null : Math.max(target - posted, 0),
       completionPct: target ? Math.round((posted / target) * 100) : null,
+      promotion: kpiRow?.dual ?? 0,
     }
   }, [items, clientTargets, logClientFilter, logKind, logMonthFilter, contentTypeForMode])
 

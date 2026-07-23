@@ -4,11 +4,12 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import {
-  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema, updateVoiceOverSchema,
-  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput, type UpdateVoiceOverInput,
+  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema, updateVoiceOverSchema, setClientMonthlyTargetSchema,
+  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput, type UpdateVoiceOverInput, type SetClientMonthlyTargetInput,
 } from '@/lib/validations/media-tracker'
 import { isValidPipelineTransition, type ContentPipelineStatus } from '@/lib/media-tracker/pipeline-transitions'
 import { todayIST } from '@/lib/utils/ist-date'
+import { isValidDriveLink } from '@/lib/utils/drive-link'
 
 function adminSupabase() {
   return createClient(
@@ -225,7 +226,8 @@ export async function updateContentItemStatus(
   status: ContentPipelineStatus,
   editorId?: string,
   cancelledBy?: 'client' | 'us',
-  editedDate?: string
+  editedDate?: string,
+  editedDriveLink?: string
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
@@ -238,10 +240,17 @@ export async function updateContentItemStatus(
     return { success: false, error: `Cannot move from ${current.status} to ${status}` }
   }
 
+  // Enforced server-side too — the client can't be trusted to be the only gate on a
+  // pipeline transition that's supposed to always leave a real Drive link behind.
+  if (status === 'on_review' && !isValidDriveLink(editedDriveLink ?? '')) {
+    return { success: false, error: 'A valid Google Drive link is required' }
+  }
+
   const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
 
   if (status === 'on_review') {
     updates.edited_date = editedDate || todayIST()
+    updates.edited_drive_link = editedDriveLink!.trim()
     // Reaching On Review is where the editor is recorded — that's the accountability
     // moment ("who edited this?"), asked right at this move since there's no separate
     // Edited stage to stop at first.
@@ -293,8 +302,12 @@ export async function addContentPost(input: AddContentPostInput): Promise<{ succ
   if (error) return { success: false, error: error.message }
 
   // Posting to any platform marks the content item as posted.
+  const itemUpdates: Record<string, unknown> = { status: 'posted', updated_at: new Date().toISOString() }
+  // One-way — ticking it on one platform post is enough to flag the whole item; never
+  // reset to false here.
+  if (parsed.data.is_promotion) itemUpdates.is_promotion = true
   await ctx.admin.from('content_items')
-    .update({ status: 'posted', updated_at: new Date().toISOString() })
+    .update(itemUpdates)
     .eq('id', parsed.data.content_item_id)
     .eq('company_id', ctx.companyId)
   await syncPostedFlags(ctx, parsed.data.content_item_id)
@@ -562,6 +575,30 @@ export async function updateVoiceOver(input: UpdateVoiceOverInput): Promise<{ su
     voiceover_date: parsed.data.voiceover_date,
     updated_at:     new Date().toISOString(),
   }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true }
+}
+
+// ── Per-client monthly targets (Waiting to Post stats box) ─────────────────
+
+export async function setClientMonthlyTarget(input: SetClientMonthlyTargetInput): Promise<{ success: boolean; error?: string }> {
+  const parsed = setClientMonthlyTargetSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { error } = await ctx.admin.from('content_client_targets').upsert({
+    company_id:  ctx.companyId,
+    client_name: parsed.data.client_name,
+    kind:        parsed.data.kind,
+    month:       parsed.data.month,
+    target:      parsed.data.target,
+    updated_by:  ctx.id,
+    updated_at:  new Date().toISOString(),
+  }, { onConflict: 'company_id,client_name,kind,month' })
   if (error) return { success: false, error: error.message }
 
   revalidateTracker()

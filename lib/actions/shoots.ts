@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { isValidShootTransition, type ShootStatus } from '@/lib/shoots/status-transitions'
 import { moveScriptToShootSchema, type MoveScriptToShootInput } from '@/lib/validations/media-tracker'
+import { isValidDriveLink } from '@/lib/utils/drive-link'
 
 function adminSupabase() {
   return createClient(
@@ -175,7 +176,6 @@ export async function updateShootStatus(
 type CreateTrackerShootInput = {
   client: string
   title: string
-  shoot_type: 'ads_shoot' | 'branding_shoot'
   shot_date: string
   shot_time_from: string
   shot_time_to: string
@@ -194,7 +194,6 @@ export async function createTrackerShoot(
 
   if (!input.client.trim()) return { success: false, error: 'Client is required' }
   if (!input.title.trim()) return { success: false, error: 'Shoot title is required' }
-  if (!input.shoot_type) return { success: false, error: 'Shoot type is required' }
   if (!input.shot_date) return { success: false, error: 'Shot date is required' }
   if (!input.shot_time_from) return { success: false, error: 'From time is required' }
   if (!input.shot_time_to) return { success: false, error: 'To time is required' }
@@ -214,7 +213,6 @@ export async function createTrackerShoot(
     location: '',
     start_time,
     end_time,
-    shoot_type: input.shoot_type,
     notes: input.notes?.trim() || null,
     created_by: user.id,
     status: 'scheduled',
@@ -236,7 +234,8 @@ export async function completeShootWithTitles(
   shootId: string,
   titles: string[],
   goingBy: string[] | undefined,
-  actualTime: { from: string; to: string }
+  actualTime: { from: string; to: string },
+  driveLink: string
 ): Promise<{ success: boolean; error?: string; createdItems?: CreatedShootItem[] }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -244,6 +243,9 @@ export async function completeShootWithTitles(
 
   if (!actualTime?.from) return { success: false, error: 'Start time is required' }
   if (!actualTime?.to) return { success: false, error: 'End time is required' }
+  // Enforced server-side too — the client can't be trusted to be the only gate on a
+  // pipeline transition that's supposed to always leave a real Drive link behind.
+  if (!isValidDriveLink(driveLink)) return { success: false, error: 'A valid Google Drive link is required' }
 
   const admin = adminSupabase()
   const { data: shoot } = await admin
@@ -321,7 +323,7 @@ export async function completeShootWithTitles(
 
   // Crew is captured here, at completion — the only point in the shoot's lifecycle
   // where "who went" is known.
-  const completeUpdates: Record<string, unknown> = { status: 'completed', start_time: finalStart, end_time: finalEnd }
+  const completeUpdates: Record<string, unknown> = { status: 'completed', start_time: finalStart, end_time: finalEnd, drive_link: driveLink.trim() }
   if (goingBy && goingBy.length > 0) completeUpdates.going_by = goingBy
 
   const { error: statusError } = await admin.from('shoots').update(completeUpdates).eq('id', shootId)
@@ -489,6 +491,11 @@ export async function updateTrackerShoot(
   const end_time = `${input.shot_date}T${input.shot_time_to}:00+05:30`
   if (start_time >= end_time) return { success: false, error: 'To time must be after From time' }
 
+  // A shoot spun off an Ads Video item shares its client with that item — if the shoot's
+  // client is corrected here, the linked item's card has to follow, or it's stuck showing
+  // the stale client forever (nothing else ever re-syncs it).
+  const { data: shoot } = await admin.from('shoots').select('source_content_item_id').eq('id', shootId).single()
+
   const { error } = await admin.from('shoots').update({
     client: input.client.trim(),
     title: input.title.trim(),
@@ -498,6 +505,12 @@ export async function updateTrackerShoot(
     notes: input.notes?.trim() || null,
   }).eq('id', shootId)
   if (error) return { success: false, error: error.message }
+
+  if (shoot?.source_content_item_id) {
+    await admin.from('content_items')
+      .update({ client_name: input.client.trim(), updated_at: new Date().toISOString() })
+      .eq('id', shoot.source_content_item_id)
+  }
 
   revalidatePath('/admin/shoots')
   revalidatePath('/member/shoots')
@@ -561,7 +574,6 @@ export async function moveScriptToShoot(
     location: '',
     start_time,
     end_time,
-    shoot_type: parsed.data.shoot_type,
     source_content_item_id: item.id,
     notes: parsed.data.notes?.trim() || null,
     created_by: user.id,

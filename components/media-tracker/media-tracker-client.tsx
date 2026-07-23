@@ -264,22 +264,17 @@ const ADS_PLATFORM_SET = new Set<Platform>(["ads", "meta_ads", "google_ads"])
 // it, as the Waiting to Post stats box does, so its numbers match the queue right next to it.
 function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFilter: string, contentType?: "video" | "poster") {
   const isDone = (i: ContentItem) => kind === "branding" ? i.posted_branding : i.posted_ads
-  const isDoneOtherKind = (i: ContentItem) => kind === "branding" ? i.posted_ads : i.posted_branding
   const inMonth = (d: string | null) => monthFilter === "all" || (!!d && d.slice(0, 7) === monthFilter)
-  const map = new Map<string, { posted: number; unposted: number; unedited: number; dual: number }>()
+  const map = new Map<string, { posted: number; unposted: number; unedited: number }>()
   for (const item of items) {
     if (item.status === "cancelled") continue
     if (contentType && item.content_type !== contentType) continue
-    if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0, dual: 0 })
+    if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0 })
     const rec = map.get(item.client_name)!
     if (isDone(item)) {
       const relevant = item.posts.filter(p => kind === "ads" ? ADS_PLATFORM_SET.has(p.platform) : !ADS_PLATFORM_SET.has(p.platform))
       if (monthFilter === "all" || relevant.some(p => p.posted_date.slice(0, 7) === monthFilter)) {
         rec.posted++
-        // Already counted in "posted" above — this is just a highlighted breakdown of how
-        // many of those also went out the other way (e.g. an ad shoot's hook also posted
-        // organically), not an additional total.
-        if (isDoneOtherKind(item)) rec.dual++
       }
     } else if (item.status === "posted" || item.status === "on_review" || item.status === "branding_ready" || item.status === "ads_ready") {
       if (inMonth(item.edited_date)) rec.unposted++
@@ -4146,8 +4141,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3">
               {[
-                { label: "Branding", rows: overviewBrandingKPIs, postedLabel: "Posted", dualLabel: "Also Used in Ads" },
-                { label: "Advertisement", rows: overviewAdsKPIs, postedLabel: "Ads Posted", dualLabel: "Also Used in Branding" },
+                { label: "Branding", kind: "branding" as const, rows: overviewBrandingKPIs, postedLabel: "Posted" },
+                { label: "Advertisement", kind: "ads" as const, rows: overviewAdsKPIs, postedLabel: "Ads Posted" },
               ].map((block, i) => (
                 <div key={block.label} className={i === 1 ? "md:border-l" : undefined} style={{ borderTop: "1px solid #F3F4F6", borderColor: "#F3F4F6" }}>
                   <div style={{ padding: "10px 16px", background: "#F9FAFB" }}>
@@ -4162,29 +4157,38 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                         <thead>
                           <tr style={{ background: "#F9FAFB" }}>
-                            {["Client", block.postedLabel, block.dualLabel, "Unposted", "Unedited"].map(h => (
+                            {["Client", block.postedLabel, "Target", "Unposted", "Unedited"].map(h => (
                               <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {block.rows.map(row => (
-                            <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6" }}>
-                              <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
-                              <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
-                              <td style={{ padding: "9px 14px", textAlign: "center" }}>
-                                {row.dual > 0 ? (
-                                  <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 999, fontWeight: 800, background: "rgba(124,58,237,0.12)", color: "#7C3AED" }}>
-                                    {row.dual}
-                                  </span>
-                                ) : (
-                                  <span style={{ fontWeight: 800, color: "#D1D5DB" }}>0</span>
-                                )}
-                              </td>
-                              <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.on_review.accent }}>{row.unposted}</td>
-                              <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.ready_to_edit.accent }}>{row.unedited}</td>
-                            </tr>
-                          ))}
+                          {block.rows.map(row => {
+                            // Target is only meaningful for a specific month — "All Time" has
+                            // no single figure to show, matching the Waiting to Post stats box.
+                            const target = overviewKpiMonth === "all" ? null : (clientTargets.find(
+                              t => t.client_name === row.client && t.kind === block.kind && t.month === overviewKpiMonth
+                            )?.target ?? 0)
+                            return (
+                              <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6" }}>
+                                <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
+                                <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
+                                <td style={{ padding: "9px 14px", textAlign: "center" }}>
+                                  {target === null ? (
+                                    <span style={{ fontWeight: 800, color: "#D1D5DB" }}>—</span>
+                                  ) : target > 0 ? (
+                                    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 999, fontWeight: 800, background: "rgba(124,58,237,0.12)", color: "#7C3AED" }}>
+                                      {target}
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontWeight: 800, color: "#D1D5DB" }}>0</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.on_review.accent }}>{row.unposted}</td>
+                                <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.ready_to_edit.accent }}>{row.unedited}</td>
+                              </tr>
+                            )
+                          })}
                         </tbody>
                       </table>
                     </div>

@@ -1031,7 +1031,6 @@ export type ClientStatsShape = {
   unedited: number
   remaining: number | null
   completionPct: number | null
-  platforms: Record<"instagram" | "facebook" | "linkedin", number>
 }
 
 function ClientStatsBox({ client, stats, monthPicked, onSaveTarget }: {
@@ -1098,11 +1097,6 @@ function ClientStatsBox({ client, stats, monthPicked, onSaveTarget }: {
       <SectionLabel>Publishing Status</SectionLabel>
       <StatRow label="Scheduled" value={stats.unposted} color="#D97706" />
       <StatRow label="Published" value={stats.posted} color="#16A34A" />
-
-      <SectionLabel>Platform Distribution</SectionLabel>
-      {(["instagram", "facebook", "linkedin"] as const).map(p => (
-        <StatRow key={p} label={PLATFORM_CFG[p].label} value={stats.platforms[p]} color={PLATFORM_CFG[p].color} />
-      ))}
     </div>
   )
 }
@@ -3697,10 +3691,6 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   // The per-client stats box next to Waiting to Post — only meaningful once a single
   // client is picked (an "all clients" mash-up of targets makes no sense here), so this
   // is null on "all" and the box simply doesn't render.
-  // Fixed set for the Platform Distribution rows — these are always organic/branding
-  // destinations, so they naturally read as zero while on the Advertisement tab.
-  const DISTRIBUTION_PLATFORMS: Platform[] = ["instagram", "facebook", "linkedin"]
-
   const logClientStats = useMemo(() => {
     if (logClientFilter === "all") return null
     const kpiRow = buildClientKPIs(items, logKind, logMonthFilter, contentTypeForMode)
@@ -3715,16 +3705,6 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     const posted = kpiRow?.posted ?? 0
     const target = logMonthFilter === "all" ? null : (targetRow?.target ?? 0)
 
-    const platforms = Object.fromEntries(DISTRIBUTION_PLATFORMS.map(p => [p, 0])) as Record<Platform, number>
-    for (const item of items) {
-      if (item.client_name !== logClientFilter || item.content_type !== contentTypeForMode) continue
-      for (const post of item.posts) {
-        if (!DISTRIBUTION_PLATFORMS.includes(post.platform)) continue
-        if (logMonthFilter !== "all" && post.posted_date.slice(0, 7) !== logMonthFilter) continue
-        platforms[post.platform]++
-      }
-    }
-
     return {
       posted,
       unposted: kpiRow?.unposted ?? 0,
@@ -3733,7 +3713,6 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       target,
       remaining: target === null ? null : Math.max(target - posted, 0),
       completionPct: target ? Math.round((posted / target) * 100) : null,
-      platforms,
     }
   }, [items, clientTargets, logClientFilter, logKind, logMonthFilter, contentTypeForMode])
 

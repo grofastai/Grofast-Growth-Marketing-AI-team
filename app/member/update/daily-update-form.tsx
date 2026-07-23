@@ -2060,7 +2060,9 @@ export default function DailyUpdateForm({
 
               {timeBlocks.filter(b => !b.isBreak).length === 0 ? (
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 24px", border:"2px dashed #E5E7EB", borderRadius:16, background:"#FAFBFC" }}>
-                  <span style={{ fontSize:36, marginBottom:12 }}>⏰</span>
+                  <div style={{ position:"relative", width:180, height:140, marginBottom:12 }}>
+                    <Image src="/brand/technical-illustration.png" alt="Technical" fill style={{ objectFit:"contain" }} />
+                  </div>
                   <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No time blocks yet</p>
                   <p style={{ fontSize:12, color:"#9CA3AF", margin:"0 0 16px", textAlign:"center" }}>Click &quot;Add Time Block&quot; to log your work.</p>
                   <button onClick={addTimeBlock}

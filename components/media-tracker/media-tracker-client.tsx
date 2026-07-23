@@ -689,6 +689,14 @@ function ContentCardInner({
             {upper(item.editedByUser.name)}{item.edited_date ? ` · ${fmtDate(item.edited_date)}` : ""}
           </span>
         ) : null}
+        {/* Who caused the cancellation — the whole point of asking at cancel time is that
+            it's visible on the card afterwards without opening anything. */}
+        {item.status === "cancelled" && item.cancelled_by && (
+          <span className="flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{ background: "rgba(239,68,68,0.12)", color: "#EF4444" }}>
+            Cancelled by {item.cancelled_by === "client" ? "Client" : "Us"}
+          </span>
+        )}
         {/* Once the editor badge above is showing (and carrying its own date), the shot
             date is redundant clutter — only shown pre-review, where it's the only date
             on the card at all. */}
@@ -2475,6 +2483,34 @@ function MoveOnReviewModal({ item, onClose, onMoved, onCancelled }: {
   )
 }
 
+// ── "Cancelled by" — the direct Cancel menu action's own prompt (Ready to Edit, Design,
+// Scripting, Voice Over), and drag-to-Cancelled from any stage. Same accountability as the
+// On Review Move modal's Cancelled branch, just reached from a shorter path with no
+// Branding/Ads choice to show first.
+function CancelReasonModal({ item, onClose, onCancelled }: {
+  item: ContentItem
+  onClose: () => void
+  onCancelled: (cancelledBy: CancelledBy) => void
+}) {
+  return (
+    <Modal title={`Cancel — ${item.title}`} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>Cancelled by</p>
+        <button onClick={() => onCancelled("client")}
+          className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
+          style={{ background: statusButtonGradient("cancelled"), color: "#fff" }}>
+          Cancelled by Client
+        </button>
+        <button onClick={() => onCancelled("us")}
+          className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
+          style={{ background: statusButtonGradient("cancelled"), color: "#fff" }}>
+          Cancelled by Us
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
 // ── "Who edited this?" — the accountability prompt when an item moves to Edited ──
 // There's no separate Editing stage to capture this at anymore, so it's asked here,
 // at the point the item is actually marked Edited.
@@ -3222,6 +3258,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const [voiceOverItem, setVoiceOverItem] = useState<ContentItem | null>(null)
   const [moveToShootFor, setMoveToShootFor] = useState<ContentItem | null>(null)
   const [moveOnReviewFor, setMoveOnReviewFor] = useState<ContentItem | null>(null)
+  // The direct "Cancel" menu action (Ready to Edit/Design/Scripting/Voice Over cards, and
+  // dragging any card straight into the Cancelled column) — same "who caused it" prompt as
+  // the On Review Move modal's Cancelled branch, just reached from a shorter path.
+  const [cancelReasonFor, setCancelReasonFor] = useState<ContentItem | null>(null)
   const [editCrewFor, setEditCrewFor] = useState<Shoot | null>(null)
   const [editShootFor, setEditShootFor] = useState<Shoot | null>(null)
   const [editCompletedShootFor, setEditCompletedShootFor] = useState<Shoot | null>(null)
@@ -3366,6 +3406,9 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     if (next === "on_review" && members.length > 0) { setMarkEditedItem(item); return }
     // Entering Voice Over asks who recorded it.
     if (next === "voiceover") { setVoiceOverItem(item); return }
+    // Cancelling (menu action or a direct drag into the Cancelled column) asks who caused it,
+    // same accountability the On Review Move modal's Cancelled branch already captures.
+    if (next === "cancelled") { setCancelReasonFor(item); return }
     const previous = item.status
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, ...(next === "on_review" ? { edited_date: todayIST() } : {}) } : i))
     startTransition(async () => {
@@ -3377,10 +3420,13 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     })
   }
 
-  function handleMoveOnReviewCancelled(item: ContentItem, cancelledBy: CancelledBy) {
+  // Shared by both cancellation paths: the On Review Move modal's Cancelled branch, and the
+  // direct Cancel menu action / drag-to-Cancelled from every other stage.
+  function handleCancelConfirmed(item: ContentItem, cancelledBy: CancelledBy) {
     const previous = item.status
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: "cancelled", cancelled_by: cancelledBy } : i))
     setMoveOnReviewFor(null)
+    setCancelReasonFor(null)
     startTransition(async () => {
       const res = await updateContentItemStatus(item.id, "cancelled", undefined, cancelledBy)
       if (!res.success) {
@@ -4691,7 +4737,14 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           item={moveOnReviewFor}
           onClose={() => setMoveOnReviewFor(null)}
           onMoved={next => { advance(moveOnReviewFor, next); setMoveOnReviewFor(null) }}
-          onCancelled={cancelledBy => handleMoveOnReviewCancelled(moveOnReviewFor, cancelledBy)}
+          onCancelled={cancelledBy => handleCancelConfirmed(moveOnReviewFor, cancelledBy)}
+        />
+      )}
+      {cancelReasonFor && (
+        <CancelReasonModal
+          item={cancelReasonFor}
+          onClose={() => setCancelReasonFor(null)}
+          onCancelled={cancelledBy => handleCancelConfirmed(cancelReasonFor, cancelledBy)}
         />
       )}
     </div>

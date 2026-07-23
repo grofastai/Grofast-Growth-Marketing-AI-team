@@ -10,7 +10,7 @@ import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil, AtSign,
   Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw, LayoutDashboard,
-  MoreVertical, Users, Clock, XCircle,
+  MoreVertical, Users, Clock, XCircle, ExternalLink,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
@@ -22,12 +22,13 @@ import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
   addContentPost, deleteContentPost,
   createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, requestCorrection,
-  createAdsVideoScript, recordVoiceOver, updateAdsVideoScript, updateVoiceOver,
+  createAdsVideoScript, recordVoiceOver, updateAdsVideoScript, updateVoiceOver, setClientMonthlyTarget,
 } from "@/lib/actions/media-tracker"
 import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, renameShootTitle, addShootTitle, updateShootActualTime, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
 import { isValidPipelineTransition } from "@/lib/media-tracker/pipeline-transitions"
 import { computeOverview, type AttentionItem } from "@/lib/media-tracker/overview"
+import { isValidDriveLink } from "@/lib/utils/drive-link"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 // "ads" is a real posting destination — an Ads Video can be scheduled/posted straight
@@ -92,6 +93,10 @@ export type ContentItem = {
   posted_branding: boolean
   posted_ads: boolean
   cancelled_by: CancelledBy | null
+  // Required at the Ready to Edit -> On Review move — where the edit actually lives.
+  edited_drive_link: string | null
+  // Ticked independently at Mark as Posted/Ads — one-way, never unset by the app.
+  is_promotion: boolean
   shotByUser?: Person
   editedByUser?: Person
   scriptedByUser?: Person
@@ -142,11 +147,22 @@ export type Shoot = {
   // Set when this shoot was spun off an Ads Video item via "Move to Shoot" — completing
   // it advances that linked item straight to Ready to Edit instead of creating new titles.
   source_content_item_id: string | null
+  // Required at Mark Done — where the raw footage actually lives.
+  drive_link: string | null
   goingByUsers: { id: string; name: string }[]
   titles: ShootTitleRef[]
 }
 
 export type Member = { id: string; name: string }
+
+// Monthly posting target for a client, scoped to branding vs ads — set inline
+// from the per-client stats box next to Waiting to Post.
+export type ClientTarget = {
+  client_name: string
+  kind: "branding" | "ads"
+  month: string // 'YYYY-MM'
+  target: number
+}
 
 type Props = {
   initialItems: ContentItem[]
@@ -164,6 +180,7 @@ type Props = {
   editingMembers: Member[]
   shootingMembers: Member[]
   voiceoverMembers: Member[]
+  initialClientTargets: ClientTarget[]
 }
 
 // ── Design tokens ────────────────────────────────────────────────────────────
@@ -241,30 +258,46 @@ const USE_FOR_CFG: Record<UseFor, { label: string; color: string; icon: typeof C
 // local state right after a backfill create; the server always recomputes the real value.
 const ADS_PLATFORM_SET = new Set<Platform>(["ads", "meta_ads", "google_ads"])
 
+// Which side "owns" a dual-posted item for reporting purposes — a video posted both
+// organically and to Ads still has exactly one true origin. An Ads Video script's origin
+// is Ads even if also posted to Branding; anything else (a regular shoot or poster)
+// originates as Branding even if also pushed to Ads via "Also post to Ads/Branding".
+function primaryPostedKind(postedBranding: boolean, postedAds: boolean, source: ContentSource): "branding" | "ads" | null {
+  if (!postedBranding && !postedAds) return null
+  return postedAds && (!postedBranding || source === "ads_video") ? "ads" : "branding"
+}
+
 // Per-client Posted / Unposted (edited, awaiting THIS kind's post) / Unedited breakdown for
-// one kind — powers the Overview "Per-Client KPIs" tables. Combines video + poster on
-// purpose (Overview is a bird's-eye view, not scoped to one content type).
-function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFilter: string) {
-  const isDone = (i: ContentItem) => kind === "branding" ? i.posted_branding : i.posted_ads
-  const isDoneOtherKind = (i: ContentItem) => kind === "branding" ? i.posted_ads : i.posted_branding
+// one kind — powers the Overview "Per-Client KPIs" tables. Combines video + poster by default
+// (Overview is a bird's-eye view, not scoped to one content type) — pass contentType to scope
+// it, as the Waiting to Post stats box does, so its numbers match the queue right next to it.
+// primaryOnly credits a dual-posted item to its origin only (Overview's business-analytics
+// tables) instead of both sides (the per-client stats box on the Branding/Ads log tabs,
+// where a reused item should still show up under whichever tab you're viewing).
+function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFilter: string, contentType?: "video" | "poster", primaryOnly = false) {
+  const isDone = (i: ContentItem) => primaryOnly
+    ? primaryPostedKind(i.posted_branding, i.posted_ads, i.source) === kind
+    : kind === "branding" ? i.posted_branding : i.posted_ads
+  // On Review hasn't branched yet, so an item sitting there isn't known to be Branding or
+  // Ads — it only counts as "unposted" for THIS kind once it's actually reached this kind's
+  // own Ready lane. The other kind's Ready lane (or a posted-via-the-other-side item) means
+  // it was never headed here at all, so it's excluded rather than double-counted.
+  const readyStatus = kind === "branding" ? "branding_ready" : "ads_ready"
   const inMonth = (d: string | null) => monthFilter === "all" || (!!d && d.slice(0, 7) === monthFilter)
-  const map = new Map<string, { posted: number; unposted: number; unedited: number; dual: number }>()
+  const map = new Map<string, { posted: number; unposted: number; unedited: number }>()
   for (const item of items) {
     if (item.status === "cancelled") continue
-    if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0, dual: 0 })
+    if (contentType && item.content_type !== contentType) continue
+    if (!map.has(item.client_name)) map.set(item.client_name, { posted: 0, unposted: 0, unedited: 0 })
     const rec = map.get(item.client_name)!
     if (isDone(item)) {
       const relevant = item.posts.filter(p => kind === "ads" ? ADS_PLATFORM_SET.has(p.platform) : !ADS_PLATFORM_SET.has(p.platform))
       if (monthFilter === "all" || relevant.some(p => p.posted_date.slice(0, 7) === monthFilter)) {
         rec.posted++
-        // Already counted in "posted" above — this is just a highlighted breakdown of how
-        // many of those also went out the other way (e.g. an ad shoot's hook also posted
-        // organically), not an additional total.
-        if (isDoneOtherKind(item)) rec.dual++
       }
-    } else if (item.status === "posted" || item.status === "on_review" || item.status === "branding_ready" || item.status === "ads_ready") {
+    } else if (item.status === readyStatus) {
       if (inMonth(item.edited_date)) rec.unposted++
-    } else {
+    } else if (item.status === "scripting" || item.status === "voiceover" || item.status === "design" || item.status === "ready_to_edit") {
       if (inMonth(item.shot_date)) rec.unedited++
     }
   }
@@ -272,6 +305,26 @@ function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFi
     .map(([client, v]) => ({ client, ...v, total: v.posted + v.unposted + v.unedited }))
     .filter(r => r.total > 0)
     .sort((a, b) => b.total - a.total)
+}
+
+// A single, non-duplicated count for Overview, matching primaryOnly attribution in
+// buildClientKPIs above — every posted video counts exactly once, credited to its origin.
+function countUniquePosted(items: ContentItem[], monthFilter: string) {
+  const inMonth = (kind: "branding" | "ads") => (item: ContentItem) => {
+    if (monthFilter === "all") return true
+    const relevant = item.posts.filter(p => kind === "ads" ? ADS_PLATFORM_SET.has(p.platform) : !ADS_PLATFORM_SET.has(p.platform))
+    return relevant.some(p => p.posted_date.slice(0, 7) === monthFilter)
+  }
+  let ads = 0, branding = 0
+  for (const item of items) {
+    if (item.status === "cancelled") continue
+    const postedAds = item.posted_ads && inMonth("ads")(item)
+    const postedBranding = item.posted_branding && inMonth("branding")(item)
+    const primary = primaryPostedKind(postedBranding, postedAds, item.source)
+    if (primary === "ads") ads++
+    else if (primary === "branding") branding++
+  }
+  return { ads, branding, total: ads + branding }
 }
 
 const PRIORITY_CFG: Record<Priority, { label: string; color: string }> = {
@@ -689,6 +742,15 @@ function ContentCardInner({
             {upper(item.editedByUser.name)}{item.edited_date ? ` · ${fmtDate(item.edited_date)}` : ""}
           </span>
         ) : null}
+        {/* The edit's actual home — captured once, at the Ready to Edit -> On Review move. */}
+        {item.edited_drive_link && (
+          <a href={item.edited_drive_link} target="_blank" rel="noopener noreferrer"
+            onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}
+            title="Open Drive link" className="flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{ background: "rgba(59,130,246,0.1)", color: "#3B82F6", textDecoration: "none" }}>
+            <ExternalLink size={10} /> Drive
+          </a>
+        )}
         {/* Who caused the cancellation — the whole point of asking at cancel time is that
             it's visible on the card afterwards without opening anything. */}
         {item.status === "cancelled" && item.cancelled_by && (
@@ -996,6 +1058,89 @@ function DayFilter({ value, onChange }: { value: string; onChange: (v: string) =
   )
 }
 
+// ── Per-client stats box — sits beside Waiting to Post once a single client is picked ──
+export type ClientStatsShape = {
+  target: number | null
+  posted: number
+  unposted: number
+  edited: number
+  unedited: number
+  remaining: number | null
+  completionPct: number | null
+  // Independent of Branding/Ads (logKind) — same count shows on both tabs since the
+  // Promotion flag isn't tied to which side it posted to.
+  promotion: number
+}
+
+function ClientStatsBox({ client, stats, monthPicked, onSaveTarget }: {
+  client: string
+  stats: ClientStatsShape
+  monthPicked: boolean
+  onSaveTarget: (n: number) => void
+}) {
+  const [editingTarget, setEditingTarget] = useState(false)
+  const [draft, setDraft] = useState(String(stats.target ?? 0))
+
+  function commit() {
+    const n = Math.max(0, Math.round(Number(draft) || 0))
+    setEditingTarget(false)
+    if (n !== stats.target) onSaveTarget(n)
+  }
+
+  function StatRow({ label, value, color, editable }: { label: string; value: string | number; color: string; editable?: boolean }) {
+    return (
+      <div className="flex items-center justify-between" style={{ fontSize: 12 }}>
+        <span style={{ color: "#6B7280", fontWeight: 600 }}>{label}</span>
+        {editable && !monthPicked ? (
+          <span style={{ color: "#9CA3AF", fontWeight: 800 }}>—</span>
+        ) : editable && editingTarget ? (
+          <input autoFocus type="number" min={0} value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditingTarget(false) }}
+            style={{ width: 48, fontSize: 12, fontWeight: 800, textAlign: "right", border: `1.5px solid ${color}`, borderRadius: 6, padding: "1px 4px", color }} />
+        ) : (
+          <button
+            onClick={editable ? () => { setDraft(String(stats.target ?? 0)); setEditingTarget(true) } : undefined}
+            className="flex items-center gap-1"
+            style={{ border: "none", background: "transparent", padding: 0, cursor: editable ? "pointer" : "default", color, fontWeight: 800, fontSize: 12 }}>
+            {value}
+            {editable && <Pencil size={9} />}
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  function SectionLabel({ children }: { children: React.ReactNode }) {
+    return <p className="text-[9px] font-black uppercase" style={{ color: "#9CA3AF", letterSpacing: "0.06em", margin: "4px 0 0" }}>{children}</p>
+  }
+
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
+      <p className="text-[10px] font-black uppercase truncate" style={{ color: "#6B7280", letterSpacing: "0.06em", margin: 0 }} title={client}>
+        {client}
+      </p>
+
+      <SectionLabel>Monthly Goal</SectionLabel>
+      <StatRow label="Monthly Target" value={stats.target ?? 0} color="#7C3AED" editable />
+      <StatRow label="Published" value={stats.posted} color="#16A34A" />
+      <StatRow label="Remaining" value={stats.remaining ?? "—"} color="#D97706" />
+      <StatRow label="Completion %" value={stats.completionPct !== null ? `${stats.completionPct}%` : "—"} color="#0EA5E9" />
+
+      <SectionLabel>Production Status</SectionLabel>
+      <StatRow label="Unedited" value={stats.unedited} color="#F97316" />
+      <StatRow label="Edited" value={stats.edited} color="#0EA5E9" />
+      <StatRow label="Ready to Publish" value={stats.unposted} color="#D97706" />
+
+      <SectionLabel>Publishing Status</SectionLabel>
+      <StatRow label="Scheduled" value={stats.unposted} color="#D97706" />
+      <StatRow label="Published" value={stats.posted} color="#16A34A" />
+      <StatRow label="Promotion" value={stats.promotion} color="#DB2777" />
+    </div>
+  )
+}
+
 // ── Card actions menu ────────────────────────────────────────────────────────
 // One kebab on every card, so Edit/Delete live in the same place no matter what you're
 // looking at. onPointerDown is stopped throughout — these cards are drag handles, and
@@ -1225,6 +1370,16 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
 
       {/* Video titles only exist once the shoot is marked Done — that's when they're captured. */}
       {shoot.titles.length > 0 && <ShootTitleList titles={shoot.titles} accent={accent} />}
+
+      {/* Where the footage actually lives — captured once, at Mark Done. */}
+      {shoot.drive_link && (
+        <a href={shoot.drive_link} target="_blank" rel="noopener noreferrer"
+          onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}
+          title="Open Drive link" className="inline-flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-full"
+          style={{ marginTop: 8, background: "rgba(59,130,246,0.1)", color: "#3B82F6", textDecoration: "none" }}>
+          <ExternalLink size={10} /> Drive
+        </a>
+      )}
 
       {/* Who covered the shoot. Always shown — an empty crew is itself worth seeing, and it's
           editable at any point so older shoots with nobody recorded can be filled in. */}
@@ -1472,6 +1627,8 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
       posted_branding: alreadyPosted && postedPlatforms.some(p => !ADS_PLATFORM_SET.has(p)),
       posted_ads: alreadyPosted && postedPlatforms.some(p => ADS_PLATFORM_SET.has(p)),
       cancelled_by: null,
+      edited_drive_link: null,
+      is_promotion: false,
       shot_date: shotDate, edited_date: alreadyPosted ? postedDate : null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({ id: `${res.id}-${i}`, content_item_id: res.id!, platform, posted_date: postedDate, post_link: null, ad_run_date: null })) : [],
     })
@@ -1543,7 +1700,6 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
   const [client, setClient] = useState("")
   const [title, setTitle] = useState("")
   const [hookCount, setHookCount] = useState<number | "">(1)
-  const [shootType, setShootType] = useState<ShootType | "">("")
   const [scriptedBy, setScriptedBy] = useState(currentUserId)
   const [notes, setNotes] = useState("")
   const [saving, setSaving] = useState(false)
@@ -1551,11 +1707,10 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
 
   async function submit() {
     if (!client || !title.trim()) { setError("Client and title are required"); return }
-    if (!shootType) { setError("Shoot type is required"); return }
     if (!scriptedBy) { setError("Pick who scripted this"); return }
     setSaving(true); setError(null)
     const finalHookCount = hookCount === "" ? 0 : hookCount
-    const res = await createAdsVideoScript({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: [], shoot_type: shootType, scripted_by: scriptedBy, notes: notes.trim() || undefined })
+    const res = await createAdsVideoScript({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: [], scripted_by: scriptedBy, notes: notes.trim() || undefined })
     setSaving(false)
     if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
     const scriptedByUser = members.find(m => m.id === scriptedBy) ?? null
@@ -1563,8 +1718,8 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
       id: res.id, client_name: client, title: title.trim(), content_type: "video", source: "ads_video",
       status: "scripting", shot_date: null, edited_date: null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
-      hook_count: finalHookCount, use_for: [], priority: null, shoot_type: shootType, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false, cancelled_by: null, scriptedByUser, posts: [],
+      hook_count: finalHookCount, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
+      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, is_promotion: false, scriptedByUser, posts: [],
     })
   }
 
@@ -1589,21 +1744,6 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
           </select>
         </div>
         <div>
-          <label style={LABEL}>Shoot Type *</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
-              const cfg = SHOOT_TYPE_CFG[t]
-              const on = shootType === t
-              return (
-                <button key={t} type="button" onClick={() => setShootType(t)}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {cfg.label} {on && <Check size={10} />}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-        <div>
           <label style={LABEL}>Notes <span style={{ fontWeight: 600, textTransform: "none" }}>(the script brief)</span></label>
           <textarea style={{ ...FIELD, minHeight: 60, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
         </div>
@@ -1620,7 +1760,7 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   members: Member[]; currentUserId: string
   onClose: () => void
-  onSaved: (updates: { client_name: string; title: string; hook_count: number; use_for: UseFor[]; shoot_type: ShootType; scriptedByUser: Person; notes: string }) => void
+  onSaved: (updates: { client_name: string; title: string; hook_count: number; use_for: UseFor[]; scriptedByUser: Person; notes: string }) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
@@ -1629,7 +1769,6 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
   const [client, setClient] = useState(item.client_name)
   const [title, setTitle] = useState(item.title)
   const [hookCount, setHookCount] = useState<number | "">(item.hook_count ?? 0)
-  const [shootType, setShootType] = useState<ShootType | "">(item.shoot_type ?? "")
   const [scriptedBy, setScriptedBy] = useState(item.scriptedByUser?.id ?? currentUserId)
   const [notes, setNotes] = useState(item.notes || "")
   const [saving, setSaving] = useState(false)
@@ -1637,15 +1776,14 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
 
   async function submit() {
     if (!client || !title.trim()) { setError("Client and title are required"); return }
-    if (!shootType) { setError("Shoot type is required"); return }
     if (!scriptedBy) { setError("Pick who scripted this"); return }
     setSaving(true); setError(null)
     const finalHookCount = hookCount === "" ? 0 : hookCount
-    const res = await updateAdsVideoScript({ content_item_id: item.id, client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: item.use_for, shoot_type: shootType, scripted_by: scriptedBy, notes: notes.trim() || undefined })
+    const res = await updateAdsVideoScript({ content_item_id: item.id, client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: item.use_for, scripted_by: scriptedBy, notes: notes.trim() || undefined })
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to save"); return }
     const scriptedByUser = members.find(m => m.id === scriptedBy) ?? null
-    onSaved({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: item.use_for, shoot_type: shootType, scriptedByUser, notes: notes.trim() })
+    onSaved({ client_name: client, title: title.trim(), hook_count: finalHookCount, use_for: item.use_for, scriptedByUser, notes: notes.trim() })
   }
 
   return (
@@ -1667,21 +1805,6 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
               <option key={m.id} value={m.id}>{upper(m.name)}{m.id === currentUserId ? " (me)" : ""}</option>
             ))}
           </select>
-        </div>
-        <div>
-          <label style={LABEL}>Shoot Type *</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
-              const cfg = SHOOT_TYPE_CFG[t]
-              const on = shootType === t
-              return (
-                <button key={t} type="button" onClick={() => setShootType(t)}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {cfg.label} {on && <Check size={10} />}
-                </button>
-              )
-            })}
-          </div>
         </div>
         <div>
           <label style={LABEL}>Notes</label>
@@ -1905,7 +2028,7 @@ function EditContentModal({ item, clients, pastClients, members, onClose, onSave
 // ── Add Platform Post modal ──────────────────────────────────────────────────
 function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded }: {
   item: ContentItem; kind: "branding" | "ads"; members: Member[]; currentUserId: string
-  onClose: () => void; onAdded: (posts: ContentPost[]) => void
+  onClose: () => void; onAdded: (posts: ContentPost[], isPromotion: boolean) => void
 }) {
   const already = useMemo(() => new Set(item.posts.map(p => p.platform)), [item.posts])
   // "Mark as Posted" only offers organic platforms, "Mark as Ads" only offers the ad
@@ -1939,6 +2062,8 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
   )
   const [alsoOther, setAlsoOther] = useState(false)
   const [otherPlatforms, setOtherPlatforms] = useState<Platform[]>([])
+  // Independent of platform choice entirely — just flags the item as used for promotion.
+  const [isPromotion, setIsPromotion] = useState(item.is_promotion)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -1959,12 +2084,15 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
       ...(alsoOther ? otherPlatforms.map(platform => ({ platform, isAds: otherKind === "ads" })) : []),
     ]
     // One post row per platform — the date, link and poster are shared across the batch.
+    // is_promotion only needs to land once, but sending it on every row is harmless (the
+    // server only ever sets it to true, never back to false).
     const results = await Promise.all(submissions.map(({ platform, isAds }) =>
       addContentPost({
         content_item_id: item.id, platform, posted_date: postedDate,
         post_link: postLink.trim() || undefined,
         posted_by: postedBy || undefined,
         ad_run_date: isAds ? adRunDate : undefined,
+        is_promotion: isPromotion || undefined,
       }).then(res => ({ res, platform, isAds }))
     ))
     setSaving(false)
@@ -1978,7 +2106,7 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
       posted_date: postedDate, post_link: postLink.trim() || null,
       ad_run_date: isAds ? adRunDate : null,
       postedByUser: poster,
-    })))
+    })), isPromotion)
   }
 
   return (
@@ -2061,6 +2189,20 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
             )}
           </div>
         )}
+        <div>
+          <label className="flex items-center gap-2" style={{ cursor: "pointer" }}>
+            <span style={{
+              width: 16, height: 16, borderRadius: 4, flexShrink: 0, border: "1.5px solid", cursor: "pointer",
+              borderColor: isPromotion ? "#DB2777" : "#D1D5DB", background: isPromotion ? "#DB2777" : "transparent",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }} onClick={() => setIsPromotion(v => !v)}>
+              {isPromotion && <Check size={11} style={{ color: "#fff" }} />}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }} onClick={() => setIsPromotion(v => !v)}>
+              Also use for Promotion
+            </span>
+          </label>
+        </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>
           {saving ? "Saving…" : `${kind === "ads" ? "Confirm Ads" : "Confirm Posted"}${platforms.length > 0 ? ` (${platforms.length})` : ""}`}
@@ -2282,7 +2424,6 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   )
   const [client, setClient] = useState("")
   const [title, setTitle] = useState("")
-  const [shootType, setShootType] = useState<ShootType | "">("")
   const [shotDate, setShotDate] = useState(todayIST())
   const [fromTime, setFromTime] = useState("")
   const [toTime, setToTime] = useState("")
@@ -2293,12 +2434,11 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   async function submit() {
     if (!client) { setError("Client is required"); return }
     if (!title.trim()) { setError("Shoot title is required"); return }
-    if (!shootType) { setError("Shoot type is required"); return }
     if (!fromTime) { setError("From time is required"); return }
     if (!toTime) { setError("To time is required"); return }
     setSaving(true); setError(null)
     const res = await createTrackerShoot({
-      client, title: title.trim(), shoot_type: shootType, shot_date: shotDate,
+      client, title: title.trim(), shot_date: shotDate,
       shot_time_from: fromTime, shot_time_to: toTime, notes: notes.trim() || undefined,
     })
     setSaving(false)
@@ -2312,8 +2452,9 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
       created_at: new Date().toISOString(),
       notes: notes.trim() || null,
       status: "scheduled",
-      shoot_type: shootType,
+      shoot_type: null,
       source_content_item_id: null,
+      drive_link: null,
       goingByUsers: [],
       titles: [],
     })
@@ -2327,21 +2468,6 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
           <label style={LABEL}>Shoot Title *</label>
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)}
             placeholder="e.g. SKB Silks Diwali Shoot" />
-        </div>
-        <div>
-          <label style={LABEL}>Shoot Type *</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
-              const cfg = SHOOT_TYPE_CFG[t]
-              const on = shootType === t
-              return (
-                <button key={t} type="button" onClick={() => setShootType(t)}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {cfg.label} {on && <Check size={10} />}
-                </button>
-              )
-            })}
-          </div>
         </div>
         <div>
           <label style={LABEL}>Shot Date *</label>
@@ -2519,7 +2645,7 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
   members: Member[]
   currentUserId: string
   onClose: () => void
-  onConfirm: (editorId: string, editorName: string, editedDate: string) => void
+  onConfirm: (editorId: string, editorName: string, editedDate: string, driveLink: string) => void
 }) {
   // Defaults to whoever clicked — the common case is "I edited this" — but a manager
   // can reassign to anyone.
@@ -2527,12 +2653,16 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
     members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
   )
   const [editedDate, setEditedDate] = useState(todayIST())
+  // Where the edited file actually lives — required so On Review always has somewhere
+  // to open the edit from, without asking around for it.
+  const [driveLink, setDriveLink] = useState(item.edited_drive_link ?? "")
   const [error, setError] = useState<string | null>(null)
 
   function submit() {
     const editor = members.find(m => m.id === editorId)
     if (!editor) { setError("Pick who edited this"); return }
-    onConfirm(editor.id, editor.name, editedDate)
+    if (!isValidDriveLink(driveLink)) { setError("A valid Google Drive link is required"); return }
+    onConfirm(editor.id, editor.name, editedDate, driveLink.trim())
   }
 
   return (
@@ -2551,6 +2681,14 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
             <label style={LABEL}>Edited Date *</label>
             <input type="date" style={FIELD} value={editedDate} onChange={e => setEditedDate(e.target.value)} />
           </div>
+        </div>
+        <div>
+          <label style={LABEL}>Drive Link *</label>
+          <input type="url" style={FIELD} value={driveLink} onChange={e => setDriveLink(e.target.value)}
+            placeholder="https://drive.google.com/…" />
+          {driveLink.trim().length > 0 && !isValidDriveLink(driveLink) && (
+            <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>Must be a drive.google.com or docs.google.com link</p>
+          )}
         </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit}>Mark Edited</PrimaryButton>
@@ -2614,8 +2752,6 @@ function MoveToShootModal({ item, onClose, onMoved }: {
   onClose: () => void
   onMoved: (shoot: Shoot) => void
 }) {
-  // Pre-fill from the script's own Shoot Type — same classification, no need to ask twice.
-  const [shootType, setShootType] = useState<ShootType | "">(item.shoot_type ?? "")
   const [shotDate, setShotDate] = useState(todayIST())
   const [fromTime, setFromTime] = useState("")
   const [toTime, setToTime] = useState("")
@@ -2624,12 +2760,11 @@ function MoveToShootModal({ item, onClose, onMoved }: {
   const [error, setError] = useState<string | null>(null)
 
   async function submit() {
-    if (!shootType) { setError("Shoot type is required"); return }
     if (!fromTime) { setError("From time is required"); return }
     if (!toTime) { setError("To time is required"); return }
     setSaving(true); setError(null)
     const res = await moveScriptToShoot({
-      content_item_id: item.id, shoot_type: shootType, shot_date: shotDate,
+      content_item_id: item.id, shot_date: shotDate,
       shot_time_from: fromTime, shot_time_to: toTime, notes: notes.trim() || undefined,
     })
     setSaving(false)
@@ -2643,8 +2778,9 @@ function MoveToShootModal({ item, onClose, onMoved }: {
       created_at: new Date().toISOString(),
       notes: notes.trim() || null,
       status: "scheduled",
-      shoot_type: shootType,
+      shoot_type: null,
       source_content_item_id: item.id,
+      drive_link: null,
       goingByUsers: [],
       titles: [],
     })
@@ -2653,21 +2789,6 @@ function MoveToShootModal({ item, onClose, onMoved }: {
   return (
     <Modal title={`Move to Shoot — ${item.title}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <div>
-          <label style={LABEL}>Shoot Type *</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
-              const cfg = SHOOT_TYPE_CFG[t]
-              const on = shootType === t
-              return (
-                <button key={t} type="button" onClick={() => setShootType(t)}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {cfg.label} {on && <Check size={10} />}
-                </button>
-              )
-            })}
-          </div>
-        </div>
         <div>
           <label style={LABEL}>Shot Date *</label>
           <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
@@ -2699,10 +2820,13 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
   members: Member[]
   currentUserId: string
   onClose: () => void
-  onCompleted: (created: CreatedShootItem[], crew: Member[]) => void
+  onCompleted: (created: CreatedShootItem[], crew: Member[], driveLink: string) => void
 }) {
   const [titleInput, setTitleInput] = useState("")
   const [titles, setTitles] = useState<string[]>([])
+  // The footage's actual home — required so the edit team always has somewhere to pull
+  // from without asking around. A plain URL isn't enough; it has to be Drive/Docs.
+  const [driveLink, setDriveLink] = useState(shoot.drive_link ?? "")
   // Actual shoot time is re-entered here, at completion — it can run longer than
   // scheduled, and this is saved as the final/authoritative shoot time.
   const [fromTime, setFromTime] = useState(toISTTimeString(shoot.start_time) || "09:00")
@@ -2732,11 +2856,12 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
     if (!isLinked && titles.length === 0) { setError("Add at least one video title"); return }
     if (!fromTime) { setError("Start time is required"); return }
     if (!toTime) { setError("End time is required"); return }
+    if (!isValidDriveLink(driveLink)) { setError("A valid Google Drive link is required"); return }
     setSaving(true); setError(null)
-    const res = await completeShootWithTitles(shoot.id, titles, crew, { from: fromTime, to: toTime })
+    const res = await completeShootWithTitles(shoot.id, titles, crew, { from: fromTime, to: toTime }, driveLink.trim())
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to complete shoot"); return }
-    onCompleted(res.createdItems ?? [], members.filter(m => crew.includes(m.id)))
+    onCompleted(res.createdItems ?? [], members.filter(m => crew.includes(m.id)), driveLink.trim())
   }
 
   return (
@@ -2774,6 +2899,15 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
             <label style={LABEL}>Actual End Time *</label>
             <input type="time" style={FIELD} value={toTime} onChange={e => setToTime(e.target.value)} />
           </div>
+        </div>
+
+        <div>
+          <label style={LABEL}>Drive Link *</label>
+          <input type="url" style={FIELD} value={driveLink} onChange={e => setDriveLink(e.target.value)}
+            placeholder="https://drive.google.com/…" />
+          {driveLink.trim().length > 0 && !isValidDriveLink(driveLink) && (
+            <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>Must be a drive.google.com or docs.google.com link</p>
+          )}
         </div>
 
         {members.length > 0 && (
@@ -2866,7 +3000,6 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
   )
   const [client, setClient] = useState(shoot.client)
   const [title, setTitle] = useState(shoot.legacyTitle)
-  const [shootType, setShootType] = useState<ShootType | "">(shoot.shoot_type ?? "")
   const [shotDate, setShotDate] = useState(shoot.start_time.split("T")[0])
   const [fromTime, setFromTime] = useState(() => {
     const t = shoot.start_time.split("T")[1]
@@ -2887,7 +3020,7 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
     if (!toTime) { setError("To time is required"); return }
     setSaving(true); setError(null)
     const res = await updateTrackerShoot(shoot.id, {
-      client, title: title.trim(), shoot_type: shootType || undefined, shot_date: shotDate,
+      client, title: title.trim(), shot_date: shotDate,
       shot_time_from: fromTime, shot_time_to: toTime, notes: notes.trim() || undefined,
     })
     setSaving(false)
@@ -2907,21 +3040,6 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
         <div>
           <label style={LABEL}>Shoot Title *</label>
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
-        </div>
-        <div>
-          <label style={LABEL}>Shoot Type</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(Object.keys(SHOOT_TYPE_CFG) as ShootType[]).map(t => {
-              const cfg = SHOOT_TYPE_CFG[t]
-              const on = shootType === t
-              return (
-                <button key={t} type="button" onClick={() => setShootType(t)}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {cfg.label} {on && <Check size={10} />}
-                </button>
-              )
-            })}
-          </div>
         </div>
         <div>
           <label style={LABEL}>Shot Date *</label>
@@ -2951,19 +3069,27 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
   )
 }
 
-// ── Edit Completed Shoot — everything captured at Mark Done, fixable after the fact: video
-// titles (rename keeps the linked content_item's title in sync, add one that was missed),
-// the actual shoot time, and who went. ──────────────────────────────────────
-function EditCompletedShootModal({ shoot, members, currentUserId, onClose, onRenamed, onAdded, onTimeSaved, onCrewSaved }: {
+// ── Edit Completed Shoot — everything captured at Mark Done, fixable after the fact: the
+// client (kept in sync with the linked Ads Video item, if any), video titles (rename keeps
+// the linked content_item's title in sync, add one that was missed), the actual shoot time,
+// and who went. ──────────────────────────────────────
+function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastClients, onClose, onRenamed, onAdded, onTimeSaved, onCrewSaved, onClientSaved }: {
   shoot: Shoot
   members: Member[]
   currentUserId: string
+  clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   onClose: () => void
   onRenamed: (shootTitleId: string, newTitle: string) => void
   onAdded: (item: CreatedShootItem) => void
   onTimeSaved: (fromTime: string, toTime: string) => void
   onCrewSaved: (crew: Member[]) => void
+  onClientSaved: (client: string) => void
 }) {
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
+    () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
+    [clients, pastClients]
+  )
+  const [client, setClient] = useState(shoot.client)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const [newTitle, setNewTitle] = useState("")
@@ -2972,6 +3098,21 @@ function EditCompletedShootModal({ shoot, members, currentUserId, onClose, onRen
   const [crew, setCrew] = useState<string[]>(shoot.goingByUsers.map(u => u.id))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  async function saveClient() {
+    if (!client) { setError("Client is required"); return }
+    setSaving(true); setError(null)
+    const shotDate = shoot.start_time.split("T")[0]
+    const res = await updateTrackerShoot(shoot.id, {
+      client, title: shoot.legacyTitle, shot_date: shotDate,
+      shot_time_from: toISTTimeString(shoot.start_time) || "00:00",
+      shot_time_to: toISTTimeString(shoot.end_time) || "00:00",
+      notes: shoot.notes ?? undefined,
+    })
+    setSaving(false)
+    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    onClientSaved(client)
+  }
 
   async function saveRename(id: string) {
     const title = editValue.trim()
@@ -3019,6 +3160,23 @@ function EditCompletedShootModal({ shoot, members, currentUserId, onClose, onRen
   return (
     <Modal title={`Edit Completed Shoot — ${shoot.legacyTitle} (${shoot.titles.length} video${shoot.titles.length === 1 ? "" : "s"})`} onClose={onClose}>
       <div className="flex flex-col gap-3">
+        <div>
+          <label style={LABEL}>Client</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
+            </div>
+            <button type="button" onClick={saveClient} disabled={saving}
+              style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: saving ? "default" : "pointer", flexShrink: 0 }}>
+              Save
+            </button>
+          </div>
+          {shoot.source_content_item_id && (
+            <p style={{ fontSize: 10, color: "#9CA3AF", margin: "4px 0 0" }}>
+              This shoot came from an Ads Video script — saving also corrects that script&apos;s client.
+            </p>
+          )}
+        </div>
         <div>
           <label style={LABEL}>Video Titles</label>
           <div className="flex flex-col gap-2">
@@ -3216,10 +3374,11 @@ function EditAdModal({ ad, clients, pastClients, onClose, onSaved }: {
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
-export default function MediaTrackerClient({ initialItems, initialAds, initialShoots, members, currentUserId, clients, pastClients, voiceoverFreelancers, scriptingMembers, editingMembers, shootingMembers, voiceoverMembers }: Props) {
+export default function MediaTrackerClient({ initialItems, initialAds, initialShoots, members, currentUserId, clients, pastClients, voiceoverFreelancers, scriptingMembers, editingMembers, shootingMembers, voiceoverMembers, initialClientTargets }: Props) {
   const [items, setItems] = useState(initialItems)
   const [ads, setAds] = useState(initialAds)
   const [shoots, setShoots] = useState(initialShoots)
+  const [clientTargets, setClientTargets] = useState(initialClientTargets)
   // Voice Over is pickable from two rosters — media-tagged staff and the Freelance RJ
   // Voiceover team — combined into one list for the picker.
   const voiceoverOptions = useMemo(
@@ -3436,12 +3595,19 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     })
   }
 
-  function handleMarkEdited(item: ContentItem, editorId: string, editorName: string, editedDate: string) {
+  function handleMarkEdited(item: ContentItem, editorId: string, editorName: string, editedDate: string, driveLink: string) {
+    const previous = item.status
     setItems(prev => prev.map(i => i.id === item.id
-      ? { ...i, status: "on_review", edited_date: editedDate, editedByUser: { id: editorId, name: editorName } }
+      ? { ...i, status: "on_review", edited_date: editedDate, edited_drive_link: driveLink, editedByUser: { id: editorId, name: editorName } }
       : i))
     setMarkEditedItem(null)
-    startTransition(async () => { await updateContentItemStatus(item.id, "on_review", editorId, undefined, editedDate) })
+    startTransition(async () => {
+      const res = await updateContentItemStatus(item.id, "on_review", editorId, undefined, editedDate, driveLink)
+      if (!res.success) {
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: previous, edited_drive_link: item.edited_drive_link } : i))
+        alert(res.error ?? "Failed to mark edited")
+      }
+    })
   }
 
   function handleVoiceOverRecorded(item: ContentItem, voiceoverBy: VoiceFreelancer, date: string) {
@@ -3591,14 +3757,16 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const isDoneForKind = (i: ContentItem) => logKind === "branding" ? i.posted_branding : i.posted_ads
 
   // The "waiting to post" queue — items sitting in this kind's Ready lane, oldest first.
-  // Respects the same client/month filters as the log table below it.
+  // Respects the client filter, but deliberately NOT the month filter: this is a live
+  // "what's pending right now" list, not a historical record, so an item edited last
+  // month that's still unposted today must keep showing up — picking a month to look at
+  // stats for shouldn't make genuinely-still-waiting work disappear from the queue.
   const readyQueue = useMemo(
     () => items
       .filter(i => i.status === (logKind === "ads" ? "ads_ready" : "branding_ready") && i.content_type === contentTypeForMode)
       .filter(i => logClientFilter === "all" || i.client_name === logClientFilter)
-      .filter(i => logMonthFilter === "all" || (i.edited_date ?? i.created_at).slice(0, 7) === logMonthFilter)
       .sort((a, b) => (a.edited_date ?? a.created_at).localeCompare(b.edited_date ?? b.created_at)),
-    [items, contentTypeForMode, logKind, logClientFilter, logMonthFilter]
+    [items, contentTypeForMode, logKind, logClientFilter]
   )
 
   // Posting log — one row per content item (not per platform); platforms shown as badges within the row
@@ -3617,8 +3785,65 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
 
   // Per-client KPI tables live on Overview now (see overviewBrandingKPIs/overviewAdsKPIs
   // below) — not scoped to a single content type or tab, so they show the full picture.
-  const overviewBrandingKPIs = useMemo(() => buildClientKPIs(items, "branding", overviewKpiMonth), [items, overviewKpiMonth])
-  const overviewAdsKPIs = useMemo(() => buildClientKPIs(items, "ads", overviewKpiMonth), [items, overviewKpiMonth])
+  // primaryOnly=true: Overview is business analytics, so a dual-posted item is credited to
+  // its origin only, matching overviewUniquePosted below (not shown in both tables at once).
+  const overviewBrandingKPIs = useMemo(() => buildClientKPIs(items, "branding", overviewKpiMonth, undefined, true), [items, overviewKpiMonth])
+  const overviewAdsKPIs = useMemo(() => buildClientKPIs(items, "ads", overviewKpiMonth, undefined, true), [items, overviewKpiMonth])
+  const overviewUniquePosted = useMemo(() => countUniquePosted(items, overviewKpiMonth), [items, overviewKpiMonth])
+
+  // The per-client stats box next to Waiting to Post — only meaningful once a single
+  // client is picked (an "all clients" mash-up of targets makes no sense here), so this
+  // is null on "all" and the box simply doesn't render.
+  const logClientStats = useMemo(() => {
+    if (logClientFilter === "all") return null
+    const kpiRow = buildClientKPIs(items, logKind, logMonthFilter, contentTypeForMode)
+      .find(r => r.client === logClientFilter)
+    const edited = items.filter(i =>
+      i.client_name === logClientFilter && i.content_type === contentTypeForMode &&
+      i.edited_date && (logMonthFilter === "all" || i.edited_date.slice(0, 7) === logMonthFilter)
+    ).length
+    const targetRow = logMonthFilter === "all" ? undefined : clientTargets.find(
+      t => t.client_name === logClientFilter && t.kind === logKind && t.month === logMonthFilter
+    )
+    const posted = kpiRow?.posted ?? 0
+    const target = logMonthFilter === "all" ? null : (targetRow?.target ?? 0)
+    // Not scoped to logKind — the same Promotion count shows on both the Branding and
+    // Ads tabs, since the flag isn't tied to which side it posted to.
+    const promotion = items.filter(i =>
+      i.client_name === logClientFilter && i.content_type === contentTypeForMode && i.is_promotion &&
+      (logMonthFilter === "all" || i.posts.some(p => p.posted_date.slice(0, 7) === logMonthFilter))
+    ).length
+
+    return {
+      posted,
+      unposted: kpiRow?.unposted ?? 0,
+      edited,
+      unedited: kpiRow?.unedited ?? 0,
+      target,
+      remaining: target === null ? null : Math.max(target - posted, 0),
+      completionPct: target ? Math.round((posted / target) * 100) : null,
+      promotion,
+    }
+  }, [items, clientTargets, logClientFilter, logKind, logMonthFilter, contentTypeForMode])
+
+  function handleSetClientTarget(newTarget: number) {
+    if (logClientFilter === "all" || logMonthFilter === "all") return
+    const key = { client_name: logClientFilter, kind: logKind, month: logMonthFilter }
+    const previous = clientTargets.find(t => t.client_name === key.client_name && t.kind === key.kind && t.month === key.month)
+    setClientTargets(prev => {
+      const others = prev.filter(t => !(t.client_name === key.client_name && t.kind === key.kind && t.month === key.month))
+      return [...others, { ...key, target: newTarget }]
+    })
+    startTransition(async () => {
+      const res = await setClientMonthlyTarget({ ...key, target: newTarget })
+      if (!res.success) {
+        setClientTargets(prev => {
+          const others = prev.filter(t => !(t.client_name === key.client_name && t.kind === key.kind && t.month === key.month))
+          return previous ? [...others, previous] : others
+        })
+      }
+    })
+  }
 
   const logRows = useMemo(() => {
     let rows = postedItems
@@ -3686,13 +3911,13 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     })
   }
 
-  function handleShootCompleted(shoot: Shoot, created: CreatedShootItem[], crew: Member[]) {
+  function handleShootCompleted(shoot: Shoot, created: CreatedShootItem[], crew: Member[], driveLink: string) {
     const newItems: ContentItem[] = created.map(ci => ({
       id: ci.id, client_name: ci.client_name, title: ci.title, content_type: "video", source: "shoot",
       status: "ready_to_edit", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false, cancelled_by: null,
+      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, is_promotion: false,
       created_at: new Date().toISOString(), posts: [],
     }))
     setItems(prev => {
@@ -3708,6 +3933,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     setShoots(prev => prev.map(s => s.id === shoot.id ? {
       ...s,
       status: "completed",
+      drive_link: driveLink,
       goingByUsers: crew.length > 0 ? crew : s.goingByUsers,
       titles: created.map(ci => ({ id: ci.shoot_title_id, title: ci.title, content_item_id: ci.id })),
     } : s))
@@ -3745,7 +3971,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       status: "ready_to_edit", shot_date: created.shot_date, edited_date: null, notes: created.notes,
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false, cancelled_by: null,
+      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, is_promotion: false,
       created_at: new Date().toISOString(), posts: [],
     }
     setItems(prev => [newItem, ...prev])
@@ -3766,6 +3992,17 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   // own state already reflects the pick), so it doesn't close editCrewFor.
   function handleCompletedShootCrewSaved(shootId: string, crew: Member[]) {
     setShoots(prev => prev.map(s => s.id === shootId ? { ...s, goingByUsers: crew } : s))
+  }
+
+  // Same client-sync as handleShootSaved, but from Edit Completed Shoot — that modal stays
+  // open (its own state already reflects the pick), so it doesn't close editCompletedShootFor.
+  function handleShootCompletedClientSaved(shootId: string, client: string) {
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, client } : s))
+    setEditCompletedShootFor(prev => prev && prev.id === shootId ? { ...prev, client } : prev)
+    const shoot = shoots.find(s => s.id === shootId)
+    if (shoot?.source_content_item_id) {
+      setItems(prev => prev.map(i => i.id === shoot.source_content_item_id ? { ...i, client_name: client } : i))
+    }
   }
 
   function handleShootActualTimeSaved(shootId: string, fromTime: string, toTime: string) {
@@ -3805,6 +4042,12 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
 
   function handleShootSaved(shootId: string, patch: { client: string; legacyTitle: string; start_time: string; notes: string | null }) {
     setShoots(prev => prev.map(s => s.id === shootId ? { ...s, ...patch } : s))
+    // A shoot spun off an Ads Video item shares its client — keep the linked item's card
+    // in sync instead of leaving it stuck on the shoot's old client.
+    const shoot = shoots.find(s => s.id === shootId)
+    if (shoot?.source_content_item_id) {
+      setItems(prev => prev.map(i => i.id === shoot.source_content_item_id ? { ...i, client_name: patch.client } : i))
+    }
     setEditShootFor(null)
   }
 
@@ -3853,7 +4096,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const draggedShoot = shoots.find(s => s.id === shootDragId)
   const draggedAd = ads.find(a => a.id === adDragId)
 
-  function handlePostAdded(posts: ContentPost[]) {
+  function handlePostAdded(posts: ContentPost[], isPromotion: boolean) {
     if (posts.length === 0) return
     const itemId = posts[0].content_item_id
     setItems(prev => prev.map(i => {
@@ -3865,6 +4108,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         ...i, status: "posted", posts: allPosts,
         posted_ads: allPosts.some(p => ADS_PLATFORM_SET.has(p.platform)),
         posted_branding: allPosts.some(p => !ADS_PLATFORM_SET.has(p.platform)),
+        // One-way — never unset an existing true back to false here.
+        is_promotion: i.is_promotion || isPromotion,
       }
     }))
     setPlatformModalItem(null)
@@ -3969,7 +4214,15 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               both content types at once rather than needing a Video/Poster split. */}
           <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
+              <div>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
+                {/* One video posted both ways (e.g. an Ads Video also posted to Branding)
+                    counts once, attributed to its origin — the tables below (primaryOnly)
+                    credit it to that same side only, so this line and the tables always agree. */}
+                <p style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, margin: "2px 0 0" }}>
+                  {overviewUniquePosted.total} unique video{overviewUniquePosted.total === 1 ? "" : "s"} posted — {overviewUniquePosted.ads} Ads · {overviewUniquePosted.branding} Branding
+                </p>
+              </div>
               <select value={overviewKpiMonth} onChange={e => setOverviewKpiMonth(e.target.value)}
                 style={{ ...FIELD, width: "auto", cursor: "pointer", padding: "5px 10px", fontSize: 11 }}>
                 <option value="all">All Time</option>
@@ -3978,8 +4231,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2">
               {[
-                { label: "Branding", rows: overviewBrandingKPIs, postedLabel: "Posted", dualLabel: "Also Used in Ads" },
-                { label: "Advertisement", rows: overviewAdsKPIs, postedLabel: "Ads Posted", dualLabel: "Also Used in Branding" },
+                { label: "Branding", kind: "branding" as const, rows: overviewBrandingKPIs, postedLabel: "Posted" },
+                { label: "Advertisement", kind: "ads" as const, rows: overviewAdsKPIs, postedLabel: "Ads Posted" },
               ].map((block, i) => (
                 <div key={block.label} className={i === 1 ? "md:border-l" : undefined} style={{ borderTop: "1px solid #F3F4F6", borderColor: "#F3F4F6" }}>
                   <div style={{ padding: "10px 16px", background: "#F9FAFB" }}>
@@ -3994,29 +4247,38 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                         <thead>
                           <tr style={{ background: "#F9FAFB" }}>
-                            {["Client", block.postedLabel, block.dualLabel, "Unposted", "Unedited"].map(h => (
+                            {["Client", block.postedLabel, "Target", "Unposted", "Unedited"].map(h => (
                               <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {block.rows.map(row => (
-                            <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6" }}>
-                              <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
-                              <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
-                              <td style={{ padding: "9px 14px", textAlign: "center" }}>
-                                {row.dual > 0 ? (
-                                  <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 999, fontWeight: 800, background: "rgba(124,58,237,0.12)", color: "#7C3AED" }}>
-                                    {row.dual}
-                                  </span>
-                                ) : (
-                                  <span style={{ fontWeight: 800, color: "#D1D5DB" }}>0</span>
-                                )}
-                              </td>
-                              <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.on_review.accent }}>{row.unposted}</td>
-                              <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.ready_to_edit.accent }}>{row.unedited}</td>
-                            </tr>
-                          ))}
+                          {block.rows.map(row => {
+                            // Target is only meaningful for a specific month — "All Time" has
+                            // no single figure to show, matching the Waiting to Post stats box.
+                            const target = overviewKpiMonth === "all" ? null : (clientTargets.find(
+                              t => t.client_name === row.client && t.kind === block.kind && t.month === overviewKpiMonth
+                            )?.target ?? 0)
+                            return (
+                              <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6" }}>
+                                <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
+                                <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
+                                <td style={{ padding: "9px 14px", textAlign: "center" }}>
+                                  {target === null ? (
+                                    <span style={{ fontWeight: 800, color: "#D1D5DB" }}>—</span>
+                                  ) : target > 0 ? (
+                                    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 999, fontWeight: 800, background: "rgba(124,58,237,0.12)", color: "#7C3AED" }}>
+                                      {target}
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontWeight: 800, color: "#D1D5DB" }}>0</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.on_review.accent }}>{row.unposted}</td>
+                                <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.ready_to_edit.accent }}>{row.unedited}</td>
+                              </tr>
+                            )
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -4283,31 +4545,42 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             <DayFilter value={logDayFilter} onChange={setLogDayFilter} />
           </div>
 
-          {/* Waiting queue — items sitting in this kind's Ready lane, not yet posted. */}
-          {readyQueue.length > 0 && (
-            <div style={{ background: "#fff", border: "1px solid #BAE6FD", borderRadius: 18, overflow: "hidden" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6", background: "rgba(14,165,233,0.05)" }}>
-                <CalendarDays size={13} style={{ color: "#0EA5E9" }} />
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#0EA5E9", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Waiting to Post — {readyQueue.length} queued
-                </span>
-              </div>
-              <div className="flex flex-col">
-                {readyQueue.map(item => (
-                  <div key={item.id} className="flex items-center justify-between flex-wrap gap-2"
-                    style={{ padding: "10px 16px", borderBottom: "1px solid #F9FAFB" }}>
-                    <div style={{ minWidth: 0 }}>
-                      <p className="text-[12px] font-bold" style={{ color: "#111827", margin: 0 }}>{item.title}</p>
-                      <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>{item.client_name}</p>
-                    </div>
-                    <button onClick={() => { setPlatformModalKind(logKind); setPlatformModalItem(item) }}
-                      className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
-                      style={{ border: "none", background: logKind === "ads" ? "rgba(217,119,6,0.1)" : "rgba(34,197,94,0.1)", color: logKind === "ads" ? "#D97706" : "#16A34A", cursor: "pointer" }}>
-                      {logKind === "ads" ? "Ads Completed" : "Mark as Posted"}
-                    </button>
+          {/* Waiting queue — items sitting in this kind's Ready lane, not yet posted. Paired
+              with a per-client stats box on the right (stacks below on mobile) once a single
+              client is picked — otherwise that side just isn't rendered, no empty gap held open. */}
+          {(readyQueue.length > 0 || logClientStats) && (
+            <div className="flex flex-col md:flex-row items-start gap-3">
+              {readyQueue.length > 0 && (
+                <div style={{ flex: "2 1 320px", minWidth: 0, background: "#fff", border: "1px solid #BAE6FD", borderRadius: 18, overflow: "hidden" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6", background: "rgba(14,165,233,0.05)" }}>
+                    <CalendarDays size={13} style={{ color: "#0EA5E9" }} />
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#0EA5E9", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      Waiting to Post — {readyQueue.length} queued
+                    </span>
                   </div>
-                ))}
-              </div>
+                  <div className="flex flex-col">
+                    {readyQueue.map(item => (
+                      <div key={item.id} className="flex items-center justify-between flex-wrap gap-2"
+                        style={{ padding: "10px 16px", borderBottom: "1px solid #F9FAFB" }}>
+                        <div style={{ minWidth: 0 }}>
+                          <p className="text-[12px] font-bold" style={{ color: "#111827", margin: 0 }}>{item.title}</p>
+                          <p className="text-[10px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>{item.client_name}</p>
+                        </div>
+                        <button onClick={() => { setPlatformModalKind(logKind); setPlatformModalItem(item) }}
+                          className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                          style={{ border: "none", background: logKind === "ads" ? "rgba(217,119,6,0.1)" : "rgba(34,197,94,0.1)", color: logKind === "ads" ? "#D97706" : "#16A34A", cursor: "pointer" }}>
+                          {logKind === "ads" ? "Ads Completed" : "Mark as Posted"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {logClientStats && (
+                <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+                  <ClientStatsBox client={logClientFilter} stats={logClientStats} monthPicked={logMonthFilter !== "all"} onSaveTarget={handleSetClientTarget} />
+                </div>
+              )}
             </div>
           )}
 
@@ -4657,7 +4930,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       {completeShootFor && (
         <CompleteShootModal shoot={completeShootFor} members={shootingMembers} currentUserId={currentUserId}
           onClose={() => setCompleteShootFor(null)}
-          onCompleted={(created, crew) => handleShootCompleted(completeShootFor, created, crew)} />
+          onCompleted={(created, crew, driveLink) => handleShootCompleted(completeShootFor, created, crew, driveLink)} />
       )}
       {deleteShootFor && (
         <DeleteShootModal shoot={deleteShootFor} onClose={() => setDeleteShootFor(null)}
@@ -4675,11 +4948,13 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       )}
       {editCompletedShootFor && (
         <EditCompletedShootModal shoot={editCompletedShootFor} members={shootingMembers} currentUserId={currentUserId}
+          clients={clients} pastClients={pastClients}
           onClose={() => setEditCompletedShootFor(null)}
           onRenamed={(shootTitleId, newTitle) => handleShootTitleRenamed(editCompletedShootFor.id, shootTitleId, newTitle)}
           onAdded={created => handleShootTitleAdded(editCompletedShootFor.id, created)}
           onTimeSaved={(fromTime, toTime) => handleShootActualTimeSaved(editCompletedShootFor.id, fromTime, toTime)}
-          onCrewSaved={crew => handleCompletedShootCrewSaved(editCompletedShootFor.id, crew)} />
+          onCrewSaved={crew => handleCompletedShootCrewSaved(editCompletedShootFor.id, crew)}
+          onClientSaved={client => handleShootCompletedClientSaved(editCompletedShootFor.id, client)} />
       )}
       {editAdFor && (
         <EditAdModal ad={editAdFor} clients={clients} pastClients={pastClients}
@@ -4689,7 +4964,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       {markEditedItem && (
         <MarkEditedModal item={markEditedItem} members={editingMembers} currentUserId={currentUserId}
           onClose={() => setMarkEditedItem(null)}
-          onConfirm={(editorId, editorName, editedDate) => handleMarkEdited(markEditedItem, editorId, editorName, editedDate)} />
+          onConfirm={(editorId, editorName, editedDate, driveLink) => handleMarkEdited(markEditedItem, editorId, editorName, editedDate, driveLink)} />
       )}
       {showNewAdsVideo && (
         <NewAdsVideoModal

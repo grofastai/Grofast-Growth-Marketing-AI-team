@@ -689,6 +689,14 @@ function ContentCardInner({
             {upper(item.editedByUser.name)}{item.edited_date ? ` · ${fmtDate(item.edited_date)}` : ""}
           </span>
         ) : null}
+        {/* Who caused the cancellation — the whole point of asking at cancel time is that
+            it's visible on the card afterwards without opening anything. */}
+        {item.status === "cancelled" && item.cancelled_by && (
+          <span className="flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{ background: "rgba(239,68,68,0.12)", color: "#EF4444" }}>
+            Cancelled by {item.cancelled_by === "client" ? "Client" : "Us"}
+          </span>
+        )}
         {/* Once the editor badge above is showing (and carrying its own date), the shot
             date is redundant clutter — only shown pre-review, where it's the only date
             on the card at all. */}

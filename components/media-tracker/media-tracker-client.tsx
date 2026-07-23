@@ -3748,14 +3748,16 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const isDoneForKind = (i: ContentItem) => logKind === "branding" ? i.posted_branding : i.posted_ads
 
   // The "waiting to post" queue — items sitting in this kind's Ready lane, oldest first.
-  // Respects the same client/month filters as the log table below it.
+  // Respects the client filter, but deliberately NOT the month filter: this is a live
+  // "what's pending right now" list, not a historical record, so an item edited last
+  // month that's still unposted today must keep showing up — picking a month to look at
+  // stats for shouldn't make genuinely-still-waiting work disappear from the queue.
   const readyQueue = useMemo(
     () => items
       .filter(i => i.status === (logKind === "ads" ? "ads_ready" : "branding_ready") && i.content_type === contentTypeForMode)
       .filter(i => logClientFilter === "all" || i.client_name === logClientFilter)
-      .filter(i => logMonthFilter === "all" || (i.edited_date ?? i.created_at).slice(0, 7) === logMonthFilter)
       .sort((a, b) => (a.edited_date ?? a.created_at).localeCompare(b.edited_date ?? b.created_at)),
-    [items, contentTypeForMode, logKind, logClientFilter, logMonthFilter]
+    [items, contentTypeForMode, logKind, logClientFilter]
   )
 
   // Posting log — one row per content item (not per platform); platforms shown as badges within the row

@@ -491,6 +491,11 @@ export async function updateTrackerShoot(
   const end_time = `${input.shot_date}T${input.shot_time_to}:00+05:30`
   if (start_time >= end_time) return { success: false, error: 'To time must be after From time' }
 
+  // A shoot spun off an Ads Video item shares its client with that item — if the shoot's
+  // client is corrected here, the linked item's card has to follow, or it's stuck showing
+  // the stale client forever (nothing else ever re-syncs it).
+  const { data: shoot } = await admin.from('shoots').select('source_content_item_id').eq('id', shootId).single()
+
   const { error } = await admin.from('shoots').update({
     client: input.client.trim(),
     title: input.title.trim(),
@@ -500,6 +505,12 @@ export async function updateTrackerShoot(
     notes: input.notes?.trim() || null,
   }).eq('id', shootId)
   if (error) return { success: false, error: error.message }
+
+  if (shoot?.source_content_item_id) {
+    await admin.from('content_items')
+      .update({ client_name: input.client.trim(), updated_at: new Date().toISOString() })
+      .eq('id', shoot.source_content_item_id)
+  }
 
   revalidatePath('/admin/shoots')
   revalidatePath('/member/shoots')

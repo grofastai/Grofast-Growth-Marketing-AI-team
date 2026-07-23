@@ -3954,6 +3954,12 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
 
   function handleShootSaved(shootId: string, patch: { client: string; legacyTitle: string; start_time: string; notes: string | null }) {
     setShoots(prev => prev.map(s => s.id === shootId ? { ...s, ...patch } : s))
+    // A shoot spun off an Ads Video item shares its client — keep the linked item's card
+    // in sync instead of leaving it stuck on the shoot's old client.
+    const shoot = shoots.find(s => s.id === shootId)
+    if (shoot?.source_content_item_id) {
+      setItems(prev => prev.map(i => i.id === shoot.source_content_item_id ? { ...i, client_name: patch.client } : i))
+    }
     setEditShootFor(null)
   }
 

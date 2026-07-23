@@ -264,6 +264,11 @@ const ADS_PLATFORM_SET = new Set<Platform>(["ads", "meta_ads", "google_ads"])
 // it, as the Waiting to Post stats box does, so its numbers match the queue right next to it.
 function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFilter: string, contentType?: "video" | "poster") {
   const isDone = (i: ContentItem) => kind === "branding" ? i.posted_branding : i.posted_ads
+  // On Review hasn't branched yet, so an item sitting there isn't known to be Branding or
+  // Ads — it only counts as "unposted" for THIS kind once it's actually reached this kind's
+  // own Ready lane. The other kind's Ready lane (or a posted-via-the-other-side item) means
+  // it was never headed here at all, so it's excluded rather than double-counted.
+  const readyStatus = kind === "branding" ? "branding_ready" : "ads_ready"
   const inMonth = (d: string | null) => monthFilter === "all" || (!!d && d.slice(0, 7) === monthFilter)
   const map = new Map<string, { posted: number; unposted: number; unedited: number }>()
   for (const item of items) {
@@ -276,9 +281,9 @@ function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFi
       if (monthFilter === "all" || relevant.some(p => p.posted_date.slice(0, 7) === monthFilter)) {
         rec.posted++
       }
-    } else if (item.status === "posted" || item.status === "on_review" || item.status === "branding_ready" || item.status === "ads_ready") {
+    } else if (item.status === readyStatus) {
       if (inMonth(item.edited_date)) rec.unposted++
-    } else {
+    } else if (item.status === "scripting" || item.status === "voiceover" || item.status === "design" || item.status === "ready_to_edit") {
       if (inMonth(item.shot_date)) rec.unedited++
     }
   }

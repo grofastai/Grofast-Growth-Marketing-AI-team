@@ -44,6 +44,30 @@ function daysBetween(from: string, to: string) {
   return Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / 86400000) + 1
 }
 
+// Client-side mirror of typesConflict() in lib/actions/leaves.ts — same rules,
+// kept in sync deliberately (this codebase duplicates client/server validation
+// pairs elsewhere too). See that file for the full rule rationale.
+function typesConflict(newType: LeaveType, existingType: LeaveType): "always" | "time-overlap-only" | "never" {
+  if (newType === "full_day" || existingType === "full_day") return "always"
+  if (newType === existingType && (newType === "half_day" || newType === "wfh" || newType === "shoot_day")) return "always"
+  if ((newType === "half_day" && existingType === "permission") || (newType === "permission" && existingType === "half_day")) return "time-overlap-only"
+  if (newType === "permission" && existingType === "permission") return "time-overlap-only"
+  return "never"
+}
+function getLeaveTimeWindow(l: { leave_type?: string | null; half_day_from_time?: string | null; half_day_to_time?: string | null; permission_time?: string | null; permission_end_time?: string | null }): [string, string] | null {
+  if (l.leave_type === "half_day" && l.half_day_from_time && l.half_day_to_time) return [l.half_day_from_time, l.half_day_to_time]
+  if (l.leave_type === "permission" && l.permission_time && l.permission_end_time) return [l.permission_time, l.permission_end_time]
+  return null
+}
+function timeRangesOverlap(a: [string, string], b: [string, string]): boolean {
+  const toMins = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+  let [aStart, aEnd] = [toMins(a[0]), toMins(a[1])]
+  let [bStart, bEnd] = [toMins(b[0]), toMins(b[1])]
+  if (aEnd <= aStart) aEnd += 1440
+  if (bEnd <= bStart) bEnd += 1440
+  return Math.min(aEnd, bEnd) - Math.max(aStart, bStart) > 0
+}
+
 function canWithdraw(leave: Leave): boolean {
   // Get current IST time: UTC + 5:30 (always fixed offset, never use getTimezoneOffset)
   const istNow = new Date(Date.now() + 5.5 * 3600000)
@@ -226,6 +250,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [editing, startEdit]        = useTransition()
   const [editError, setEditError]   = useState<string | null>(null)
   const [isExceptional, setIsExceptional] = useState(false)
+  const [collisionBlocked, setCollisionBlocked] = useState(false)
   const [newFormError, setNewFormError] = useState<string | null>(null)
   const [dateError, setDateError]       = useState<string | null>(null)
   const [state, action, pending]    = useActionState(submitLeaveRequest, null)
@@ -263,10 +288,25 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
   function checkDuplicateDate(e: React.FormEvent<HTMLFormElement>) {
     setNewFormError(null)
+    setCollisionBlocked(false)
     const fd = new FormData(e.currentTarget)
     const fromDate = fd.get("from_date") as string || ""
     const toDate   = (fd.get("to_date") as string) || fromDate
     if (!fromDate) return // let HTML5 required handle it
+
+    // Permission over 4 hours is a hard block, always — no Exceptional bypass.
+    // Mirrors the server-side check in submitLeaveRequest; this just stops the
+    // round-trip and reuses the existing "switch to Half Day" popup.
+    if (leaveType === "permission" && permFrom && permTo) {
+      const [fh, fm] = permFrom.split(":").map(Number)
+      const [th, tm] = permTo.split(":").map(Number)
+      const diffMins = (th * 60 + tm) - (fh * 60 + fm)
+      if (diffMins > 240) {
+        e.preventDefault()
+        setShowHalfDayPrompt(true)
+        return
+      }
+    }
 
     // Block if any date in range is a company holiday
     const holidaySet = new Set(companyLeaves.map(h => h.date))
@@ -283,12 +323,36 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
       cur.setDate(cur.getDate() + 1)
     }
 
-    const overlapping = leaves.filter(l => l.status !== "rejected" && !(toDate < l.from_date || fromDate > l.to_date))
-    if (overlapping.length > 0) {
+    const dateOverlapping = leaves.filter(l => l.status !== "rejected" && !(toDate < l.from_date || fromDate > l.to_date))
+    // Type-conflict matrix (mirrors typesConflict() server-side): Full Day blocks
+    // everything, two Half Days block each other, Half Day/Permission and
+    // Permission/Permission only conflict if their actual times overlap, and
+    // WFH/Shoot Day never block Half Day or Permission (work arrangement, not an
+    // absence) — only an exact WFH-vs-WFH or Shoot-vs-Shoot duplicate blocks.
+    const newWindow = getLeaveTimeWindow({
+      leave_type: leaveType,
+      half_day_from_time: fd.get("half_day_from_time") as string | null,
+      half_day_to_time: fd.get("half_day_to_time") as string | null,
+      permission_time: fd.get("permission_time") as string | null,
+      permission_end_time: fd.get("permission_end_time") as string | null,
+    })
+    const overlapping = dateOverlapping.filter(l => {
+      const conflict = typesConflict(leaveType, (l.leave_type ?? "full_day") as LeaveType)
+      if (conflict === "never") return false
+      if (conflict === "always") return true
+      const existingWindow = getLeaveTimeWindow(l)
+      if (!newWindow || !existingWindow) return true
+      return timeRangesOverlap(newWindow, existingWindow)
+    })
+    // Exceptional bypasses this collision too (already opted in via the button
+    // below) — e.g. someone who already has a Shoot Day logged but genuinely
+    // needs a Half Day for the same date (came in late) has no other way through.
+    if (overlapping.length > 0 && !isExceptional) {
       e.preventDefault()
       // WFH is a work arrangement, not an absence — if the only thing in the way is
       // an approved WFH day, send the user straight to withdrawing that one date
       // (see withdrawWfhForDate) instead of a dead-end "already have a leave" block.
+      // Only reachable now via Full Day (the only type that conflicts with WFH).
       const wfhOnly = overlapping.every(l => l.leave_type === "wfh" && l.status === "approved")
       if (wfhOnly && overlapping.length === 1) {
         const wfh = overlapping[0]
@@ -297,7 +361,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
         setWfhWithdraw(wfh)
         setNewFormError(`${fromDate} is part of your approved WFH (${fmtShort(wfh.from_date)} – ${fmtShort(wfh.to_date)}). Withdraw WFH for that date below, then re-apply.`)
       } else {
-        setNewFormError("You already have a leave request on this date. Only one leave per date is allowed.")
+        setNewFormError(leaveType === "permission" || leaveType === "half_day"
+          ? "That time overlaps with an existing leave request on that date."
+          : "You already have a leave request on this date. Only one leave per date is allowed.")
+        setCollisionBlocked(true)
       }
     }
   }
@@ -934,7 +1001,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: "0 0 2px" }}>{editingLeave ? "Edit Leave Request" : "Apply for Leave"}</p>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Fill in the details below</p>
               </div>
-              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null); setIsExceptional(false) }}
+              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
                 style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <X size={16} color="#fff" />
               </button>
@@ -1171,12 +1238,21 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 {newFormError && (
                   <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>⚠️ {newFormError}</p>
                 )}
+                {collisionBlocked && !isExceptional && (
+                  <div style={{ background: "#F5F6FA", borderRadius: 12, padding: "12px 14px", border: "1px solid #EBEDF2" }}>
+                    <p style={{ fontSize: 11, color: "#6B7280", margin: "0 0 10px", lineHeight: 1.5 }}>If this is genuinely needed on top of the existing request, apply anyway — admin will review and decide.</p>
+                    <button type="button" onClick={() => { setIsExceptional(true); setCollisionBlocked(false); setNewFormError(null) }}
+                      style={{ width: "100%", padding: "10px 0", borderRadius: 10, fontSize: 12, fontWeight: 700, background: "linear-gradient(135deg,#F59E0B,#D97706)", color: "#fff", border: "none", cursor: "pointer" }}>
+                      Apply as Exceptional Leave
+                    </button>
+                  </div>
+                )}
                 {editError && (
                   <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>{editError}</p>
                 )}
 
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null); setIsExceptional(false) }}
+                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
                   <button type="submit" disabled={pending || editing}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: (pending || editing) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>

@@ -39,6 +39,54 @@ const leaveSchema = z.object({
   }
 })
 
+type LeaveKind = 'full_day' | 'half_day' | 'permission' | 'wfh' | 'shoot_day'
+type LeaveTimeFields = {
+  leave_type?: string | null
+  half_day_from_time?: string | null
+  half_day_to_time?: string | null
+  permission_time?: string | null
+  permission_end_time?: string | null
+}
+
+// Two families: Full Day/Half Day/Permission are real absence (not working at all).
+// WFH/Shoot Day are work arrangements (still working, just not from the office) —
+// confirmed by the product owner these are NOT the same as an absence, and can
+// legitimately combine with each other or with a Half Day/Permission on the same
+// date (e.g. half-day WFH editing in the morning, then a shoot in the afternoon;
+// or a Shoot Day with a short Permission carved out of it for something personal).
+//
+// Rules (confirmed 2026-07-23):
+//  - Full Day blocks everything else that date, and is blocked by everything else.
+//  - Two Half Days the same date block each other — apply as Full Day instead.
+//  - Half Day vs Permission, and Permission vs Permission, only conflict if their
+//    actual time windows overlap — not just because they're the same date.
+//  - WFH/Shoot Day never block Half Day or Permission, and never block each other
+//    UNLESS it's an exact duplicate (two WFH, or two Shoot Day, same date).
+// WFH/Shoot Day are deliberately whole-day flags with no time-of-day field —
+// confirmed by the product owner, not something to add.
+function typesConflict(newType: LeaveKind, existingType: LeaveKind): 'always' | 'time-overlap-only' | 'never' {
+  if (newType === 'full_day' || existingType === 'full_day') return 'always'
+  if (newType === existingType && (newType === 'half_day' || newType === 'wfh' || newType === 'shoot_day')) return 'always'
+  if ((newType === 'half_day' && existingType === 'permission') || (newType === 'permission' && existingType === 'half_day')) return 'time-overlap-only'
+  if (newType === 'permission' && existingType === 'permission') return 'time-overlap-only'
+  return 'never'
+}
+
+function getLeaveTimeWindow(l: LeaveTimeFields): [string, string] | null {
+  if (l.leave_type === 'half_day' && l.half_day_from_time && l.half_day_to_time) return [l.half_day_from_time, l.half_day_to_time]
+  if (l.leave_type === 'permission' && l.permission_time && l.permission_end_time) return [l.permission_time, l.permission_end_time]
+  return null
+}
+
+function timeRangesOverlap(a: [string, string], b: [string, string]): boolean {
+  const toMins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+  let [aStart, aEnd] = [toMins(a[0]), toMins(a[1])]
+  let [bStart, bEnd] = [toMins(b[0]), toMins(b[1])]
+  if (aEnd <= aStart) aEnd += 1440
+  if (bEnd <= bStart) bEnd += 1440
+  return Math.min(aEnd, bEnd) - Math.max(aStart, bStart) > 0
+}
+
 function parseCompanyId(accessToken: string): string | null {
   try {
     const payload = accessToken.split('.')[1]
@@ -92,6 +140,19 @@ async function checkMonthlyLeaveLimit(
   )
   const thisRequestDays = leaveDayCount(leaveType, fromDate, toDate)
   if (used + thisRequestDays > 5) return 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.'
+  return null
+}
+
+// Permission over 4 hours needs the same Exceptional/admin-approval path as hitting
+// the monthly Full Day/Half Day cap — previously nothing enforced this server-side
+// (only a dismissible client popup existed, easily bypassed), so a long permission
+// could sail through fully auto-accepted with zero admin review.
+function permissionHoursCapError(leaveType: string, permissionTime?: string, permissionEndTime?: string): string | null {
+  if (leaveType !== 'permission' || !permissionTime || !permissionEndTime) return null
+  const [fh, fm] = permissionTime.split(':').map(Number)
+  const [th, tm] = permissionEndTime.split(':').map(Number)
+  const diffMins = (th * 60 + tm) - (fh * 60 + fm)
+  if (diffMins > 240) return 'Permission cannot exceed 4 hours. Please apply as Half Day Leave instead.'
   return null
 }
 
@@ -158,6 +219,13 @@ export async function submitLeaveRequest(
     .eq('id', effectiveUserId)
     .single()
 
+  // Permission over 4 hours is a hard block, always — not even Exceptional bypasses
+  // this. There's no such thing as an "exceptional 5-hour permission"; anything that
+  // long has to go through Half Day Leave instead (which has its own, separate
+  // Exceptional path if the monthly cap is the actual blocker).
+  const permCapError = permissionHoursCapError(parsed.data.leave_type, parsed.data.permission_time, parsed.data.permission_end_time)
+  if (permCapError) return { error: permCapError }
+
   // Monthly limit check (full_day + half_day only; permission/wfh/shoot_day excluded).
   // Counts THIS request's own days on top of what's already on file — not just
   // whether the existing total alone has already hit the cap.
@@ -171,26 +239,40 @@ export async function submitLeaveRequest(
 
   const { data: overlapping } = await adminCl
     .from('leaves')
-    .select('id, leave_type')
+    .select('id, leave_type, half_day_from_time, half_day_to_time, permission_time, permission_end_time')
     .eq('user_id', effectiveUserId)
     .lte('from_date', parsed.data.to_date)
     .gte('to_date', parsed.data.from_date)
     .not('status', 'eq', 'rejected')
 
-  if (overlapping && overlapping.length > 0) {
-    // Multiple permissions on the same day are allowed (e.g. morning + evening)
-    // Only block if there is a full_day or half_day leave already on that date
-    const blocking = parsed.data.leave_type === 'permission'
-      ? overlapping.filter(l => l.leave_type !== 'permission')
-      : overlapping
+  // Exceptional bypasses this too — e.g. someone who already has a Shoot Day logged
+  // but genuinely needs a Half Day leave on the same date (came in late, missed the
+  // morning) has no other way through; admin reviews and decides either way.
+  if (overlapping && overlapping.length > 0 && !isExceptional) {
+    const newWindow = getLeaveTimeWindow({
+      leave_type: parsed.data.leave_type,
+      half_day_from_time: parsed.data.half_day_from_time,
+      half_day_to_time: parsed.data.half_day_to_time,
+      permission_time: parsed.data.permission_time,
+      permission_end_time: parsed.data.permission_end_time,
+    })
+    const blocking = overlapping.filter(l => {
+      const conflict = typesConflict(parsed.data.leave_type as LeaveKind, (l.leave_type ?? 'full_day') as LeaveKind)
+      if (conflict === 'never') return false
+      if (conflict === 'always') return true
+      const existingWindow = getLeaveTimeWindow(l as LeaveTimeFields)
+      if (!newWindow || !existingWindow) return true // missing a time somehow — be safe, block
+      return timeRangesOverlap(newWindow, existingWindow)
+    })
     if (blocking.length > 0) {
       // WFH is a work arrangement, not an absence — point to the actual fix
-      // (withdraw that WFH date first) instead of a dead-end message.
+      // (withdraw that WFH date first) instead of a dead-end message. Only
+      // reachable now via Full Day (the only type that blocks WFH at all).
       if (blocking.every(l => l.leave_type === 'wfh')) {
         return { error: 'That date is part of an approved WFH request. Withdraw WFH for that date on the Leaves page, then re-apply.' }
       }
-      return { error: parsed.data.leave_type === 'permission'
-        ? 'You already have a full-day or half-day leave on that date.'
+      return { error: (parsed.data.leave_type === 'permission' || parsed.data.leave_type === 'half_day')
+        ? 'That time overlaps with an existing leave request on that date.'
         : 'You already have a leave request for those dates.' }
     }
   }
@@ -388,16 +470,53 @@ export async function updateLeaveRequest(
   if (existing.user_id !== user.id) return { error: 'Not authorized' }
   if (existing.status !== 'pending') return { error: 'Can only edit pending requests' }
 
-  // Same monthly cap as a fresh submission — otherwise editing a still-pending
-  // request (e.g. stretching a 1-day request to 3 days) is a silent backdoor
-  // around the limit a brand-new submission would have been blocked by.
+  // Same hard cap as a fresh submission — always, no Exceptional bypass.
+  const permCapError = permissionHoursCapError(parsed.data.leave_type, parsed.data.permission_time, parsed.data.permission_end_time)
+  if (permCapError) return { error: permCapError }
+
+  // Same monthly cap AND same collision rules as a fresh submission — otherwise
+  // editing a still-pending request (e.g. stretching a 1-day request to 3 days,
+  // or changing its time to now overlap something) is a silent backdoor around
+  // checks a brand-new submission would have been blocked by.
   const isExceptional = formData.get('is_exceptional') === 'true'
+  const adminCl = createAdminClient()
   if (!isExceptional) {
-    const adminCl = createAdminClient()
     const limitError = await checkMonthlyLeaveLimit(
       adminCl, user.id, parsed.data.leave_type, parsed.data.from_date, parsed.data.to_date, leaveId
     )
     if (limitError) return { error: limitError }
+
+    const { data: overlapping } = await adminCl
+      .from('leaves')
+      .select('id, leave_type, half_day_from_time, half_day_to_time, permission_time, permission_end_time')
+      .eq('user_id', user.id)
+      .lte('from_date', parsed.data.to_date)
+      .gte('to_date', parsed.data.from_date)
+      .not('status', 'eq', 'rejected')
+      .neq('id', leaveId)
+
+    if (overlapping && overlapping.length > 0) {
+      const newWindow = getLeaveTimeWindow({
+        leave_type: parsed.data.leave_type,
+        half_day_from_time: parsed.data.half_day_from_time,
+        half_day_to_time: parsed.data.half_day_to_time,
+        permission_time: parsed.data.permission_time,
+        permission_end_time: parsed.data.permission_end_time,
+      })
+      const blocking = overlapping.filter(l => {
+        const conflict = typesConflict(parsed.data.leave_type as LeaveKind, (l.leave_type ?? 'full_day') as LeaveKind)
+        if (conflict === 'never') return false
+        if (conflict === 'always') return true
+        const existingWindow = getLeaveTimeWindow(l as LeaveTimeFields)
+        if (!newWindow || !existingWindow) return true
+        return timeRangesOverlap(newWindow, existingWindow)
+      })
+      if (blocking.length > 0) {
+        return { error: (parsed.data.leave_type === 'permission' || parsed.data.leave_type === 'half_day')
+          ? 'That time overlaps with an existing leave request on that date.'
+          : 'You already have a leave request for those dates.' }
+      }
+    }
   }
 
   const { error } = await (supabase.from('leaves') as any)
@@ -979,15 +1098,28 @@ export async function submitWfhAttendanceRequest(
     .eq('id', session.user.id)
     .single()
 
-  // Check for existing WFH/Shoot request today (not rejected)
-  const { data: existing } = await (supabase.from('leaves') as any)
-    .select('id')
+  // Same type-conflict rules as submitLeaveRequest (see typesConflict): Full Day
+  // blocks WFH/Shoot Day, an exact duplicate (WFH-vs-WFH or Shoot-vs-Shoot) blocks,
+  // but Half Day/Permission never block WFH/Shoot Day — those are work
+  // arrangements, not absences, so legitimate combos (half-day WFH then a shoot,
+  // a Shoot Day with a personal Permission carved out) go through unblocked.
+  // Previously this only checked for an existing wfh/shoot_day row, so someone
+  // with an approved Full Day leave could still submit Shoot Day here with zero
+  // collision check (real incident — confirmed via direct DB query).
+  const { data: existingRows } = await (supabase.from('leaves') as any)
+    .select('id, leave_type')
     .eq('user_id', session.user.id)
     .eq('from_date', todayIst)
-    .in('leave_type', ['wfh', 'shoot_day'])
     .not('status', 'eq', 'rejected')
-    .maybeSingle()
-  if (existing) return { success: false, error: 'You already have a WFH/Shoot request for today' }
+  const existingBlocker = ((existingRows ?? []) as { id: string; leave_type: string }[])
+    .find(l => typesConflict(leaveType, (l.leave_type ?? 'full_day') as LeaveKind) === 'always')
+  if (existingBlocker) {
+    const label = existingBlocker.leave_type === 'wfh' ? 'WFH'
+      : existingBlocker.leave_type === 'shoot_day' ? 'Shoot Day'
+      : existingBlocker.leave_type === 'half_day' ? 'Half Day'
+      : 'Full Day'
+    return { success: false, error: `You already have a ${label} request for today.` }
+  }
 
   const { data: inserted, error: insertError } = await (supabase.from('leaves') as any).insert({
     company_id,

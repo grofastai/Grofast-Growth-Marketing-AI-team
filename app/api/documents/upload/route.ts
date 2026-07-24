@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
+import { syncDocumentOrQueueRetry } from "@/lib/google/document-sync"
 
 function adminSupabase() {
   return createClient(
@@ -51,6 +52,8 @@ export async function POST(req: NextRequest) {
   })
 
   if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 })
+
+  await syncDocumentOrQueueRetry({ userId, companyId: profile.company_id, file, storagePath: path })
 
   return NextResponse.json({ success: true, url: publicUrl })
 }

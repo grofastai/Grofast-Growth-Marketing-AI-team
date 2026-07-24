@@ -45,6 +45,21 @@ function kycDocCount(k: KYCRecord | undefined) {
     .filter(Boolean).length
 }
 
+function computeCompletionPct(m: Member, k: KYCRecord | undefined, hasDocs: boolean) {
+  let p = 0
+  if (m.email) p += 12
+  if (m.phone) p += 12
+  if (m.team) p += 8
+  if (m.employment_type) p += 8
+  if (m.blood_group) p += 5
+  if (m.address) p += 5
+  if (m.emergency_contact_name) p += 5
+  if (k?.bank_account) p += 15
+  if (k?.govt_id_url) p += 15
+  if (hasDocs) p += 15
+  return Math.min(p, 100)
+}
+
 function formatSize(b: number | null) {
   if (!b) return ""
   if (b < 1024) return `${b} B`
@@ -382,18 +397,7 @@ export default function DocumentsClient({
   // Profile completion
   const completionPct = useMemo(() => {
     if (!selectedMember) return 0
-    let p = 0
-    if (selectedMember.email) p += 12
-    if (selectedMember.phone) p += 12
-    if (selectedMember.team) p += 8
-    if (selectedMember.employment_type) p += 8
-    if (selectedMember.blood_group) p += 5
-    if (selectedMember.address) p += 5
-    if (selectedMember.emergency_contact_name) p += 5
-    if (selectedKYC?.bank_account) p += 15
-    if (selectedKYC?.govt_id_url) p += 15
-    if (memberDocs.length > 0) p += 15
-    return Math.min(p, 100)
+    return computeCompletionPct(selectedMember, selectedKYC ?? undefined, memberDocs.length > 0)
   }, [selectedMember, selectedKYC, memberDocs])
 
   // Activity feed
@@ -559,8 +563,9 @@ export default function DocumentsClient({
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: "0 10px 12px" }}>
             {filteredMembers.map(m => {
-              const mDocs = documents.filter(d => d.user_id === m.id).length
-                + kycDocCount(kycRecords.find(k => k.user_id === m.id))
+              const mKyc = kycRecords.find(k => k.user_id === m.id)
+              const mHasDocs = documents.some(d => d.user_id === m.id) || kycDocCount(mKyc) > 0
+              const mPct = computeCompletionPct(m, mKyc, mHasDocs)
               const tc2 = teamColor(m.team)
               const isActive = m.id === selectedId
               return (
@@ -592,11 +597,14 @@ export default function DocumentsClient({
                       {m.team && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: `${tc2}14`, color: tc2 }}>{m.team}</span>}
                     </div>
                   </div>
-                  {/* Doc count + online dot */}
+                  {/* Completion % + online dot */}
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                     <div style={{ width: 7, height: 7, borderRadius: "50%", background: m.status === "active" ? "#22C55E" : "#D1D5DB" }} />
-                    <span style={{ fontSize: 10, fontWeight: 800, color: "#1B4332" }}>{mDocs}</span>
-                    <span style={{ fontSize: 8, color: "#1B4332", marginTop: -3 }}>docs</span>
+                    <span style={{
+                      fontSize: 10, fontWeight: 800,
+                      color: mPct >= 80 ? "#16A34A" : mPct >= 40 ? "#D97706" : "#DC2626",
+                    }}>{mPct}%</span>
+                    <span style={{ fontSize: 8, color: "#1B4332", marginTop: -3 }}>complete</span>
                   </div>
                 </button>
               )
@@ -881,15 +889,14 @@ export default function DocumentsClient({
               <Image src="/brand/documents/hr-assistant.png" alt="HR Assistant" width={180} height={140}
                 style={{ objectFit: "contain" }} />
             </div>
-            <div style={{ padding: "0 16px 16px" }}>
-              <button style={{
-                width: "100%", padding: "10px", borderRadius: 12, fontSize: 12, fontWeight: 700,
-                cursor: "pointer", border: "none",
-                background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#fff",
-                boxShadow: "0 4px 16px rgba(222,26,26,0.3)",
+            <div style={{ padding: "0 16px 16px", display: "flex", justifyContent: "center" }}>
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999,
+                fontSize: 11, fontWeight: 700, color: "#166534", background: "rgba(22,101,52,0.1)",
+                border: "1px solid rgba(22,101,52,0.15)",
               }}>
-                Open HR Center
-              </button>
+                <CheckCircle2 size={13} /> Up to date
+              </span>
             </div>
           </div>
         </div>

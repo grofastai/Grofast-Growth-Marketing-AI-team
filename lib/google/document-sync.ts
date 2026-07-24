@@ -28,21 +28,26 @@ export async function queueDriveRetry(params: {
   storagePath: string
   mimeType: string
 }): Promise<void> {
-  const admin = adminSupabase()
-  const { error } = await admin.from("drive_sync_queue").insert({
-    company_id: params.companyId,
-    user_id: params.userId,
-    name: params.name,
-    storage_path: params.storagePath,
-    mime_type: params.mimeType,
-  })
-  if (error) console.error("[drive-sync] failed to queue retry:", error)
+  try {
+    const admin = adminSupabase()
+    const { error } = await admin.from("drive_sync_queue").insert({
+      company_id: params.companyId,
+      user_id: params.userId,
+      name: params.name,
+      storage_path: params.storagePath,
+      mime_type: params.mimeType,
+    })
+    if (error) console.error("[drive-sync] failed to queue retry:", error)
+  } catch (err) {
+    console.error("[drive-sync] failed to queue retry:", err)
+  }
 }
 
 /**
  * Best-effort: uploads `file` to the member's Google Drive folder via the
- * existing uploadMemberDoc action. Never throws — on any failure it queues
- * a drive_sync_queue row for the daily retry cron instead.
+ * existing uploadMemberDoc action. Never throws under any circumstance —
+ * the caller's upload must always succeed once Supabase Storage has the
+ * file, regardless of what happens to the Drive copy.
  */
 export async function syncDocumentOrQueueRetry(params: {
   userId: string
@@ -60,6 +65,10 @@ export async function syncDocumentOrQueueRetry(params: {
     if (result && "error" in result && result.error) throw new Error(result.error)
   } catch (err) {
     console.error("[drive-sync] sync failed, queuing for retry:", err)
-    await queueDriveRetry({ companyId, userId, name: file.name, storagePath, mimeType: file.type })
+    try {
+      await queueDriveRetry({ companyId, userId, name: file.name, storagePath, mimeType: file.type })
+    } catch (queueErr) {
+      console.error("[drive-sync] failed to queue retry:", queueErr)
+    }
   }
 }

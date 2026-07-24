@@ -42,9 +42,15 @@ export async function POST(req: NextRequest) {
   const { data: { publicUrl } } = admin.storage.from("documents").getPublicUrl(path)
 
   if (folder === "kyc") {
-    const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
-    if (profile) {
-      await syncDocumentOrQueueRetry({ userId: user.id, companyId: profile.company_id, file, storagePath: path })
+    // Best-effort Drive sync — must never fail the upload the member already
+    // completed successfully in Supabase Storage above.
+    try {
+      const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
+      if (profile) {
+        await syncDocumentOrQueueRetry({ userId: user.id, companyId: profile.company_id, file, storagePath: path })
+      }
+    } catch (syncErr) {
+      console.error("[upload-photo] Drive sync threw unexpectedly:", syncErr)
     }
   }
 

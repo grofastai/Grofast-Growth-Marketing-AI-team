@@ -74,6 +74,7 @@
       "path": "/api/cron/auto-absent",
       "schedule": "30 18 * * *"
     },
-    { "path": "/api/cron/db-backup", "schedule": "30 3 * * 0" }
+    { "path": "/api/cron/db-backup", "schedule": "30 3 * * 0" },
+    { "path": "/api/cron/drive-retry", "schedule": "30 13 * * *" }
   ]
 }

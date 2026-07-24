@@ -16,6 +16,7 @@ import { logoutAction } from "@/lib/actions/auth"
 import { todayIST, toISTDateString } from "@/lib/utils/ist-date"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
+import { INDIAN_BANKS } from "@/lib/constants/banks"
 
 interface ProfileData {
   id: string; name: string; employee_id: string; role: string
@@ -64,13 +65,6 @@ const PRESET_AVATARS = [
   "d31c649b-a6e9-4940-8230-417d829d60ed.png",
   "f7abb8d4-b9e1-45b6-a849-b1911437db5f.png",
 ].map(f => `/brand/profiles/${f}`)
-const INDIAN_BANKS = [
-  "State Bank of India (SBI)", "Bank of Baroda", "Bank of India", "Canara Bank",
-  "Punjab National Bank", "Union Bank of India", "Axis Bank", "HDFC Bank",
-  "ICICI Bank", "IDBI Bank", "IDFC First Bank", "IndusInd Bank", "Kotak Mahindra Bank",
-  "YES Bank", "Federal Bank", "South Indian Bank", "RBL Bank", "AU Small Finance Bank",
-  "Ujjivan Small Finance Bank", "India Post Payments Bank", "Post Office (IPPB)", "Other",
-]
 
 function relativeDate(d: string) {
   const t = todayIST()

@@ -285,8 +285,18 @@ export default function ProfileClient({
       const fd = new FormData(); fd.append("file", file); fd.append("folder", "kyc")
       const res = await fetch("/api/upload-photo", { method: "POST", body: fd })
       const json = await res.json()
-      if (res.ok && json.url) setKYCForm(p => ({ ...p, [field]: json.url }))
+      if (res.ok && json.url) { setKYCForm(p => ({ ...p, [field]: json.url })); return json.url as string }
+      return null
     } finally { setUploadingField(null) }
+  }
+
+  async function handleDocReplace(
+    field: "govt_id_url"|"aadhaar_back_url"|"pan_front_url"|"pan_back_url"|"ration_card_url"|"ration_card_url2",
+    file: File
+  ) {
+    const url = await handleDocUpload(field, file)
+    if (url) await updateKYC({ [field]: url })
+    router.refresh()
   }
 
   const circ = 2 * Math.PI * 42
@@ -664,11 +674,11 @@ export default function ProfileClient({
                                 style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", padding: "4px 10px", borderRadius: 8, background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", textDecoration: "none" }}>
                                 View
                               </a>
-                              <button type="button" onClick={() => docRefs[f].current?.click()}
-                                style={{ fontSize: 11, fontWeight: 700, color: "#F59E0B", padding: "4px 10px", borderRadius: 8, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", cursor: "pointer" }}>
-                                Replace
+                              <button type="button" disabled={uploadingField === f} onClick={() => docRefs[f].current?.click()}
+                                style={{ fontSize: 11, fontWeight: 700, color: "#F59E0B", padding: "4px 10px", borderRadius: 8, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", cursor: uploadingField === f ? "default" : "pointer", opacity: uploadingField === f ? 0.6 : 1 }}>
+                                {uploadingField === f ? "Uploading…" : "Replace"}
                               </button>
-                              <button type="button" onClick={async () => {
+                              <button type="button" disabled={uploadingField === f} onClick={async () => {
                                 if (!(await confirm(`Delete ${l}?`))) return
                                 const res = await deleteKYCDocument(f)
                                 if (res.success) router.refresh()
@@ -680,8 +690,8 @@ export default function ProfileClient({
                                 onChange={async e => {
                                   const file = e.target.files?.[0]
                                   if (!file) return
-                                  await handleDocUpload(f, file)
-                                  router.refresh()
+                                  await handleDocReplace(f, file)
+                                  e.target.value = ""
                                 }} />
                             </div>
                           ) : (

@@ -1,10 +1,11 @@
-﻿export const revalidate = 60
+export const revalidate = 0
 
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { FileText, Download, FolderOpen } from "lucide-react"
+import MemberDocumentsClient, { type MemberDoc } from "./documents-client"
+import type { KYCDocField } from "@/lib/actions/profile"
 
 function adminSupabase() {
   return createClient(
@@ -12,36 +13,6 @@ function adminSupabase() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
-}
-
-type Doc = {
-  id: string
-  name: string
-  file_url: string
-  file_type: string | null
-  file_size: number | null
-  doc_type: string
-  created_at: string
-}
-
-const DOC_TYPE_COLOR: Record<string, { color: string; bg: string }> = {
-  "Offer Letter":  { color: "#de1a1a", bg: "rgba(222,26,26,0.08)"  },
-  "Contract":      { color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
-  "ID Proof":      { color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
-  "Certificate":   { color: "#16A34A", bg: "rgba(22,163,74,0.08)"  },
-  "Payslip":       { color: "#0EA5E9", bg: "rgba(14,165,233,0.08)" },
-  "Other":         { color: "#6B7280", bg: "rgba(0,0,0,0.04)"      },
-}
-
-function formatSize(bytes: number | null) {
-  if (!bytes) return ""
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / 1048576).toFixed(1)} MB`
-}
-
-function formatDate(s: string) {
-  return new Date(s).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
 }
 
 export default async function MemberDocumentsPage() {
@@ -55,22 +26,43 @@ export default async function MemberDocumentsPage() {
   // return zero rows since the session is still the admin's), scoped to effectiveUserId.
   const db = impersonateId ? adminSupabase() : supabase
 
-  const { data: raw } = await db
-    .from("documents")
-    .select("id, name, file_url, file_type, file_size, doc_type, created_at")
-    .eq("user_id", effectiveUserId)
-    .order("created_at", { ascending: false })
-    .limit(50)
+  const [{ data: raw }, { data: kyc }] = await Promise.all([
+    db
+      .from("documents")
+      .select("id, name, file_url, file_type, file_size, doc_type, created_at")
+      .eq("user_id", effectiveUserId)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    db
+      .from("member_kyc")
+      .select("govt_id_type, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2")
+      .eq("user_id", effectiveUserId)
+      .maybeSingle(),
+  ])
 
-  const docs = (raw ?? []) as Doc[]
+  const kycFields: Array<{ url: string | null; name: string; docType: string; field: KYCDocField }> = kyc ? [
+    { url: kyc.govt_id_url, name: kyc.govt_id_type ? `${kyc.govt_id_type} (Front)` : "Government ID", docType: "ID Proof", field: "govt_id_url" },
+    { url: kyc.aadhaar_back_url, name: "Aadhaar Back", docType: "ID Proof", field: "aadhaar_back_url" },
+    { url: kyc.pan_front_url, name: "PAN Card Front", docType: "ID Proof", field: "pan_front_url" },
+    { url: kyc.pan_back_url, name: "PAN Card Back", docType: "ID Proof", field: "pan_back_url" },
+    { url: kyc.ration_card_url, name: "Ration Card", docType: "ID Proof", field: "ration_card_url" },
+    { url: kyc.ration_card_url2, name: "Ration Card (Page 2)", docType: "ID Proof", field: "ration_card_url2" },
+  ] : []
 
-  // Group by doc_type
-  const grouped: Record<string, Doc[]> = {}
-  for (const d of docs) {
-    const key = d.doc_type || "Other"
-    if (!grouped[key]) grouped[key] = []
-    grouped[key].push(d)
-  }
+  const kycDocs: MemberDoc[] = kycFields
+    .filter(f => !!f.url)
+    .map((f, i) => ({
+      id: `kyc__${i}`,
+      name: f.name,
+      file_url: f.url!,
+      file_type: null,
+      file_size: null,
+      doc_type: f.docType,
+      created_at: new Date(0).toISOString(),
+      kycField: f.field,
+    }))
+
+  const docs: MemberDoc[] = [...kycDocs, ...((raw ?? []) as MemberDoc[])]
 
   return (
     <div className="p-4 md:p-6 xl:p-8 max-w-[1000px]">
@@ -78,57 +70,10 @@ export default async function MemberDocumentsPage() {
         <h1 className="gradient-heading text-[30px] font-black leading-tight"
           style={{ fontFamily: "var(--font-jakarta)" }}>My Documents</h1>
         <p className="text-sm mt-1" style={{ color: "#6B7280" }}>
-          Documents shared with you by your admin
+          Documents shared by your admin, plus the KYC files you&apos;ve submitted
         </p>
       </div>
-
-      {docs.length === 0 ? (
-        <div className="flex flex-col items-center py-24 rounded-2xl"
-          style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #E5E7EB" }}>
-          <FolderOpen size={36} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#6B7280" }}>No documents yet</p>
-          <p className="text-[12px] mt-1" style={{ color: "#D1D5DB" }}>
-            Your admin will upload documents here when available.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {Object.entries(grouped).map(([type, items]) => {
-            const style = DOC_TYPE_COLOR[type] ?? DOC_TYPE_COLOR["Other"]
-            return (
-              <div key={type}>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] px-2.5 py-1 rounded-full"
-                    style={{ background: style.bg, color: style.color }}>
-                    {type}
-                  </span>
-                  <span className="text-[11px]" style={{ color: "#D1D5DB" }}>{items.length}</span>
-                </div>
-                <div className="space-y-2">
-                  {items.map(doc => (
-                    <a key={doc.id} href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-4 rounded-xl px-4 py-3.5 group transition-all"
-                      style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: style.bg }}>
-                        <FileText size={16} style={{ color: style.color }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-semibold truncate" style={{ color: "#111111" }}>{doc.name}</p>
-                        <p className="text-[11px] mt-0.5" style={{ color: "#6B7280" }}>
-                          {formatDate(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}
-                        </p>
-                      </div>
-                      <Download size={14} className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        style={{ color: "#6B7280" }} />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      <MemberDocumentsClient docs={docs} />
     </div>
   )
 }

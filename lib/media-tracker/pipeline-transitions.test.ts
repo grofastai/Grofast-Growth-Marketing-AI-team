@@ -6,11 +6,11 @@ describe('isValidPipelineTransition', () => {
     expect(isValidPipelineTransition('scripting', 'voiceover')).toBe(true)
     expect(isValidPipelineTransition('voiceover', 'ready_to_edit')).toBe(true)
   })
-  it('allows the poster front half: design -> on_review', () => {
-    expect(isValidPipelineTransition('design', 'on_review')).toBe(true)
+  it('rejects design -> on_review directly (must pass through Edited)', () => {
+    expect(isValidPipelineTransition('design', 'on_review')).toBe(false)
   })
-  it('allows ready_to_edit -> on_review directly (no separate Edited stage)', () => {
-    expect(isValidPipelineTransition('ready_to_edit', 'on_review')).toBe(true)
+  it('rejects ready_to_edit -> on_review directly (must pass through Edited)', () => {
+    expect(isValidPipelineTransition('ready_to_edit', 'on_review')).toBe(false)
   })
   it('on_review branches three ways: Branding Ready, Ads Ready, or Cancelled', () => {
     expect(isValidPipelineTransition('on_review', 'branding_ready')).toBe(true)
@@ -83,5 +83,23 @@ describe('entryStatusForSource', () => {
   })
   it('a poster enters at design', () => {
     expect(entryStatusForSource('poster')).toBe('design')
+  })
+})
+
+describe('the Edited stage', () => {
+  it('both Ready to Edit and Design move into Edited, not straight to On Review', () => {
+    expect(isValidPipelineTransition('ready_to_edit', 'edited')).toBe(true)
+    expect(isValidPipelineTransition('design', 'edited')).toBe(true)
+  })
+  it('Edited moves on to On Review', () => {
+    expect(isValidPipelineTransition('edited', 'on_review')).toBe(true)
+  })
+  it('allows cancelling from Edited, same as Ready to Edit/Design', () => {
+    expect(isValidPipelineTransition('edited', 'cancelled')).toBe(true)
+  })
+  it('rejects Edited skipping straight to a ready lane or posted', () => {
+    expect(isValidPipelineTransition('edited', 'branding_ready')).toBe(false)
+    expect(isValidPipelineTransition('edited', 'ads_ready')).toBe(false)
+    expect(isValidPipelineTransition('edited', 'posted')).toBe(false)
   })
 })

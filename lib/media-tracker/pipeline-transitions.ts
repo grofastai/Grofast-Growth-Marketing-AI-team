@@ -3,7 +3,7 @@
 // (updateContentItemStatus) call into this so a bad drag and a bad direct API call are
 // rejected identically.
 export type ContentPipelineStatus =
-  | 'scripting' | 'voiceover' | 'design' | 'ready_to_edit'
+  | 'scripting' | 'voiceover' | 'design' | 'ready_to_edit' | 'edited'
   | 'on_review' | 'branding_ready' | 'ads_ready' | 'posted' | 'cancelled'
 
 export type ContentSource = 'shoot' | 'ads_video' | 'poster'
@@ -13,13 +13,12 @@ const TRANSITIONS: Record<ContentPipelineStatus, ContentPipelineStatus[]> = {
   // direction — before it ever reaches a shoot or edit, same as footage/a design can.
   scripting: ['voiceover', 'cancelled'],
   voiceover: ['ready_to_edit', 'cancelled'],
-  // "Who edited this?" is asked right at this transition — there's no separate Edited
-  // stage to stop at first.
-  design: ['on_review', 'cancelled'],
-  ready_to_edit: ['on_review', 'cancelled'],
-  // Footage or a design can turn out unusable (bad take, client pulls the ask) before
-  // it's actually finished — Cancelled is reachable from here rather than requiring
-  // deletion.
+  // Both production paths hand off to an editor's own "Edited" checkpoint before
+  // reaching admin review — Cancelled stays reachable from here too, same as it was
+  // from Ready to Edit/Design, since nothing has been approved out of review yet.
+  design: ['edited', 'cancelled'],
+  ready_to_edit: ['edited', 'cancelled'],
+  edited: ['on_review', 'cancelled'],
   // The review gate branches three ways: approved for organic posting, approved for
   // ads, or rejected outright (with who rejected it recorded separately).
   on_review: ['branding_ready', 'ads_ready', 'cancelled'],

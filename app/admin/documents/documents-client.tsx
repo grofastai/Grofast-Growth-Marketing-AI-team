@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { deleteDocument } from "@/lib/actions/documents"
+import { deleteDocument, verifyMemberKYC } from "@/lib/actions/documents"
 import Image from "next/image"
 import { PageHero } from "@/components/admin/PageHero"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
@@ -12,10 +12,11 @@ import {
   UserPlus, Landmark, CreditCard, ExternalLink, Search,
   List, CheckCircle2, Eye, MoreVertical, CloudUpload,
   Building2, LayoutGrid, ArrowUpRight, Layers, ChevronRight, Sparkles, Users,
+  BadgeCheck, PenLine,
 } from "lucide-react"
 
-const DOC_TYPES = ["Govt ID Proof", "Ration Card", "Photo", "Payslip", "Other"]
-const FILTER_CHIPS = ["All", "Govt ID Proof", "Ration Card", "Photo", "Payslip", "Other"]
+const DOC_TYPES = ["Govt ID Proof", "Ration Card", "Photo", "Payslip", "Signature", "Other"]
+const FILTER_CHIPS = ["All", "Govt ID Proof", "Ration Card", "Photo", "Payslip", "Signature", "Other"]
 
 type Member = {
   id: string; name: string; employee_id: string; role: string
@@ -31,6 +32,7 @@ type KYCRecord = {
   govt_id_url: string | null; aadhaar_back_url: string | null
   pan_front_url: string | null; pan_back_url: string | null
   ration_card_url: string | null; ration_card_url2: string | null
+  kyc_verified: boolean
 }
 type Doc = {
   id: string; name: string; file_url: string; file_type: string | null
@@ -85,7 +87,7 @@ function getExtBadge(fileType: string | null, name: string): { ext: string; colo
 
 const DOC_TYPE_COLOR: Record<string, string> = {
   "Govt ID Proof": "#F59E0B", "Ration Card": "#10B981",
-  "Photo": "#EC4899", "Payslip": "#0EA5E9", "Other": "#6B7280",
+  "Photo": "#EC4899", "Payslip": "#0EA5E9", "Signature": "#8B5CF6", "Other": "#6B7280",
 }
 
 const TEAM_COLORS = ["#6366F1","#0EA5E9","#16A34A","#F59E0B","#EC4899","#8B5CF6","#de1a1a"]
@@ -452,6 +454,16 @@ export default function DocumentsClient({
     start(async () => { await deleteDocument(id); router.refresh() })
   }
 
+  async function handleVerifyKYC() {
+    if (!selectedId || !selectedMember) return
+    if (!(await confirm(`Mark ${selectedMember.name}'s KYC documents as verified? Only do this after checking the uploaded documents match their details.`))) return
+    start(async () => {
+      const res = await verifyMemberKYC(selectedId)
+      if (!res.success) { alert(res.error ?? "Failed to verify KYC"); return }
+      router.refresh()
+    })
+  }
+
   const initial = selectedMember?.name?.charAt(0)?.toUpperCase() ?? "?"
   const tc = teamColor(selectedMember?.team ?? null)
 
@@ -539,7 +551,7 @@ export default function DocumentsClient({
       </div>
 
       {/* ── MAIN 3-COLUMN GRID ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[256px_1fr_288px] gap-3.5 px-4 md:px-5 pt-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr_288px] gap-3.5 px-4 md:px-5 pt-4">
 
         {/* ── LEFT: Employee List ───────────────────────────────────────────── */}
         <div className="hidden lg:flex flex-col" style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
@@ -593,8 +605,14 @@ export default function DocumentsClient({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 12, fontWeight: 700, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span style={{ fontSize: 9, fontWeight: 600, color: "#1B4332" }}>#{m.employee_id}</span>
-                      {m.team && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: `${tc2}14`, color: tc2 }}>{m.team}</span>}
+                      <span style={{ fontSize: 9, fontWeight: 600, color: "#1B4332", flexShrink: 0 }}>#{m.employee_id}</span>
+                      {m.team && (
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
+                          background: `${tc2}14`, color: tc2,
+                          minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }} title={m.team}>{m.team}</span>
+                      )}
                     </div>
                   </div>
                   {/* Completion % + online dot */}
@@ -662,6 +680,11 @@ export default function DocumentsClient({
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="flex items-center gap-2 flex-wrap">
                         <h2 style={{ fontSize: 17, fontWeight: 900, color: "#111", fontFamily: "var(--font-jakarta)" }}>{selectedMember.name}</h2>
+                        {selectedKYC?.kyc_verified && (
+                          <span title="KYC Verified" style={{ display: "flex", flexShrink: 0 }}>
+                            <BadgeCheck size={17} style={{ color: "#0EA5E9" }} />
+                          </span>
+                        )}
                         <span style={{ fontSize: 9, fontWeight: 800, padding: "3px 8px", borderRadius: 20, background: "rgba(22,163,74,0.1)", color: "#16A34A" }}>● Active</span>
                       </div>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -685,10 +708,11 @@ export default function DocumentsClient({
                   {/* Action pills */}
                   <div className="flex gap-2 mt-4 flex-wrap">
                     {[
-                      { label: "Upload File",        icon: <Upload size={11} />,       onClick: () => { setUploadFor(selectedId); setShowUpload(true) } },
-                      { label: "Verify KYC",         icon: <Shield size={11} />,       onClick: () => {} },
-                      { label: "Request Signature",  icon: <FileText size={11} />,     onClick: () => {} },
-                      { label: "Share Docs",         icon: <ExternalLink size={11} />, onClick: () => {} },
+                      { label: "Upload File",        icon: <Upload size={11} />,     onClick: () => { setUploadFor(selectedId); setDocType("Other"); setShowUpload(true) } },
+                      { label: selectedKYC?.kyc_verified ? "KYC Verified" : "Verify KYC",
+                        icon: selectedKYC?.kyc_verified ? <BadgeCheck size={11} /> : <Shield size={11} />,
+                        onClick: selectedKYC?.kyc_verified ? () => {} : handleVerifyKYC },
+                      { label: "Request Signature",  icon: <PenLine size={11} />,    onClick: () => { setUploadFor(selectedId); setDocType("Signature"); setShowUpload(true) } },
                     ].map(a => (
                       <button key={a.label} onClick={a.onClick} style={{
                         display: "flex", alignItems: "center", gap: 5, padding: "6px 12px",

@@ -3750,11 +3750,14 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
 
   const stats = useMemo(() => {
     const readyToEdit = items.filter(i => i.status === "ready_to_edit").length
-    const edited = items.filter(i => i.status === "on_review").length
+    const edited = items.filter(i => i.status === "edited").length
+    // Renamed from the old "edited" meaning (this table used to treat on_review as the
+    // edited/reviewed checkpoint, before Edited became its own real stage).
+    const completedEdit = items.filter(i => i.status === "on_review").length
     const readyToPost = items.filter(i => i.status === "branding_ready" || i.status === "ads_ready").length
     const posted = items.filter(i => i.status === "posted").length
     const totalPosts = items.reduce((s, i) => s + i.posts.length, 0)
-    return { readyToEdit, edited, readyToPost, posted, totalPosts }
+    return { readyToEdit, edited, completedEdit, readyToPost, posted, totalPosts }
   }, [items])
 
   // Branding and Advertisement are the same board shape, split by which of the two
@@ -4148,7 +4151,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         eyebrowIcon={<Sparkles size={14} style={{ color: "#FFD700" }} />}
         title="Media Tracker"
         chips={[
-          { icon: <Video size={11} />, label: `${stats.readyToEdit + stats.edited} in pipeline` },
+          { icon: <Video size={11} />, label: `${stats.readyToEdit + stats.edited + stats.completedEdit} in pipeline` },
           { icon: <CalendarDays size={11} />, label: `${stats.readyToPost} ready to post` },
           { icon: <Check size={11} />, label: `${stats.posted} posted` },
           { icon: <Megaphone size={11} />, label: `${ads.filter(a => a.status === "active").length} active ads` },

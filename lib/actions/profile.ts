@@ -32,7 +32,6 @@ export async function updatePersonalDetails(data: {
   if (error) return { error: error.message }
   revalidatePath('/member/profile')
   revalidatePath('/member/dashboard')
-  revalidatePath('/admin/profile')
   revalidatePath('/admin/dashboard')
   revalidatePath('/admin', 'layout')
   return { success: true }

@@ -116,12 +116,12 @@ export default function Sidebar({ pendingLeaves = 0, adminName = "Admin", photoU
 
         <div className="px-3 pb-4 pt-3" style={{ borderTop: `1px solid ${DIVIDER}` }}>
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1" style={{ background: "rgba(255,255,255,0.07)" }}>
-            <Link href="/admin/profile" className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden" style={{ border: "1.5px solid rgba(255,255,255,0.3)", display:"block", flexShrink:0 }} title="Edit profile">
+            <div className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden" style={{ border: "1.5px solid rgba(255,255,255,0.3)" }}>
               {photoUrl
                 ? <Image src={photoUrl} alt={adminName} width={36} height={36} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                 : <div className="w-full h-full flex items-center justify-center text-[11px] font-bold" style={{ background:"rgba(255,255,255,0.2)", color:"#FFFFFF" }}>{initials}</div>
               }
-            </Link>
+            </div>
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-bold leading-none truncate" style={{ color: "#FFFFFF" }}>{adminName}</p>
               <p className="text-[10px] mt-0.5 font-medium" style={{ color: "rgba(255,255,255,0.45)" }}>Administrator</p>
@@ -278,13 +278,13 @@ export default function Sidebar({ pendingLeaves = 0, adminName = "Admin", photoU
               </div>
             )}
           </div>
-          <Link href="/admin/profile" className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0" title="Edit profile"
-            style={{ border: "1.5px solid rgba(255,255,255,0.25)", display:"block" }}>
+          <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0"
+            style={{ border: "1.5px solid rgba(255,255,255,0.25)" }}>
             {photoUrl
               ? <Image src={photoUrl} alt={adminName} width={36} height={36} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
               : <div className="w-full h-full flex items-center justify-center text-[10px] font-bold" style={{ background:"rgba(255,255,255,0.15)", color:"#FFFFFF" }}>{initials}</div>
             }
-          </Link>
+          </div>
           <form action={logoutAction}>
             <button type="submit" title="Sign Out"
               className="w-9 h-9 rounded-lg flex items-center justify-center transition-all"

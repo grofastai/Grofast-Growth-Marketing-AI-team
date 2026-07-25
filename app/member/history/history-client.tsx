@@ -548,7 +548,7 @@ export default function HistoryClient({
       }
       notes = stripShootNotes(notes)
     }
-    const BREAK_LABELS = ["Lunch Break", "Tea", "Short Break", "Personal", "Early Logoff", "Late Login"]
+    const BREAK_LABELS = ["Lunch Break", "Tea", "Short Break", "Personal", "Early Logoff", "Late Login", "Team Outing"]
     const isCustomBreak = entry.task_type === "break" && !BREAK_LABELS.includes(entry.title)
     setEditDraft({
       task_type: entry.task_type,
@@ -639,7 +639,7 @@ export default function HistoryClient({
     } else if (editDraft.task_type === "edit") {
       draftToSave = { ...editDraft, duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
     } else if (editDraft.task_type === "break") {
-      const VALID_BREAKS = ["Lunch Break", "Tea", "Short Break", "Personal", "Early Logoff", "Late Login"]
+      const VALID_BREAKS = ["Lunch Break", "Tea", "Short Break", "Personal", "Early Logoff", "Late Login", "Team Outing"]
       const finalTitle = VALID_BREAKS.includes(editDraft.title || "") ? editDraft.title! : "Lunch Break"
       draftToSave = { ...editDraft, title: finalTitle, client_name: "Break", duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
     } else if (editDraft.task_type === "voiceover" || editDraft.task_type === "poster" || editDraft.task_type === "scripting") {
@@ -2506,7 +2506,7 @@ export default function HistoryClient({
                                       <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
                                       <HTimePicker value={editDraft.end_time??"13:30"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} />
                                       {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>{fmtTravel(dur)}</span>}
-                                      <select value={["Lunch Break","Tea","Short Break","Personal","Early Logoff","Late Login"].includes(editDraft.title||"") ? editDraft.title : "Lunch Break"} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value,_custom_label:""}))}
+                                      <select value={["Lunch Break","Tea","Short Break","Personal","Early Logoff","Late Login","Team Outing"].includes(editDraft.title||"") ? editDraft.title : "Lunch Break"} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value,_custom_label:""}))}
                                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
                                         <option value="Tea">☕ Tea</option>
                                         <option value="Lunch Break">🍱 Lunch Break</option>
@@ -2514,6 +2514,7 @@ export default function HistoryClient({
                                         <option value="Short Break">🚶 Short Break</option>
                                         <option value="Early Logoff">🌙 Early Logoff</option>
                                         <option value="Late Login">⏰ Late Login</option>
+                                        <option value="Team Outing">🎉 Team Outing</option>
                                       </select>
                                     </div>
                                     <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>

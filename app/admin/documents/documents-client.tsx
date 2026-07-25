@@ -662,10 +662,20 @@ export default function DocumentsClient({
               {/* Profile header card */}
               <div style={{
                 background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden", position: "relative",
               }}>
                 {/* Top gradient bar */}
                 <div style={{ height: 6, background: `linear-gradient(90deg, ${tc}, ${tc}88)` }} />
+                {selectedKYC?.kyc_verified && (
+                  <div title="KYC Verified" style={{
+                    position: "absolute", top: 12, right: 16, zIndex: 1,
+                    display: "flex", alignItems: "center", gap: 4, padding: "4px 10px",
+                    borderRadius: 20, background: "#fff", boxShadow: "0 2px 10px rgba(0,0,0,0.12)",
+                    fontSize: 10, fontWeight: 800, color: "#0EA5E9",
+                  }}>
+                    <BadgeCheck size={13} /> Verified
+                  </div>
+                )}
                 <div style={{ padding: "16px 20px" }}>
                   <div className="flex items-center gap-4">
                     {/* Avatar */}
@@ -684,11 +694,6 @@ export default function DocumentsClient({
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="flex items-center gap-2 flex-wrap">
                         <h2 style={{ fontSize: 17, fontWeight: 900, color: "#111", fontFamily: "var(--font-jakarta)" }}>{selectedMember.name}</h2>
-                        {selectedKYC?.kyc_verified && (
-                          <span title="KYC Verified" style={{ display: "flex", flexShrink: 0 }}>
-                            <BadgeCheck size={17} style={{ color: "#0EA5E9" }} />
-                          </span>
-                        )}
                         <span style={{ fontSize: 9, fontWeight: 800, padding: "3px 8px", borderRadius: 20, background: "rgba(22,163,74,0.1)", color: "#16A34A" }}>● Active</span>
                       </div>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">

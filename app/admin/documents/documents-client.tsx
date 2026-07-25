@@ -716,30 +716,6 @@ export default function DocumentsClient({
                       <p style={{ fontSize: 9, color: "#1B4332", fontWeight: 600 }}>Profile Complete</p>
                     </div>
                   </div>
-                  {/* Action pills — Upload/Request Signature only make sense for members
-                      uploading their own docs; admin-level people manage their own via Profile */}
-                  <div className="flex gap-2 mt-4 flex-wrap">
-                    {[
-                      ...(selectedMember.role === "MEMBER" ? [
-                        { label: "Upload File",        icon: <Upload size={11} />,     onClick: () => { setUploadFor(selectedId); setDocType("Other"); setShowUpload(true) } },
-                      ] : []),
-                      { label: selectedKYC?.kyc_verified ? "KYC Verified" : "Verify KYC",
-                        icon: selectedKYC?.kyc_verified ? <BadgeCheck size={11} /> : <Shield size={11} />,
-                        onClick: selectedKYC?.kyc_verified ? () => {} : handleVerifyKYC },
-                      ...(selectedMember.role === "MEMBER" ? [
-                        { label: "Request Signature",  icon: <PenLine size={11} />,    onClick: () => { setUploadFor(selectedId); setDocType("Signature"); setShowUpload(true) } },
-                      ] : []),
-                    ].map(a => (
-                      <button key={a.label} onClick={a.onClick} style={{
-                        display: "flex", alignItems: "center", gap: 5, padding: "6px 12px",
-                        borderRadius: 10, fontSize: 11, fontWeight: 700, cursor: "pointer",
-                        background: "rgba(0,0,0,0.03)", color: "#1B4332",
-                        border: "1px solid rgba(0,0,0,0.08)",
-                      }}>
-                        {a.icon} {a.label}
-                      </button>
-                    ))}
-                  </div>
                 </div>
                 {/* Tabs */}
                 <div style={{ borderTop: "1px solid #F3F4F6", display: "flex" }}>

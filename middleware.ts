@@ -33,7 +33,16 @@ export async function middleware(request: NextRequest) {
   // Use getUser() — validates the token against Supabase (refreshes if needed).
   // getSession() only reads the cookie and can return a stale/expired session,
   // causing a redirect loop: middleware → dashboard → layout rejects → /login → repeat.
-  const { data: { user } } = await supabase.auth.getUser()
+  // Wrapped in try/catch: a stale/invalid refresh token or a transient network blip
+  // talking to Supabase throws here (AuthApiError / AuthRetryableFetchError) instead of
+  // returning an error field — left unguarded, that crashes the whole middleware function
+  // on every navigation, which browsers show as a bare "page couldn't load" failure.
+  let user = null
+  try {
+    ({ data: { user } } = await supabase.auth.getUser())
+  } catch {
+    user = null
+  }
 
   if (!user) {
     if (pathname === '/login') return supabaseResponse
@@ -42,11 +51,11 @@ export async function middleware(request: NextRequest) {
 
   if (pathname === '/login' || pathname === '/') {
     // Session is confirmed valid — decode role from the (now-fresh) token
-    const { data: { session } } = await supabase.auth.getSession()
     let role: string | null = null
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       role = JSON.parse(atob(session!.access_token.split('.')[1])).role ?? null
-    } catch { /* ignore malformed token */ }
+    } catch { /* ignore malformed token or transient session-fetch failure */ }
     const dest = (role === 'ADMIN' || role === 'FOUNDER' || role === 'CEO') ? '/admin/dashboard'
       : role === 'FREELANCER_MGR' ? '/freelancer/dashboard'
       : '/member/dashboard'

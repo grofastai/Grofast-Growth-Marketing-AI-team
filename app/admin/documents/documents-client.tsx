@@ -31,12 +31,44 @@ type KYCRecord = {
   govt_id_url: string | null; aadhaar_back_url: string | null
   pan_front_url: string | null; pan_back_url: string | null
   ration_card_url: string | null; ration_card_url2: string | null
+  updated_at: string | null
 }
 type Doc = {
   id: string; name: string; file_url: string; file_type: string | null
   file_size: number | null; doc_type: string; created_at: string
   user_id: string
   users: { name: string; employee_id: string } | { name: string; employee_id: string }[] | null
+}
+
+function kycDocCount(k: KYCRecord | undefined) {
+  if (!k) return 0
+  return [k.govt_id_url, k.aadhaar_back_url, k.pan_front_url, k.pan_back_url, k.ration_card_url, k.ration_card_url2]
+    .filter(Boolean).length
+}
+
+function kycRecordToDocs(k: KYCRecord, member?: { name: string; employee_id: string }): Doc[] {
+  const createdAt = k.updated_at ?? new Date(0).toISOString()
+  const fields: Array<{ url: string | null; name: string; docType: string }> = [
+    { url: k.govt_id_url, name: k.govt_id_type ? `${k.govt_id_type} (Front)` : "Government ID", docType: "Govt ID Proof" },
+    { url: k.aadhaar_back_url, name: "Aadhaar Back", docType: "Govt ID Proof" },
+    { url: k.pan_front_url, name: "PAN Card Front", docType: "Govt ID Proof" },
+    { url: k.pan_back_url, name: "PAN Card Back", docType: "Govt ID Proof" },
+    { url: k.ration_card_url, name: "Ration Card", docType: "Ration Card" },
+    { url: k.ration_card_url2, name: "Ration Card (Page 2)", docType: "Ration Card" },
+  ]
+  return fields
+    .filter(f => !!f.url)
+    .map((f, i) => ({
+      id: `kyc__${k.user_id}__${i}`,
+      name: f.name,
+      file_url: f.url!,
+      file_type: null,
+      file_size: null,
+      doc_type: f.docType,
+      created_at: createdAt,
+      user_id: k.user_id,
+      users: member ?? null,
+    }))
 }
 
 function formatSize(b: number | null) {
@@ -88,29 +120,6 @@ function CompletionRing({ pct, size = 72 }: { pct: number; size?: number }) {
         transform={`rotate(-90 ${size/2} ${size/2})`} />
       <text x={size/2} y={size/2+1} textAnchor="middle" dominantBaseline="middle"
         fontSize={12} fontWeight="800" fill="#111">{pct}%</text>
-    </svg>
-  )
-}
-
-// ── Verification Donut ───────────────────────────────────────────────────────
-function VerifDonut({ pct }: { pct: number }) {
-  const r = 50, circ = 2 * Math.PI * r
-  const dash = (pct / 100) * circ
-  return (
-    <svg width={120} height={120} viewBox="0 0 120 120">
-      <defs>
-        <linearGradient id="vg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#22C55E" />
-          <stop offset="100%" stopColor="#16A34A" />
-        </linearGradient>
-      </defs>
-      <circle cx={60} cy={60} r={r} fill="none" strokeWidth={11} stroke="rgba(0,0,0,0.05)" />
-      <circle cx={60} cy={60} r={r} fill="none" strokeWidth={11}
-        stroke="url(#vg)" strokeLinecap="round"
-        strokeDasharray={`${dash} ${circ}`} transform="rotate(-90 60 60)" />
-      <text x={60} y={55} textAnchor="middle" dominantBaseline="middle"
-        fontSize={22} fontWeight="800" fill="#111">{pct}%</text>
-      <text x={60} y={72} textAnchor="middle" fontSize={9} fontWeight="600" fill="#1B4332">Profile Verified</text>
     </svg>
   )
 }
@@ -349,27 +358,7 @@ export default function DocumentsClient({
   const memberDocs = useMemo(() => {
     const fromTable = selectedId ? documents.filter(d => d.user_id === selectedId) : documents
     if (!selectedKYC || !selectedMember) return fromTable
-    const kycFields: Array<{ url: string | null; name: string; docType: string }> = [
-      { url: selectedKYC.govt_id_url, name: selectedKYC.govt_id_type ? `${selectedKYC.govt_id_type} (Front)` : "Government ID", docType: "Govt ID Proof" },
-      { url: selectedKYC.aadhaar_back_url, name: "Aadhaar Back", docType: "Govt ID Proof" },
-      { url: selectedKYC.pan_front_url, name: "PAN Card Front", docType: "Govt ID Proof" },
-      { url: selectedKYC.pan_back_url, name: "PAN Card Back", docType: "Govt ID Proof" },
-      { url: selectedKYC.ration_card_url, name: "Ration Card", docType: "Ration Card" },
-      { url: selectedKYC.ration_card_url2, name: "Ration Card (Page 2)", docType: "Ration Card" },
-    ]
-    const kycDocs: Doc[] = kycFields
-      .filter(f => !!f.url)
-      .map((f, i) => ({
-        id: `kyc__${i}`,
-        name: f.name,
-        file_url: f.url!,
-        file_type: null,
-        file_size: null,
-        doc_type: f.docType,
-        created_at: new Date(0).toISOString(),
-        user_id: selectedId,
-        users: { name: selectedMember.name, employee_id: selectedMember.employee_id },
-      }))
+    const kycDocs = kycRecordToDocs(selectedKYC, { name: selectedMember.name, employee_id: selectedMember.employee_id })
     return [...kycDocs, ...fromTable]
   }, [selectedId, documents, selectedKYC, selectedMember])
 
@@ -391,7 +380,9 @@ export default function DocumentsClient({
   const totalFiles    = documents.length
   const verifiedCount = documents.filter(d => d.doc_type !== "Other").length
   const pendingKYC    = members.filter(m => !kycRecords.find(k => k.user_id === m.id && k.bank_account)).length
-  const membersWithDocs = members.filter(m => documents.some(d => d.user_id === m.id)).length
+  const membersWithDocs = members.filter(m =>
+    documents.some(d => d.user_id === m.id) || kycDocCount(kycRecords.find(k => k.user_id === m.id)) > 0
+  ).length
   const coveragePct     = members.length > 0 ? Math.round((membersWithDocs / members.length) * 100) : 0
 
   // Profile completion
@@ -411,10 +402,6 @@ export default function DocumentsClient({
     return Math.min(p, 100)
   }, [selectedMember, selectedKYC, memberDocs])
 
-  const verifPct = memberDocs.length > 0
-    ? Math.round((memberDocs.filter(d => d.doc_type !== "Other").length / memberDocs.length) * 100)
-    : 0
-
   // Activity feed
   const activityFeed = useMemo(() => {
     const items: { type: string; title: string; desc: string; time: string }[] = []
@@ -427,10 +414,13 @@ export default function DocumentsClient({
     return items.slice(0, 5)
   }, [memberDocs, selectedKYC])
 
-  // Recent uploads across all members
+  // Recent uploads across all members — merges the documents table with KYC-sourced
+  // uploads (Aadhaar/PAN/Ration Card), same gap as the sidebar doc counts
+  const allKycDocs = useMemo(() => kycRecords.flatMap(k => kycRecordToDocs(k)), [kycRecords])
+
   const recentUploads = useMemo(() =>
-    [...documents].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 4),
-    [documents]
+    [...documents, ...allKycDocs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 4),
+    [documents, allKycDocs]
   )
 
   async function handleUpload() {
@@ -579,6 +569,7 @@ export default function DocumentsClient({
           <div style={{ flex: 1, overflowY: "auto", padding: "0 10px 12px" }}>
             {filteredMembers.map(m => {
               const mDocs = documents.filter(d => d.user_id === m.id).length
+                + kycDocCount(kycRecords.find(k => k.user_id === m.id))
               const tc2 = teamColor(m.team)
               const isActive = m.id === selectedId
               return (
@@ -619,11 +610,6 @@ export default function DocumentsClient({
                 </button>
               )
             })}
-          </div>
-          <div style={{ padding: "12px 16px", borderTop: "1px solid #F3F4F6" }}>
-            <a href="/admin/team" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#de1a1a", textDecoration: "none" }}>
-              View All Employees <ChevronRight size={11} />
-            </a>
           </div>
         </div>
 
@@ -885,52 +871,6 @@ export default function DocumentsClient({
 
         {/* ── RIGHT PANEL ──────────────────────────────────────────────────── */}
         <div className="hidden lg:flex flex-col gap-3">
-
-          {/* Activity Timeline mini */}
-          <div style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", padding: "18px" }}>
-            <div className="flex items-center justify-between mb-4">
-              <p style={{ fontSize: 13, fontWeight: 800, color: "#111", fontFamily: "var(--font-jakarta)" }}>Activity Timeline</p>
-              <button style={{ fontSize: 10, fontWeight: 700, color: "#de1a1a", background: "none", border: "none", cursor: "pointer" }}>View All</button>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-              {[
-                { type: "upload",    title: "Document uploaded",    desc: "Aadhaar Card uploaded",           time: "12 May 2026, 10:30 AM" },
-                { type: "kyc",       title: "KYC verified",         desc: "PAN Card verified successfully",  time: "11 May 2026, 04:15 PM" },
-                { type: "signature", title: "Signature completed",  desc: "NDA Agreement signed",            time: "10 May 2026, 02:40 PM" },
-                { type: "payroll",   title: "Payroll synced",       desc: "April payroll synchronized",      time: "9 May 2026, 11:20 AM" },
-                { type: "bank",      title: "Bank details updated", desc: "Bank passbook updated",           time: "7 May 2026, 05:10 PM" },
-              ].map((item, i, arr) => (
-                <div key={i} style={{ display: "flex", gap: 10, position: "relative", paddingBottom: i < arr.length - 1 ? 16 : 0 }}>
-                  {i < arr.length - 1 && (
-                    <div style={{ position: "absolute", left: 11, top: 24, width: 2, height: "calc(100% - 24px)", background: "#F3F4F6" }} />
-                  )}
-                  <ActivityDot type={item.type} />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: "#111" }}>{item.title}</p>
-                    <p style={{ fontSize: 10, color: "#1B4332", marginTop: 1 }}>{item.desc}</p>
-                    <p style={{ fontSize: 9, color: "#1B4332", marginTop: 2 }}>{item.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Verification Status */}
-          <div style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", padding: "18px", textAlign: "center" }}>
-            <p style={{ fontSize: 13, fontWeight: 800, color: "#111", fontFamily: "var(--font-jakarta)", marginBottom: 14 }}>Verification Status</p>
-            <VerifDonut pct={selectedMember ? verifPct : 92} />
-            <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 6, flexWrap: "wrap" }}>
-              {[["#22C55E","Verified"],["#F59E0B","Pending"],["#EF4444","Rejected"]].map(([c,l]) => (
-                <div key={l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: c }} />
-                  <span style={{ fontSize: 10, color: "#1B4332", fontWeight: 600 }}>{l}</span>
-                </div>
-              ))}
-            </div>
-            <p style={{ fontSize: 10, color: "#22C55E", fontWeight: 700, marginTop: 10 }}>
-              ▲ 12% <span style={{ color: "#1B4332", fontWeight: 600 }}>vs last month</span>
-            </p>
-          </div>
 
           {/* HR Assistant */}
           <div style={{

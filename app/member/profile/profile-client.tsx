@@ -16,6 +16,7 @@ import { logoutAction } from "@/lib/actions/auth"
 import { todayIST, toISTDateString } from "@/lib/utils/ist-date"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
+import { INDIAN_BANKS } from "@/lib/constants/banks"
 
 interface ProfileData {
   id: string; name: string; employee_id: string; role: string
@@ -64,13 +65,6 @@ const PRESET_AVATARS = [
   "d31c649b-a6e9-4940-8230-417d829d60ed.png",
   "f7abb8d4-b9e1-45b6-a849-b1911437db5f.png",
 ].map(f => `/brand/profiles/${f}`)
-const INDIAN_BANKS = [
-  "State Bank of India (SBI)", "Bank of Baroda", "Bank of India", "Canara Bank",
-  "Punjab National Bank", "Union Bank of India", "Axis Bank", "HDFC Bank",
-  "ICICI Bank", "IDBI Bank", "IDFC First Bank", "IndusInd Bank", "Kotak Mahindra Bank",
-  "YES Bank", "Federal Bank", "South Indian Bank", "RBL Bank", "AU Small Finance Bank",
-  "Ujjivan Small Finance Bank", "India Post Payments Bank", "Post Office (IPPB)", "Other",
-]
 
 function relativeDate(d: string) {
   const t = todayIST()
@@ -291,8 +285,18 @@ export default function ProfileClient({
       const fd = new FormData(); fd.append("file", file); fd.append("folder", "kyc")
       const res = await fetch("/api/upload-photo", { method: "POST", body: fd })
       const json = await res.json()
-      if (res.ok && json.url) setKYCForm(p => ({ ...p, [field]: json.url }))
+      if (res.ok && json.url) { setKYCForm(p => ({ ...p, [field]: json.url })); return json.url as string }
+      return null
     } finally { setUploadingField(null) }
+  }
+
+  async function handleDocReplace(
+    field: "govt_id_url"|"aadhaar_back_url"|"pan_front_url"|"pan_back_url"|"ration_card_url"|"ration_card_url2",
+    file: File
+  ) {
+    const url = await handleDocUpload(field, file)
+    if (url) await updateKYC({ [field]: url })
+    router.refresh()
   }
 
   const circ = 2 * Math.PI * 42
@@ -670,11 +674,11 @@ export default function ProfileClient({
                                 style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", padding: "4px 10px", borderRadius: 8, background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", textDecoration: "none" }}>
                                 View
                               </a>
-                              <button type="button" onClick={() => docRefs[f].current?.click()}
-                                style={{ fontSize: 11, fontWeight: 700, color: "#F59E0B", padding: "4px 10px", borderRadius: 8, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", cursor: "pointer" }}>
-                                Replace
+                              <button type="button" disabled={uploadingField === f} onClick={() => docRefs[f].current?.click()}
+                                style={{ fontSize: 11, fontWeight: 700, color: "#F59E0B", padding: "4px 10px", borderRadius: 8, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", cursor: uploadingField === f ? "default" : "pointer", opacity: uploadingField === f ? 0.6 : 1 }}>
+                                {uploadingField === f ? "Uploading…" : "Replace"}
                               </button>
-                              <button type="button" onClick={async () => {
+                              <button type="button" disabled={uploadingField === f} onClick={async () => {
                                 if (!(await confirm(`Delete ${l}?`))) return
                                 const res = await deleteKYCDocument(f)
                                 if (res.success) router.refresh()
@@ -686,8 +690,8 @@ export default function ProfileClient({
                                 onChange={async e => {
                                   const file = e.target.files?.[0]
                                   if (!file) return
-                                  await handleDocUpload(f, file)
-                                  router.refresh()
+                                  await handleDocReplace(f, file)
+                                  e.target.value = ""
                                 }} />
                             </div>
                           ) : (

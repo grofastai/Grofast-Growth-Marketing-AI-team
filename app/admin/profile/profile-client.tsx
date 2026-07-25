@@ -10,6 +10,7 @@ import {
 import { updateOwnProfile } from "@/lib/actions/team"
 import { updatePersonalDetails, updateKYC } from "@/lib/actions/profile"
 import { logoutAction } from "@/lib/actions/auth"
+import { INDIAN_BANKS } from "@/lib/constants/banks"
 
 interface ProfileData {
   id: string; name: string; employee_id: string; role: string
@@ -31,13 +32,6 @@ const IS: React.CSSProperties = {
   borderRadius: "12px", padding: "11px 14px", fontSize: "13px", outline: "none", width: "100%",
 }
 const BLOOD_GROUPS = ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−"]
-const INDIAN_BANKS = [
-  "State Bank of India (SBI)", "Bank of Baroda", "Bank of India", "Canara Bank",
-  "Punjab National Bank", "Union Bank of India", "Axis Bank", "HDFC Bank",
-  "ICICI Bank", "IDBI Bank", "IDFC First Bank", "IndusInd Bank", "Kotak Mahindra Bank",
-  "YES Bank", "Federal Bank", "South Indian Bank", "RBL Bank", "AU Small Finance Bank",
-  "Ujjivan Small Finance Bank", "India Post Payments Bank", "Other",
-]
 const PRESET_AVATARS = [
   "05f8b5d9-ed48-4767-88c6-5bac8b8d9cc5.png", "0d9bd260-0cfe-49b8-8c37-5773d470e45f.png",
   "0e87e658-ed9f-4675-a92c-f2a041c25886.png", "209e5f6f-71bb-4806-81e9-008bf921aaae.png",

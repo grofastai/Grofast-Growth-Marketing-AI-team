@@ -308,8 +308,8 @@ function buildClientKPIs(items: ContentItem[], kind: "branding" | "ads", monthFi
 }
 
 // A single, non-duplicated count for Overview, matching primaryOnly attribution in
-// buildClientKPIs above — every posted video counts exactly once, credited to its origin.
-function countUniquePosted(items: ContentItem[], monthFilter: string) {
+// buildClientKPIs above — every posted item counts exactly once, credited to its origin.
+function countUniquePosted(items: ContentItem[], monthFilter: string, contentType: "video" | "poster") {
   const inMonth = (kind: "branding" | "ads") => (item: ContentItem) => {
     if (monthFilter === "all") return true
     const relevant = item.posts.filter(p => kind === "ads" ? ADS_PLATFORM_SET.has(p.platform) : !ADS_PLATFORM_SET.has(p.platform))
@@ -318,6 +318,7 @@ function countUniquePosted(items: ContentItem[], monthFilter: string) {
   let ads = 0, branding = 0
   for (const item of items) {
     if (item.status === "cancelled") continue
+    if (item.content_type !== contentType) continue
     const postedAds = item.posted_ads && inMonth("ads")(item)
     const postedBranding = item.posted_branding && inMonth("branding")(item)
     const primary = primaryPostedKind(postedBranding, postedAds, item.source)
@@ -3458,6 +3459,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const [logClientFilter, setLogClientFilter] = useState<string>("all")
   const [logMonthFilter, setLogMonthFilter] = useState<string>("all")
   const [overviewKpiMonth, setOverviewKpiMonth] = useState<string>("all")
+  const [overviewKpiContentType, setOverviewKpiContentType] = useState<"video" | "poster">("video")
   const [logDayFilter, setLogDayFilter] = useState("")
   const [pipelineDayFilter, setPipelineDayFilter] = useState("")
   const [shootsMonthFilter, setShootsMonthFilter] = useState<string>("all")
@@ -3787,9 +3789,9 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   // below) — not scoped to a single content type or tab, so they show the full picture.
   // primaryOnly=true: Overview is business analytics, so a dual-posted item is credited to
   // its origin only, matching overviewUniquePosted below (not shown in both tables at once).
-  const overviewBrandingKPIs = useMemo(() => buildClientKPIs(items, "branding", overviewKpiMonth, undefined, true), [items, overviewKpiMonth])
-  const overviewAdsKPIs = useMemo(() => buildClientKPIs(items, "ads", overviewKpiMonth, undefined, true), [items, overviewKpiMonth])
-  const overviewUniquePosted = useMemo(() => countUniquePosted(items, overviewKpiMonth), [items, overviewKpiMonth])
+  const overviewBrandingKPIs = useMemo(() => buildClientKPIs(items, "branding", overviewKpiMonth, overviewKpiContentType, true), [items, overviewKpiMonth, overviewKpiContentType])
+  const overviewAdsKPIs = useMemo(() => buildClientKPIs(items, "ads", overviewKpiMonth, overviewKpiContentType, true), [items, overviewKpiMonth, overviewKpiContentType])
+  const overviewUniquePosted = useMemo(() => countUniquePosted(items, overviewKpiMonth, overviewKpiContentType), [items, overviewKpiMonth, overviewKpiContentType])
 
   // The per-client stats box next to Waiting to Post — only meaningful once a single
   // client is picked (an "all clients" mash-up of targets makes no sense here), so this
@@ -4210,24 +4212,40 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           </div>
 
           {/* Per-client Branding/Advertisement breakdown — lives here instead of on the
-              Branding/Advertisement tabs so it's visible without switching tabs, and covers
-              both content types at once rather than needing a Video/Poster split. */}
+              Branding/Advertisement tabs so it's visible without switching tabs. Scoped to one
+              content type at a time via the Video/Poster toggle rather than merging both. */}
           <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6", flexWrap: "wrap", gap: 8 }}>
               <div>
                 <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
-                {/* One video posted both ways (e.g. an Ads Video also posted to Branding)
+                {/* One item posted both ways (e.g. an Ads Video also posted to Branding)
                     counts once, attributed to its origin — the tables below (primaryOnly)
                     credit it to that same side only, so this line and the tables always agree. */}
                 <p style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, margin: "2px 0 0" }}>
-                  {overviewUniquePosted.total} unique video{overviewUniquePosted.total === 1 ? "" : "s"} posted — {overviewUniquePosted.ads} Ads · {overviewUniquePosted.branding} Branding
+                  {overviewUniquePosted.total} unique {overviewKpiContentType}{overviewUniquePosted.total === 1 ? "" : "s"} posted — {overviewUniquePosted.ads} Ads · {overviewUniquePosted.branding} Branding
                 </p>
               </div>
-              <select value={overviewKpiMonth} onChange={e => setOverviewKpiMonth(e.target.value)}
-                style={{ ...FIELD, width: "auto", cursor: "pointer", padding: "5px 10px", fontSize: 11 }}>
-                <option value="all">All Time</option>
-                {allMonthOptions.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
-              </select>
+              <div className="flex items-center gap-2">
+                <div style={{ display: "flex", background: "#F3F4F6", borderRadius: 8, padding: 2 }}>
+                  {(["video", "poster"] as const).map(ct => (
+                    <button key={ct} onClick={() => setOverviewKpiContentType(ct)}
+                      style={{
+                        padding: "4px 10px", borderRadius: 6, border: "none", cursor: "pointer",
+                        fontSize: 11, fontWeight: 700, textTransform: "capitalize",
+                        background: overviewKpiContentType === ct ? "#fff" : "transparent",
+                        color: overviewKpiContentType === ct ? "#111827" : "#6B7280",
+                        boxShadow: overviewKpiContentType === ct ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+                      }}>
+                      {ct}
+                    </button>
+                  ))}
+                </div>
+                <select value={overviewKpiMonth} onChange={e => setOverviewKpiMonth(e.target.value)}
+                  style={{ ...FIELD, width: "auto", cursor: "pointer", padding: "5px 10px", fontSize: 11 }}>
+                  <option value="all">All Time</option>
+                  {allMonthOptions.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
+                </select>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2">
               {[
@@ -4336,8 +4354,6 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               }))} />
           </div>
 
-          {/* Shoots and Ads. Ads is status-counts-only on purpose — the campaign/budget
-              restructure is owned separately, so this stays deliberately shallow. */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <OverviewBlock title="Shoots" gradient={OVERVIEW_TILE_GRADIENTS.shoots} icon={Camera}
               rows={SHOOT_STATUS_ORDER.map(s => ({
@@ -4345,13 +4361,6 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                 label: SHOOT_STATUS_CFG[s].label,
                 value: overview.shoots[s],
                 onClick: () => goTo({ mode: "video", tab: "shoots" }),
-              }))} />
-            <OverviewBlock title="Ads" gradient={OVERVIEW_TILE_GRADIENTS.ads} icon={Megaphone}
-              rows={AD_STATUS_ORDER.map(s => ({
-                key: s,
-                label: AD_STATUS_CFG[s].label,
-                value: overview.ads[s],
-                onClick: () => goTo({ mode: "ads", tab: null }),
               }))} />
           </div>
         </div>
@@ -4618,6 +4627,9 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                       <td style={{ padding: "10px 14px", fontWeight: 700, color: "#111827" }}>
                         <div className="flex items-center gap-1.5">
                           {item.title}
+                          {item.is_promotion && (
+                            <span style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", flexShrink: 0 }}>(Promotion)</span>
+                          )}
                           {/* Informational only — went out both organically and as an ad.
                               The actual "also post" decision happens at Mark as Posted /
                               Ads Completed, not here. */}

@@ -69,6 +69,8 @@ export async function updateKYC(data: {
   if (error) return { error: error.message }
   revalidatePath('/member/profile')
   revalidatePath('/member/dashboard')
+  revalidatePath('/member/documents')
+  revalidatePath('/admin/documents')
   return { success: true }
 }
 
@@ -134,6 +136,8 @@ export async function deleteKYCDocument(
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/member/profile')
+  revalidatePath('/member/documents')
+  revalidatePath('/admin/documents')
   return { success: true }
 }
 

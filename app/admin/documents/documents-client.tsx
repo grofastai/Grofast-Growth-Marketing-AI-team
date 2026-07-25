@@ -716,6 +716,30 @@ export default function DocumentsClient({
                       <p style={{ fontSize: 9, color: "#1B4332", fontWeight: 600 }}>Profile Complete</p>
                     </div>
                   </div>
+                  {/* Action pills — Upload/Request Signature only make sense for members
+                      uploading their own docs; admin-level people manage their own via Profile */}
+                  <div className="flex gap-2 mt-4 flex-wrap">
+                    {[
+                      ...(selectedMember.role === "MEMBER" ? [
+                        { label: "Upload File",        icon: <Upload size={11} />,     onClick: () => { setUploadFor(selectedId); setDocType("Other"); setShowUpload(true) } },
+                      ] : []),
+                      { label: selectedKYC?.kyc_verified ? "KYC Verified" : "Verify KYC",
+                        icon: selectedKYC?.kyc_verified ? <BadgeCheck size={11} /> : <Shield size={11} />,
+                        onClick: selectedKYC?.kyc_verified ? () => {} : handleVerifyKYC },
+                      ...(selectedMember.role === "MEMBER" ? [
+                        { label: "Request Signature",  icon: <PenLine size={11} />,    onClick: () => { setUploadFor(selectedId); setDocType("Signature"); setShowUpload(true) } },
+                      ] : []),
+                    ].map(a => (
+                      <button key={a.label} onClick={a.onClick} style={{
+                        display: "flex", alignItems: "center", gap: 5, padding: "6px 12px",
+                        borderRadius: 10, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                        background: "rgba(0,0,0,0.03)", color: "#1B4332",
+                        border: "1px solid rgba(0,0,0,0.08)",
+                      }}>
+                        {a.icon} {a.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {/* Tabs */}
                 <div style={{ borderTop: "1px solid #F3F4F6", display: "flex" }}>
@@ -763,48 +787,12 @@ export default function DocumentsClient({
                     </div>
                   </div>
 
-                  {/* Drag & Drop upload area — members only; admin-level people upload their
-                      own documents via their own Profile, not through another admin */}
-                  {selectedMember.role === "MEMBER" && (
-                    <div
-                      onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-                      onDragLeave={() => setDragOver(false)}
-                      onDrop={e => {
-                        e.preventDefault(); setDragOver(false)
-                        const f = e.dataTransfer.files[0]
-                        if (f) { setFile(f); setUploadFor(selectedId); setShowUpload(true) }
-                      }}
-                      style={{
-                        borderRadius: 16, border: `2px dashed ${dragOver ? "#de1a1a" : "rgba(0,0,0,0.12)"}`,
-                        padding: "18px", textAlign: "center", cursor: "pointer",
-                        background: dragOver ? "rgba(222,26,26,0.04)" : "rgba(0,0,0,0.01)",
-                        transition: "all 0.2s",
-                      }}
-                      onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}>
-                      <CloudUpload size={22} style={{ color: dragOver ? "#de1a1a" : "#1B4332", margin: "0 auto 6px" }} />
-                      <p style={{ fontSize: 12, fontWeight: 600, color: dragOver ? "#de1a1a" : "#1B4332" }}>
-                        Drag &amp; drop files here or click to upload
-                      </p>
-                      <p style={{ fontSize: 10, color: "#1B4332", marginTop: 3 }}>Supports: PDF, DOC, DOCX, PNG, JPG (Max 10MB)</p>
-                    </div>
-                  )}
-
                   {/* Documents */}
                   {shownDocs.length === 0 ? (
                     <div style={{ background: "#fff", borderRadius: 20, padding: "48px 20px", textAlign: "center", border: "1px solid rgba(0,0,0,0.07)" }}>
                       <FolderOpen size={36} style={{ color: "#E5E7EB", margin: "0 auto 12px" }} />
                       <p style={{ fontSize: 14, fontWeight: 700, color: "#1B4332" }}>No documents found</p>
-                      {selectedMember.role === "MEMBER" ? (
-                        <>
-                          <p style={{ fontSize: 12, color: "#1B4332", marginTop: 4 }}>Upload the first document for {selectedMember.name}</p>
-                          <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}
-                            style={{ marginTop: 16, display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 10, fontSize: 12, fontWeight: 700, background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)", cursor: "pointer" }}>
-                            <Upload size={12} /> Upload Document
-                          </button>
-                        </>
-                      ) : (
-                        <p style={{ fontSize: 12, color: "#1B4332", marginTop: 4 }}>{selectedMember.name} hasn't uploaded any documents yet</p>
-                      )}
+                      <p style={{ fontSize: 12, color: "#1B4332", marginTop: 4 }}>{selectedMember.name} hasn't uploaded any documents yet</p>
                     </div>
                   ) : viewMode === "grid" ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

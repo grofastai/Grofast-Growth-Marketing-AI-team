@@ -344,12 +344,13 @@ function ActivityDot({ type }: { type: string }) {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 export default function DocumentsClient({
-  members, documents, kycRecords, companyId,
+  members, documents, kycRecords, companyId, driveRootUrl,
 }: {
   members: Member[]
   documents: Doc[]
   kycRecords: KYCRecord[]
   companyId: string
+  driveRootUrl: string | null
 }) {
   const confirm = useConfirm()
   const [selectedId, setSelectedId]   = useState<string>(members[0]?.id ?? "")
@@ -527,10 +528,12 @@ export default function DocumentsClient({
                 style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: "1.5px solid rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.22)", color: "#fff", backdropFilter: "blur(12px)", whiteSpace: "nowrap", boxShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
                 <Upload size={13} /> Upload Document
               </button>
-              <a href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8" target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: "#C01010", background: "#FFFFFF", textDecoration: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.35)", whiteSpace: "nowrap", border: "none" }}>
-                <ExternalLink size={13} /> Drive Backup
-              </a>
+              {driveRootUrl && (
+                <a href={driveRootUrl} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: "#C01010", background: "#FFFFFF", textDecoration: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.35)", whiteSpace: "nowrap", border: "none" }}>
+                  <ExternalLink size={13} /> Drive Backup
+                </a>
+              )}
             </>
           }
           belowSubtitle={

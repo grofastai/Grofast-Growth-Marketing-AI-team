@@ -41,12 +41,17 @@ export default async function AdminDocumentsPage() {
       ),
   ])
 
+  const driveRootUrl = process.env.GOOGLE_DRIVE_MEMBER_DOCS_FOLDER_ID
+    ? `https://drive.google.com/drive/folders/${process.env.GOOGLE_DRIVE_MEMBER_DOCS_FOLDER_ID}`
+    : null
+
   return (
     <DocumentsClient
       members={members ?? []}
       documents={documents ?? []}
       kycRecords={kycRecords ?? []}
       companyId={profile.company_id}
+      driveRootUrl={driveRootUrl}
     />
   )
 }

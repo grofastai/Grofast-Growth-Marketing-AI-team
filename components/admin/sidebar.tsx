@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, Clock, Target,
   CalendarOff, Megaphone, Briefcase, LogOut,
   Receipt, IndianRupee, FolderOpen, LifeBuoy,
-  MoreHorizontal, X, Bell, UserCircle2, ClipboardList, Activity, TrendingUp, Clapperboard, Shield, Film, StickyNote, Layers,
+  MoreHorizontal, X, Bell, ClipboardList, Activity, TrendingUp, Clapperboard, Shield, Film, StickyNote, Layers,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
@@ -29,7 +29,6 @@ const navItems = [
   { label: "Payroll",       href: "/admin/payroll",           icon: IndianRupee },
   { label: "Documents",     href: "/admin/documents",         icon: FolderOpen },
   { label: "Support",       href: "/admin/support",           icon: LifeBuoy },
-  { label: "Profile",       href: "/admin/profile",           icon: UserCircle2 },
 ]
 
 // Mirrors the desktop sidebar: bottom nav = first 4 items, More = the rest in order
@@ -53,7 +52,6 @@ const moreNavItems = [
   { label: "Payroll",       href: "/admin/payroll",           icon: IndianRupee },
   { label: "Documents",     href: "/admin/documents",         icon: FolderOpen },
   { label: "Support",       href: "/admin/support",           icon: LifeBuoy },
-  { label: "Profile",       href: "/admin/profile",           icon: UserCircle2 },
 ]
 
 const SIDEBAR_BG = "linear-gradient(160deg, #0a100d 0%, #520000 55%, #de1a1a 100%)"

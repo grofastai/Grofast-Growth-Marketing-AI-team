@@ -50,6 +50,7 @@ export async function updateKYC(data: {
   pan_back_url?: string | null
   ration_card_url?: string | null
   ration_card_url2?: string | null
+  signature_url?: string | null
 }) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -102,7 +103,7 @@ export async function uploadProfessionalPhoto(formData: FormData): Promise<{ suc
   return { success: true, url: publicUrl }
 }
 
-export type KYCDocField = 'govt_id_url' | 'aadhaar_back_url' | 'pan_front_url' | 'pan_back_url' | 'ration_card_url' | 'ration_card_url2'
+export type KYCDocField = 'govt_id_url' | 'aadhaar_back_url' | 'pan_front_url' | 'pan_back_url' | 'ration_card_url' | 'ration_card_url2' | 'signature_url'
 
 export async function deleteKYCDocument(
   field: KYCDocField

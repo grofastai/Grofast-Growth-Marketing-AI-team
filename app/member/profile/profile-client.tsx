@@ -31,6 +31,7 @@ interface KYCData {
   govt_id_url: string | null; aadhaar_back_url: string | null
   pan_front_url: string | null; pan_back_url: string | null
   ration_card_url: string | null; ration_card_url2: string | null
+  signature_url: string | null
 }
 interface Stats {
   weekHours: number; weekMissed: number
@@ -150,7 +151,7 @@ export default function ProfileClient({
     pan_number: kyc?.pan_number ?? "", govt_id_url: kyc?.govt_id_url ?? "",
     aadhaar_back_url: kyc?.aadhaar_back_url ?? "", pan_front_url: kyc?.pan_front_url ?? "",
     pan_back_url: kyc?.pan_back_url ?? "", ration_card_url: kyc?.ration_card_url ?? "",
-    ration_card_url2: kyc?.ration_card_url2 ?? "",
+    ration_card_url2: kyc?.ration_card_url2 ?? "", signature_url: kyc?.signature_url ?? "",
   })
   const [kycPending, startKYC]      = useTransition()
   const [kycError, setKYCError]     = useState<string | null>(null)
@@ -166,6 +167,7 @@ export default function ProfileClient({
     pan_back_url:     useRef<HTMLInputElement>(null),
     ration_card_url:  useRef<HTMLInputElement>(null),
     ration_card_url2: useRef<HTMLInputElement>(null),
+    signature_url:    useRef<HTMLInputElement>(null),
   }
   const [photoBusy, setPhotoBusy]         = useState(false)
   const [photoError, setPhotoError]       = useState<string | null>(null)
@@ -224,7 +226,7 @@ export default function ProfileClient({
         pan_number: kycForm.pan_number||null, govt_id_url: kycForm.govt_id_url||null,
         aadhaar_back_url: kycForm.aadhaar_back_url||null, pan_front_url: kycForm.pan_front_url||null,
         pan_back_url: kycForm.pan_back_url||null, ration_card_url: kycForm.ration_card_url||null,
-        ration_card_url2: kycForm.ration_card_url2||null,
+        ration_card_url2: kycForm.ration_card_url2||null, signature_url: kycForm.signature_url||null,
       })
       if (res.success) { setEditKYC(false); setKycSuccess(true); router.refresh() }
       else setKYCError(res.error ?? "Failed to save")
@@ -277,7 +279,7 @@ export default function ProfileClient({
   }
 
   async function handleDocUpload(
-    field: "govt_id_url"|"aadhaar_back_url"|"pan_front_url"|"pan_back_url"|"ration_card_url"|"ration_card_url2",
+    field: KYCDocField,
     file: File
   ) {
     setUploadingField(field)
@@ -291,7 +293,7 @@ export default function ProfileClient({
   }
 
   async function handleDocReplace(
-    field: "govt_id_url"|"aadhaar_back_url"|"pan_front_url"|"pan_back_url"|"ration_card_url"|"ration_card_url2",
+    field: KYCDocField,
     file: File
   ) {
     const url = await handleDocUpload(field, file)
@@ -612,10 +614,11 @@ export default function ProfileClient({
                     { title: "Aadhaar Card", fields: [{ f: "govt_id_url" as const, l: "Front" }, { f: "aadhaar_back_url" as const, l: "Back" }] },
                     { title: "PAN Card",     fields: [{ f: "pan_front_url" as const, l: "Front" }, { f: "pan_back_url" as const, l: "Back" }] },
                     { title: "Ration Card",  fields: [{ f: "ration_card_url" as const, l: "Front Side" }, { f: "ration_card_url2" as const, l: "Back Side" }] },
+                    { title: "Signature",    fields: [{ f: "signature_url" as const, l: "Signature" }] },
                   ]).map((sec, si) => (
                     <div key={sec.title}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: "#374151", margin: "0 0 7px" }}>{sec.title} <span style={{ fontSize: 9, color: si === 2 ? "#6B7280" : "#DE1A1A" }}>{si === 2 ? "(optional)" : "*both required"}</span></p>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: "#374151", margin: "0 0 7px" }}>{sec.title} <span style={{ fontSize: 9, color: si === 2 || si === 3 ? "#6B7280" : "#DE1A1A" }}>{si === 2 || si === 3 ? "(optional)" : "*both required"}</span></p>
+                      <div style={{ display: "grid", gridTemplateColumns: si === 3 ? "1fr" : "1fr 1fr", gap: 7 }}>
                         {sec.fields.map(({ f, l }) => (
                           <div key={f}>
                             <label style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600, display: "block", marginBottom: 4 }}>{l}</label>
@@ -663,6 +666,7 @@ export default function ProfileClient({
                       { f: "pan_back_url" as KYCDocField,     l: "PAN Back" },
                       { f: "ration_card_url" as KYCDocField,  l: "Ration Card – Front Side" },
                       { f: "ration_card_url2" as KYCDocField, l: "Ration Card – Back Side" },
+                      { f: "signature_url" as KYCDocField,    l: "Signature" },
                     ]).map(({ f, l }) => {
                       const url = (kyc as unknown as Record<string, unknown>)?.[f] as string | null
                       return (

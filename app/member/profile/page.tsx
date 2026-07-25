@@ -63,6 +63,7 @@ export default async function ProfilePage() {
     govt_id_url: string | null; aadhaar_back_url: string | null
     pan_front_url: string | null; pan_back_url: string | null
     ration_card_url: string | null; ration_card_url2: string | null
+    signature_url: string | null
   }
   type UpdateRow  = { date: string; working_hours: number | null; shoot_count: number | null }
 
@@ -114,7 +115,7 @@ export default async function ProfilePage() {
       .gte("created_at", weekStart),
     db
       .from("member_kyc")
-      .select("bank_name, bank_account, bank_ifsc, aadhaar_number, pan_number, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2")
+      .select("bank_name, bank_account, bank_ifsc, aadhaar_number, pan_number, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2, signature_url")
       .eq("user_id", effectiveUserId)
       .maybeSingle(),
     admin

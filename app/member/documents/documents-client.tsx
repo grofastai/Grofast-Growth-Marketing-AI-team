@@ -23,6 +23,7 @@ const DOC_TYPE_COLOR: Record<string, { color: string; bg: string }> = {
   "ID Proof":      { color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
   "Certificate":   { color: "#16A34A", bg: "rgba(22,163,74,0.08)"  },
   "Payslip":       { color: "#0EA5E9", bg: "rgba(14,165,233,0.08)" },
+  "Signature":     { color: "#8B5CF6", bg: "rgba(139,92,246,0.08)" },
   "Other":         { color: "#6B7280", bg: "rgba(0,0,0,0.04)"      },
 }
 

@@ -26,7 +26,14 @@ export default async function MemberDocumentsPage() {
   // return zero rows since the session is still the admin's), scoped to effectiveUserId.
   const db = impersonateId ? adminSupabase() : supabase
 
-  const [{ data: raw }, { data: kyc }] = await Promise.all([
+  type KYCRow = {
+    govt_id_type: string | null; govt_id_url: string | null; aadhaar_back_url: string | null
+    pan_front_url: string | null; pan_back_url: string | null
+    ration_card_url: string | null; ration_card_url2: string | null
+    signature_url: string | null
+  }
+
+  const [{ data: raw }, { data: kycRaw }] = await Promise.all([
     db
       .from("documents")
       .select("id, name, file_url, file_type, file_size, doc_type, created_at")
@@ -35,10 +42,11 @@ export default async function MemberDocumentsPage() {
       .limit(50),
     db
       .from("member_kyc")
-      .select("govt_id_type, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2")
+      .select("govt_id_type, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2, signature_url")
       .eq("user_id", effectiveUserId)
       .maybeSingle(),
   ])
+  const kyc = kycRaw as KYCRow | null
 
   const kycFields: Array<{ url: string | null; name: string; docType: string; field: KYCDocField }> = kyc ? [
     { url: kyc.govt_id_url, name: kyc.govt_id_type ? `${kyc.govt_id_type} (Front)` : "Government ID", docType: "ID Proof", field: "govt_id_url" },
@@ -47,6 +55,7 @@ export default async function MemberDocumentsPage() {
     { url: kyc.pan_back_url, name: "PAN Card Back", docType: "ID Proof", field: "pan_back_url" },
     { url: kyc.ration_card_url, name: "Ration Card", docType: "ID Proof", field: "ration_card_url" },
     { url: kyc.ration_card_url2, name: "Ration Card (Page 2)", docType: "ID Proof", field: "ration_card_url2" },
+    { url: kyc.signature_url, name: "Signature", docType: "Signature", field: "signature_url" },
   ] : []
 
   const kycDocs: MemberDoc[] = kycFields

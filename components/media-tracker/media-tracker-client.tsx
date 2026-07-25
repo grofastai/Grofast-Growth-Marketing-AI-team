@@ -1650,7 +1650,7 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Sports Day Highlights" />
         </div>
         <div>
-          <label style={LABEL}>Shot Date</label>
+          <label style={LABEL}>{contentType === "poster" ? "Created Date" : "Shot Date"}</label>
           <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
         </div>
         <div>
@@ -1946,7 +1946,7 @@ function EditContentModal({ item, clients, pastClients, members, onClose, onSave
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
         </div>
         <div>
-          <label style={LABEL}>Shot Date</label>
+          <label style={LABEL}>{contentType === "poster" ? "Created Date" : "Shot Date"}</label>
           <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
         </div>
         {showEditor && (

@@ -24,7 +24,7 @@ export default async function AdminDocumentsPage() {
       .from("users")
       .select("id, name, employee_id, role, email, phone, status, team, employment_type, created_at, blood_group, address, emergency_contact_name, emergency_contact_phone, photo_url")
       .eq("company_id", profile.company_id)
-      .eq("role", "MEMBER")
+      .in("role", ["MEMBER", "ADMIN", "FOUNDER", "CEO"])
       .eq("status", "active")
       .is("deleted_at", null)
       .order("name"),
@@ -35,7 +35,7 @@ export default async function AdminDocumentsPage() {
       .order("created_at", { ascending: false }),
     admin
       .from("member_kyc")
-      .select("user_id, bank_name, bank_account, bank_ifsc, govt_id_type, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2, kyc_verified")
+      .select("user_id, bank_name, bank_account, bank_ifsc, govt_id_type, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2, kyc_verified, updated_at")
       .in("user_id",
         (await admin.from("users").select("id").eq("company_id", profile.company_id)).data?.map(u => u.id) ?? []
       ),

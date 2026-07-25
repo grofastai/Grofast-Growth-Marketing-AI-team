@@ -33,6 +33,7 @@ type KYCRecord = {
   pan_front_url: string | null; pan_back_url: string | null
   ration_card_url: string | null; ration_card_url2: string | null
   kyc_verified: boolean
+  updated_at: string | null
 }
 type Doc = {
   id: string; name: string; file_url: string; file_type: string | null
@@ -60,6 +61,31 @@ function computeCompletionPct(m: Member, k: KYCRecord | undefined, hasDocs: bool
   if (k?.govt_id_url) p += 15
   if (hasDocs) p += 15
   return Math.min(p, 100)
+}
+
+function kycRecordToDocs(k: KYCRecord, member?: { name: string; employee_id: string }): Doc[] {
+  const createdAt = k.updated_at ?? new Date(0).toISOString()
+  const fields: Array<{ url: string | null; name: string; docType: string }> = [
+    { url: k.govt_id_url, name: k.govt_id_type ? `${k.govt_id_type} (Front)` : "Government ID", docType: "Govt ID Proof" },
+    { url: k.aadhaar_back_url, name: "Aadhaar Back", docType: "Govt ID Proof" },
+    { url: k.pan_front_url, name: "PAN Card Front", docType: "Govt ID Proof" },
+    { url: k.pan_back_url, name: "PAN Card Back", docType: "Govt ID Proof" },
+    { url: k.ration_card_url, name: "Ration Card", docType: "Ration Card" },
+    { url: k.ration_card_url2, name: "Ration Card (Page 2)", docType: "Ration Card" },
+  ]
+  return fields
+    .filter(f => !!f.url)
+    .map((f, i) => ({
+      id: `kyc__${k.user_id}__${i}`,
+      name: f.name,
+      file_url: f.url!,
+      file_type: null,
+      file_size: null,
+      doc_type: f.docType,
+      created_at: createdAt,
+      user_id: k.user_id,
+      users: member ?? null,
+    }))
 }
 
 function formatSize(b: number | null) {
@@ -349,27 +375,7 @@ export default function DocumentsClient({
   const memberDocs = useMemo(() => {
     const fromTable = selectedId ? documents.filter(d => d.user_id === selectedId) : documents
     if (!selectedKYC || !selectedMember) return fromTable
-    const kycFields: Array<{ url: string | null; name: string; docType: string }> = [
-      { url: selectedKYC.govt_id_url, name: selectedKYC.govt_id_type ? `${selectedKYC.govt_id_type} (Front)` : "Government ID", docType: "Govt ID Proof" },
-      { url: selectedKYC.aadhaar_back_url, name: "Aadhaar Back", docType: "Govt ID Proof" },
-      { url: selectedKYC.pan_front_url, name: "PAN Card Front", docType: "Govt ID Proof" },
-      { url: selectedKYC.pan_back_url, name: "PAN Card Back", docType: "Govt ID Proof" },
-      { url: selectedKYC.ration_card_url, name: "Ration Card", docType: "Ration Card" },
-      { url: selectedKYC.ration_card_url2, name: "Ration Card (Page 2)", docType: "Ration Card" },
-    ]
-    const kycDocs: Doc[] = kycFields
-      .filter(f => !!f.url)
-      .map((f, i) => ({
-        id: `kyc__${i}`,
-        name: f.name,
-        file_url: f.url!,
-        file_type: null,
-        file_size: null,
-        doc_type: f.docType,
-        created_at: new Date(0).toISOString(),
-        user_id: selectedId,
-        users: { name: selectedMember.name, employee_id: selectedMember.employee_id },
-      }))
+    const kycDocs = kycRecordToDocs(selectedKYC, { name: selectedMember.name, employee_id: selectedMember.employee_id })
     return [...kycDocs, ...fromTable]
   }, [selectedId, documents, selectedKYC, selectedMember])
 
@@ -414,10 +420,13 @@ export default function DocumentsClient({
     return items.slice(0, 5)
   }, [memberDocs, selectedKYC])
 
-  // Recent uploads across all members
+  // Recent uploads across all members — merges the documents table with KYC-sourced
+  // uploads (Aadhaar/PAN/Ration Card), same gap as the sidebar doc counts
+  const allKycDocs = useMemo(() => kycRecords.flatMap(k => kycRecordToDocs(k)), [kycRecords])
+
   const recentUploads = useMemo(() =>
-    [...documents].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 4),
-    [documents]
+    [...documents, ...allKycDocs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 4),
+    [documents, allKycDocs]
   )
 
   async function handleUpload() {
@@ -627,11 +636,6 @@ export default function DocumentsClient({
                 </button>
               )
             })}
-          </div>
-          <div style={{ padding: "12px 16px", borderTop: "1px solid #F3F4F6" }}>
-            <a href="/admin/team" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#de1a1a", textDecoration: "none" }}>
-              View All Employees <ChevronRight size={11} />
-            </a>
           </div>
         </div>
 

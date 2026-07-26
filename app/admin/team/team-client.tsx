@@ -17,6 +17,7 @@ import { todayIST } from "@/lib/utils/ist-date"
 import { createFreelancer, updateFreelancer, toggleFreelancerStatus, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
 import { addManagerToAllFreelancers, removeManagerFromAllFreelancers } from "@/lib/actions/freelancer-manager"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
+import { PhotoCropModal } from "@/components/ui/PhotoCropModal"
 import { addTeam, updateTeam, toggleTeamActive, deleteTeam, getTeamMemberCounts, type TeamRow, type TeamScope } from "@/lib/actions/teams"
 import { hexToRgba } from "@/lib/utils/team-colors"
 import { addPosition, renamePosition, togglePositionActive, deletePosition, getPositionAssignmentCounts, type PositionRow } from "@/lib/actions/positions"
@@ -316,10 +317,21 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, teams = [], p
   const [isPending, startTransition] = useTransition()
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [photoFile, setPhotoFile]       = useState<File | null>(null)
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
 
   function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
+    e.target.value = ""
     if (!file) return
+    setCropImageSrc(URL.createObjectURL(file))
+  }
+  function closeCrop() {
+    if (cropImageSrc) URL.revokeObjectURL(cropImageSrc)
+    setCropImageSrc(null)
+  }
+  function handleCropConfirm(blob: Blob) {
+    closeCrop()
+    const file = new File([blob], "passport-photo.jpg", { type: "image/jpeg" })
     setPhotoFile(file)
     setPhotoPreview(URL.createObjectURL(file))
   }
@@ -917,6 +929,12 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, teams = [], p
           </div>
         )}
       </div>
+      <PhotoCropModal
+        open={cropImageSrc !== null}
+        imageSrc={cropImageSrc}
+        onCancel={closeCrop}
+        onConfirm={handleCropConfirm}
+      />
     </>
   )
 }

@@ -16,6 +16,7 @@ import { logoutAction } from "@/lib/actions/auth"
 import { todayIST, toISTDateString } from "@/lib/utils/ist-date"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
+import { PhotoCropModal } from "@/components/ui/PhotoCropModal"
 import { INDIAN_BANKS } from "@/lib/constants/banks"
 
 interface ProfileData {
@@ -45,27 +46,6 @@ const IS: React.CSSProperties = {
   borderRadius: "12px", padding: "11px 14px", fontSize: "13px", outline: "none", width: "100%",
 }
 const BLOOD_GROUPS = ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−"]
-
-const PRESET_AVATARS = [
-  "05f8b5d9-ed48-4767-88c6-5bac8b8d9cc5.png",
-  "0d9bd260-0cfe-49b8-8c37-5773d470e45f.png",
-  "0e87e658-ed9f-4675-a92c-f2a041c25886.png",
-  "209e5f6f-71bb-4806-81e9-008bf921aaae.png",
-  "24cde950-ed9b-4bb2-b4cc-538f22fc7ec6.png",
-  "5fb955e2-67a6-4a1f-a9d6-3ea664905322.png",
-  "6eeead5b-d837-42fb-9280-8fbc3f789994.png",
-  "80fa7552-bd09-43dc-b29b-4b9f4e669183.png",
-  "88b5177b-3ec7-497c-9e05-7d51f7666137.png",
-  "9dc55831-67ca-4ba1-a139-ae8ba097cb15.png",
-  "a40250ec-2222-4931-ab8e-fcdb8fc2bfe2.png",
-  "adf5c6b8-3103-4ddf-9226-4941cc6455d9.png",
-  "bc2f72a9-bb25-4a12-9fcd-bcb642ec1dae.png",
-  "c7e758a3-5814-46ee-93a5-92357b73954d.png",
-  "cab3853a-1828-4082-bfea-12c933661ceb.png",
-  "cade6005-91da-4c8f-98c6-d099fa6c52c1.png",
-  "d31c649b-a6e9-4940-8230-417d829d60ed.png",
-  "f7abb8d4-b9e1-45b6-a849-b1911437db5f.png",
-].map(f => `/brand/profiles/${f}`)
 
 function relativeDate(d: string) {
   const t = todayIST()
@@ -174,7 +154,8 @@ export default function ProfileClient({
   const [profPhotoBusy, setProfPhotoBusy] = useState(false)
   const [profPhotoError, setProfPhotoError] = useState<string | null>(null)
   const [profPhotoUrl, setProfPhotoUrl]   = useState<string | null>(profile?.passport_photo_url ?? null)
-  const [showPicker, setShowPicker] = useState(false)
+  const [cropTarget, setCropTarget]       = useState<"avatar" | "passport" | null>(null)
+  const [cropImageSrc, setCropImageSrc]   = useState<string | null>(null)
   const [logoutPending, startLogout] = useTransition()
 
   const [showPwdModal, setShowPwdModal]   = useState(false)
@@ -259,12 +240,25 @@ export default function ProfileClient({
     } catch { setProfPhotoError("Upload failed") } finally { setProfPhotoBusy(false) }
   }
 
-  async function handlePresetPick(url: string) {
-    setShowPicker(false); setPhotoBusy(true); setPhotoError(null)
-    try {
-      await updatePersonalDetails({ photo_url: url }); router.refresh()
-    } catch { setPhotoError("Failed to save photo") } finally { setPhotoBusy(false) }
+  function openCrop(target: "avatar" | "passport", file: File) {
+    setCropTarget(target)
+    setCropImageSrc(URL.createObjectURL(file))
   }
+  function closeCrop() {
+    if (cropImageSrc) URL.revokeObjectURL(cropImageSrc)
+    setCropTarget(null)
+    setCropImageSrc(null)
+  }
+  function handleCropConfirm(blob: Blob) {
+    const target = cropTarget
+    closeCrop()
+    if (target === "avatar") {
+      handlePhotoUpload(new File([blob], "avatar.jpg", { type: "image/jpeg" }))
+    } else if (target === "passport") {
+      handleProfPhotoUpload(new File([blob], "professional-photo.jpg", { type: "image/jpeg" }))
+    }
+  }
+
   function handleChangePassword() {
     setPwdError(null)
     if (pwdNew.length < 6) { setPwdError("Password must be at least 6 characters"); return }
@@ -410,12 +404,12 @@ export default function ProfileClient({
                     ? <img src={profile.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }}/>
                     : initials}
                 </div>
-                <button onClick={() => setShowPicker(true)} disabled={photoBusy}
+                <button onClick={() => photoRef.current?.click()} disabled={photoBusy}
                   style={{ position: "absolute", bottom: -4, left: "50%", transform: "translateX(-50%)", width: 26, height: 26, borderRadius: "50%", background: "#fff", border: "2px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }}>
                   {photoBusy ? <Loader2 size={11} style={{ color: "#6B7280", animation: "spin 1s linear infinite" }}/> : <Camera size={11} style={{ color: "#6B7280" }}/>}
                 </button>
                 <input ref={photoRef} type="file" accept="image/*" style={{ display: "none" }}
-                  onChange={e => { const f = e.target.files?.[0]; if (f) { setShowPicker(false); handlePhotoUpload(f) } }}/>
+                  onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) openCrop("avatar", f) }}/>
               </div>
 
               {/* Name + badges + edit */}
@@ -806,7 +800,7 @@ export default function ProfileClient({
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <input ref={profPhotoRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }}
-                    onChange={e => { const f = e.target.files?.[0]; if (f) handleProfPhotoUpload(f); e.target.value = "" }} />
+                    onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) openCrop("passport", f) }} />
                   <button
                     onClick={() => profPhotoRef.current?.click()}
                     disabled={profPhotoBusy}
@@ -893,47 +887,12 @@ export default function ProfileClient({
         </div>
       </div>
 
-      {/* ── Profile Photo Picker Modal ─────────────────────────────────────── */}
-      {showPicker && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
-          onClick={() => setShowPicker(false)}>
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }} />
-          <div style={{ position: "relative", background: "#fff", borderRadius: 24, padding: 24, width: "100%", maxWidth: 480, boxShadow: "0 24px 64px rgba(0,0,0,0.18)" }}
-            onClick={e => e.stopPropagation()}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-              <div>
-                <p style={{ fontSize: 17, fontWeight: 900, color: "#111111", margin: 0 }}>Choose Profile Photo</p>
-                <p style={{ fontSize: 12, color: "#9CA3AF", margin: "3px 0 0" }}>Select from our collection or upload your own</p>
-              </div>
-              <button onClick={() => setShowPicker(false)} style={{ width: 32, height: 32, borderRadius: "50%", background: "#F5F6FA", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <X size={14} style={{ color: "#6B7280" }} />
-              </button>
-            </div>
-
-            {/* Grid of preset avatars */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 16 }}>
-              {PRESET_AVATARS.map(url => (
-                <button key={url} onClick={() => handlePresetPick(url)}
-                  style={{ padding: 0, border: profile?.photo_url === url ? "3px solid #DE1A1A" : "3px solid transparent", borderRadius: "50%", cursor: "pointer", background: "none", aspectRatio: "1", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", transition: "transform 0.1s" }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1.08)" }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1)" }}>
-                  <img src={url} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                </button>
-              ))}
-            </div>
-
-            {/* Upload own photo */}
-            <div style={{ borderTop: "1px solid #EBEDF2", paddingTop: 14 }}>
-              <button onClick={() => photoRef.current?.click()}
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px", borderRadius: 12, background: "#F8F9FC", border: "2px dashed #D1D5DB", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#6B7280" }}>
-                <Upload size={14} /> Upload your own photo
-              </button>
-            </div>
-
-            {photoError && <p style={{ fontSize: 11, color: "#DE1A1A", marginTop: 10, textAlign: "center" }}>{photoError}</p>}
-          </div>
-        </div>
-      )}
+      <PhotoCropModal
+        open={cropTarget !== null}
+        imageSrc={cropImageSrc}
+        onCancel={closeCrop}
+        onConfirm={handleCropConfirm}
+      />
 
       {/* ── Change Password Modal ──────────────────────────────────────────── */}
       {showPwdModal && (

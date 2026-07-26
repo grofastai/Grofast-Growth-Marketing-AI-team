@@ -3331,6 +3331,7 @@ export default function DailyUpdateForm({
                         <option value="Short Break">🚶 Short Break</option>
                         <option value="Early Logoff">🌙 Early Logoff</option>
                         <option value="Late Login">⏰ Late Login</option>
+                        <option value="Team Outing">🎉 Team Outing</option>
                       </select>
                       <button onClick={() => removeMediaBreak(b.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
                         <Trash2 size={13} style={{ color:"#EF4444" }} />
@@ -3372,6 +3373,7 @@ export default function DailyUpdateForm({
                         <option value="Short Break">🚶 Short Break</option>
                         <option value="Early Logoff">🌙 Early Logoff</option>
                         <option value="Late Login">⏰ Late Login</option>
+                        <option value="Team Outing">🎉 Team Outing</option>
                       </select>
                       <button onClick={() => removeNonMediaBreak(b.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
                         <Trash2 size={13} style={{ color:"#EF4444" }} />

@@ -22,5 +22,6 @@ export const loginLimiter  = makeLimiter(5, '60 s')
 export const ticketLimiter = makeLimiter(5, '10 m')
 // 20 replies per user per 10 minutes
 export const replyLimiter  = makeLimiter(20, '10 m')
-// 5 file uploads per user per 10 minutes
-export const uploadLimiter = makeLimiter(5, '10 m')
+// 20 file uploads per user per 10 minutes — covers a full KYC session
+// (up to 7 required documents) plus a few retries without tripping.
+export const uploadLimiter = makeLimiter(20, '10 m')

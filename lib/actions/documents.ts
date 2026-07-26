@@ -59,3 +59,25 @@ export async function deleteDocument(id: string): Promise<{ success: boolean; er
   revalidatePath('/member/documents')
   return { success: true }
 }
+
+export async function verifyMemberKYC(userId: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: existing } = await admin.from('member_kyc').select('user_id').eq('user_id', userId).maybeSingle()
+  if (!existing) return { success: false, error: 'No KYC documents uploaded yet' }
+
+  const { error } = await admin.from('member_kyc').update({
+    kyc_verified: true,
+    kyc_verified_at: new Date().toISOString(),
+    kyc_verified_by: user.id,
+  }).eq('user_id', userId)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/documents')
+  revalidatePath('/member/profile')
+  return { success: true }
+}

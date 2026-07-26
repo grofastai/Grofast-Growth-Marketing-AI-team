@@ -1066,6 +1066,7 @@ export default function DailyUpdateForm({
       if (!n.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!n.endTime)   { setWorkingError(`${label}Enter end time.`); return }
       if (n.endTime === n.startTime) { setWorkingError(`${label}End time must be after start time.`); return }
+      if (!n.videoLink.trim()) { setWorkingError(`${label}Add the Drive / Video link.`); return }
     }
 
     const work_entries = [
@@ -2749,6 +2750,10 @@ export default function DailyUpdateForm({
                       <div style={{ marginBottom:8 }}>
                         <label style={L}>Notes</label>
                         <input value={e.notes} onChange={ev => patchNmEdit(e.id, { notes: ev.target.value })} placeholder="Edit details…" style={F} />
+                      </div>
+                      <div style={{ marginBottom:8 }}>
+                        <label style={L}><Link2 size={9} style={{ display:"inline", marginRight:4 }} />Drive / Video Link *</label>
+                        <input value={e.videoLink} onChange={ev => patchNmEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
                       </div>
                       {teamMembers.length > 0 && (
                         <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>

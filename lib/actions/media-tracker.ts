@@ -251,9 +251,8 @@ export async function updateContentItemStatus(
   if (status === 'on_review') {
     updates.edited_date = editedDate || todayIST()
     updates.edited_drive_link = editedDriveLink!.trim()
-    // Reaching On Review is where the editor is recorded — that's the accountability
-    // moment ("who edited this?"), asked right at this move since there's no separate
-    // Edited stage to stop at first.
+    // Reaching On Review (Completed Edit) is where the editor is recorded — the
+    // accountability moment ("who edited this?"), asked at the Edited -> On Review move.
     if (editorId) updates.edited_by = editorId
     else if (!current.edited_by) updates.edited_by = ctx.id
   }

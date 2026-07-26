@@ -111,7 +111,6 @@ export async function renamePosition(id: string, name: string): Promise<{ succes
   for (const row of (flHolders ?? []) as { freelancer_id: string }[]) await refreshFreelancerPositionText(admin, row.freelancer_id)
 
   revalidatePath('/admin/team')
-  revalidatePath('/admin/profile')
   revalidatePath('/member/profile')
   return { success: true }
 }

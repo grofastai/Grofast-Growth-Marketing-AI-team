@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { deleteDocument } from "@/lib/actions/documents"
+import { deleteDocument, verifyMemberKYC } from "@/lib/actions/documents"
 import Image from "next/image"
 import { PageHero } from "@/components/admin/PageHero"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
@@ -12,10 +12,11 @@ import {
   UserPlus, Landmark, CreditCard, ExternalLink, Search,
   List, CheckCircle2, Eye, MoreVertical, CloudUpload,
   Building2, LayoutGrid, ArrowUpRight, Layers, ChevronRight, Sparkles, Users,
+  BadgeCheck, PenLine,
 } from "lucide-react"
 
-const DOC_TYPES = ["Govt ID Proof", "Ration Card", "Photo", "Payslip", "Other"]
-const FILTER_CHIPS = ["All", "Govt ID Proof", "Ration Card", "Photo", "Payslip", "Other"]
+const DOC_TYPES = ["Govt ID Proof", "Ration Card", "Photo", "Payslip", "Signature", "Other"]
+const FILTER_CHIPS = ["All", "Govt ID Proof", "Ration Card", "Photo", "Payslip", "Signature", "Other"]
 
 type Member = {
   id: string; name: string; employee_id: string; role: string
@@ -31,6 +32,8 @@ type KYCRecord = {
   govt_id_url: string | null; aadhaar_back_url: string | null
   pan_front_url: string | null; pan_back_url: string | null
   ration_card_url: string | null; ration_card_url2: string | null
+  signature_url: string | null
+  kyc_verified: boolean
   updated_at: string | null
 }
 type Doc = {
@@ -42,8 +45,23 @@ type Doc = {
 
 function kycDocCount(k: KYCRecord | undefined) {
   if (!k) return 0
-  return [k.govt_id_url, k.aadhaar_back_url, k.pan_front_url, k.pan_back_url, k.ration_card_url, k.ration_card_url2]
+  return [k.govt_id_url, k.aadhaar_back_url, k.pan_front_url, k.pan_back_url, k.ration_card_url, k.ration_card_url2, k.signature_url]
     .filter(Boolean).length
+}
+
+function computeCompletionPct(m: Member, k: KYCRecord | undefined, hasDocs: boolean) {
+  let p = 0
+  if (m.email) p += 12
+  if (m.phone) p += 12
+  if (m.team) p += 8
+  if (m.employment_type) p += 8
+  if (m.blood_group) p += 5
+  if (m.address) p += 5
+  if (m.emergency_contact_name) p += 5
+  if (k?.bank_account) p += 15
+  if (k?.govt_id_url) p += 15
+  if (hasDocs) p += 15
+  return Math.min(p, 100)
 }
 
 function kycRecordToDocs(k: KYCRecord, member?: { name: string; employee_id: string }): Doc[] {
@@ -55,6 +73,7 @@ function kycRecordToDocs(k: KYCRecord, member?: { name: string; employee_id: str
     { url: k.pan_back_url, name: "PAN Card Back", docType: "Govt ID Proof" },
     { url: k.ration_card_url, name: "Ration Card", docType: "Ration Card" },
     { url: k.ration_card_url2, name: "Ration Card (Page 2)", docType: "Ration Card" },
+    { url: k.signature_url, name: "Signature", docType: "Signature" },
   ]
   return fields
     .filter(f => !!f.url)
@@ -96,7 +115,7 @@ function getExtBadge(fileType: string | null, name: string): { ext: string; colo
 
 const DOC_TYPE_COLOR: Record<string, string> = {
   "Govt ID Proof": "#F59E0B", "Ration Card": "#10B981",
-  "Photo": "#EC4899", "Payslip": "#0EA5E9", "Other": "#6B7280",
+  "Photo": "#EC4899", "Payslip": "#0EA5E9", "Signature": "#8B5CF6", "Other": "#6B7280",
 }
 
 const TEAM_COLORS = ["#6366F1","#0EA5E9","#16A34A","#F59E0B","#EC4899","#8B5CF6","#de1a1a"]
@@ -325,12 +344,13 @@ function ActivityDot({ type }: { type: string }) {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 export default function DocumentsClient({
-  members, documents, kycRecords, companyId,
+  members, documents, kycRecords, companyId, driveRootUrl,
 }: {
   members: Member[]
   documents: Doc[]
   kycRecords: KYCRecord[]
   companyId: string
+  driveRootUrl: string | null
 }) {
   const confirm = useConfirm()
   const [selectedId, setSelectedId]   = useState<string>(members[0]?.id ?? "")
@@ -388,18 +408,7 @@ export default function DocumentsClient({
   // Profile completion
   const completionPct = useMemo(() => {
     if (!selectedMember) return 0
-    let p = 0
-    if (selectedMember.email) p += 12
-    if (selectedMember.phone) p += 12
-    if (selectedMember.team) p += 8
-    if (selectedMember.employment_type) p += 8
-    if (selectedMember.blood_group) p += 5
-    if (selectedMember.address) p += 5
-    if (selectedMember.emergency_contact_name) p += 5
-    if (selectedKYC?.bank_account) p += 15
-    if (selectedKYC?.govt_id_url) p += 15
-    if (memberDocs.length > 0) p += 15
-    return Math.min(p, 100)
+    return computeCompletionPct(selectedMember, selectedKYC ?? undefined, memberDocs.length > 0)
   }, [selectedMember, selectedKYC, memberDocs])
 
   // Activity feed
@@ -457,6 +466,16 @@ export default function DocumentsClient({
     start(async () => { await deleteDocument(id); router.refresh() })
   }
 
+  async function handleVerifyKYC() {
+    if (!selectedId || !selectedMember) return
+    if (!(await confirm(`Mark ${selectedMember.name}'s KYC documents as verified? Only do this after checking the uploaded documents match their details.`))) return
+    start(async () => {
+      const res = await verifyMemberKYC(selectedId)
+      if (!res.success) { alert(res.error ?? "Failed to verify KYC"); return }
+      router.refresh()
+    })
+  }
+
   const initial = selectedMember?.name?.charAt(0)?.toUpperCase() ?? "?"
   const tc = teamColor(selectedMember?.team ?? null)
 
@@ -509,10 +528,12 @@ export default function DocumentsClient({
                 style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: "1.5px solid rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.22)", color: "#fff", backdropFilter: "blur(12px)", whiteSpace: "nowrap", boxShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
                 <Upload size={13} /> Upload Document
               </button>
-              <a href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8" target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: "#C01010", background: "#FFFFFF", textDecoration: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.35)", whiteSpace: "nowrap", border: "none" }}>
-                <ExternalLink size={13} /> Drive Backup
-              </a>
+              {driveRootUrl && (
+                <a href={driveRootUrl} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: "#C01010", background: "#FFFFFF", textDecoration: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.35)", whiteSpace: "nowrap", border: "none" }}>
+                  <ExternalLink size={13} /> Drive Backup
+                </a>
+              )}
             </>
           }
           belowSubtitle={
@@ -544,7 +565,7 @@ export default function DocumentsClient({
       </div>
 
       {/* ── MAIN 3-COLUMN GRID ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[256px_1fr_288px] gap-3.5 px-4 md:px-5 pt-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr_288px] gap-3.5 px-4 md:px-5 pt-4">
 
         {/* ── LEFT: Employee List ───────────────────────────────────────────── */}
         <div className="hidden lg:flex flex-col" style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
@@ -568,8 +589,9 @@ export default function DocumentsClient({
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: "0 10px 12px" }}>
             {filteredMembers.map(m => {
-              const mDocs = documents.filter(d => d.user_id === m.id).length
-                + kycDocCount(kycRecords.find(k => k.user_id === m.id))
+              const mKyc = kycRecords.find(k => k.user_id === m.id)
+              const mHasDocs = documents.some(d => d.user_id === m.id) || kycDocCount(mKyc) > 0
+              const mPct = computeCompletionPct(m, mKyc, mHasDocs)
               const tc2 = teamColor(m.team)
               const isActive = m.id === selectedId
               return (
@@ -597,15 +619,24 @@ export default function DocumentsClient({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 12, fontWeight: 700, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span style={{ fontSize: 9, fontWeight: 600, color: "#1B4332" }}>#{m.employee_id}</span>
-                      {m.team && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: `${tc2}14`, color: tc2 }}>{m.team}</span>}
+                      <span style={{ fontSize: 9, fontWeight: 600, color: "#1B4332", flexShrink: 0 }}>#{m.employee_id}</span>
+                      {m.team && (
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
+                          background: `${tc2}14`, color: tc2,
+                          minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }} title={m.team}>{m.team}</span>
+                      )}
                     </div>
                   </div>
-                  {/* Doc count + online dot */}
+                  {/* Completion % + online dot */}
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                     <div style={{ width: 7, height: 7, borderRadius: "50%", background: m.status === "active" ? "#22C55E" : "#D1D5DB" }} />
-                    <span style={{ fontSize: 10, fontWeight: 800, color: "#1B4332" }}>{mDocs}</span>
-                    <span style={{ fontSize: 8, color: "#1B4332", marginTop: -3 }}>docs</span>
+                    <span style={{
+                      fontSize: 10, fontWeight: 800,
+                      color: mPct >= 80 ? "#16A34A" : mPct >= 40 ? "#D97706" : "#DC2626",
+                    }}>{mPct}%</span>
+                    <span style={{ fontSize: 8, color: "#1B4332", marginTop: -3 }}>complete</span>
                   </div>
                 </button>
               )
@@ -636,10 +667,20 @@ export default function DocumentsClient({
               {/* Profile header card */}
               <div style={{
                 background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden", position: "relative",
               }}>
                 {/* Top gradient bar */}
                 <div style={{ height: 6, background: `linear-gradient(90deg, ${tc}, ${tc}88)` }} />
+                {selectedKYC?.kyc_verified && (
+                  <div title="KYC Verified" style={{
+                    position: "absolute", top: 12, right: 16, zIndex: 1,
+                    display: "flex", alignItems: "center", gap: 4, padding: "4px 10px",
+                    borderRadius: 20, background: "#fff", boxShadow: "0 2px 10px rgba(0,0,0,0.12)",
+                    fontSize: 10, fontWeight: 800, color: "#0EA5E9",
+                  }}>
+                    <BadgeCheck size={13} /> Verified
+                  </div>
+                )}
                 <div style={{ padding: "16px 20px" }}>
                   <div className="flex items-center gap-4">
                     {/* Avatar */}
@@ -677,24 +718,6 @@ export default function DocumentsClient({
                       <CompletionRing pct={completionPct} size={68} />
                       <p style={{ fontSize: 9, color: "#1B4332", fontWeight: 600 }}>Profile Complete</p>
                     </div>
-                  </div>
-                  {/* Action pills */}
-                  <div className="flex gap-2 mt-4 flex-wrap">
-                    {[
-                      { label: "Upload File",        icon: <Upload size={11} />,       onClick: () => { setUploadFor(selectedId); setShowUpload(true) } },
-                      { label: "Verify KYC",         icon: <Shield size={11} />,       onClick: () => {} },
-                      { label: "Request Signature",  icon: <FileText size={11} />,     onClick: () => {} },
-                      { label: "Share Docs",         icon: <ExternalLink size={11} />, onClick: () => {} },
-                    ].map(a => (
-                      <button key={a.label} onClick={a.onClick} style={{
-                        display: "flex", alignItems: "center", gap: 5, padding: "6px 12px",
-                        borderRadius: 10, fontSize: 11, fontWeight: 700, cursor: "pointer",
-                        background: "rgba(0,0,0,0.03)", color: "#1B4332",
-                        border: "1px solid rgba(0,0,0,0.08)",
-                      }}>
-                        {a.icon} {a.label}
-                      </button>
-                    ))}
                   </div>
                 </div>
                 {/* Tabs */}
@@ -743,39 +766,12 @@ export default function DocumentsClient({
                     </div>
                   </div>
 
-                  {/* Drag & Drop upload area */}
-                  <div
-                    onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-                    onDragLeave={() => setDragOver(false)}
-                    onDrop={e => {
-                      e.preventDefault(); setDragOver(false)
-                      const f = e.dataTransfer.files[0]
-                      if (f) { setFile(f); setUploadFor(selectedId); setShowUpload(true) }
-                    }}
-                    style={{
-                      borderRadius: 16, border: `2px dashed ${dragOver ? "#de1a1a" : "rgba(0,0,0,0.12)"}`,
-                      padding: "18px", textAlign: "center", cursor: "pointer",
-                      background: dragOver ? "rgba(222,26,26,0.04)" : "rgba(0,0,0,0.01)",
-                      transition: "all 0.2s",
-                    }}
-                    onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}>
-                    <CloudUpload size={22} style={{ color: dragOver ? "#de1a1a" : "#1B4332", margin: "0 auto 6px" }} />
-                    <p style={{ fontSize: 12, fontWeight: 600, color: dragOver ? "#de1a1a" : "#1B4332" }}>
-                      Drag &amp; drop files here or click to upload
-                    </p>
-                    <p style={{ fontSize: 10, color: "#1B4332", marginTop: 3 }}>Supports: PDF, DOC, DOCX, PNG, JPG (Max 10MB)</p>
-                  </div>
-
                   {/* Documents */}
                   {shownDocs.length === 0 ? (
                     <div style={{ background: "#fff", borderRadius: 20, padding: "48px 20px", textAlign: "center", border: "1px solid rgba(0,0,0,0.07)" }}>
                       <FolderOpen size={36} style={{ color: "#E5E7EB", margin: "0 auto 12px" }} />
                       <p style={{ fontSize: 14, fontWeight: 700, color: "#1B4332" }}>No documents found</p>
-                      <p style={{ fontSize: 12, color: "#1B4332", marginTop: 4 }}>Upload the first document for {selectedMember.name}</p>
-                      <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}
-                        style={{ marginTop: 16, display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 10, fontSize: 12, fontWeight: 700, background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)", cursor: "pointer" }}>
-                        <Upload size={12} /> Upload Document
-                      </button>
+                      <p style={{ fontSize: 12, color: "#1B4332", marginTop: 4 }}>{selectedMember.name} hasn't uploaded any documents yet</p>
                     </div>
                   ) : viewMode === "grid" ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -885,15 +881,14 @@ export default function DocumentsClient({
               <Image src="/brand/documents/hr-assistant.png" alt="HR Assistant" width={180} height={140}
                 style={{ objectFit: "contain" }} />
             </div>
-            <div style={{ padding: "0 16px 16px" }}>
-              <button style={{
-                width: "100%", padding: "10px", borderRadius: 12, fontSize: 12, fontWeight: 700,
-                cursor: "pointer", border: "none",
-                background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#fff",
-                boxShadow: "0 4px 16px rgba(222,26,26,0.3)",
+            <div style={{ padding: "0 16px 16px", display: "flex", justifyContent: "center" }}>
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999,
+                fontSize: 11, fontWeight: 700, color: "#166534", background: "rgba(22,101,52,0.1)",
+                border: "1px solid rgba(22,101,52,0.15)",
               }}>
-                Open HR Center
-              </button>
+                <CheckCircle2 size={13} /> Up to date
+              </span>
             </div>
           </div>
         </div>

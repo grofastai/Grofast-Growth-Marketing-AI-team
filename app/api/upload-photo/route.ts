@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { uploadLimiter } from "@/lib/ratelimit"
+import { syncDocumentOrQueueRetry } from "@/lib/google/document-sync"
 
 function adminSupabase() {
   return createClient(
@@ -39,5 +40,19 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const { data: { publicUrl } } = admin.storage.from("documents").getPublicUrl(path)
+
+  if (folder === "kyc") {
+    // Best-effort Drive sync — must never fail the upload the member already
+    // completed successfully in Supabase Storage above.
+    try {
+      const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
+      if (profile) {
+        await syncDocumentOrQueueRetry({ userId: user.id, companyId: profile.company_id, file, storagePath: path })
+      }
+    } catch (syncErr) {
+      console.error("[upload-photo] Drive sync threw unexpectedly:", syncErr)
+    }
+  }
+
   return NextResponse.json({ url: publicUrl })
 }

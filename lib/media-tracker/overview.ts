@@ -3,7 +3,7 @@
 // where off-by-one bugs silently misreport the state of the board.
 
 export type OverviewStatus =
-  | 'scripting' | 'voiceover' | 'design' | 'ready_to_edit'
+  | 'scripting' | 'voiceover' | 'design' | 'ready_to_edit' | 'edited'
   | 'on_review' | 'branding_ready' | 'ads_ready' | 'posted' | 'cancelled'
 export type OverviewShootStatus = 'scheduled' | 'completed' | 'cancelled'
 export type OverviewAdStatus = 'active' | 'testing' | 'paused' | 'stopped'
@@ -72,7 +72,7 @@ function daysBetween(from: string, to: string): number {
 
 function emptyStages(): StageCounts {
   return {
-    scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0,
+    scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0, edited: 0,
     on_review: 0, branding_ready: 0, ads_ready: 0, posted: 0, cancelled: 0,
   }
 }

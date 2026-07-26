@@ -35,11 +35,15 @@ export default async function AdminDocumentsPage() {
       .order("created_at", { ascending: false }),
     admin
       .from("member_kyc")
-      .select("user_id, bank_name, bank_account, bank_ifsc, govt_id_type, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2, updated_at")
+      .select("user_id, bank_name, bank_account, bank_ifsc, govt_id_type, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2, signature_url, kyc_verified, updated_at")
       .in("user_id",
         (await admin.from("users").select("id").eq("company_id", profile.company_id)).data?.map(u => u.id) ?? []
       ),
   ])
+
+  const driveRootUrl = process.env.GOOGLE_DRIVE_MEMBER_DOCS_FOLDER_ID
+    ? `https://drive.google.com/drive/folders/${process.env.GOOGLE_DRIVE_MEMBER_DOCS_FOLDER_ID}`
+    : null
 
   return (
     <DocumentsClient
@@ -47,6 +51,7 @@ export default async function AdminDocumentsPage() {
       documents={documents ?? []}
       kycRecords={kycRecords ?? []}
       companyId={profile.company_id}
+      driveRootUrl={driveRootUrl}
     />
   )
 }

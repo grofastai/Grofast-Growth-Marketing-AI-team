@@ -38,7 +38,7 @@ type UseFor = Platform
 type Priority = "low" | "medium" | "high" | "urgent"
 type ContentSource = "shoot" | "ads_video" | "poster"
 type ContentStatus =
-  | "scripting" | "voiceover" | "design" | "ready_to_edit"
+  | "scripting" | "voiceover" | "design" | "ready_to_edit" | "edited"
   | "on_review" | "branding_ready" | "ads_ready" | "posted" | "cancelled"
 type TargetingType = "broad" | "interest" | "lookalike" | "retargeting"
 type AdStatus = "active" | "paused" | "testing" | "stopped"
@@ -93,7 +93,7 @@ export type ContentItem = {
   posted_branding: boolean
   posted_ads: boolean
   cancelled_by: CancelledBy | null
-  // Required at the Ready to Edit -> On Review move — where the edit actually lives.
+  // Required at the Edited -> Completed Edit (on_review) move — where the edit actually lives.
   edited_drive_link: string | null
   // Ticked independently at Mark as Posted/Ads — one-way, never unset by the app.
   is_promotion: boolean
@@ -189,9 +189,12 @@ const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
   voiceover:       { label: "Voice Over",      accent: "#1E3A8A" },
   design:          { label: "Design",          accent: "#F59E0B" },
   ready_to_edit:   { label: "Ready to Edit",   accent: "#0D9488" },
+  edited:          { label: "Edited",          accent: "#8B5CF6" },
+  // Renamed from "On Review" — this is the admin sign-off gate now that editor hand-off
+  // has its own Edited stage before it; the DB value stays on_review, display-only rename.
   // Was #EC4899 (pink) — too close to neighboring stages once darkened for the badge fill.
   // Rose reads as its own distinct hue in the lineup.
-  on_review:       { label: "On Review",       accent: "#F43F5E" },
+  on_review:       { label: "Completed Edit",  accent: "#F43F5E" },
   branding_ready:  { label: "Branding Ready",  accent: "#0EA5E9" },
   ads_ready:       { label: "Ads Ready",       accent: "#D97706" },
   posted:          { label: "Posted",          accent: "#22C55E" },
@@ -215,9 +218,10 @@ function statusButtonGradient(status: ContentStatus): string {
   return `linear-gradient(135deg, ${accent}, ${darken(accent, 0.6)})`
 }
 // The production board's column order — differs by content type only in its first column
-// (shoot/ads-video video enters at Ready to Edit; posters enter at Design).
-const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "on_review", "branding_ready", "ads_ready", "cancelled"]
-const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "on_review", "branding_ready", "ads_ready", "cancelled"]
+// (shoot/ads-video video enters at Ready to Edit; posters enter at Design). Both then pass
+// through the shared Edited checkpoint before the Completed Edit review gate.
+const VIDEO_PIPELINE_ORDER: ContentStatus[] = ["ready_to_edit", "edited", "on_review", "branding_ready", "ads_ready", "cancelled"]
+const POSTER_PIPELINE_ORDER: ContentStatus[] = ["design", "edited", "on_review", "branding_ready", "ads_ready", "cancelled"]
 // The Ads Video sub-tab's own draggable columns — feeds INTO Ready to Edit, doesn't include it.
 // A 3rd, non-draggable "Completed" column (not a real ContentStatus) sits alongside these —
 // see adsVideoCompletedItems.
@@ -230,8 +234,9 @@ const ADS_VIDEO_COMPLETED_CFG = { label: "Completed", accent: "#22C55E" }
 const NEXT_STATUS: Partial<Record<ContentStatus, ContentStatus>> = {
   scripting: "voiceover",
   voiceover: "ready_to_edit",
-  design: "on_review",
-  ready_to_edit: "on_review",
+  design: "edited",
+  ready_to_edit: "edited",
+  edited: "on_review",
 }
 
 const PLATFORM_CFG: Record<Platform, { label: string; color: string; icon: typeof Camera }> = {
@@ -617,7 +622,7 @@ function ContentCardInner({
   // scheduled slot, corrections) shades off this same accent instead of its own unrelated
   // hue, so nothing on the card fights the card's own color.
   const typeAccentDark = darken(typeAccent, 0.7)
-  const age = (item.status === "ready_to_edit" || item.status === "design") ? daysAgo(originDate(item)) : null
+  const age = (item.status === "ready_to_edit" || item.status === "design" || item.status === "edited") ? daysAgo(originDate(item)) : null
   const stale = age !== null && age >= 3
 
   // The drag overlay renders this card with no handlers, so an empty menu is expected there
@@ -625,7 +630,8 @@ function ContentCardInner({
   const cardMenu: CardMenuItem[] = []
   if (onEdit) cardMenu.push({ label: "Edit details", icon: Pencil, onClick: () => onEdit(item) })
   // Footage or a design that came out unusable — kept as a record instead of deleted outright.
-  if (item.status === "ready_to_edit" || item.status === "design") {
+  // Edited cards can still be cancelled too — nothing has been approved out of review yet.
+  if (item.status === "ready_to_edit" || item.status === "design" || item.status === "edited") {
     cardMenu.push({ label: "Cancel", icon: XCircle, onClick: () => onAdvance(item, "cancelled"), danger: true })
   }
   if (onEdit) cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true })
@@ -720,7 +726,7 @@ function ContentCardInner({
             </div>
           </div>
         )}
-        {item.voiceoverBy && (item.status === "voiceover" || item.status === "ready_to_edit") && (
+        {item.voiceoverBy && (item.status === "voiceover" || item.status === "ready_to_edit" || item.status === "edited") && (
           <div className="flex items-center gap-1" title={`Voiced by ${item.voiceoverBy.name}`}>
             <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0" style={{ background: typeAccentDark, color: "#fff" }}>
               {initials(item.voiceoverBy.name)}
@@ -1644,7 +1650,7 @@ function NewContentModal({ clients, pastClients, defaultContentType = "video", o
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Sports Day Highlights" />
         </div>
         <div>
-          <label style={LABEL}>Shot Date</label>
+          <label style={LABEL}>{contentType === "poster" ? "Created Date" : "Shot Date"}</label>
           <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
         </div>
         <div>
@@ -1940,7 +1946,7 @@ function EditContentModal({ item, clients, pastClients, members, onClose, onSave
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
         </div>
         <div>
-          <label style={LABEL}>Shot Date</label>
+          <label style={LABEL}>{contentType === "poster" ? "Created Date" : "Shot Date"}</label>
           <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
         </div>
         {showEditor && (
@@ -3562,8 +3568,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   )
 
   function advance(item: ContentItem, next: ContentStatus) {
-    // Reaching On Review asks who edited it — that's the accountability moment, asked
-    // right at this move since there's no separate Edited stage to stop at first.
+    // Reaching On Review (Completed Edit) asks who edited it — the accountability moment,
+    // asked at the Edited -> Completed Edit move.
     if (next === "on_review" && members.length > 0) { setMarkEditedItem(item); return }
     // Entering Voice Over asks who recorded it.
     if (next === "voiceover") { setVoiceOverItem(item); return }
@@ -3744,11 +3750,14 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
 
   const stats = useMemo(() => {
     const readyToEdit = items.filter(i => i.status === "ready_to_edit").length
-    const edited = items.filter(i => i.status === "on_review").length
+    const edited = items.filter(i => i.status === "edited").length
+    // Renamed from the old "edited" meaning (this table used to treat on_review as the
+    // edited/reviewed checkpoint, before Edited became its own real stage).
+    const completedEdit = items.filter(i => i.status === "on_review").length
     const readyToPost = items.filter(i => i.status === "branding_ready" || i.status === "ads_ready").length
     const posted = items.filter(i => i.status === "posted").length
     const totalPosts = items.reduce((s, i) => s + i.posts.length, 0)
-    return { readyToEdit, edited, readyToPost, posted, totalPosts }
+    return { readyToEdit, edited, completedEdit, readyToPost, posted, totalPosts }
   }, [items])
 
   // Branding and Advertisement are the same board shape, split by which of the two
@@ -4142,7 +4151,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         eyebrowIcon={<Sparkles size={14} style={{ color: "#FFD700" }} />}
         title="Media Tracker"
         chips={[
-          { icon: <Video size={11} />, label: `${stats.readyToEdit + stats.edited} in pipeline` },
+          { icon: <Video size={11} />, label: `${stats.readyToEdit + stats.edited + stats.completedEdit} in pipeline` },
           { icon: <CalendarDays size={11} />, label: `${stats.readyToPost} ready to post` },
           { icon: <Check size={11} />, label: `${stats.posted} posted` },
           { icon: <Megaphone size={11} />, label: `${ads.filter(a => a.status === "active").length} active ads` },

@@ -8,6 +8,7 @@ import { sendNotification } from '@/lib/notifications/send'
 import { insertNotification, insertManyNotifications } from './notifications'
 import { formatLeaveDetail } from '@/lib/leave-approval-effects'
 import { sumLeaveDays } from '@/lib/utils/leave-balance'
+import { toISTTimeString } from '@/lib/utils/ist-date'
 import { z } from 'zod'
 
 function createAdminClient() {
@@ -16,6 +17,14 @@ function createAdminClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
+}
+
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
+}
+function rangesOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
+  return aStart < bEnd && bStart < aEnd
 }
 
 const leaveSchema = z.object({
@@ -991,25 +1000,64 @@ export async function adminApplyLeaveOnBehalf(input: {
     while (cur <= end) { datesInRange.push(cur.toISOString().split('T')[0]); cur.setDate(cur.getDate() + 1) }
   }
 
-  // Safety check: refuse if the member already logged in (has a clock_in) OR already has
-  // real work logged on any day in this range — this exists to backfill a genuinely empty
-  // gap, never to quietly overwrite something that actually happened.
+  // Safety check: refuse if the member already has real attendance/work that actually
+  // overlaps the leave being applied — this exists to backfill a genuinely empty gap,
+  // never to quietly overwrite something that actually happened. Full Day/WFH/Shoot Day
+  // cover the entire day, so any presence at all that day is a conflict. Half Day and
+  // Permission only cover part of the day by design (work half, leave half) — those only
+  // conflict if the real attendance/work actually overlaps the specific time window
+  // requested, not just because something was logged elsewhere that same day.
+  const requestedWindow: [number, number] | null =
+    parsed.data.leave_type === 'half_day' && parsed.data.half_day_from_time && parsed.data.half_day_to_time
+      ? [timeToMinutes(parsed.data.half_day_from_time), timeToMinutes(parsed.data.half_day_to_time)]
+      : parsed.data.leave_type === 'permission' && parsed.data.permission_time && parsed.data.permission_end_time
+      ? [timeToMinutes(parsed.data.permission_time), timeToMinutes(parsed.data.permission_end_time)]
+      : null
+
   const [{ data: attRows }, { data: updateRows }] = await Promise.all([
-    admin.from('attendance_logs').select('date, clock_in')
+    admin.from('attendance_logs').select('date, clock_in, clock_out')
       .eq('company_id', target.company_id).eq('user_id', input.userId).in('date', datesInRange),
     admin.from('daily_updates').select('date, work_entries')
       .eq('company_id', target.company_id).eq('user_id', input.userId).in('date', datesInRange),
   ])
-  const loginDates = new Set(
-    (attRows ?? []).filter(a => a.clock_in).map(a => a.date as string)
-  )
-  const workDates = new Set(
-    (updateRows ?? []).filter(u => {
-      const entries = Array.isArray(u.work_entries) ? u.work_entries as { task_type?: string; _is_leave?: boolean }[] : []
-      return entries.some(e => e.task_type !== 'break' && !e._is_leave)
-    }).map(u => u.date as string)
-  )
-  const conflictDates = datesInRange.filter(d => loginDates.has(d) || workDates.has(d))
+
+  let conflictDates: string[]
+  if (!requestedWindow) {
+    const loginDates = new Set(
+      (attRows ?? []).filter(a => a.clock_in).map(a => a.date as string)
+    )
+    const workDates = new Set(
+      (updateRows ?? []).filter(u => {
+        const entries = Array.isArray(u.work_entries) ? u.work_entries as { task_type?: string; _is_leave?: boolean }[] : []
+        return entries.some(e => e.task_type !== 'break' && !e._is_leave)
+      }).map(u => u.date as string)
+    )
+    conflictDates = datesInRange.filter(d => loginDates.has(d) || workDates.has(d))
+  } else {
+    const [winStart, winEnd] = requestedWindow
+    const attByDate = new Map((attRows ?? []).map(a => [a.date as string, a]))
+    const workByDate = new Map((updateRows ?? []).map(u => [u.date as string, u]))
+    conflictDates = datesInRange.filter(d => {
+      const att = attByDate.get(d)
+      if (att?.clock_in) {
+        const start = timeToMinutes(toISTTimeString(att.clock_in as string))
+        // No clock_out yet (still clocked in / forgot to clock out) — treat as open-ended
+        // through end of day rather than guessing, so it stays conservative.
+        const end = att.clock_out ? timeToMinutes(toISTTimeString(att.clock_out as string)) : 24 * 60
+        if (rangesOverlap(start, end, winStart, winEnd)) return true
+      }
+      const upd = workByDate.get(d)
+      const entries = Array.isArray(upd?.work_entries)
+        ? upd!.work_entries as { task_type?: string; _is_leave?: boolean; start_time?: string; end_time?: string }[]
+        : []
+      return entries.some(e => {
+        if (e.task_type === 'break' || e._is_leave) return false
+        // Can't tell when it happened — stay conservative and treat it as a conflict.
+        if (!e.start_time || !e.end_time) return true
+        return rangesOverlap(timeToMinutes(e.start_time), timeToMinutes(e.end_time), winStart, winEnd)
+      })
+    })
+  }
   if (conflictDates.length) {
     return { success: false, error: `${target.name} already has a login or work logged on ${conflictDates.join(', ')} — cannot apply leave over an existing day.` }
   }

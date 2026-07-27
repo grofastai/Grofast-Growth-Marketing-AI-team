@@ -677,17 +677,8 @@ function ContentCardInner({
   if (item.status === "branding_ready" || item.status === "ads_ready") {
     cardMenu.push({ label: "Cancel", icon: XCircle, onClick: () => onAdvance(item, "cancelled"), danger: true })
   }
-  // Undo — moves the card back one stage. Covers an accidental move, or an editor who
-  // took a card and suddenly can't work on it. "edited" goes back to wherever it
-  // actually came from (design for posters, ready_to_edit for shoots/ads video).
-  const backStatus: ContentStatus | null =
-    item.status === "edited" ? (item.source === "poster" ? "design" : "ready_to_edit")
-    : item.status === "on_review" ? "edited"
-    : (item.status === "branding_ready" || item.status === "ads_ready") ? "on_review"
-    : null
-  if (backStatus) {
-    cardMenu.push({ label: `Move back to ${STATUS_CFG[backStatus].label}`, icon: RotateCcw, onClick: () => onAdvance(item, backStatus) })
-  }
+  // Moving back/forward a stage now lives inside the Edit dialog (one common place)
+  // instead of also being a separate 3-dot menu item here.
   if (onEdit) cardMenu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(item.id), danger: true })
 
   const next = NEXT_STATUS[item.status]
@@ -1850,12 +1841,13 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
 }
 
 // ── Edit Script modal — the Scripting-stage entry's own fields, pre-filled ──
-function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId, onClose, onSaved }: {
+function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId, onClose, onSaved, onAdvance }: {
   item: ContentItem
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   members: Member[]; currentUserId: string
   onClose: () => void
   onSaved: (updates: { client_name: string; title: string; hook_count: number; use_for: UseFor[]; scriptedByUser: Person; notes: string }) => void
+  onAdvance: (item: ContentItem, next: ContentStatus) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
@@ -1905,6 +1897,13 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
           <label style={LABEL}>Notes</label>
           <textarea style={{ ...FIELD, minHeight: 60, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
         </div>
+        <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
+          <label style={LABEL}>Stage</label>
+          <button type="button" onClick={() => onAdvance(item, "voiceover")}
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 12px", borderRadius: 10, border: "none", background: STATUS_CFG.voiceover.accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            Move to Voice Over <ArrowRight size={12} />
+          </button>
+        </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</PrimaryButton>
       </div>
@@ -1913,11 +1912,12 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
 }
 
 // ── Edit Voice Over modal — reassign the artist or fix the date after the fact ──
-function EditVoiceOverModal({ item, freelancers, onClose, onSaved }: {
+function EditVoiceOverModal({ item, freelancers, onClose, onSaved, onAdvance }: {
   item: ContentItem
   freelancers: VoiceFreelancer[]
   onClose: () => void
   onSaved: (voiceoverBy: VoiceFreelancer, date: string) => void
+  onAdvance: (item: ContentItem, next: ContentStatus) => void
 }) {
   const [voiceoverId, setVoiceoverId] = useState(item.voiceoverBy?.id ?? freelancers[0]?.id ?? "")
   const [date, setDate] = useState(item.voiceover_date ?? todayIST())
@@ -1953,6 +1953,19 @@ function EditVoiceOverModal({ item, freelancers, onClose, onSaved }: {
           <label style={LABEL}>Date</label>
           <input type="date" style={FIELD} value={date} onChange={e => setDate(e.target.value)} />
         </div>
+        <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
+          <label style={LABEL}>Stage</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={() => onAdvance(item, "scripting")}
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 12px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#fff", color: "#374151", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              <RotateCcw size={12} /> Move Back to Scripting
+            </button>
+            <button type="button" onClick={() => onAdvance(item, "ready_to_edit")}
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 12px", borderRadius: 10, border: "none", background: STATUS_CFG.ready_to_edit.accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              Move to Ready to Edit <ArrowRight size={12} />
+            </button>
+          </div>
+        </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving || freelancers.length === 0}>{saving ? "Saving…" : "Save Changes"}</PrimaryButton>
       </div>
@@ -1963,7 +1976,7 @@ function EditVoiceOverModal({ item, freelancers, onClose, onSaved }: {
 // ── Edit Content modal ───────────────────────────────────────────────────────
 // Shows only what's actually relevant to the item's current stage — a Ready to Edit item
 // has no schedule yet to edit, and only Edited-or-later items have an editor to reassign.
-function EditContentModal({ item, clients, pastClients, members, shootingMembers, onClose, onSaved, onAddPlatform, onPostUpdated }: {
+function EditContentModal({ item, clients, pastClients, members, shootingMembers, onClose, onSaved, onAdvance, onAddPlatform, onPostUpdated }: {
   item: ContentItem
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   members: Member[]
@@ -1974,9 +1987,19 @@ function EditContentModal({ item, clients, pastClients, members, shootingMembers
     ready_platforms: Platform[]; scheduled_post_date: string; scheduled_post_time: string
     editedByUser?: Person; edited_date?: string; edited_drive_link?: string; shotByUser?: Person; cancelled_by?: CancelledBy
   }) => void
+  onAdvance: (item: ContentItem, next: ContentStatus) => void
   onAddPlatform: (item: ContentItem, kind: "branding" | "ads") => void
   onPostUpdated: (postId: string, updates: { posted_date: string; postedByUser?: Person }) => void
 }) {
+  // Stage movement — the one place to move a card back or forward, replacing the old
+  // scattered 3-dot "Move back to..." menu item. "edited" goes back to wherever it
+  // actually came from (design for posters, ready_to_edit for shoots/ads video).
+  const backTarget: ContentStatus | null =
+    item.status === "edited" ? (item.source === "poster" ? "design" : "ready_to_edit")
+    : item.status === "on_review" ? "edited"
+    : (item.status === "branding_ready" || item.status === "ads_ready") ? "on_review"
+    : null
+  const forwardTarget = NEXT_STATUS[item.status] ?? null
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
     [clients, pastClients]
@@ -2189,6 +2212,26 @@ function EditContentModal({ item, clients, pastClients, members, shootingMembers
             </div>
           </div>
         )}
+        {(backTarget || forwardTarget) && (
+          <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
+            <label style={LABEL}>Stage</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {backTarget && (
+                <button type="button" onClick={() => onAdvance(item, backTarget)}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 12px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#fff", color: "#374151", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  <RotateCcw size={12} /> Move Back to {STATUS_CFG[backTarget].label}
+                </button>
+              )}
+              {forwardTarget && (
+                <button type="button" onClick={() => onAdvance(item, forwardTarget)}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 12px", borderRadius: 10, border: "none", background: STATUS_CFG[forwardTarget].accent, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                  Move to {STATUS_CFG[forwardTarget].label} <ArrowRight size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</PrimaryButton>
       </div>
@@ -5112,6 +5155,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       )}
       {editingItem && (
         <EditContentModal item={editingItem} clients={clients} pastClients={pastClients} members={editingMembers} shootingMembers={shootingMembers} onClose={() => setEditingItem(null)}
+          onAdvance={(item, next) => { advance(item, next); setEditingItem(null) }}
           onAddPlatform={(item, kind) => { setPlatformModalKind(kind); setPlatformModalItem(item) }}
           onPostUpdated={(postId, updates) => {
             setItems(prev => prev.map(i => i.id !== editingItem.id ? i : {
@@ -5218,6 +5262,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         <EditAdsVideoModal
           item={editAdsVideoFor} clients={clients} pastClients={pastClients} members={scriptingMembers} currentUserId={currentUserId}
           onClose={() => setEditAdsVideoFor(null)}
+          onAdvance={(item, next) => { advance(item, next); setEditAdsVideoFor(null) }}
           onSaved={updates => {
             setItems(prev => prev.map(i => i.id === editAdsVideoFor.id ? { ...i, ...updates, notes: updates.notes || null } : i))
             setEditAdsVideoFor(null)
@@ -5228,6 +5273,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         <EditVoiceOverModal
           item={editVoiceOverFor} freelancers={voiceoverOptions}
           onClose={() => setEditVoiceOverFor(null)}
+          onAdvance={(item, next) => { advance(item, next); setEditVoiceOverFor(null) }}
           onSaved={(voiceoverBy, date) => {
             setItems(prev => prev.map(i => i.id === editVoiceOverFor.id ? { ...i, voiceoverBy, voiceover_date: date } : i))
             setEditVoiceOverFor(null)

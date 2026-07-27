@@ -12,7 +12,9 @@ const TRANSITIONS: Record<ContentPipelineStatus, ContentPipelineStatus[]> = {
   // A script (or its voice-over) can turn out unusable — client pulls the ask, wrong
   // direction — before it ever reaches a shoot or edit, same as footage/a design can.
   scripting: ['voiceover', 'cancelled'],
-  voiceover: ['ready_to_edit', 'cancelled'],
+  // 'scripting' as a target undoes an accidental move into Voice Over before a real
+  // recording happened — mirrors the same undo pattern every later stage already has.
+  voiceover: ['ready_to_edit', 'scripting', 'cancelled'],
   // Both production paths hand off to an editor's own "Edited" checkpoint before
   // reaching admin review — Cancelled stays reachable from here too, same as it was
   // from Ready to Edit/Design, since nothing has been approved out of review yet.

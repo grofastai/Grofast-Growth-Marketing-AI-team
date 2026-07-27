@@ -276,12 +276,16 @@ export default function ProfileClient({
     field: KYCDocField,
     file: File
   ) {
-    setUploadingField(field)
+    setUploadingField(field); setKYCError(null)
     try {
       const fd = new FormData(); fd.append("file", file); fd.append("folder", "kyc")
       const res = await fetch("/api/upload-photo", { method: "POST", body: fd })
       const json = await res.json()
       if (res.ok && json.url) { setKYCForm(p => ({ ...p, [field]: json.url })); return json.url as string }
+      setKYCError(json.error ?? "Upload failed — please try again")
+      return null
+    } catch {
+      setKYCError("Upload failed — check your connection and try again")
       return null
     } finally { setUploadingField(null) }
   }
@@ -699,6 +703,7 @@ export default function ProfileClient({
                       )
                     })}
                   </div>
+                  {kycError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "8px 0 0" }}>{kycError}</p>}
                 </div>
               )}
             </div>

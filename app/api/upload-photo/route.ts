@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse, after } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { uploadLimiter } from "@/lib/ratelimit"
@@ -42,16 +42,20 @@ export async function POST(req: NextRequest) {
   const { data: { publicUrl } } = admin.storage.from("documents").getPublicUrl(path)
 
   if (folder === "kyc") {
-    // Best-effort Drive sync — must never fail the upload the member already
-    // completed successfully in Supabase Storage above.
-    try {
-      const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
-      if (profile) {
-        await syncDocumentOrQueueRetry({ userId: user.id, companyId: profile.company_id, file, storagePath: path })
+    // Best-effort Drive sync — runs via after() so it can never block or hang this
+    // response. It used to be awaited here, which meant a slow/stuck Drive API call
+    // left the member's upload spinner stuck forever even though the file had already
+    // saved to Supabase Storage successfully.
+    after(async () => {
+      try {
+        const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
+        if (profile) {
+          await syncDocumentOrQueueRetry({ userId: user.id, companyId: profile.company_id, file, storagePath: path })
+        }
+      } catch (syncErr) {
+        console.error("[upload-photo] Drive sync threw unexpectedly:", syncErr)
       }
-    } catch (syncErr) {
-      console.error("[upload-photo] Drive sync threw unexpectedly:", syncErr)
-    }
+    })
   }
 
   return NextResponse.json({ url: publicUrl })

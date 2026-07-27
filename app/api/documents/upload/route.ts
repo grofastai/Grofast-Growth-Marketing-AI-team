@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse, after } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { syncDocumentOrQueueRetry } from "@/lib/google/document-sync"
@@ -53,13 +53,16 @@ export async function POST(req: NextRequest) {
 
   if (dbErr) return NextResponse.json({ error: dbErr.message }, { status: 500 })
 
-  // Best-effort Drive sync — must never fail the upload the admin already
-  // completed successfully in Supabase Storage above.
-  try {
-    await syncDocumentOrQueueRetry({ userId, companyId: profile.company_id, file, storagePath: path })
-  } catch (syncErr) {
-    console.error("[documents/upload] Drive sync threw unexpectedly:", syncErr)
-  }
+  // Best-effort Drive sync — runs via after() so a slow/stuck Drive API call can never
+  // hang this response (it used to be awaited here, which could leave the admin's
+  // upload spinner stuck even though the file had already saved successfully).
+  after(async () => {
+    try {
+      await syncDocumentOrQueueRetry({ userId, companyId: profile.company_id, file, storagePath: path })
+    } catch (syncErr) {
+      console.error("[documents/upload] Drive sync threw unexpectedly:", syncErr)
+    }
+  })
 
   return NextResponse.json({ success: true, url: publicUrl })
 }

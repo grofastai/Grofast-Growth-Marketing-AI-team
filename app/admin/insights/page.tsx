@@ -7,6 +7,7 @@ import InsightsClient, { type AllMember } from './insights-client'
 import { calcNetWorkHours } from '@/lib/utils/work-hours'
 import { hourlyRateOnDate, type SalaryHistoryRow } from '@/lib/salary'
 import { listTeams } from '@/lib/actions/teams'
+import { sumLeaveDays, type LeaveForBalance } from '@/lib/utils/leave-balance'
 
 function adminClient() {
   return createClient(
@@ -94,6 +95,18 @@ export type InsightsKPIs  = {
   editHours: number
 }
 
+// The 5-day-per-month cap enforced server-side in checkMonthlyLeaveLimit (lib/actions/leaves.ts).
+const MONTHLY_LEAVE_CAP = 5
+
+export type LeaveBreakdownRow = {
+  id: string; name: string
+  fullDays: number
+  halfDays: number; halfDayHours: number
+  permissionHours: number
+  daysUsed: number       // sumLeaveDays() total — what the 5-day cap is actually checked against
+  balance: number         // MONTHLY_LEAVE_CAP - daysUsed, negative once they've gone over (e.g. Exceptional Leave)
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function isMediaTeam(team: string | null): boolean {
@@ -149,6 +162,7 @@ export default async function InsightsPage({
     { data: clientStatusHistoryRaw },
     { data: collabRaw },
     { data: prevUpdatesRaw },
+    { data: leavesRaw },
   ] = await Promise.all([
     admin.from('daily_updates')
       .select('user_id, date, work_entries, working_hours, learning_hours')
@@ -191,6 +205,13 @@ export default async function InsightsPage({
       .eq('company_id', cid)
       .gte('date', prevDateFrom)
       .lte('date', prevDateTo),
+    // Approved leaves overlapping this month — pending/rejected don't count as taken.
+    admin.from('leaves')
+      .select('user_id, leave_type, from_date, to_date, permission_hours, half_day_from_time, half_day_to_time')
+      .eq('company_id', cid)
+      .eq('status', 'approved')
+      .lte('from_date', dateTo)
+      .gte('to_date', dateFrom),
   ])
 
   const updates = (updatesRaw ?? []) as UpdateRow[]
@@ -341,6 +362,56 @@ export default async function InsightsPage({
     .filter(m => m.workingDays > 0)
     .sort((a, b) => b.trackedHours - a.trackedHours)
 
+  // ── Leave breakdown (Full Day / Half Day / Permission + balance against the
+  // 5-day monthly cap) — clipped to this month the same way sumLeaveDays does
+  // everywhere else in the app, so this can never disagree with what the Leaves
+  // page or the apply-leave block itself is counting. ─────────────────────────
+  type LeaveRow = {
+    user_id: string; leave_type: string | null; from_date: string; to_date: string
+    permission_hours: number | string | null
+    half_day_from_time: string | null; half_day_to_time: string | null
+  }
+  const leaveRows = (leavesRaw ?? []) as LeaveRow[]
+  const leavesByMember = new Map<string, LeaveRow[]>()
+  for (const l of leaveRows) {
+    if (!leavesByMember.has(l.user_id)) leavesByMember.set(l.user_id, [])
+    leavesByMember.get(l.user_id)!.push(l)
+  }
+  const leaveBreakdown = members
+    .map(m => {
+      const rows = leavesByMember.get(m.id) ?? []
+      let fullDays = 0, halfDays = 0, halfDayHours = 0, permissionHours = 0
+      for (const l of rows) {
+        const type = l.leave_type ?? 'full_day'
+        const start = l.from_date > dateFrom ? l.from_date : dateFrom
+        const end   = l.to_date   < dateTo   ? l.to_date   : dateTo
+        if (start > end) continue
+        if (type === 'full_day') {
+          fullDays += Math.ceil((new Date(end + 'T12:00:00').getTime() - new Date(start + 'T12:00:00').getTime()) / 86400000) + 1
+        } else if (type === 'half_day') {
+          halfDays += 1
+          if (l.half_day_from_time && l.half_day_to_time) {
+            const [fh, fm] = l.half_day_from_time.split(':').map(Number)
+            const [th, tm] = l.half_day_to_time.split(':').map(Number)
+            const mins = (th * 60 + tm) - (fh * 60 + fm)
+            if (mins > 0) halfDayHours += mins / 60
+          }
+        } else if (type === 'permission') {
+          permissionHours += Number(l.permission_hours) || 0
+        }
+      }
+      const daysUsed = sumLeaveDays(rows as LeaveForBalance[], dateFrom, dateTo)
+      return {
+        id: m.id, name: m.name,
+        fullDays, halfDays, halfDayHours: Math.round(halfDayHours * 10) / 10,
+        permissionHours: Math.round(permissionHours * 10) / 10,
+        daysUsed: Math.round(daysUsed * 10) / 10,
+        balance: Math.round((MONTHLY_LEAVE_CAP - daysUsed) * 10) / 10,
+      }
+    })
+    .filter(r => r.fullDays > 0 || r.halfDays > 0 || r.permissionHours > 0)
+    .sort((a, b) => a.balance - b.balance)
+
   // ── Real client lookup (used to keep break-time / typos / placeholder
   // strings like "Break", "Internal", "Our Brand" from being counted as if
   // they were real clients) ──────────────────────────────────────────────
@@ -476,6 +547,7 @@ export default async function InsightsPage({
       today={todayStr}
       kpis={kpis}
       memberUtilization={memberUtilization}
+      leaveBreakdown={leaveBreakdown}
       clientHours={clientHours}
       prevMonthClientHours={prevMonthClientHours}
       spendByCategory={spendByCategory}

@@ -21,13 +21,21 @@ type PayrollRow = {
   id: string; name: string; employee_id: string; team: string | null
   employment_type: string
   presentDays: number; halfDays: number; absentDays: number; leaveDays: number
-  missingUpdates: number; deductibleDays: number
+  missingUpdates: number; missingUpdateDates: string[]; deductibleDays: number
   totalHours: number; otHours: number; collabHours: number
   basePay: number; deduction: number; otPay: number; netPay: number
   bonus: number; advance: number; incentive: number; finalNetPay: number
   isPaid: boolean; paidAt: string | null
   monthly_salary: number | null; hourly_rate: number | null
   effectiveWorkDays: number
+  // Hours-based formula preview — 212.5 target hours minus permission/half-day/leave
+  // hours = required hours, compared against hours actually logged. Separate from the
+  // day-based numbers above; not used for Mark Paid / finalNetPay.
+  hoursPreview: {
+    targetHours: number; permissionHours: number; halfDayHours: number; leaveHours: number
+    requiredHours: number; actualHours: number; shortfallHours: number
+    deduction: number; netPay: number | null
+  }
 }
 
 function fmt(n: number) {
@@ -353,7 +361,10 @@ function EmployeeCard({
             { label: "Deductions",     value: r.deduction > 0 ? `-${fmt(r.deduction)}` : "—",         color: "#DC2626" },
             { label: "Half Days",      value: r.halfDays > 0 ? `${r.halfDays}d` : "—",                color: "#CA8A04" },
             { label: "OT Pay",         value: r.otPay > 0 ? fmt(r.otPay) : "—",                       color: "#F97316" },
-            { label: "Net Pay",        value: localFinalNetPay > 0 ? fmt(localFinalNetPay) : "—",      color: "#16A34A" },
+            // Always show the real figure, including zero/negative — a negative Net Pay
+            // (deductions exceeding base pay) is exactly the case an admin most needs to
+            // see, not one to hide behind a blank dash.
+            { label: "Net Pay",        value: r.basePay > 0 ? fmt(localFinalNetPay) : "—",             color: localFinalNetPay < 0 ? "#DC2626" : "#16A34A" },
           ].map((chip) => (
             <div key={chip.label} style={{
               textAlign: "center", padding: "8px 14px", borderRadius: 12,
@@ -432,7 +443,7 @@ function EmployeeCard({
             ))}
             <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1.5px solid #F0F0F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Net Pay</span>
-              <span style={{ fontSize: 20, fontWeight: 900, color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>{fmt(localFinalNetPay)}</span>
+              <span style={{ fontSize: 20, fontWeight: 900, color: localFinalNetPay < 0 ? "#DC2626" : "#16A34A", fontFamily: "var(--font-jakarta)" }}>{fmt(localFinalNetPay)}</span>
             </div>
           </div>
 
@@ -513,11 +524,11 @@ function EmployeeCard({
             {/* Adjusted net pay preview */}
             <div style={{
               padding: "12px 14px", borderRadius: 12,
-              background: "linear-gradient(135deg, #F0FDF4, #DCFCE7)",
-              border: "1.5px solid #BBF7D0", marginBottom: 14,
+              background: localFinalNetPay < 0 ? "linear-gradient(135deg, #FEF2F2, #FEE2E2)" : "linear-gradient(135deg, #F0FDF4, #DCFCE7)",
+              border: localFinalNetPay < 0 ? "1.5px solid #FECACA" : "1.5px solid #BBF7D0", marginBottom: 14,
             }}>
-              <div style={{ fontSize: 10, color: "#15803D", fontWeight: 700, marginBottom: 4 }}>ADJUSTED NET PAY</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
+              <div style={{ fontSize: 10, color: localFinalNetPay < 0 ? "#B91C1C" : "#15803D", fontWeight: 700, marginBottom: 4 }}>ADJUSTED NET PAY</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: localFinalNetPay < 0 ? "#DC2626" : "#16A34A", fontFamily: "var(--font-jakarta)" }}>
                 {fmt(localFinalNetPay)}
               </div>
               {(bonus > 0 || incentive > 0 || advance > 0) && (
@@ -543,6 +554,38 @@ function EmployeeCard({
             >
               {savingBonus ? "Saving…" : "Save Adjustments"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Hours-Based Formula (Preview) — NOT used for Mark Paid, informational only ── */}
+      {isExpanded && (
+        <div style={{ borderTop: "1.5px solid #F5F5F5", padding: "18px 24px", background: "#FAFAFF" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: "#4F46E5", textTransform: "uppercase", letterSpacing: "0.13em" }}>
+              Hours-Based Formula — Preview
+            </span>
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "#EEF2FF", color: "#4F46E5" }}>
+              Not used for actual pay yet
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {[
+              { label: "Target",     value: `${r.hoursPreview.targetHours}h` },
+              { label: "Permission", value: `${r.hoursPreview.permissionHours}h` },
+              { label: "Half Day",   value: `${r.hoursPreview.halfDayHours}h` },
+              { label: "Leave",      value: `${r.hoursPreview.leaveHours}h` },
+              { label: "Required",   value: `${r.hoursPreview.requiredHours}h` },
+              { label: "Actual",     value: `${r.hoursPreview.actualHours}h` },
+              { label: "Shortfall",  value: `${r.hoursPreview.shortfallHours}h` },
+              { label: "Deduction",  value: fmt(r.hoursPreview.deduction) },
+              { label: "Net Pay (preview)", value: r.hoursPreview.netPay === null ? "—" : fmt(r.hoursPreview.netPay) },
+            ].map(chip => (
+              <div key={chip.label} style={{ textAlign: "center", padding: "6px 12px", borderRadius: 10, background: "#fff", border: "1px solid #E5E7EB", minWidth: 72 }}>
+                <div style={{ fontSize: 9, color: "#6366F1", marginBottom: 2, fontWeight: 600 }}>{chip.label}</div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#111" }}>{chip.value}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -573,6 +616,7 @@ export default function PayrollClient({
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [isRunning, startRunTransition] = useTransition()
   const [showConfirm, setShowConfirm] = useState(false)
+  const [showMissingDetail, setShowMissingDetail] = useState(false)
 
   // Bulk Update — select-multiple-then-mark-paid. Fully separate from the
   // existing Run Payroll flow above (different state, different confirm
@@ -801,11 +845,21 @@ export default function PayrollClient({
                 </span>
               )}
               {pendingUpdateCount > 0 && (
-                <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 20, background: "#FEF3C7", color: "#92400E" }}>
-                  📝 {pendingUpdateCount} member{pendingUpdateCount > 1 ? "s" : ""} with missing work updates
-                </span>
+                <button onClick={() => setShowMissingDetail(v => !v)}
+                  style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 20, background: "#FEF3C7", color: "#92400E", border: "none", cursor: "pointer" }}>
+                  📝 {pendingUpdateCount} member{pendingUpdateCount > 1 ? "s" : ""} with missing work updates {showMissingDetail ? "▲" : "▼"}
+                </button>
               )}
             </div>
+            {showMissingDetail && pendingUpdateCount > 0 && (
+              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                {rows.filter(r => r.missingUpdateDates.length > 0).map(r => (
+                  <div key={r.id} style={{ fontSize: 11, color: "#78350F" }}>
+                    <strong>{r.name}</strong> — {r.missingUpdateDates.map(d => new Date(d + "T12:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })).join(", ")}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -18,12 +18,18 @@ const TRANSITIONS: Record<ContentPipelineStatus, ContentPipelineStatus[]> = {
   // from Ready to Edit/Design, since nothing has been approved out of review yet.
   design: ['edited', 'cancelled'],
   ready_to_edit: ['edited', 'cancelled'],
-  edited: ['on_review', 'cancelled'],
+  // 'ready_to_edit'/'design' also listed as a target here — an accidental move (or an
+  // editor suddenly unable to continue) needs to be undoable back to the stage it came
+  // from, whichever that was for this item's source.
+  edited: ['on_review', 'cancelled', 'ready_to_edit', 'design'],
   // The review gate branches three ways: approved for organic posting, approved for
-  // ads, or rejected outright (with who rejected it recorded separately).
-  on_review: ['branding_ready', 'ads_ready', 'cancelled'],
-  branding_ready: ['posted'],
-  ads_ready: ['posted'],
+  // ads, or rejected outright (with who rejected it recorded separately). 'edited' is
+  // also a valid target — undoes an accidental Move before anything downstream happened.
+  on_review: ['branding_ready', 'ads_ready', 'cancelled', 'edited'],
+  // 'on_review' as a target undoes an accidental branding/ads approval before a post
+  // was actually logged against it.
+  branding_ready: ['posted', 'on_review'],
+  ads_ready: ['posted', 'on_review'],
   posted: [],
   cancelled: [],
 }

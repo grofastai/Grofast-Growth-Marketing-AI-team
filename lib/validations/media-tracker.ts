@@ -26,6 +26,11 @@ export const createContentItemSchema = z.object({
   // step, instead of forcing a drag through every stage.
   posted_platforms: z.array(z.enum(PLATFORMS)).optional(),
   posted_date:      z.string().optional(),
+  // Who edited/designed it — asked at backfill time same as the normal Edited -> On
+  // Review move, instead of silently defaulting to whoever's filling out the form.
+  edited_by:            z.string().uuid().optional(),
+  // Only meaningful when posted_platforms includes 'other'.
+  other_platform_label: z.string().optional(),
 })
 export type CreateContentItemInput = z.infer<typeof createContentItemSchema>
 
@@ -35,10 +40,18 @@ export const updateContentItemSchema = z.object({
   content_type: z.enum(CONTENT_TYPES),
   shot_date:    z.string().optional(),
   notes:        z.string().optional(),
+  // Who shot/designed it — editable after the fact (wrong person tagged at creation).
+  shot_by:      z.string().uuid().optional(),
   // Reassigning who/when edited it — only meaningful once the item has reached On Review or
   // later (that's when it was first asked, at the Ready to Edit -> On Review move).
   edited_by:    z.string().uuid().optional(),
   edited_date:  z.string().optional(),
+  // The edit's actual home — correctable after the fact if the file moved or a
+  // correction round changed which file is final.
+  edited_drive_link: z.string().optional(),
+  // Only meaningful once the item is actually cancelled — correctable if the wrong
+  // party was picked in the moment.
+  cancelled_by: z.enum(CANCELLED_BY_OPTIONS).optional(),
   // Schedule/intent fields — editable here independent of stage. Saving these does NOT
   // move the item to "ready_to_post"; that transition stays owned by markReadyToPost.
   ready_platforms:     z.array(z.enum(PLATFORMS)).optional(),
@@ -46,6 +59,16 @@ export const updateContentItemSchema = z.object({
   scheduled_post_time: z.string().optional(),
 })
 export type UpdateContentItemInput = z.infer<typeof updateContentItemSchema>
+
+// Correcting a logged post after the fact — who actually posted it, or when it actually
+// went out — without touching the platform itself (that's add/remove, not edit).
+export const updateContentPostSchema = z.object({
+  id:               z.string().uuid(),
+  content_item_id:  z.string().uuid(),
+  posted_by:        z.string().uuid().optional(),
+  posted_date:      z.string().min(1, 'Posted date is required'),
+})
+export type UpdateContentPostInput = z.infer<typeof updateContentPostSchema>
 
 export const addContentPostSchema = z.object({
   content_item_id: z.string().uuid(),
@@ -60,6 +83,8 @@ export const addContentPostSchema = z.object({
   // Ticked independently of platform choice — flags the underlying content item as used
   // for promotion, one-way (never unset here).
   is_promotion:    z.boolean().optional(),
+  // Only meaningful when platform is 'other' — which platform it actually was.
+  other_platform_label: z.string().optional(),
 })
 export type AddContentPostInput = z.infer<typeof addContentPostSchema>
 
@@ -181,9 +206,10 @@ export const addAdPerformanceEntrySchema = z.object({
 export type AddAdPerformanceEntryInput = z.infer<typeof addAdPerformanceEntrySchema>
 
 export const setClientMonthlyTargetSchema = z.object({
-  client_name: z.string().min(1),
-  kind:        z.enum(['branding', 'ads']),
-  month:       z.string().regex(/^\d{4}-\d{2}$/, 'Month must be YYYY-MM'),
-  target:      z.number().int().min(0),
+  client_name:  z.string().min(1),
+  kind:         z.enum(['branding', 'ads']),
+  content_type: z.enum(CONTENT_TYPES),
+  month:        z.string().regex(/^\d{4}-\d{2}$/, 'Month must be YYYY-MM'),
+  target:       z.number().int().min(0),
 })
 export type SetClientMonthlyTargetInput = z.infer<typeof setClientMonthlyTargetSchema>

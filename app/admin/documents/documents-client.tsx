@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { deleteDocument, verifyMemberKYC } from "@/lib/actions/documents"
+import { syncMemberDocumentsNow } from "@/lib/actions/member-documents"
 import Image from "next/image"
 import { PageHero } from "@/components/admin/PageHero"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
@@ -15,8 +16,10 @@ import {
   BadgeCheck, PenLine,
 } from "lucide-react"
 
-const DOC_TYPES = ["Govt ID Proof", "Ration Card", "Photo", "Payslip", "Signature", "Other"]
-const FILTER_CHIPS = ["All", "Govt ID Proof", "Ration Card", "Photo", "Payslip", "Signature", "Other"]
+// Company-issued docs (admin authors and hands these to the employee) come first, kept
+// visually separate in the type picker from the employee's own personal/KYC uploads below.
+const DOC_TYPES = ["Welcome Letter", "Offer Letter", "Privacy Policy", "Govt ID Proof", "Ration Card", "Photo", "Payslip", "Signature", "Other"]
+const FILTER_CHIPS = ["All", "Welcome Letter", "Offer Letter", "Privacy Policy", "Govt ID Proof", "Ration Card", "Photo", "Payslip", "Signature", "Other"]
 
 type Member = {
   id: string; name: string; employee_id: string; role: string
@@ -114,6 +117,7 @@ function getExtBadge(fileType: string | null, name: string): { ext: string; colo
 }
 
 const DOC_TYPE_COLOR: Record<string, string> = {
+  "Welcome Letter": "#16A34A", "Offer Letter": "#DE1A1A", "Privacy Policy": "#6366F1",
   "Govt ID Proof": "#F59E0B", "Ration Card": "#10B981",
   "Photo": "#EC4899", "Payslip": "#0EA5E9", "Signature": "#8B5CF6", "Other": "#6B7280",
 }
@@ -369,6 +373,8 @@ export default function DocumentsClient({
   const [uploadSuccess, setUploadSuccess] = useState("")
   const [isUploading, setIsUploading]     = useState(false)
   const [isPending, start]            = useTransition()
+  const [syncingDrive, setSyncingDrive] = useState(false)
+  const [syncResult, setSyncResult]     = useState<string | null>(null)
   const fileRef                       = useRef<HTMLInputElement>(null)
   const router                        = useRouter()
 
@@ -464,6 +470,17 @@ export default function DocumentsClient({
     if (id.startsWith("kyc__")) return
     if (!(await confirm("Delete this document?"))) return
     start(async () => { await deleteDocument(id); router.refresh() })
+  }
+
+  async function handleSyncDrive() {
+    if (!selectedId) return
+    setSyncingDrive(true); setSyncResult(null)
+    try {
+      const res = await syncMemberDocumentsNow(selectedId)
+      if (!res.success) { setSyncResult(res.error ?? "Sync failed"); return }
+      setSyncResult(`Synced ${res.synced ?? 0}, already up to date ${res.skipped ?? 0}${res.failed ? `, failed ${res.failed}` : ""}`)
+      router.refresh()
+    } finally { setSyncingDrive(false) }
   }
 
   async function handleVerifyKYC() {
@@ -763,8 +780,17 @@ export default function DocumentsClient({
                       <button onClick={() => setViewMode("list")} style={{ width: 30, height: 30, borderRadius: 8, border: "none", cursor: "pointer", background: viewMode === "list" ? "#de1a1a" : "rgba(0,0,0,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <List size={13} style={{ color: viewMode === "list" ? "#fff" : "#1B4332" }} />
                       </button>
+                      <button onClick={handleSyncDrive} disabled={syncingDrive}
+                        title="Push any documents not yet in Google Drive"
+                        style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, border: "1px solid #E5E7EB", background: "#fff", color: "#1B4332", fontSize: 11, fontWeight: 700, cursor: syncingDrive ? "not-allowed" : "pointer" }}>
+                        <CloudUpload size={13} style={{ color: "#0EA5E9" }} />
+                        {syncingDrive ? "Syncing…" : "Sync to Drive"}
+                      </button>
                     </div>
                   </div>
+                  {syncResult && (
+                    <p style={{ fontSize: 11, fontWeight: 600, color: "#1B4332", margin: 0 }}>{syncResult}</p>
+                  )}
 
                   {/* Documents */}
                   {shownDocs.length === 0 ? (

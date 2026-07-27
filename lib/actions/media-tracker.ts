@@ -4,8 +4,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import {
-  createContentItemSchema, updateContentItemSchema, addContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema, updateVoiceOverSchema, setClientMonthlyTargetSchema,
-  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput, type UpdateVoiceOverInput, type SetClientMonthlyTargetInput,
+  createContentItemSchema, updateContentItemSchema, addContentPostSchema, updateContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema, updateVoiceOverSchema, setClientMonthlyTargetSchema,
+  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type UpdateContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput, type UpdateVoiceOverInput, type SetClientMonthlyTargetInput,
 } from '@/lib/validations/media-tracker'
 import { isValidPipelineTransition, type ContentPipelineStatus } from '@/lib/media-tracker/pipeline-transitions'
 import { todayIST } from '@/lib/utils/ist-date'
@@ -77,7 +77,7 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
     status:       isBackfillPosted ? 'posted' : entryStatus,
     shot_by:      ctx.id,
     shot_date:    shotDate,
-    edited_by:    isBackfillPosted ? ctx.id : null,
+    edited_by:    isBackfillPosted ? (parsed.data.edited_by || ctx.id) : null,
     edited_date:  isBackfillPosted ? (parsed.data.posted_date || today) : null,
     notes:        parsed.data.notes || null,
     created_by:   ctx.id,
@@ -88,6 +88,7 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
     const postedDate = parsed.data.posted_date || today
     const rows = parsed.data.posted_platforms!.map(platform => ({
       content_item_id: data.id, company_id: ctx.companyId, platform, posted_date: postedDate, posted_by: ctx.id,
+      other_platform_label: platform === 'other' ? (parsed.data.other_platform_label || null) : null,
     }))
     const { error: postsError } = await ctx.admin.from('content_item_posts').insert(rows)
     if (postsError) return { success: false, error: postsError.message }
@@ -116,8 +117,14 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
     scheduled_post_time: parsed.data.scheduled_post_time || null,
     updated_at:   new Date().toISOString(),
   }
+  if (parsed.data.shot_by) updates.shot_by = parsed.data.shot_by
   if (parsed.data.edited_by) updates.edited_by = parsed.data.edited_by
   if (parsed.data.edited_date) updates.edited_date = parsed.data.edited_date
+  if (parsed.data.edited_drive_link) {
+    if (!isValidDriveLink(parsed.data.edited_drive_link)) return { success: false, error: 'A valid Google Drive link is required' }
+    updates.edited_drive_link = parsed.data.edited_drive_link.trim()
+  }
+  if (parsed.data.cancelled_by) updates.cancelled_by = parsed.data.cancelled_by
 
   const { error } = await ctx.admin.from('content_items').update(updates).eq('id', id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
@@ -233,16 +240,19 @@ export async function updateContentItemStatus(
   if (!ctx) return { success: false, error: 'Not authenticated' }
 
   const { data: current } = await ctx.admin
-    .from('content_items').select('status, edited_by').eq('id', id).eq('company_id', ctx.companyId).single()
+    .from('content_items').select('status, edited_by, content_type').eq('id', id).eq('company_id', ctx.companyId).single()
   if (!current) return { success: false, error: 'Content item not found' }
 
   if (!isValidPipelineTransition(current.status as ContentPipelineStatus, status)) {
     return { success: false, error: `Cannot move from ${current.status} to ${status}` }
   }
 
+  // A poster has no drive file to link — only videos are required to leave one behind.
+  const isPoster = current.content_type === 'poster'
+
   // Enforced server-side too — the client can't be trusted to be the only gate on a
   // pipeline transition that's supposed to always leave a real Drive link behind.
-  if (status === 'on_review' && !isValidDriveLink(editedDriveLink ?? '')) {
+  if (status === 'on_review' && !isPoster && !isValidDriveLink(editedDriveLink ?? '')) {
     return { success: false, error: 'A valid Google Drive link is required' }
   }
 
@@ -250,7 +260,7 @@ export async function updateContentItemStatus(
 
   if (status === 'on_review') {
     updates.edited_date = editedDate || todayIST()
-    updates.edited_drive_link = editedDriveLink!.trim()
+    if (!isPoster) updates.edited_drive_link = editedDriveLink!.trim()
     // Reaching On Review (Completed Edit) is where the editor is recorded — the
     // accountability moment ("who edited this?"), asked at the Edited -> On Review move.
     if (editorId) updates.edited_by = editorId
@@ -297,6 +307,7 @@ export async function addContentPost(input: AddContentPostInput): Promise<{ succ
     post_link:       parsed.data.post_link || null,
     posted_by:       parsed.data.posted_by || ctx.id,
     ad_run_date:     parsed.data.ad_run_date || null,
+    other_platform_label: parsed.data.platform === 'other' ? (parsed.data.other_platform_label || null) : null,
   }).select('id').single()
   if (error) return { success: false, error: error.message }
 
@@ -313,6 +324,29 @@ export async function addContentPost(input: AddContentPostInput): Promise<{ succ
 
   revalidateTracker()
   return { success: true, id: data.id }
+}
+
+// Correcting a logged post's "who"/"when" after the fact — the actual posting record,
+// not the schedule/intent (that's ready_platforms/scheduled_post_*, a different field).
+export async function updateContentPost(input: UpdateContentPostInput): Promise<{ success: boolean; error?: string }> {
+  const parsed = updateContentPostSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const updates: Record<string, unknown> = { posted_date: parsed.data.posted_date }
+  if (parsed.data.posted_by) updates.posted_by = parsed.data.posted_by
+
+  const { error } = await ctx.admin.from('content_item_posts')
+    .update(updates)
+    .eq('id', parsed.data.id)
+    .eq('content_item_id', parsed.data.content_item_id)
+    .eq('company_id', ctx.companyId)
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true }
 }
 
 export async function deleteContentPost(id: string, contentItemId: string): Promise<{ success: boolean; error?: string }> {
@@ -565,9 +599,13 @@ export async function updateVoiceOver(input: UpdateVoiceOverInput): Promise<{ su
   if (!ctx) return { success: false, error: 'Not authenticated' }
 
   const { data: current } = await ctx.admin
-    .from('content_items').select('status').eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId).single()
+    .from('content_items').select('status, voiceover_by').eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId).single()
   if (!current) return { success: false, error: 'Content item not found' }
-  if (current.status !== 'voiceover') return { success: false, error: 'Only items in Voice Over can be edited here' }
+  // Correctable any time after it was first recorded — the artist changed, or the date
+  // was wrong — not just while still sitting in the Voice Over column.
+  if (!current.voiceover_by && current.status !== 'voiceover') {
+    return { success: false, error: 'This item has no voice-over recorded yet' }
+  }
 
   const { error } = await ctx.admin.from('content_items').update({
     voiceover_by:   parsed.data.voiceover_by,
@@ -590,14 +628,15 @@ export async function setClientMonthlyTarget(input: SetClientMonthlyTargetInput)
   if (!ctx) return { success: false, error: 'Not authenticated' }
 
   const { error } = await ctx.admin.from('content_client_targets').upsert({
-    company_id:  ctx.companyId,
-    client_name: parsed.data.client_name,
-    kind:        parsed.data.kind,
-    month:       parsed.data.month,
-    target:      parsed.data.target,
-    updated_by:  ctx.id,
-    updated_at:  new Date().toISOString(),
-  }, { onConflict: 'company_id,client_name,kind,month' })
+    company_id:   ctx.companyId,
+    client_name:  parsed.data.client_name,
+    kind:         parsed.data.kind,
+    content_type: parsed.data.content_type,
+    month:        parsed.data.month,
+    target:       parsed.data.target,
+    updated_by:   ctx.id,
+    updated_at:   new Date().toISOString(),
+  }, { onConflict: 'company_id,client_name,kind,month,content_type' })
   if (error) return { success: false, error: error.message }
 
   revalidateTracker()

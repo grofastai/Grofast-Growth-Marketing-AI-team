@@ -337,8 +337,29 @@ export async function getTickets(role: 'ADMIN' | 'MEMBER') {
   }
 
   const { data } = await query
-  await cacheSet(cacheKey, data ?? [], 30)
-  return data ?? []
+  const rows = data ?? []
+
+  // Attach requester/assignee display info directly — the thread used to fall back to
+  // "Member" whenever the requester hadn't posted a reply yet (name was only ever derived
+  // from their own support_responses row, which doesn't exist until they reply).
+  const userIds = new Set<string>()
+  for (const t of rows) {
+    userIds.add(t.user_id as string)
+    if (t.assigned_to) userIds.add(t.assigned_to as string)
+  }
+  const { data: userRows } = userIds.size > 0
+    ? await admin.from('users').select('id, name, photo_url, employee_id').in('id', Array.from(userIds))
+    : { data: [] }
+  const userMap = new Map((userRows ?? []).map(u => [u.id, u]))
+
+  const enriched = rows.map(t => ({
+    ...t,
+    requester: userMap.get(t.user_id as string) ?? null,
+    assignee: t.assigned_to ? (userMap.get(t.assigned_to as string) ?? null) : null,
+  }))
+
+  await cacheSet(cacheKey, enriched, 30)
+  return enriched
 }
 
 export async function getMemberName(user_id: string): Promise<string> {

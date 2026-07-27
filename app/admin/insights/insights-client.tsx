@@ -4,7 +4,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Users, TrendingUp, BarChart3 } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts'
-import type { MemberUtilization, ClientHour, InsightsKPIs, SpendCategory } from './page'
+import type { MemberUtilization, ClientHour, InsightsKPIs, SpendCategory, LeaveBreakdownRow } from './page'
+
+// Mirrors the same constant in page.tsx (checkMonthlyLeaveLimit, lib/actions/leaves.ts) —
+// duplicated rather than imported so this client component never pulls in page.tsx's
+// server-only imports (next/headers via lib/supabase/server.ts) into the browser bundle.
+const MONTHLY_LEAVE_CAP = 5
 import type { TeamRow } from '@/lib/actions/teams'
 import { hexToRgba } from '@/lib/utils/team-colors'
 
@@ -194,12 +199,13 @@ export type AllMember = {
 }
 
 export default function InsightsClient({
-  month, today, kpis, memberUtilization, clientHours, prevMonthClientHours, spendByCategory, allMembers, teams = [],
+  month, today, kpis, memberUtilization, leaveBreakdown, clientHours, prevMonthClientHours, spendByCategory, allMembers, teams = [],
 }: {
   month: string
   today: string
   kpis: InsightsKPIs
   memberUtilization: MemberUtilization[]
+  leaveBreakdown: LeaveBreakdownRow[]
   clientHours: ClientHour[]
   prevMonthClientHours: number
   spendByCategory: SpendCategory[]
@@ -869,6 +875,41 @@ export default function InsightsClient({
           </div>
         </Card>
       </div>
+
+      {/* ── Leave Summary — only members who actually took leave this month ── */}
+      {leaveBreakdown.length > 0 && (
+        <Card title="Leave Summary" meta={`Monthly cap: ${MONTHLY_LEAVE_CAP} days`}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: HEAD_BG }}>
+                  {['Member', 'Full Day', 'Half Day', 'Permission', 'Days Used', 'Balance'].map(h => (
+                    <th key={h} style={{ textAlign: h === 'Member' ? 'left' : 'center', padding: '8px 14px', fontSize: 10, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1px solid ${RULE}` }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {leaveBreakdown.map(r => (
+                  <tr key={r.id} style={{ borderBottom: `1px solid ${RULE}` }}>
+                    <td style={{ padding: '9px 14px', fontWeight: 700, color: INK }}>{r.name}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'center', color: r.fullDays > 0 ? INK : DIM }}>{r.fullDays > 0 ? r.fullDays : '—'}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'center', color: r.halfDays > 0 ? INK : DIM }}>
+                      {r.halfDays > 0 ? `${r.halfDays} (${r.halfDayHours}h)` : '—'}
+                    </td>
+                    <td style={{ padding: '9px 14px', textAlign: 'center', color: r.permissionHours > 0 ? INK : DIM }}>{r.permissionHours > 0 ? `${r.permissionHours}h` : '—'}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'center', fontWeight: 700, color: INK }}>{r.daysUsed}</td>
+                    <td style={{ padding: '9px 14px', textAlign: 'center' }}>
+                      <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 999, fontWeight: 800, background: r.balance < 0 ? 'rgba(222,26,26,0.12)' : 'rgba(22,163,74,0.1)', color: r.balance < 0 ? RED : '#16A34A' }}>
+                        {r.balance < 0 ? r.balance : `+${r.balance}`}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       {/* ── Per-Hour Rate Reference Table ───────────────────────────────── */}
       <Card title="Employee Per-Hour Rate Reference" meta="Monthly salary ÷ 212.5 hrs (25 days × 8.5 hrs)">

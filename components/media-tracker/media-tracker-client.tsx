@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useState, useTransition } from "react"
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   useDraggable, useDroppable,
@@ -24,7 +24,7 @@ import {
   createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, requestCorrection,
   createAdsVideoScript, recordVoiceOver, updateAdsVideoScript, updateVoiceOver, setClientMonthlyTarget,
 } from "@/lib/actions/media-tracker"
-import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, renameShootTitle, addShootTitle, updateShootActualTime, type CreatedShootItem } from "@/lib/actions/shoots"
+import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, renameShootTitle, deleteShootTitle, addShootTitle, updateShootActualTime, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
 import { isValidPipelineTransition } from "@/lib/media-tracker/pipeline-transitions"
 import { computeOverview, type AttentionItem } from "@/lib/media-tracker/overview"
@@ -461,6 +461,36 @@ function Modal({ title, onClose, children, width = 440 }: { title: string; onClo
           </button>
         </div>
         <div style={{ padding: 20 }}>{children}</div>
+      </div>
+    </div>
+  )
+}
+
+// Centered in-app success confirmation — NOT a browser alert/toast. Sits above the
+// modal it's called from (higher z-index), auto-dismisses on its own after a beat, or
+// dismiss immediately by clicking anywhere.
+function SuccessFlash({ message, onDone }: { message: string; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 1400)
+    return () => clearTimeout(t)
+  }, [onDone])
+  return (
+    <div onClick={onDone} style={{
+      position: "fixed", inset: 0, zIndex: 400, background: "rgba(10,10,15,0.45)", backdropFilter: "blur(4px)",
+      display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+    }}>
+      <div style={{
+        background: "#fff", borderRadius: 20, padding: "28px 36px", textAlign: "center", minWidth: 220,
+        boxShadow: "0 30px 80px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.12)",
+      }}>
+        <div style={{
+          width: 50, height: 50, borderRadius: 15, margin: "0 auto 12px",
+          background: "linear-gradient(145deg,#22C55E,#15803D)", display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 10px 24px rgba(34,197,94,0.35)",
+        }}>
+          <Check size={26} color="#fff" strokeWidth={3} />
+        </div>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#111827" }}>{message}</p>
       </div>
     </div>
   )
@@ -3244,193 +3274,161 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
     [clients, pastClients]
   )
+  const confirm = useConfirm()
   const [client, setClient] = useState(shoot.client)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editValue, setEditValue] = useState("")
+  const [titleEdits, setTitleEdits] = useState<Record<string, string>>(
+    () => Object.fromEntries(shoot.titles.map(t => [t.id, t.title]))
+  )
+  const [titles, setTitlesState] = useState(shoot.titles)
   const [newTitle, setNewTitle] = useState("")
   const [fromTime, setFromTime] = useState(toISTTimeString(shoot.start_time))
   const [toTime, setToTime] = useState(toISTTimeString(shoot.end_time))
   const [crew, setCrew] = useState<string[]>(shoot.goingByUsers.map(u => u.id))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Every Save button here edits an already-submitted shoot with no other feedback —
-  // without this, there was no way to tell whether a re-edit actually saved or silently
-  // failed. Clears itself after a couple seconds so it doesn't linger stale.
-  const [savedMsg, setSavedMsg] = useState<string | null>(null)
-  function flashSaved(msg: string) {
-    setSavedMsg(msg)
-    setTimeout(() => setSavedMsg(prev => prev === msg ? null : prev), 2500)
-  }
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
-  async function saveClient() {
+  // Everything above (Client, Video Title edits, Actual Shoot Time, Who Went) is
+  // submitted together with this one button instead of a separate Save per field —
+  // the per-field pattern meant re-editing several things meant clicking Save several
+  // times with no single confirmation that it all went through.
+  async function handleUpdateAll() {
     if (!client) { setError("Client is required"); return }
-    setSaving(true); setError(null); setSavedMsg(null)
-    const shotDate = shoot.start_time.split("T")[0]
-    const res = await updateTrackerShoot(shoot.id, {
-      client, title: shoot.legacyTitle, shot_date: shotDate,
-      shot_time_from: toISTTimeString(shoot.start_time) || "00:00",
-      shot_time_to: toISTTimeString(shoot.end_time) || "00:00",
-      notes: shoot.notes ?? undefined,
-    })
-    setSaving(false)
-    if (!res.success) { setError(res.error ?? "Failed to save"); return }
-    onClientSaved(client)
-    flashSaved("Client saved")
-  }
+    if (!fromTime || !toTime) { setError("Both times are required"); return }
+    setSaving(true); setError(null)
 
-  async function saveRename(id: string) {
-    const title = editValue.trim()
-    if (!title) { setError("Title is required"); return }
-    setSaving(true); setError(null); setSavedMsg(null)
-    const res = await renameShootTitle(id, title)
+    const renamed = titles.filter(t => (titleEdits[t.id] ?? t.title).trim() && titleEdits[t.id] !== t.title)
+    const results = await Promise.all([
+      updateTrackerShoot(shoot.id, {
+        client, title: shoot.legacyTitle, shot_date: shoot.start_time.split("T")[0],
+        shot_time_from: toISTTimeString(shoot.start_time) || "00:00",
+        shot_time_to: toISTTimeString(shoot.end_time) || "00:00",
+        notes: shoot.notes ?? undefined,
+      }),
+      updateShootActualTime(shoot.id, fromTime, toTime),
+      updateShootCrew(shoot.id, crew),
+      ...renamed.map(t => renameShootTitle(t.id, titleEdits[t.id].trim())),
+    ])
     setSaving(false)
-    if (!res.success) { setError(res.error ?? "Failed to save"); return }
-    onRenamed(id, title)
-    setEditingId(null)
-    flashSaved("Title saved")
+
+    const failed = results.find(r => !r.success)
+    if (failed) { setError(failed.error ?? "Failed to save"); return }
+
+    onClientSaved(client)
+    onTimeSaved(fromTime, toTime)
+    onCrewSaved(members.filter(m => crew.includes(m.id)))
+    for (const t of renamed) onRenamed(t.id, titleEdits[t.id].trim())
+    setTitlesState(prev => prev.map(t => renamed.some(r => r.id === t.id) ? { ...t, title: titleEdits[t.id].trim() } : t))
+    setSuccessMsg("Shoot Updated Successfully")
   }
 
   async function addNew() {
     const title = newTitle.trim()
     if (!title) { setError("Title is required"); return }
-    setSaving(true); setError(null); setSavedMsg(null)
+    setSaving(true); setError(null)
     const res = await addShootTitle(shoot.id, title)
     setSaving(false)
     if (!res.success || !res.item) { setError(res.error ?? "Failed to save"); return }
     onAdded(res.item)
+    setTitlesState(prev => [...prev, { id: res.item!.shoot_title_id, title: res.item!.title, content_item_id: res.item!.id }])
+    setTitleEdits(prev => ({ ...prev, [res.item!.shoot_title_id]: res.item!.title }))
     setNewTitle("")
-    flashSaved("Video added")
   }
 
-  async function saveTime() {
-    if (!fromTime || !toTime) { setError("Both times are required"); return }
-    setSaving(true); setError(null); setSavedMsg(null)
-    const res = await updateShootActualTime(shoot.id, fromTime, toTime)
+  async function handleDeleteTitle(id: string, title: string) {
+    if (!(await confirm({ title: "Delete this video?", message: `"${title}" and its record will be permanently removed. This cannot be undone.`, icon: "trash" }))) return
+    setSaving(true); setError(null)
+    const res = await deleteShootTitle(id)
     setSaving(false)
-    if (!res.success) { setError(res.error ?? "Failed to save"); return }
-    onTimeSaved(fromTime, toTime)
-    flashSaved("Time saved")
+    if (!res.success) { setError(res.error ?? "Failed to delete"); return }
+    setTitlesState(prev => prev.filter(t => t.id !== id))
+    setTitleEdits(prev => { const next = { ...prev }; delete next[id]; return next })
   }
 
   function toggleCrew(id: string) {
     setCrew(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
-  async function saveCrew() {
-    setSaving(true); setError(null); setSavedMsg(null)
-    const res = await updateShootCrew(shoot.id, crew)
-    setSaving(false)
-    if (!res.success) { setError(res.error ?? "Failed to save"); return }
-    onCrewSaved(members.filter(m => crew.includes(m.id)))
-    flashSaved("Crew saved")
-  }
-
   return (
-    <Modal title={`Edit Completed Shoot — ${shoot.legacyTitle} (${shoot.titles.length} video${shoot.titles.length === 1 ? "" : "s"})`} onClose={onClose}>
-      <div className="flex flex-col gap-3">
-        <div>
-          <label style={LABEL}>Client</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <div style={{ flex: 1 }}>
-              <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
-            </div>
-            <button type="button" onClick={saveClient} disabled={saving}
-              style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: saving ? "default" : "pointer", flexShrink: 0 }}>
-              Save
-            </button>
-          </div>
-          {shoot.source_content_item_id && (
-            <p style={{ fontSize: 10, color: "#9CA3AF", margin: "4px 0 0" }}>
-              This shoot came from an Ads Video script — saving also corrects that script&apos;s client.
-            </p>
-          )}
-        </div>
-        <div>
-          <label style={LABEL}>Video Titles</label>
-          <div className="flex flex-col gap-2">
-            {shoot.titles.length === 0 && (
-              <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>No videos recorded for this shoot yet.</p>
+    <>
+      <Modal title={`Edit Completed Shoot — ${shoot.legacyTitle} (${titles.length} video${titles.length === 1 ? "" : "s"})`} onClose={onClose}>
+        <div className="flex flex-col gap-3">
+          <div>
+            <label style={LABEL}>Client</label>
+            <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
+            {shoot.source_content_item_id && (
+              <p style={{ fontSize: 10, color: "#9CA3AF", margin: "4px 0 0" }}>
+                This shoot came from an Ads Video script — saving also corrects that script&apos;s client.
+              </p>
             )}
-            {shoot.titles.map(t => (
-              <div key={t.id} style={{ display: "flex", gap: 8 }}>
-                {editingId === t.id ? (
-                  <>
-                    <input style={FIELD} value={editValue} onChange={e => setEditValue(e.target.value)}
-                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); saveRename(t.id) } }} autoFocus />
-                    <button type="button" onClick={() => saveRename(t.id)} disabled={saving}
-                      style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-                      Save
-                    </button>
-                    <button type="button" onClick={() => setEditingId(null)}
-                      style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#fff", color: "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <span style={{ flex: 1, padding: "8px 10px", borderRadius: 10, background: "#F9FAFB", border: "1.5px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#374151" }}>{t.title}</span>
-                    <button type="button" onClick={() => { setEditingId(t.id); setEditValue(t.title) }}
-                      style={{ padding: "8px 10px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#fff", color: "#6B7280", cursor: "pointer", flexShrink: 0 }}>
-                      <Pencil size={12} />
-                    </button>
-                  </>
-                )}
-              </div>
-            ))}
           </div>
-        </div>
-        <div>
-          <label style={LABEL}>Add a Video <span style={{ fontWeight: 600, textTransform: "none" }}>(missed at completion)</span></label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input style={FIELD} value={newTitle} onChange={e => setNewTitle(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addNew() } }}
-              placeholder="e.g. Extra Behind the Scenes" />
-            <button type="button" onClick={addNew} disabled={saving}
-              style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#DE1A1A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-              Add
-            </button>
-          </div>
-        </div>
-
-        <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
-          <label style={LABEL}>Actual Shoot Time</label>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end" }}>
-            <div>
-              <input type="time" style={FIELD} value={fromTime} onChange={e => setFromTime(e.target.value)} />
+          <div>
+            <label style={LABEL}>Video Titles</label>
+            <div className="flex flex-col gap-2">
+              {titles.length === 0 && (
+                <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>No videos recorded for this shoot yet.</p>
+              )}
+              {titles.map(t => (
+                <div key={t.id} style={{ display: "flex", gap: 8 }}>
+                  <input style={{ ...FIELD, flex: 1 }} value={titleEdits[t.id] ?? t.title}
+                    onChange={e => setTitleEdits(prev => ({ ...prev, [t.id]: e.target.value }))} />
+                  <button type="button" onClick={() => handleDeleteTitle(t.id, titleEdits[t.id] ?? t.title)} disabled={saving}
+                    title="Delete this video"
+                    style={{ padding: "8px 10px", borderRadius: 10, border: "1.5px solid #FEE2E2", background: "#FEF2F2", color: "#DC2626", cursor: saving ? "default" : "pointer", flexShrink: 0 }}>
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
             </div>
-            <div>
+          </div>
+          <div>
+            <label style={LABEL}>Add a Video <span style={{ fontWeight: 600, textTransform: "none" }}>(missed at completion)</span></label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={FIELD} value={newTitle} onChange={e => setNewTitle(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addNew() } }}
+                placeholder="e.g. Extra Behind the Scenes" />
+              <button type="button" onClick={addNew} disabled={saving}
+                style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#DE1A1A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                Add
+              </button>
+            </div>
+          </div>
+
+          <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
+            <label style={LABEL}>Actual Shoot Time</label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <input type="time" style={FIELD} value={fromTime} onChange={e => setFromTime(e.target.value)} />
               <input type="time" style={FIELD} value={toTime} onChange={e => setToTime(e.target.value)} />
             </div>
-            <button type="button" onClick={saveTime} disabled={saving}
-              style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-              Save Time
-            </button>
           </div>
-        </div>
 
-        <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
-          <label style={LABEL}>Who Went? <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-            {members.map(m => {
-              const on = crew.includes(m.id)
-              return (
-                <button key={m.id} type="button" onClick={() => toggleCrew(m.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {on && <Check size={11} />} {upper(m.name)}{m.id === currentUserId ? " (me)" : ""}
-                </button>
-              )
-            })}
+          <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
+            <label style={LABEL}>Who Went? <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {members.map(m => {
+                const on = crew.includes(m.id)
+                return (
+                  <button key={m.id} type="button" onClick={() => toggleCrew(m.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    {on && <Check size={11} />} {upper(m.name)}{m.id === currentUserId ? " (me)" : ""}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-          <button type="button" onClick={saveCrew} disabled={saving}
-            style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "#16A34A", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-            Save Crew
+
+          {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+
+          <button type="button" onClick={handleUpdateAll} disabled={saving}
+            style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "none", marginTop: 4,
+              background: saving ? "#E5E7EB" : "linear-gradient(135deg,#22C55E,#15803D)",
+              color: saving ? "#9CA3AF" : "#fff", fontSize: 13, fontWeight: 800, cursor: saving ? "not-allowed" : "pointer" }}>
+            {saving ? "Updating…" : "Update Shoot"}
           </button>
         </div>
-
-        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
-        {savedMsg && <p style={{ fontSize: 11, color: "#16A34A", fontWeight: 700, margin: 0 }}>✓ {savedMsg}</p>}
-      </div>
-    </Modal>
+      </Modal>
+      {successMsg && <SuccessFlash message={successMsg} onDone={() => setSuccessMsg(null)} />}
+    </>
   )
 }
 

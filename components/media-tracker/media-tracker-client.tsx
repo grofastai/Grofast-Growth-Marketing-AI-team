@@ -455,7 +455,7 @@ function Modal({ title, onClose, children, width = 440 }: { title: string; onClo
       <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: width, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.25)" }}
         onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #F3F4F6" }}>
-          <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>{title}</h3>
+          <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: 0, textTransform: "uppercase", letterSpacing: "0.03em" }}>{title}</h3>
           <button onClick={onClose} style={{ padding: 6, borderRadius: 8, background: "#F9FAFB", border: "none", cursor: "pointer" }}>
             <X size={14} style={{ color: "#6B7280" }} />
           </button>
@@ -1882,7 +1882,7 @@ function EditAdsVideoModal({ item, clients, pastClients, members, currentUserId,
   }
 
   return (
-    <Modal title={`Edit Script — ${item.title}`} onClose={onClose}>
+    <Modal title="Edit Script" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
         <div>
@@ -1935,7 +1935,7 @@ function EditVoiceOverModal({ item, freelancers, onClose, onSaved }: {
   }
 
   return (
-    <Modal title={`Edit Voice Over — ${item.title}`} onClose={onClose}>
+    <Modal title="Edit Voice Over" onClose={onClose}>
       <div className="flex flex-col gap-3">
         {freelancers.length === 0 ? (
           <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>
@@ -2058,7 +2058,7 @@ function EditContentModal({ item, clients, pastClients, members, shootingMembers
   }
 
   return (
-    <Modal title={`Edit — ${STATUS_CFG[item.status].label} — ${item.title}`} onClose={onClose}>
+    <Modal title="Edit Content" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
         <div>
@@ -2284,7 +2284,7 @@ function AddPlatformModal({ item, kind, members, currentUserId, onClose, onAdded
   }
 
   return (
-    <Modal title={kind === "ads" ? `Mark "${item.title}" as Ads` : `Post "${item.title}"`} onClose={onClose}>
+    <Modal title={kind === "ads" ? "Mark as Ads" : "Post"} onClose={onClose}>
       <div className="flex flex-col gap-3">
         <div>
           <label style={LABEL}>Platforms * <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
@@ -2486,7 +2486,7 @@ function AdRevisionModal({ ad, onClose, onAdded }: { ad: Ad; onClose: () => void
   }
 
   return (
-    <Modal title={`Log Correction — ${ad.ad_name}`} onClose={onClose}>
+    <Modal title="Log Correction" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <div>
           <label style={LABEL}>What changed? *</label>
@@ -2546,7 +2546,7 @@ function AdPerformanceModal({ ad, onClose, onAdded }: { ad: Ad; onClose: () => v
   }
 
   return (
-    <Modal title={`Log Performance — ${ad.ad_name}`} onClose={onClose}>
+    <Modal title="Log Performance" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
@@ -2701,7 +2701,7 @@ function RequestCorrectionModal({ item, members, onClose, onRequested }: {
   }
 
   return (
-    <Modal title={`Needs Correction — ${item.title}`} onClose={onClose}>
+    <Modal title="Needs Correction" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <div>
           <label style={LABEL}>What needs fixing? *</label>
@@ -2734,7 +2734,7 @@ function MoveOnReviewModal({ item, onClose, onMoved, onCancelled }: {
   const [showCancelReasons, setShowCancelReasons] = useState(false)
 
   return (
-    <Modal title={`Move — ${item.title}`} onClose={onClose}>
+    <Modal title="Move" onClose={onClose}>
       <div className="flex flex-col gap-3">
         {item.editedByUser && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "#F1F5F9" }}>
@@ -2799,7 +2799,7 @@ function CancelReasonModal({ item, onClose, onCancelled }: {
   onCancelled: (cancelledBy: CancelledBy) => void
 }) {
   return (
-    <Modal title={`Cancel — ${item.title}`} onClose={onClose}>
+    <Modal title="Cancel" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <p className="text-[11px]" style={{ color: "#6B7280", margin: 0 }}>Cancelled by</p>
         <button onClick={() => onCancelled("client")}
@@ -2849,7 +2849,7 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
   }
 
   return (
-    <Modal title={`${isPoster ? "Who designed this?" : "Who edited this?"} — ${item.title}`} onClose={onClose}>
+    <Modal title={isPoster ? "Who designed this?" : "Who edited this?"} onClose={onClose}>
       <div className="flex flex-col gap-3">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
@@ -2905,7 +2905,7 @@ function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
   }
 
   return (
-    <Modal title={`Who recorded the voice-over? — ${item.title}`} onClose={onClose}>
+    <Modal title="Who recorded the voice-over?" onClose={onClose}>
       <div className="flex flex-col gap-3">
         {freelancers.length === 0 ? (
           <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>
@@ -2972,7 +2972,7 @@ function MoveToShootModal({ item, onClose, onMoved }: {
   }
 
   return (
-    <Modal title={`Move to Shoot — ${item.title}`} onClose={onClose}>
+    <Modal title="Move to Shoot" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <div>
           <label style={LABEL}>Shot Date *</label>
@@ -3050,7 +3050,7 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
   }
 
   return (
-    <Modal title={`Shoot Done — ${shoot.legacyTitle}`} onClose={onClose}>
+    <Modal title="Shoot Done" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <div>
           <label style={LABEL}>Video Titles {isLinked ? <span style={{ fontWeight: 600, textTransform: "none" }}>(optional — extra footage beyond the script itself)</span> : "*"}</label>
@@ -3147,7 +3147,7 @@ function EditCrewModal({ shoot, members, currentUserId, onClose, onSaved }: {
   }
 
   return (
-    <Modal title={`Who went — ${shoot.legacyTitle}`} onClose={onClose}>
+    <Modal title="Who Went" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <div>
           <label style={LABEL}>Crew</label>
@@ -3351,7 +3351,7 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
 
   return (
     <>
-      <Modal title={`Edit Completed Shoot — ${shoot.legacyTitle} (${titles.length} video${titles.length === 1 ? "" : "s"})`} onClose={onClose}>
+      <Modal title="Edit Completed Shoot" onClose={onClose}>
         <div className="flex flex-col gap-3">
           <div>
             <label style={LABEL}>Client</label>
@@ -3440,7 +3440,7 @@ function DeleteShootModal({ shoot, onClose, onConfirm }: {
 }) {
   const videoCount = shoot.titles.length
   return (
-    <Modal title={`Delete "${shoot.legacyTitle}"?`} onClose={onClose}>
+    <Modal title="Delete Shoot?" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <p style={{ fontSize: 13, color: "#6B7280", margin: 0, lineHeight: 1.5 }}>
           This shoot produced {videoCount} video{videoCount === 1 ? "" : "s"}. Choose what happens to {videoCount === 1 ? "it" : "them"}.

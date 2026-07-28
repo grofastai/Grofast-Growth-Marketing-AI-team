@@ -1,0 +1,12 @@
+-- Correct the half-day threshold default from 4h to 4.5h, matching the
+-- workday rule (9:30 AM - 7:00 PM = 9.5h full day, 4.5h+ = half day) now
+-- shared by lib/utils/attendance-stats.ts and used for Present Days
+-- counting across Dashboard, Attendance, History, and Payslip, not just
+-- the Admin Payroll page.
+--
+-- Only changes the column DEFAULT (applies to new companies going
+-- forward). Existing company rows are left untouched — an admin may have
+-- deliberately saved 4h via the Payroll Settings form, and this migration
+-- has no way to distinguish that from an unedited old default, so it does
+-- not overwrite existing rows.
+ALTER TABLE payroll_settings ALTER COLUMN half_day_threshold_hrs SET DEFAULT 4.5;

@@ -17,10 +17,12 @@ import { Bubble, StatusRibbon, bodyParts, SUPPORT_ANIM_CSS } from '@/components/
 import { PageHero } from '@/components/admin/PageHero'
 
 type Response = { id: string; responder_id: string; responder_name: string; message: string; created_at: string; edited_at?: string | null }
+type UserRef = { id: string; name: string; photo_url: string | null; employee_id: string | null }
 type Ticket = {
   id: string; user_id: string; title: string; category: string
   description: string; status: string; priority: string; assigned_to?: string
   created_at: string; updated_at: string; support_responses: Response[]
+  requester: UserRef | null; assignee: UserRef | null
 }
 
 // Three list segments. "New" = anything still being worked (open + in progress).
@@ -35,7 +37,12 @@ function inSegment(status: string, seg: string): boolean {
   return status === seg
 }
 
+// Used to fall back to the requester's own reply if they had one and the requester
+// record was somehow missing — now resolved directly from getTickets' users join instead
+// of depending on them having replied at all (a ticket with only its opening message and
+// no reply used to show as "Member" here, with no name or profile visible).
 function requesterName(t: Ticket): string {
+  if (t.requester?.name) return t.requester.name
   const own = (t.support_responses ?? []).find(r => r.responder_id === t.user_id)
   return own?.responder_name ?? 'Member'
 }
@@ -47,6 +54,8 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
 
   const [filter, setFilter]         = useState('new')
   const [search, setSearch]         = useState('')
+  const [memberFilter, setMemberFilter] = useState('all')
+  const [monthFilter, setMonthFilter]   = useState('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showThreadMobile, setShowThreadMobile] = useState(false)
   const [showNew, setShowNew]       = useState(false)
@@ -82,13 +91,27 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
     return m
   }, [tickets])
 
+  // Every requester who's raised at least one ticket — options for the member filter.
+  const memberOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const t of tickets) if (t.requester) map.set(t.requester.id, t.requester.name)
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]))
+  }, [tickets])
+
+  const monthOptions = useMemo(() =>
+    Array.from(new Set(tickets.map(t => t.created_at.slice(0, 7)))).sort().reverse(),
+    [tickets]
+  )
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return [...tickets]
       .filter(t => inSegment(t.status, filter)
-        && (!q || t.title.toLowerCase().includes(q) || t.category.includes(q) || requesterName(t).toLowerCase().includes(q)))
+        && (!q || t.title.toLowerCase().includes(q) || t.category.includes(q) || requesterName(t).toLowerCase().includes(q))
+        && (memberFilter === 'all' || t.user_id === memberFilter)
+        && (monthFilter === 'all' || t.created_at.slice(0, 7) === monthFilter))
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-  }, [tickets, filter, search])
+  }, [tickets, filter, search, memberFilter, monthFilter])
 
   const segCounts: Record<string, number> = {
     new: stats.open + stats.in_progress, resolved: stats.resolved, closed: stats.closed,
@@ -297,6 +320,22 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                   <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tickets or people…"
                     style={{ width: '100%', padding: '10px 12px 10px 34px', borderRadius: 11, fontSize: 13, background: '#F6F7F9', border: '1px solid #EDEFF3', color: '#1F2430', outline: 'none', boxSizing: 'border-box' }} />
                 </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                  <select value={memberFilter} onChange={e => setMemberFilter(e.target.value)}
+                    style={{ flex: 1, minWidth: 0, padding: '7px 8px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, background: '#F6F7F9', border: '1px solid #EDEFF3', color: '#1F2430', outline: 'none' }}>
+                    <option value="all">All Members</option>
+                    {memberOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+                  </select>
+                  <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)}
+                    style={{ flex: 1, minWidth: 0, padding: '7px 8px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, background: '#F6F7F9', border: '1px solid #EDEFF3', color: '#1F2430', outline: 'none' }}>
+                    <option value="all">All Months</option>
+                    {monthOptions.map(m => (
+                      <option key={m} value={m}>
+                        {new Date(`${m}-01T00:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 {/* New / Resolved / Closed segmented filter */}
                 <div style={{ display: 'flex', gap: 4, marginTop: 12, background: '#F1F2F5', borderRadius: 12, padding: 4 }}>
                   {SEGMENTS.map(s => {
@@ -333,14 +372,23 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ fontSize: 13, fontWeight: 700, color: isActive ? '#FFFFFF' : '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{t.title}</span>
-                          <span style={{ fontSize: 10, color: isActive ? 'rgba(255,255,255,0.6)' : '#5B2C6F', flexShrink: 0 }}>{timeAgo(t.updated_at)}</span>
+                          <span title={new Date(t.updated_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                            style={{ fontSize: 10, color: isActive ? 'rgba(255,255,255,0.6)' : '#5B2C6F', flexShrink: 0 }}>{timeAgo(t.updated_at)}</span>
                         </div>
                         <p style={{ margin: '2px 0 0', fontSize: 11.5, color: isActive ? 'rgba(255,255,255,0.75)' : '#4B5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {requesterName(t)} · {preview}
                         </p>
-                        <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>
+                        <p style={{ margin: '2px 0 0', fontSize: 10, color: isActive ? 'rgba(255,255,255,0.55)' : '#9CA3AF' }}>
+                          Raised {new Date(t.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                        <div style={{ display: 'flex', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: tok.bg, color: tok.color }}>{tok.label}</span>
                           <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: pr.bg, color: pr.color }}>{pr.label}</span>
+                          {t.assignee && (
+                            <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 99, background: isActive ? 'rgba(255,255,255,0.15)' : 'rgba(99,102,241,0.1)', color: isActive ? '#fff' : '#6366F1' }}>
+                              → {t.assignee.name}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </button>

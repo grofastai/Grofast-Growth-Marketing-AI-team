@@ -14,6 +14,7 @@ import {
   addClient, updateClientDetails, updateClientStatus, deleteClient,
   addServiceOption, renameServiceOption, deleteServiceOption, setClientServices,
 } from '@/lib/actions/clients'
+import { setClientMonthlyTarget } from '@/lib/actions/media-tracker'
 
 const PACKAGE_OPTIONS = [
   'YEARLY', 'HALF YEARLY', 'QUARTERLY', 'MONTHLY',
@@ -228,6 +229,61 @@ function TH({ children }: { children: string }) {
   )
 }
 
+// Set this month's Branding target for Video and Poster right from the client's own
+// page — the only other place to do this is deep inside Media Tracker's Branding log
+// (and only once that client is picked there too). Same setClientMonthlyTarget action,
+// same content_client_targets rows Media Tracker's Overview reads from.
+function MediaTargetsCard({ clientName, initial }: { clientName: string; initial: { video: number | null; poster: number | null } }) {
+  const [video, setVideo] = useState(initial.video ?? 0)
+  const [poster, setPoster] = useState(initial.poster ?? 0)
+  const [isPending, startPending] = useTransition()
+  const [saved, setSaved] = useState(false)
+  const month = todayIST().slice(0, 7)
+
+  function save() {
+    setSaved(false)
+    startPending(async () => {
+      await Promise.all([
+        setClientMonthlyTarget({ client_name: clientName, kind: 'branding', content_type: 'video', month, target: video }),
+        setClientMonthlyTarget({ client_name: clientName, kind: 'branding', content_type: 'poster', month, target: poster }),
+      ])
+      setSaved(true)
+    })
+  }
+
+  return (
+    <div style={{
+      background: '#FFFFFF', borderRadius: 14, padding: '14px 18px',
+      border: '1px solid #EBEDF2', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+    }}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: '#37474F', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        Media Target · {fmtMonth(month)}
+      </span>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#111827' }}>
+        Video
+        <input type="number" min={0} value={video}
+          onChange={e => { setVideo(Number(e.target.value)); setSaved(false) }}
+          style={{ width: 60, padding: '5px 8px', borderRadius: 8, border: '1.5px solid #E5E7EB', fontSize: 12, fontWeight: 700 }} />
+      </label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#111827' }}>
+        Poster
+        <input type="number" min={0} value={poster}
+          onChange={e => { setPoster(Number(e.target.value)); setSaved(false) }}
+          style={{ width: 60, padding: '5px 8px', borderRadius: 8, border: '1.5px solid #E5E7EB', fontSize: 12, fontWeight: 700 }} />
+      </label>
+      <button onClick={save} disabled={isPending}
+        style={{ padding: '6px 14px', borderRadius: 9, border: 'none', background: '#DE1A1A', color: '#fff', fontSize: 11, fontWeight: 800, cursor: isPending ? 'not-allowed' : 'pointer' }}>
+        {isPending ? 'Saving…' : saved ? 'Saved ✓' : 'Save Target'}
+      </button>
+    </div>
+  )
+}
+
+function fmtMonth(ym: string) {
+  const [y, m] = ym.split('-').map(Number)
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+}
+
 // Shared colgroup — 5 cols normally, 6 cols when showClient=true (aggregate view)
 function TableCols({ showClient }: { showClient?: boolean }) {
   // Date / Client (aggregate only) / Member / Title / Hours / Cost
@@ -249,6 +305,7 @@ export default function ClientsUnifiedClient({
   activeClients, pastClients, serviceOptions,
   selectedClientName, selectedClientRow,
   deliverables,
+  mediaTargets,
   initialSearch = '',
   mode, period, today,
   dateFrom, dateTo,
@@ -259,6 +316,7 @@ export default function ClientsUnifiedClient({
   selectedClientName: string | null
   selectedClientRow: ClientRow | null
   deliverables: DeliverableResult | null
+  mediaTargets: { video: number | null; poster: number | null } | null
   initialSearch?: string
   mode: 'month' | 'all' | 'custom'
   period: string
@@ -613,6 +671,10 @@ export default function ClientsUnifiedClient({
                 </div>
               )}
             </div>
+
+            {mediaTargets && !selectedClientRow.industry?.startsWith('__virtual') && (
+              <MediaTargetsCard key={selectedClientRow.id} clientName={selectedClientRow.name} initial={mediaTargets} />
+            )}
 
             {/* ── Date filter ──────────────────────────────────────────── */}
             <div style={{

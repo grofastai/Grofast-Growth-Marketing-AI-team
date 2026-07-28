@@ -17,6 +17,13 @@ export function toISTDateString(d: Date | number | string): string {
   return new Date(d).toLocaleString('en-CA', { timeZone: IST_TIME_ZONE }).split(',')[0]
 }
 
+// HH:MM (24h) for an arbitrary instant, in IST — e.g. converting a clock_in/clock_out
+// timestamptz to the same wall-clock format leave times (half_day_from_time etc.) are
+// stored in, so the two can be compared directly.
+export function toISTTimeString(d: Date | number | string): string {
+  return new Date(d).toLocaleTimeString('en-GB', { timeZone: IST_TIME_ZONE, hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
 // A Date whose UTC-getter methods (getUTCDay, getUTCDate, getUTCMonth, getUTCFullYear)
 // read as IST wall-clock values — for day-of-week / week-range / month-boundary math.
 // Always read it with the getUTC* methods, never the local getters (those would apply

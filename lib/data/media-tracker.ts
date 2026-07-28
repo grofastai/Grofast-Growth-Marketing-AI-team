@@ -39,7 +39,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     admin.from('shoot_titles').select('id, shoot_id, title, content_item_id').eq('company_id', companyId),
     admin.from('content_corrections').select('*').eq('company_id', companyId).order('correction_date', { ascending: false }),
     admin.from('freelancers').select('id, name, team, status').eq('company_id', companyId),
-    admin.from('content_client_targets').select('client_name, kind, month, target').eq('company_id', companyId),
+    admin.from('content_client_targets').select('client_name, kind, content_type, month, target').eq('company_id', companyId),
   ])
 
   type ItemRow = {
@@ -58,7 +58,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     edited_drive_link: string | null
     is_promotion: boolean
   }
-  type PostRow = { id: string; content_item_id: string; platform: 'instagram' | 'youtube' | 'facebook' | 'linkedin' | 'gmb' | 'twitter' | 'ads' | 'meta_ads' | 'google_ads' | 'other'; posted_date: string; posted_by: string | null; post_link: string | null; ad_run_date: string | null }
+  type PostRow = { id: string; content_item_id: string; platform: 'instagram' | 'youtube' | 'facebook' | 'linkedin' | 'gmb' | 'twitter' | 'ads' | 'meta_ads' | 'google_ads' | 'other'; posted_date: string; posted_by: string | null; post_link: string | null; ad_run_date: string | null; other_platform_label: string | null }
   type UserRow = { id: string; name: string; media_tracker_roles: string[] | null }
   type AdRow = { id: string; client_name: string; ad_name: string; platform: string; launch_date: string | null; hook_count: number; targeting_type: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null; targeting_notes: string | null; status: 'active' | 'paused' | 'testing' | 'stopped'; created_at: string }
   type RevisionRow = { id: string; ad_id: string; revision_date: string; notes: string; hook_count_after: number | null; targeting_type_after: 'broad' | 'interest' | 'lookalike' | 'retargeting' | null }
@@ -176,6 +176,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     posts: (postsByItem.get(row.id) ?? []).map(p => ({
       id: p.id, content_item_id: p.content_item_id, platform: p.platform, posted_date: p.posted_date, post_link: p.post_link,
       ad_run_date: p.ad_run_date,
+      other_platform_label: p.other_platform_label,
       postedByUser: p.posted_by ? (userMap.get(p.posted_by) ?? null) : null,
     })),
   }))

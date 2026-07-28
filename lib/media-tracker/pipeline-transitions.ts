@@ -12,18 +12,26 @@ const TRANSITIONS: Record<ContentPipelineStatus, ContentPipelineStatus[]> = {
   // A script (or its voice-over) can turn out unusable — client pulls the ask, wrong
   // direction — before it ever reaches a shoot or edit, same as footage/a design can.
   scripting: ['voiceover', 'cancelled'],
-  voiceover: ['ready_to_edit', 'cancelled'],
+  // 'scripting' as a target undoes an accidental move into Voice Over before a real
+  // recording happened — mirrors the same undo pattern every later stage already has.
+  voiceover: ['ready_to_edit', 'scripting', 'cancelled'],
   // Both production paths hand off to an editor's own "Edited" checkpoint before
   // reaching admin review — Cancelled stays reachable from here too, same as it was
   // from Ready to Edit/Design, since nothing has been approved out of review yet.
   design: ['edited', 'cancelled'],
   ready_to_edit: ['edited', 'cancelled'],
-  edited: ['on_review', 'cancelled'],
+  // 'ready_to_edit'/'design' also listed as a target here — an accidental move (or an
+  // editor suddenly unable to continue) needs to be undoable back to the stage it came
+  // from, whichever that was for this item's source.
+  edited: ['on_review', 'cancelled', 'ready_to_edit', 'design'],
   // The review gate branches three ways: approved for organic posting, approved for
-  // ads, or rejected outright (with who rejected it recorded separately).
-  on_review: ['branding_ready', 'ads_ready', 'cancelled'],
-  branding_ready: ['posted'],
-  ads_ready: ['posted'],
+  // ads, or rejected outright (with who rejected it recorded separately). 'edited' is
+  // also a valid target — undoes an accidental Move before anything downstream happened.
+  on_review: ['branding_ready', 'ads_ready', 'cancelled', 'edited'],
+  // 'on_review' as a target undoes an accidental branding/ads approval before a post
+  // was actually logged against it.
+  branding_ready: ['posted', 'on_review'],
+  ads_ready: ['posted', 'on_review'],
   posted: [],
   cancelled: [],
 }

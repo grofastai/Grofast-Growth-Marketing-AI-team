@@ -18,6 +18,8 @@ export type MemberDoc = {
 }
 
 const DOC_TYPE_COLOR: Record<string, { color: string; bg: string }> = {
+  "Welcome Letter": { color: "#16A34A", bg: "rgba(22,163,74,0.08)" },
+  "Privacy Policy": { color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
   "Offer Letter":  { color: "#de1a1a", bg: "rgba(222,26,26,0.08)"  },
   "Contract":      { color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
   "ID Proof":      { color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },

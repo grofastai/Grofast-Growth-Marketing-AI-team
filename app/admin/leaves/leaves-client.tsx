@@ -137,10 +137,11 @@ function getAvatar(name: string, gender: string | undefined, idx: number) {
 }
 
 // ── Leave Card ─────────────────────────────────────────────────────────────────
-function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
+function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject, onSelectMember }: {
   leave: Leave; idx: number
   isPending: boolean; actionId: string | null
   onApprove: (id: string) => void; onReject: (id: string) => void
+  onSelectMember: (id: string) => void
 }) {
   const user = Array.isArray(leave.users) ? leave.users[0] : leave.users
   const name = user?.name ?? "Unknown"
@@ -178,8 +179,12 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
       padding: "16px", display: "flex", flexDirection: "column", gap: 12,
       boxShadow: "0 1px 8px rgba(0,0,0,0.04)",
     }}>
-      {/* Top: avatar + name + status badge */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      {/* Top: avatar + name + status badge — click name/avatar to filter to just this member */}
+      <div
+        onClick={() => user?.id && onSelectMember(user.id)}
+        title={user?.id ? `Show only ${name}'s leaves` : undefined}
+        style={{ display: "flex", alignItems: "center", gap: 10, cursor: user?.id ? "pointer" : "default" }}
+      >
         <div style={{ width: 42, height: 42, borderRadius: "50%", overflow: "hidden", flexShrink: 0, position: "relative", border: "2px solid #F3F4F6" }}>
           <Image src={getAvatar(name, user?.gender, idx)} alt={name} fill style={{ objectFit: "cover" }} />
         </div>
@@ -308,14 +313,27 @@ export default function LeavesClient({
     return true
   })
 
+  // Member filter — "" = every member. Set by the dropdown below or by clicking
+  // a name/avatar on a leave card, so picking one member shows only their dates.
+  const [memberFilter, setMemberFilter] = useState<string>("")
+  const sortedMembers = [...members].sort((a, b) => a.name.localeCompare(b.name))
+  const selectedMember = members.find(m => m.id === memberFilter) ?? null
+  const visibleLeaves = memberFilter
+    ? dateFilteredLeaves.filter(l => {
+        const u = Array.isArray(l.users) ? l.users[0] : l.users
+        return u?.id === memberFilter
+      })
+    : dateFilteredLeaves
+
   // Header KPI breakdown of whatever's actually on screen right now — reacts to
-  // both the mode filter (server-scoped into `leaves`) and the date filter above.
-  const fullDayCount  = dateFilteredLeaves.filter(l => l.leave_type === "full_day").length
-  const wfhCount      = dateFilteredLeaves.filter(l => l.leave_type === "wfh").length
-  const shootCount    = dateFilteredLeaves.filter(l => l.leave_type === "shoot_day").length
-  const halfDayCount  = dateFilteredLeaves.filter(l => l.leave_type === "half_day").length
-  const approvedCount = dateFilteredLeaves.filter(l => l.status === "approved").length
-  const rejectedCount = dateFilteredLeaves.filter(l => l.status === "rejected").length
+  // the mode filter (server-scoped into `leaves`), the date filter, and the
+  // member filter above.
+  const fullDayCount  = visibleLeaves.filter(l => l.leave_type === "full_day").length
+  const wfhCount      = visibleLeaves.filter(l => l.leave_type === "wfh").length
+  const shootCount    = visibleLeaves.filter(l => l.leave_type === "shoot_day").length
+  const halfDayCount  = visibleLeaves.filter(l => l.leave_type === "half_day").length
+  const approvedCount = visibleLeaves.filter(l => l.status === "approved").length
+  const rejectedCount = visibleLeaves.filter(l => l.status === "rejected").length
   const [actionId, setActionId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -577,6 +595,38 @@ export default function LeavesClient({
                   <ChevronDown size={13} strokeWidth={2.5}
                     style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#37474F" }} />
                 </div>
+
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  <Users size={12} strokeWidth={2.5}
+                    style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: memberFilter ? "#FFFFFF" : "#37474F" }} />
+                  <select
+                    value={memberFilter}
+                    onChange={e => setMemberFilter(e.target.value)}
+                    aria-label="Filter by member"
+                    style={{
+                      padding: "8px 26px 8px 30px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                      whiteSpace: "nowrap", outline: "none", border: memberFilter ? "none" : "1px solid #EBEDF2",
+                      appearance: "none", WebkitAppearance: "none", maxWidth: 160,
+                      background: memberFilter ? gradBg : "#FFFFFF",
+                      color: memberFilter ? "#FFFFFF" : "#37474F",
+                      boxShadow: memberFilter ? "0 4px 16px rgba(180,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
+                    }}>
+                    <option value="" style={{ background: "#FFFFFF", color: "#37474F" }}>All Members</option>
+                    {sortedMembers.map(m => (
+                      <option key={m.id} value={m.id} style={{ background: "#FFFFFF", color: "#37474F" }}>{m.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={13} strokeWidth={2.5}
+                    style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: memberFilter ? "#FFFFFF" : "#37474F" }} />
+                </div>
+                {selectedMember && (
+                  <button onClick={() => setMemberFilter("")} aria-label="Clear member filter" style={{
+                    display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: 20, flexShrink: 0,
+                    border: "1px solid #EBEDF2", background: "#FFFFFF", fontSize: 11, fontWeight: 700, color: "#37474F", cursor: "pointer",
+                  }}>
+                    {selectedMember.name.split(" ")[0]} <X size={11} strokeWidth={2.5} />
+                  </button>
+                )}
                 {dateMode === "month" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 2, background: "#FFFFFF", borderRadius: 24, padding: "2px 6px", flexShrink: 0, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                     <button onClick={() => setFilterMonth(m => shiftMonth(m, -1))} aria-label="Previous month" style={{ width: 30, height: 30, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}><ChevronLeft size={15} color="#37474F" /></button>
@@ -736,7 +786,7 @@ export default function LeavesClient({
           )}
 
           {/* Leave Cards */}
-          {mode !== "holidays" && (dateFilteredLeaves.length === 0 ? (
+          {mode !== "holidays" && (visibleLeaves.length === 0 ? (
             <div style={{
               background: "#FFFFFF", borderRadius: 18, padding: "60px 24px", textAlign: "center",
               border: "1px solid #F0F0F5", boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
@@ -745,17 +795,18 @@ export default function LeavesClient({
                 <Image src="/brand/leave/vacation-hero.png" alt="" fill style={{ objectFit: "contain" }} />
               </div>
               <p style={{ fontSize: 16, fontWeight: 700, color: "#111827", margin: "0 0 6px", fontFamily: "var(--font-jakarta)" }}>
-                No leave requests match this filter
+                {selectedMember ? `No leave requests for ${selectedMember.name}` : "No leave requests match this filter"}
               </p>
               <p style={{ fontSize: 13, color: "#37474F", margin: 0 }}>Your team is fully available today.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
-              {dateFilteredLeaves.map((leave, i) => (
+              {visibleLeaves.map((leave, i) => (
                 <LeaveCard
                   key={leave.id} leave={leave} idx={i}
                   isPending={isPending} actionId={actionId}
                   onApprove={handleApprove} onReject={handleReject}
+                  onSelectMember={setMemberFilter}
                 />
               ))}
             </div>

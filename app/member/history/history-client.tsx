@@ -3179,6 +3179,7 @@ export default function HistoryClient({
                                       </div>
                                     </div>
                                     <div><label style={HL}>Sub-title — what did you work on? *</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="e.g. Fixed dashboard filter bug" style={HF} /></div>
+                                    <div><label style={HL}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Any notes…" style={{ ...HF, resize:"none" }} /></div>
                                     <div>
                                       <label style={HL}>💻 Dev Time</label>
                                       <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
@@ -3368,6 +3369,8 @@ export default function HistoryClient({
                                         {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(13,148,136,0.1)", color:"#0D9488" }}>{fmtTravel(dur)}</span>}
                                       </div>
                                     </div>
+                                    <div><label style={HL}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Edit details…" style={{ ...HF, resize:"none" }} /></div>
+                                    <div><label style={HL}>Drive / Video Link</label><input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="https://drive.google.com/…" style={HF} /></div>
                                     {members.length > 0 && (
                                       <div>
                                         <label style={HL}>👥 Edited With</label>

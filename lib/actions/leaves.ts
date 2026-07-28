@@ -8,6 +8,7 @@ import { sendNotification } from '@/lib/notifications/send'
 import { insertNotification, insertManyNotifications } from './notifications'
 import { formatLeaveDetail } from '@/lib/leave-approval-effects'
 import { sumLeaveDays } from '@/lib/utils/leave-balance'
+import { HALF_DAY_THRESHOLD_HOURS } from '@/lib/utils/attendance-stats'
 import { toISTTimeString } from '@/lib/utils/ist-date'
 import { z } from 'zod'
 
@@ -42,6 +43,22 @@ const leaveSchema = z.object({
   if (data.leave_type === 'half_day') {
     if (!data.half_day_from_time) ctx.addIssue({ code: 'custom', path: ['half_day_from_time'], message: 'From time is required for half day leave' })
     if (!data.half_day_to_time)   ctx.addIssue({ code: 'custom', path: ['half_day_to_time'],   message: 'To time is required for half day leave' })
+    // A "half day" must always cost exactly HALF_DAY_THRESHOLD_HOURS (4.5h) — otherwise
+    // someone could apply "half day" for 1h off (barely an absence) or 8h off (basically
+    // a full day) and still only get charged the flat 0.5-day rate. Shared with
+    // lib/utils/attendance-stats.ts so the leave request itself and the present-day/
+    // payroll classification can never disagree on what "half day" means.
+    if (data.half_day_from_time && data.half_day_to_time) {
+      let mins = timeToMinutes(data.half_day_to_time) - timeToMinutes(data.half_day_from_time)
+      if (mins <= 0) mins += 1440
+      const requiredMins = HALF_DAY_THRESHOLD_HOURS * 60
+      if (mins !== requiredMins) {
+        ctx.addIssue({
+          code: 'custom', path: ['half_day_to_time'],
+          message: `Half day leave must be exactly ${HALF_DAY_THRESHOLD_HOURS}h (this is ${(mins / 60).toFixed(1)}h)`,
+        })
+      }
+    }
   }
   if (data.leave_type === 'permission') {
     if (!data.permission_time)     ctx.addIssue({ code: 'custom', path: ['permission_time'],     message: 'Leave From time is required for permission' })

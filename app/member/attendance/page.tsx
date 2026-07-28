@@ -44,6 +44,11 @@ export default async function AttendancePage() {
 
   // Month range (IST)
   const monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`
+  // Leave Taken should count the WHOLE month, including already-approved leave dated
+  // later this month — unlike attendance data (clipped to today, since there's no data
+  // for days that haven't happened), a leave already approved for next week is already
+  // "used" against the allowance right now. Matches Dashboard/History (confirmed 2026-07-28).
+  const leaveRangeEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).toISOString().split("T")[0]
 
   type BreakSession = { in: string; out: string | null; mins: number | null }
   type AttLog = {
@@ -121,7 +126,7 @@ export default async function AttendancePage() {
       .eq("user_id", effectiveUserId)
       .eq("status", "approved")
       .gte("from_date", monthStart)
-      .lte("from_date", today),
+      .lte("from_date", leaveRangeEnd),
     // Weekly daily_updates — used to show accurate worked hours in weekly view
     admin.from("daily_updates")
       .select("date, working_hours, learning_hours, work_entries")
@@ -218,19 +223,20 @@ export default async function AttendancePage() {
 
   // LEAVE-1 fix: cap leave dates to current month boundaries; half_day = 0.5,
   // permission = cumulative hours converted to day-equivalents
-  const monthLeaveDays = sumLeaveDays(approvedLeaves, monthStart, today)
+  const monthLeaveDays = sumLeaveDays(approvedLeaves, monthStart, leaveRangeEnd)
 
   // Present Days / Half Days / Absent Days — shared classifier
   // (lib/utils/attendance-stats.ts) so this matches Dashboard, History,
   // Admin Payroll, and the Payslip PDF for the same person/month.
-  const monthLeaveDateSet = new Set<string>()
+  const monthLeaveDateMap = new Map<string, "full" | "half">()
   for (const l of approvedLeaves) {
     if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") continue
+    const weight = l.leave_type === "half_day" ? "half" : "full"
     const cur = new Date(l.from_date + "T12:00:00")
     const end = new Date(l.to_date   + "T12:00:00")
     while (cur <= end) {
       const d = cur.toISOString().split("T")[0]
-      if (d >= monthStart && d <= today) monthLeaveDateSet.add(d)
+      if (d >= monthStart && d <= today) monthLeaveDateMap.set(d, weight)
       cur.setDate(cur.getDate() + 1)
     }
   }
@@ -244,7 +250,7 @@ export default async function AttendancePage() {
   const monthAttendanceSummary = summarizeAttendanceDays(monthRangeDates.map(date => ({
     hasClockIn: monthClockInDates.has(date),
     workHours: monthWorkHoursByDate[date] ?? 0,
-    isApprovedLeave: monthLeaveDateSet.has(date),
+    leaveType: monthLeaveDateMap.get(date),
   })))
   const monthPresentDays = monthAttendanceSummary.presentDays
   const monthAbsentDays  = monthAttendanceSummary.absentDays

@@ -13,23 +13,39 @@
 // absent. Approved leave / company holidays are excluded from present/absent
 // entirely — they're accounted for separately (see lib/utils/leave-balance.ts).
 // Confirmed 2026-07-28 to also govern Present Days counting, not just payroll.
+//
+// Half-day leave (confirmed 2026-07-28): a half_day leave only covers half the
+// date, so it should only remove 0.5 from present-day accounting, not the
+// whole day. If she showed up for the other half (clocked in or logged any
+// hours), that half counts as present ('half_leave': 0.5 leave + 0.5 present —
+// never deductible in payroll, same as a normal leave day). If she never
+// showed up at all for the working half, there's nothing to distinguish it
+// from a full-day leave, so it collapses to 'leave' (1.0 leave, 0 present).
+//
+// HALF_DAY_THRESHOLD_HOURS corrected 2026-07-28: 4.5h was never actually half
+// of the 9.5h workday (half of 9.5 is 4.75h = 4h45m) — this threshold now
+// matches FULL_DAY_HOURS / 2 exactly, for both Present Days classification
+// and Permission-hours-to-days conversion (see permissionHoursToDays below).
 import { calcNetWorkHours } from './work-hours'
 
 export const FULL_DAY_HOURS = 9.5
-export const HALF_DAY_THRESHOLD_HOURS = 4.5
+export const HALF_DAY_THRESHOLD_HOURS = 4.75
 
 export type AttendanceDayInput = {
   hasClockIn: boolean
   workHours: number
-  isApprovedLeave?: boolean
+  /** 'full' = whole date is approved leave. 'half' = half-day leave — the
+   *  other half is still eligible for present credit (see classifyAttendanceDay). */
+  leaveType?: 'full' | 'half'
   isHoliday?: boolean
 }
 
-export type DayClass = 'full' | 'half' | 'absent' | 'leave' | 'holiday'
+export type DayClass = 'full' | 'half' | 'absent' | 'leave' | 'half_leave' | 'holiday'
 
 export function classifyAttendanceDay(day: AttendanceDayInput, halfDayThresholdHours = HALF_DAY_THRESHOLD_HOURS): DayClass {
   if (day.isHoliday) return 'holiday'
-  if (day.isApprovedLeave) return 'leave'
+  if (day.leaveType === 'full') return 'leave'
+  if (day.leaveType === 'half') return (day.hasClockIn || day.workHours > 0) ? 'half_leave' : 'leave'
   if (!day.hasClockIn && day.workHours <= 0) return 'absent'
   if (day.hasClockIn && day.workHours <= 0) return 'half' // clocked in, no work logged = missing update
   if (day.workHours > 0 && day.workHours <= halfDayThresholdHours) return 'half'
@@ -37,26 +53,34 @@ export function classifyAttendanceDay(day: AttendanceDayInput, halfDayThresholdH
 }
 
 export type AttendanceSummary = {
-  presentDays: number // fullDays + halfDays * 0.5
+  presentDays: number // fullDays + halfDays * 0.5 + halfLeaveDays * 0.5
   fullDays: number
   halfDays: number
   absentDays: number
-  leaveDays: number
+  leaveDays: number // fullLeaveDays + halfLeaveDays * 0.5
+  halfLeaveDays: number
   holidayDays: number
 }
 
 export function summarizeAttendanceDays(days: AttendanceDayInput[], halfDayThresholdHours = HALF_DAY_THRESHOLD_HOURS): AttendanceSummary {
-  let fullDays = 0, halfDays = 0, absentDays = 0, leaveDays = 0, holidayDays = 0
+  let fullDays = 0, halfDays = 0, absentDays = 0, fullLeaveDays = 0, halfLeaveDays = 0, holidayDays = 0
   for (const day of days) {
     switch (classifyAttendanceDay(day, halfDayThresholdHours)) {
-      case 'full':    fullDays++;    break
-      case 'half':    halfDays++;    break
-      case 'absent':  absentDays++;  break
-      case 'leave':   leaveDays++;   break
-      case 'holiday': holidayDays++; break
+      case 'full':       fullDays++;      break
+      case 'half':       halfDays++;      break
+      case 'absent':     absentDays++;    break
+      case 'leave':      fullLeaveDays++; break
+      case 'half_leave': halfLeaveDays++; break
+      case 'holiday':    holidayDays++;   break
     }
   }
-  return { presentDays: fullDays + halfDays * 0.5, fullDays, halfDays, absentDays, leaveDays, holidayDays }
+  return {
+    presentDays: fullDays + halfDays * 0.5 + halfLeaveDays * 0.5,
+    fullDays, halfDays, absentDays,
+    leaveDays: fullLeaveDays + halfLeaveDays * 0.5,
+    halfLeaveDays,
+    holidayDays,
+  }
 }
 
 export type DailyUpdateForHours = {

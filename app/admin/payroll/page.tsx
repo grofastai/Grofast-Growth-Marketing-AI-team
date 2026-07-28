@@ -169,17 +169,18 @@ export default async function PayrollPage({
     collabHoursByMember[c.collaborator_id] = (collabHoursByMember[c.collaborator_id] ?? 0) + (c.confirmed_hours ?? 0)
   }
 
-  // Build approved leave date-sets per member
-  function getMemberLeaveDates(userId: string): Set<string> {
-    const s = new Set<string>()
+  // Build approved leave date-maps per member (full_day -> "full", half_day -> "half")
+  function getMemberLeaveDates(userId: string): Map<string, "full" | "half"> {
+    const s = new Map<string, "full" | "half">()
     for (const l of approvedLeaves) {
       if (l.user_id !== userId) continue
       if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") continue
+      const weight = l.leave_type === "half_day" ? "half" : "full"
       const cur = new Date(l.from_date + "T12:00:00")
       const end = new Date(l.to_date   + "T12:00:00")
       while (cur <= end) {
         const d = cur.toISOString().split("T")[0]
-        if (d >= monthStart && d <= monthEnd) s.add(d)
+        if (d >= monthStart && d <= monthEnd) s.set(d, weight)
         cur.setDate(cur.getDate() + 1)
       }
     }
@@ -216,30 +217,38 @@ export default async function PayrollPage({
 
     // Classify each day
     let presentDays = 0, halfDays = 0, absentDays = 0, leaveDays = 0, missingUpdates = 0
-    let totalHours = 0, otHours = 0
+    let totalHours = 0
     const missingUpdateDates: string[] = []
 
     for (const date of allMonthDays) {
       const isHoliday  = holidayDates.has(date)
-      const isLeave    = leaveDatesForMember.has(date)
       const hasClockIn = clockedInDates.has(date)
       const workH      = updateByDate[date] ?? 0
 
       if (isHoliday) continue  // holiday: not counted in working days
-      if (isLeave)   { leaveDays++; totalHours += workH; continue }  // approved leave: no deduction
+
+      // Shared with Dashboard/Attendance/History/Payslip (lib/utils/attendance-stats.ts)
+      // so this company's Payroll threshold setting is the one source of truth for
+      // every half-day/full-day/absent classification, everywhere it's shown.
+      const leaveType = leaveDatesForMember.get(date)
+      const dayClass  = classifyAttendanceDay({ hasClockIn, workHours: workH, leaveType }, HALF_DAY_THRESHOLD)
+
+      if (dayClass === "leave" || dayClass === "half_leave") {
+        // Approved leave: no deduction either way. A half-day leave where she also
+        // worked the other half earns 0.5 present credit (still never deductible);
+        // one with no sign of work at all collapses to a full leave day.
+        leaveDays += dayClass === "half_leave" ? 0.5 : 1
+        if (dayClass === "half_leave") presentDays += 0.5
+        totalHours += workH
+        continue
+      }
 
       totalHours += workH
-
-      if (workH > OT_THRESHOLD) otHours += Math.round((workH - OT_THRESHOLD) * 10) / 10
 
       // Clocked in but no work hours = missing update (still counted as a half day below).
       // Skip today — the day isn't finished yet, so no update yet isn't a real gap.
       if (hasClockIn && workH === 0 && date !== today) { missingUpdates++; missingUpdateDates.push(date) }
 
-      // Shared with Dashboard/Attendance/History/Payslip (lib/utils/attendance-stats.ts)
-      // so this company's Payroll threshold setting is the one source of truth for
-      // every half-day/full-day/absent classification, everywhere it's shown.
-      const dayClass = classifyAttendanceDay({ hasClockIn, workHours: workH }, HALF_DAY_THRESHOLD)
       if (dayClass === "full") presentDays++
       else if (dayClass === "half") halfDays++
       else if (dayClass === "absent") absentDays++
@@ -279,6 +288,12 @@ export default async function PayrollPage({
     // Add confirmed collab hours (count toward total, not OT separately)
     const collabH = collabHoursByMember[m.id] ?? 0
     totalHours = Math.round((totalHours + collabH) * 10) / 10
+
+    // Overtime is cumulative for the whole month, not per-day (confirmed 2026-07-28):
+    // someone present many days but still short of the 212.5h monthly target has zero
+    // OT, no matter how long any single day ran — only hours beyond the target count,
+    // and only once the target is actually crossed.
+    const otHours = Math.round(Math.max(0, totalHours - HOURS_TARGET) * 10) / 10
 
     let basePay = 0, deduction = 0, otPay = 0, netPay = 0
 

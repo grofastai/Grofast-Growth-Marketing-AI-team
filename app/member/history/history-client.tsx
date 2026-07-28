@@ -887,16 +887,18 @@ export default function HistoryClient({
     const leaveRangeEnd   = monthPrefix ? `${monthPrefix}-31` : "9999-12-31"
     const leaveDays = sumLeaveDays(approvedLeaves, leaveRangeStart, leaveRangeEnd)
 
-    // Dates covered by an approved full-day/half-day leave — excluded from present/absent
-    // classification below, same as leaveDays above (permission/wfh/shoot_day are not leave).
-    const leaveDateSet = new Set<string>()
+    // Dates covered by an approved full-day/half-day leave — excluded (fully or
+    // partially, see summarizeAttendanceDays) from present/absent classification
+    // below, same as leaveDays above (permission/wfh/shoot_day are not leave).
+    const leaveDateMap = new Map<string, "full" | "half">()
     for (const l of approvedLeaves) {
       if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") continue
+      const weight = l.leave_type === "half_day" ? "half" : "full"
       const cur = new Date(l.from_date + "T12:00:00")
       const end = new Date(l.to_date   + "T12:00:00")
       while (cur <= end) {
         const d = cur.toISOString().split("T")[0]
-        if (!monthPrefix || d.startsWith(monthPrefix)) leaveDateSet.add(d)
+        if (!monthPrefix || d.startsWith(monthPrefix)) leaveDateMap.set(d, weight)
         cur.setDate(cur.getDate() + 1)
       }
     }
@@ -918,7 +920,7 @@ export default function HistoryClient({
     const attendanceSummary = summarizeAttendanceDays(Array.from(classifyDates).map(date => ({
       hasClockIn: clockInDates.has(date),
       workHours: dateWorkHours.get(date) ?? 0,
-      isApprovedLeave: leaveDateSet.has(date),
+      leaveType: leaveDateMap.get(date),
       isHoliday: holidayDateSet.has(date),
     })))
     presentDays = attendanceSummary.presentDays

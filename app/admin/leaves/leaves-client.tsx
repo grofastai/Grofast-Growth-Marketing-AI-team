@@ -7,6 +7,7 @@ import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, UserCheck, 
 import { updateLeaveStatus, adminApplyLeaveOnBehalf } from "@/lib/actions/leaves"
 import { addCompanyLeave, updateCompanyLeave, deleteCompanyLeave } from "@/lib/actions/company-leaves"
 import { todayIST } from "@/lib/utils/ist-date"
+import { HALF_DAY_THRESHOLD_HOURS } from "@/lib/utils/attendance-stats"
 
 interface Leave {
   id: string
@@ -368,6 +369,12 @@ export default function LeavesClient({
     const isSingleDay = applyLeaveType === "half_day" || applyLeaveType === "permission" || applyLeaveType === "shoot_day"
     const toDate = isSingleDay ? applyFromDate : (applyToDate || applyFromDate)
     if (applyLeaveType === "half_day" && (!applyHalfFrom || !applyHalfTo)) { setApplyError("Set half day From/To time."); return }
+    if (applyLeaveType === "half_day" && applyHalfFrom && applyHalfTo) {
+      const [fh, fm] = applyHalfFrom.split(":").map(Number)
+      const [th, tm] = applyHalfTo.split(":").map(Number)
+      const diff = (th * 60 + tm) - (fh * 60 + fm)
+      if (diff !== HALF_DAY_THRESHOLD_HOURS * 60) { setApplyError(`Half day leave must be exactly ${HALF_DAY_THRESHOLD_HOURS}h.`); return }
+    }
     if (applyLeaveType === "permission" && (!applyPermFrom || !applyPermTo)) { setApplyError("Set permission time."); return }
 
     setApplyPending(true)
@@ -1003,6 +1010,21 @@ export default function LeavesClient({
                     <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>To</label>
                       <input type="time" value={applyHalfTo} onChange={e => setApplyHalfTo(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
                   </div>
+                  {applyHalfFrom && applyHalfTo && (() => {
+                    const [fh, fm] = applyHalfFrom.split(":").map(Number)
+                    const [th, tm] = applyHalfTo.split(":").map(Number)
+                    const diff = (th * 60 + tm) - (fh * 60 + fm)
+                    if (diff <= 0) return <p style={{ fontSize: 11, color: "#EF4444", margin: "8px 0 0", fontWeight: 600 }}>To time must be after From time</p>
+                    const hrs = Math.floor(diff / 60), mins = diff % 60
+                    const requiredMins = HALF_DAY_THRESHOLD_HOURS * 60
+                    const isValid = diff === requiredMins
+                    return (
+                      <p style={{ fontSize: 11, color: isValid ? "#6366F1" : "#EF4444", margin: "8px 0 0", fontWeight: 600 }}>
+                        Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""}
+                        {!isValid && ` — half day must be exactly ${HALF_DAY_THRESHOLD_HOURS}h`}
+                      </p>
+                    )
+                  })()}
                 </>
               )}
 

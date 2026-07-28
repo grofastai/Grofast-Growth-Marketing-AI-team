@@ -12,7 +12,7 @@
 // (payroll-client.tsx's form state).
 export const PAYROLL_SETTINGS_DEFAULTS = {
   ot_threshold_hrs: 9.5,
-  half_day_threshold_hrs: 4.5,
+  half_day_threshold_hrs: 4.75,
   salary_basis_days: 30,
   basic_pct: 50,
   hra_pct: 20,

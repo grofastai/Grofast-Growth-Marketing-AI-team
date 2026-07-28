@@ -12,6 +12,7 @@ import {
 import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest, withdrawWfhForDate } from "@/lib/actions/leaves"
 import { todayIST } from "@/lib/utils/ist-date"
 import { sumLeaveDays } from "@/lib/utils/leave-balance"
+import { HALF_DAY_THRESHOLD_HOURS } from "@/lib/utils/attendance-stats"
 
 interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
@@ -384,8 +385,13 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
   const MONTHLY_LIMIT = 5
   const currentMonth  = today.slice(0, 7) // "YYYY-MM"
+  // Approved-only — matches Dashboard/Attendance/History's "Leave Taken" (confirmed
+  // 2026-07-28). The actual 5-day submit-blocking cap (checkMonthlyLeaveLimit in
+  // lib/actions/leaves.ts) still counts pending requests too, on purpose, so this
+  // displayed number can occasionally look more forgiving than what a new submission
+  // will actually be blocked against if a pending request is already in the queue.
   function calcMonthlyDays(entries: Leave[]) {
-    const monthEntries = entries.filter(l => l.from_date.startsWith(currentMonth) && (l.status === "approved" || l.status === "pending"))
+    const monthEntries = entries.filter(l => l.from_date.startsWith(currentMonth) && l.status === "approved")
     return sumLeaveDays(monthEntries, `${currentMonth}-01`, `${currentMonth}-31`)
   }
   const monthlyUsed     = calcMonthlyDays(leaves)
@@ -1151,7 +1157,14 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                         const diff = (th * 60 + tm) - (fh * 60 + fm)
                         if (diff <= 0) return <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0", fontWeight: 600 }}>To time must be after From time</p>
                         const hrs = Math.floor(diff / 60), mins = diff % 60
-                        return <p style={{ fontSize: 11, color: "#6366F1", margin: "6px 0 0", fontWeight: 600 }}>Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""}</p>
+                        const requiredMins = HALF_DAY_THRESHOLD_HOURS * 60
+                        const isValid = diff === requiredMins
+                        return (
+                          <p style={{ fontSize: 11, color: isValid ? "#6366F1" : "#EF4444", margin: "6px 0 0", fontWeight: 600 }}>
+                            Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""}
+                            {!isValid && ` — half day must be exactly ${HALF_DAY_THRESHOLD_HOURS}h`}
+                          </p>
+                        )
                       })()}
                     </div>
                   </>

@@ -117,42 +117,51 @@ export async function GET(request: NextRequest) {
   const clockedInDates = new Set(logs.filter(l => l.clock_in !== null || l.status === 'present').map(l => l.date))
 
   // Approved leave dates (excluding permission/wfh/shoot_day, which aren't absences)
-  const leaveDateSet = new Set<string>()
+  const leaveDateMap = new Map<string, "full" | "half">()
   for (const l of approvedLeaves) {
     if (l.leave_type === 'permission' || l.leave_type === 'wfh' || l.leave_type === 'shoot_day') continue
+    const weight = l.leave_type === 'half_day' ? 'half' : 'full'
     const cur = new Date(l.from_date + 'T12:00:00')
     const end = new Date(l.to_date   + 'T12:00:00')
     while (cur <= end) {
       const d = cur.toISOString().split('T')[0]
-      if (d >= monthStart && d <= monthEnd) leaveDateSet.add(d)
+      if (d >= monthStart && d <= monthEnd) leaveDateMap.set(d, weight)
       cur.setDate(cur.getDate() + 1)
     }
   }
 
   // Same per-day classification as the Admin Payroll run (lib/utils/attendance-stats.ts)
-  // — approved leave is never deducted, a half-day only deducts 0.5, and OT is only
-  // earned on days actually worked — so this PDF's numbers always match what the
-  // member actually gets paid via Payroll, not an independently-recomputed guess.
+  // — approved leave is never deducted and a half-day only deducts 0.5 — so this PDF's
+  // numbers always match what the member actually gets paid via Payroll, not an
+  // independently-recomputed guess.
   const workDayDates = calendarWorkDays(year, mon, holidayDates)
   let presentDays = 0, halfDays = 0, absentDays = 0, leaveDays = 0
-  let totalHours = 0, otHours = 0
+  let totalHours = 0
   for (const date of workDayDates) {
-    const isLeave    = leaveDateSet.has(date)
     const hasClockIn = clockedInDates.has(date)
     const workH      = (updateByDate[date] ?? 0) + (collabByDate[date] ?? 0)
+    const leaveType  = leaveDateMap.get(date)
+    const dayClass   = classifyAttendanceDay({ hasClockIn, workHours: workH, leaveType }, settings.half_day_threshold_hrs)
 
-    if (isLeave) { leaveDays++; totalHours += workH; continue }
+    if (dayClass === 'leave' || dayClass === 'half_leave') {
+      leaveDays += dayClass === 'half_leave' ? 0.5 : 1
+      if (dayClass === 'half_leave') presentDays += 0.5
+      totalHours += workH
+      continue
+    }
 
     totalHours += workH
-    if (workH > settings.ot_threshold_hrs) otHours += Math.round((workH - settings.ot_threshold_hrs) * 10) / 10
 
-    const dayClass = classifyAttendanceDay({ hasClockIn, workHours: workH }, settings.half_day_threshold_hrs)
     if (dayClass === 'full') presentDays++
     else if (dayClass === 'half') halfDays++
     else if (dayClass === 'absent') absentDays++
   }
   totalHours = Math.round(totalHours * 10) / 10
-  otHours    = Math.round(otHours * 10) / 10
+  // Overtime is cumulative for the whole month, not per-day (matches Admin Payroll,
+  // confirmed 2026-07-28): only hours beyond the fixed 212.5h monthly target count,
+  // regardless of how many days it took to get there.
+  const HOURS_TARGET = 25 * 8.5
+  const otHours = Math.round(Math.max(0, totalHours - HOURS_TARGET) * 10) / 10
   const deductibleDays  = absentDays + halfDays * 0.5
   const presentDaysShow = presentDays + halfDays * 0.5
   const workDays        = workDayDates.length

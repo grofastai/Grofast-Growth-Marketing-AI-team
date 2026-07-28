@@ -8,6 +8,7 @@ import { calcNetWorkHours } from '@/lib/utils/work-hours'
 import { hourlyRateOnDate, type SalaryHistoryRow } from '@/lib/salary'
 import { listTeams } from '@/lib/actions/teams'
 import { sumLeaveDays, type LeaveForBalance } from '@/lib/utils/leave-balance'
+import { dailyWorkHours, summarizeAttendanceDays } from '@/lib/utils/attendance-stats'
 
 function adminClient() {
   return createClient(
@@ -178,11 +179,10 @@ export default async function InsightsPage({
       .eq('employment_type', 'regular') // full-time only — excludes login freelancers (e.g. Freelance Media Production)
       .order('name'),
     admin.from('attendance_logs')
-      .select('user_id, clock_in, clock_out, break_total_mins')
+      .select('user_id, date, clock_in, clock_out, status, break_total_mins')
       .eq('company_id', cid)
       .gte('date', dateFrom)
-      .lte('date', dateTo)
-      .not('clock_in', 'is', null),
+      .lte('date', dateTo),
     admin.from('clients')
       .select('id, name, industry, status')
       .eq('company_id', cid),
@@ -229,13 +229,14 @@ export default async function InsightsPage({
   }
 
   // ── Attendance: days present, login-hour span, break minutes ──────────────
-  type AttAcc = { days: number; loginHrs: number; loginDays: number; breakMins: number }
+  type AttLogRow = { user_id: string; date: string; clock_in: string | null; clock_out: string | null; status: string | null; break_total_mins: number | null }
+  const attLogs = (attRaw ?? []) as AttLogRow[]
+  type AttAcc = { loginHrs: number; loginDays: number; breakMins: number }
   const attAccMap: Record<string, AttAcc> = {}
-  for (const a of (attRaw ?? []) as { user_id: string; clock_in: string | null; clock_out: string | null; break_total_mins: number | null }[]) {
+  for (const a of attLogs) {
     if (!a.clock_in) continue
-    if (!attAccMap[a.user_id]) attAccMap[a.user_id] = { days: 0, loginHrs: 0, loginDays: 0, breakMins: 0 }
+    if (!attAccMap[a.user_id]) attAccMap[a.user_id] = { loginHrs: 0, loginDays: 0, breakMins: 0 }
     const acc = attAccMap[a.user_id]
-    acc.days += 1
     acc.breakMins += a.break_total_mins ?? 0
     if (a.clock_out) {
       // Same formula as member dashboard: raw clock_in -> clock_out span, no break deduction
@@ -243,8 +244,55 @@ export default async function InsightsPage({
       if (span > 0) { acc.loginHrs += span; acc.loginDays += 1 }
     }
   }
+
+  // Present Days — shared with Dashboard/Attendance/History/Admin Payroll/Payslip
+  // (lib/utils/attendance-stats.ts) so this table can never show a different
+  // Present count than what the member sees themselves, or what Payroll actually
+  // pays for. Capped at today (not the full calendar month) so a month still in
+  // progress doesn't count its not-yet-happened remaining days as absent.
   const workingDaysMap: Record<string, number> = {}
-  for (const [uid, a] of Object.entries(attAccMap)) workingDaysMap[uid] = a.days
+  {
+    const rangeEnd = dateTo < todayStr ? dateTo : todayStr
+    const clockInDatesByUser: Record<string, Set<string>> = {}
+    for (const a of attLogs) {
+      if (a.clock_in === null && a.status !== 'present') continue
+      if (!clockInDatesByUser[a.user_id]) clockInDatesByUser[a.user_id] = new Set()
+      clockInDatesByUser[a.user_id].add(a.date)
+    }
+    const workHoursByUserDate: Record<string, Record<string, number>> = {}
+    for (const u of updates) {
+      if (!workHoursByUserDate[u.user_id]) workHoursByUserDate[u.user_id] = {}
+      workHoursByUserDate[u.user_id][u.date] = dailyWorkHours(u as unknown as Parameters<typeof dailyWorkHours>[0])
+    }
+    const leaveDatesByUser: Record<string, Map<string, "full" | "half">> = {}
+    for (const l of (leavesRaw ?? []) as { user_id: string; leave_type: string; from_date: string; to_date: string }[]) {
+      if (l.leave_type === 'permission' || l.leave_type === 'wfh' || l.leave_type === 'shoot_day') continue
+      if (!leaveDatesByUser[l.user_id]) leaveDatesByUser[l.user_id] = new Map()
+      const weight = l.leave_type === 'half_day' ? 'half' : 'full'
+      const cur = new Date(l.from_date + 'T12:00:00')
+      const end = new Date(l.to_date + 'T12:00:00')
+      while (cur <= end) {
+        const d = cur.toISOString().split('T')[0]
+        if (d >= dateFrom && d <= rangeEnd) leaveDatesByUser[l.user_id].set(d, weight)
+        cur.setDate(cur.getDate() + 1)
+      }
+    }
+    const rangeDates: string[] = []
+    for (let d = new Date(dateFrom + 'T12:00:00'); d.toISOString().split('T')[0] <= rangeEnd; d.setDate(d.getDate() + 1)) {
+      rangeDates.push(d.toISOString().split('T')[0])
+    }
+    for (const m of members) {
+      const clockIn = clockInDatesByUser[m.id] ?? new Set<string>()
+      const hours = workHoursByUserDate[m.id] ?? {}
+      const leaveDates = leaveDatesByUser[m.id] ?? new Map<string, "full" | "half">()
+      const summary = summarizeAttendanceDays(rangeDates.map(date => ({
+        hasClockIn: clockIn.has(date),
+        workHours: hours[date] ?? 0,
+        leaveType: leaveDates.get(date),
+      })))
+      workingDaysMap[m.id] = summary.presentDays
+    }
+  }
 
   // ── Per-member accumulator ────────────────────────────────────────────────
   type Acc = {

@@ -47,7 +47,7 @@ function requesterName(t: Ticket): string {
   return own?.responder_name ?? 'Member'
 }
 
-export default function AdminSupportClient({ tickets, currentUserId, canAssign = false }: { tickets: Ticket[]; currentUserId: string; canAssign?: boolean }) {
+export default function AdminSupportClient({ tickets, currentUserId, canAssign = false, members = [] }: { tickets: Ticket[]; currentUserId: string; canAssign?: boolean; members?: { id: string; name: string }[] }) {
   const router = useRouter()
   const { toastEl, showToast } = useToast()
   const supabase = useMemo(() => createBrowserClient(), [])
@@ -91,12 +91,14 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
     return m
   }, [tickets])
 
-  // Every requester who's raised at least one ticket — options for the member filter.
+  // Full active team roster for the member filter, plus any ticket requester not in it
+  // (e.g. a since-deactivated member who still has historical tickets) so nothing is lost.
   const memberOptions = useMemo(() => {
     const map = new Map<string, string>()
-    for (const t of tickets) if (t.requester) map.set(t.requester.id, t.requester.name)
+    for (const m of members) map.set(m.id, m.name)
+    for (const t of tickets) if (t.requester && !map.has(t.requester.id)) map.set(t.requester.id, t.requester.name)
     return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]))
-  }, [tickets])
+  }, [tickets, members])
 
   const monthOptions = useMemo(() =>
     Array.from(new Set(tickets.map(t => t.created_at.slice(0, 7)))).sort().reverse(),

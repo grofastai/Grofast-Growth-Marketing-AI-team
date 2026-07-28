@@ -191,7 +191,7 @@ const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
   voiceover:       { label: "Voice Over",      accent: "#1E3A8A" },
   design:          { label: "Design",          accent: "#F59E0B" },
   ready_to_edit:   { label: "Ready to Edit",   accent: "#0D9488" },
-  edited:          { label: "Edited",          accent: "#8B5CF6" },
+  edited:          { label: "Editing",         accent: "#8B5CF6" },
   // Renamed from "On Review" — this is the admin sign-off gate now that editor hand-off
   // has its own Edited stage before it; the DB value stays on_review, display-only rename.
   // Was #EC4899 (pink) — too close to neighboring stages once darkened for the badge fill.
@@ -1193,7 +1193,7 @@ function ClientStatsBox({ client, stats, monthPicked, onSaveTarget, contentType 
 
       <SectionLabel>Production Status</SectionLabel>
       <StatRow label={isPoster ? "Undesigned" : "Unedited"} value={stats.unedited} color="#F97316" />
-      <StatRow label={isPoster ? "Designs Completed" : "Edited"} value={stats.edited} color="#0EA5E9" />
+      <StatRow label={isPoster ? "Designs Completed" : "Editing"} value={stats.edited} color="#0EA5E9" />
       <StatRow label="Ready to Publish" value={stats.unposted} color="#D97706" />
 
       <SectionLabel>Publishing Status</SectionLabel>

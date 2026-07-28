@@ -49,15 +49,15 @@ Overview | Video | Poster | Schedule
 `Schedule` is a new sibling `TrackerMode` (alongside `overview`/`video`/`poster`/`ads`),
 self-contained — its four sub-tabs are the content-type axis, replacing the need for the
 outer Video/Poster mode switch while inside Schedule. Its nav pill count (matching the
-badge every other mode already shows) is `shoots.filter(scheduled/going).length +` the
-count of distinct content items with a pending `scheduled_post_date` — counted once per
-item even though an ads-bound item also appears under the Ads sub-tab.
+badge every other mode already shows) is `shoots.filter(status === 'scheduled').length +`
+the count of distinct content items with a pending `scheduled_post_date` — counted once
+per item even though an ads-bound item also appears under the Ads sub-tab.
 
 ## What counts as "scheduled" per sub-tab
 
 | Sub-tab | Source | Filter | Sort key |
 |---|---|---|---|
-| Shoot  | `shoots` | `status in ('scheduled','going')` | `start_time` |
+| Shoot  | `shoots` | `status = 'scheduled'` | `start_time` |
 | Video  | `content_items` | `content_type='video'`, `status in ('branding_ready','ads_ready')`, `scheduled_post_date` set | `scheduled_post_date`+`scheduled_post_time` |
 | Poster | `content_items` | `content_type='poster'`, `status in ('branding_ready','ads_ready')`, `scheduled_post_date` set | same |
 | Ads    | `content_items` | `status='ads_ready'`, `scheduled_post_date` set (either content type) | same |
@@ -96,8 +96,10 @@ No new write logic — every action here calls into a handler that already exist
 `MediaTrackerClient`, so there is exactly one implementation per action regardless of
 which tab triggered it.
 
-- **Shoot:** `Mark Going` / `Mark Done` / `Cancel` → `handleShootStatus(shootId, status)`
-  (Mark Done opens the existing `CompleteShootModal` unchanged).
+- **Shoot:** `Mark Done` / `Cancel` → `handleShootStatus(shootId, status)` (Mark Done
+  opens the existing `CompleteShootModal` unchanged; there is no separate "Going" status
+  in the actual shoot model — only `scheduled`/`completed`/`cancelled` — "who's going" is
+  a crew list on the shoot, not a pipeline stage).
 - **Video / Poster / Ads:** `Mark Posted` → opens the existing platform-posting modal
   (`setPlatformModalItem`/`setPlatformModalKind`, the same one used from a card's "+"
   action in Branding/Advertisement today). `Reschedule` → opens the existing
@@ -157,9 +159,9 @@ domain-agnostic and reusable.
   - Mark it Posted from the Schedule tab; confirm it disappears from Schedule → Video
     and shows up in the Branding (or Advertisement) log tab, same as marking posted from
     there directly would.
-  - Schedule a shoot; confirm it appears in Schedule → Shoot; Mark Going, then Mark Done
-    from the Schedule tab; confirm the existing Shoots kanban reflects the same status
-    change.
+  - Schedule a shoot; confirm it appears in Schedule → Shoot; Mark Done from the Schedule
+    tab; confirm the existing Shoots kanban reflects the same status change and the item
+    drops off Schedule → Shoot.
   - Schedule a video for an ads platform; confirm it appears under both Schedule → Video
     and Schedule → Ads.
   - Reschedule an item's date from the Schedule tab; confirm the change is reflected on

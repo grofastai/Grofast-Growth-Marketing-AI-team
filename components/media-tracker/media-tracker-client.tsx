@@ -29,6 +29,8 @@ import { isValidShootTransition } from "@/lib/shoots/status-transitions"
 import { isValidPipelineTransition } from "@/lib/media-tracker/pipeline-transitions"
 import { computeOverview, type AttentionItem } from "@/lib/media-tracker/overview"
 import { isValidDriveLink } from "@/lib/utils/drive-link"
+import type { ScheduleEntry } from "@/lib/media-tracker/schedule"
+import { ScheduleTab } from "./schedule/schedule-tab"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 // "ads" is a real posting destination — an Ads Video can be scheduled/posted straight
@@ -513,11 +515,12 @@ function PrimaryButton({ children, onClick, disabled, type = "button" }: { child
 // ── Pill toggle (tab switcher) ───────────────────────────────────────────────
 // Each mode owns an accent so you always know which board you're on at a glance —
 // the section rail below picks it up, tying the two levels together.
-type TrackerMode = "overview" | "video" | "poster" | "ads"
+type TrackerMode = "overview" | "video" | "poster" | "schedule" | "ads"
 const MODE_ACCENT: Record<TrackerMode, { solid: string; grad: string; glow: string; soft: string }> = {
   overview: { solid: "#0EA5E9", grad: "linear-gradient(135deg,#38BDF8,#0EA5E9)", glow: "rgba(14,165,233,0.45)", soft: "rgba(14,165,233,0.10)" },
   video: { solid: "#DE1A1A", grad: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", glow: "rgba(222,26,26,0.45)", soft: "rgba(222,26,26,0.10)" },
   poster: { solid: "#7C3AED", grad: "linear-gradient(135deg,#A78BFA,#7C3AED)", glow: "rgba(124,58,237,0.45)", soft: "rgba(124,58,237,0.10)" },
+  schedule: { solid: "#0D9488", grad: "linear-gradient(135deg,#2DD4BF,#0D9488)", glow: "rgba(13,148,136,0.45)", soft: "rgba(13,148,136,0.10)" },
   ads: { solid: "#D97706", grad: "linear-gradient(135deg,#FBBF24,#D97706)", glow: "rgba(217,119,6,0.45)", soft: "rgba(217,119,6,0.10)" },
 }
 
@@ -542,6 +545,7 @@ const NAV_MODES: { key: TrackerMode; label: string; icon: typeof Layers }[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "video", label: "Video", icon: Video },
   { key: "poster", label: "Poster", icon: ImageIcon },
+  { key: "schedule", label: "Schedule", icon: CalendarDays },
 ]
 
 // Two levels, two different visual languages: the mode rail is a solid switch on dark,
@@ -3645,6 +3649,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   // so the Shoots sub-tab only exists in Video mode.
   const [mode, setMode] = useState<TrackerMode>("overview")
   const [subTab, setSubTab] = useState<"shoots" | "adsvideo" | "pipeline" | "log" | "adlog">("shoots")
+  // Schedule mode's own sub-tab axis — kept separate from `subTab` (rather than widening
+  // its union) so switching back to Video/Poster mode never leaves `subTab` on a
+  // Schedule-only key that matches none of those modes' render conditions.
+  const [scheduleSubTab, setScheduleSubTab] = useState<"shoot" | "video" | "poster" | "ads">("shoot")
   // Derived rather than reset via an effect — avoids a cascading-render setState-in-effect.
   // Posters have neither Shoots nor Ads Video, so both fall back to Pipeline.
   const tab = mode === "poster" && (subTab === "shoots" || subTab === "adsvideo") ? "pipeline" : subTab
@@ -4014,10 +4022,21 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     overview: overview.attention.reduce((sum, a) => sum + a.count, 0),
     video: items.filter(i => i.content_type === "video" && i.status !== "posted" && i.status !== "cancelled").length,
     poster: items.filter(i => i.content_type === "poster" && i.status !== "posted" && i.status !== "cancelled").length,
+    schedule: shoots.filter(s => s.status === "scheduled").length
+      + items.filter(i => (i.status === "branding_ready" || i.status === "ads_ready") && !!i.scheduled_post_date).length,
     ads: ads.filter(a => a.status === "active").length,
-  }), [items, ads, overview])
+  }), [items, shoots, ads, overview])
 
   const navSections = useMemo(() => {
+    if (mode === "schedule") {
+      const scheduledContent = items.filter(i => (i.status === "branding_ready" || i.status === "ads_ready") && i.scheduled_post_date)
+      return [
+        { key: "shoot", label: "Shoot", icon: Camera, count: shoots.filter(s => s.status === "scheduled").length },
+        { key: "video", label: "Video", icon: Video, count: scheduledContent.filter(i => i.content_type === "video").length },
+        { key: "poster", label: "Poster", icon: ImageIcon, count: scheduledContent.filter(i => i.content_type === "poster").length },
+        { key: "ads", label: "Ads", icon: Megaphone, count: scheduledContent.filter(i => i.status === "ads_ready").length },
+      ]
+    }
     if (mode === "ads" || mode === "overview") return []
     const ofMode = items.filter(i => i.content_type === contentTypeForMode)
     // Excludes scripting items already sent to a shoot — those are done as far as this
@@ -4036,6 +4055,66 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       { key: "adlog", label: "Advertisement", icon: Megaphone, count: ofMode.filter(i => i.posted_ads).length },
     ]
   }, [mode, items, shoots, contentTypeForMode, pipelineOrder, shootLinkedItemIds])
+
+  // Schedule tab — one ScheduleEntry per pending shoot/scheduled post, so its four
+  // sub-tabs are just filtered/mapped views over the same shoots/items already loaded
+  // for the rest of the tracker. Nothing here is fetched separately, and every action
+  // calls a handler that already exists elsewhere in this file.
+  const scheduleShootEntries: ScheduleEntry[] = useMemo(() => shoots
+    .filter(s => s.status === "scheduled")
+    .map(s => {
+      const date = s.start_time.split("T")[0]
+      return {
+        id: s.id,
+        date,
+        time: toISTTimeString(s.start_time) || null,
+        title: s.legacyTitle,
+        client: s.client,
+        accent: SHOOT_STATUS_CFG.scheduled.color,
+        overdue: date < today,
+        actions: [
+          { label: "Mark Done", onClick: () => handleShootStatus(s.id, "completed") },
+          { label: "Cancel", onClick: () => handleShootStatus(s.id, "cancelled"), danger: true },
+        ],
+      }
+    }), [shoots, today])
+
+  const scheduledContentItems = useMemo(
+    () => items.filter(i => (i.status === "branding_ready" || i.status === "ads_ready") && i.scheduled_post_date),
+    [items]
+  )
+  function toScheduleEntry(i: ContentItem): ScheduleEntry {
+    return {
+      id: i.id,
+      date: i.scheduled_post_date!,
+      time: i.scheduled_post_time,
+      title: i.title,
+      client: i.client_name,
+      accent: STATUS_CFG[i.status].accent,
+      overdue: i.scheduled_post_date! < today,
+      actions: [
+        { label: "Mark Posted", onClick: () => { setPlatformModalKind(i.status === "ads_ready" ? "ads" : "branding"); setPlatformModalItem(i) } },
+        { label: "Reschedule", onClick: () => setEditingItem(i) },
+      ],
+    }
+  }
+  const scheduleVideoEntries: ScheduleEntry[] = useMemo(
+    () => scheduledContentItems.filter(i => i.content_type === "video").map(toScheduleEntry),
+    [scheduledContentItems, today, toScheduleEntry]
+  )
+  const schedulePosterEntries: ScheduleEntry[] = useMemo(
+    () => scheduledContentItems.filter(i => i.content_type === "poster").map(toScheduleEntry),
+    [scheduledContentItems, today, toScheduleEntry]
+  )
+  const scheduleAdsEntries: ScheduleEntry[] = useMemo(
+    () => scheduledContentItems.filter(i => i.status === "ads_ready").map(toScheduleEntry),
+    [scheduledContentItems, today, toScheduleEntry]
+  )
+  const activeScheduleEntries: ScheduleEntry[] =
+    scheduleSubTab === "shoot" ? scheduleShootEntries
+    : scheduleSubTab === "video" ? scheduleVideoEntries
+    : scheduleSubTab === "poster" ? schedulePosterEntries
+    : scheduleAdsEntries
 
   const stats = useMemo(() => {
     const readyToEdit = items.filter(i => i.status === "ready_to_edit").length
@@ -4467,8 +4546,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       <TrackerNav
         mode={mode}
         onMode={setMode}
-        tab={tab}
-        onTab={k => setSubTab(k as typeof subTab)}
+        tab={mode === "schedule" ? scheduleSubTab : tab}
+        onTab={k => { if (mode === "schedule") setScheduleSubTab(k as typeof scheduleSubTab); else setSubTab(k as typeof subTab) }}
         modeCounts={navCounts}
         sections={navSections}
       />
@@ -5126,6 +5205,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             </DndContext>
           </div>
         </div>
+      )}
+
+      {mode === "schedule" && (
+        <ScheduleTab entries={activeScheduleEntries} activeClientOptions={activeClientOptions} pastClientOptions={pastClientOptions} />
       )}
 
       {mode === "video" && tab === "shoots" && (

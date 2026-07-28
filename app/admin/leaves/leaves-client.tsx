@@ -148,6 +148,15 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
   const isHalfDay    = leave.leave_type === "half_day"
   const isExceptional = leave.reason?.startsWith("[EXCEPTIONAL]")
   const displayReason = isExceptional ? leave.reason.replace(/^\[EXCEPTIONAL\]\s*/, "") : leave.reason
+  // WFH / Shoot Day are work arrangements, not leave — they have no monthly cap
+  // (sumLeaveDays skips them entirely), so the only way one of these becomes
+  // Exceptional is via the date-collision bypass, never the 5-day limit.
+  // Permission's Exceptional bypass button is also collision-only (the monthly-
+  // limit block only gates full_day/half_day). Only those two can genuinely be
+  // "monthly limit exceeded" — everything else must say why it's actually flagged.
+  const exceptionalReasonText = (leave.leave_type === "full_day" || leave.leave_type === "half_day")
+    ? "Monthly limit exceeded — needs special approval"
+    : "Conflicts with an existing request on that date — needs special approval"
   const leaveType = isPerm ? "Permission"
     : isHalfDay ? "Half Day Leave"
     : leave.leave_type === "wfh" ? "Work From Home"
@@ -193,7 +202,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
           <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
           <div>
             <p style={{ fontSize: 11, fontWeight: 800, color: "#92400E", margin: 0 }}>Exceptional Leave</p>
-            <p style={{ fontSize: 10, color: "#B45309", margin: 0 }}>Monthly limit exceeded — needs special approval</p>
+            <p style={{ fontSize: 10, color: "#B45309", margin: 0 }}>{exceptionalReasonText}</p>
           </div>
         </div>
       )}

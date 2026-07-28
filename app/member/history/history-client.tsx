@@ -11,6 +11,7 @@ import { useConfirm } from "@/components/ui/ConfirmDialog"
 import { confirmCollaboration, editCollaborationTime, rejectCollaboration, deleteCollaborationsByEntry } from "@/lib/actions/collaboration"
 import { toISTDateString, todayIST } from "@/lib/utils/ist-date"
 import { sumLeaveDays } from "@/lib/utils/leave-balance"
+import { summarizeAttendanceDays } from "@/lib/utils/attendance-stats"
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 import Image from "next/image"
@@ -815,6 +816,8 @@ export default function HistoryClient({
       : (isFreelancerMedia || monthFiltered.some(u => (u.work_entries ?? []).some((e: { task_type?: string }) => e.task_type === "shoot" || e.task_type === "edit")))
     const hoursPerDay: number[] = []
     const dailyData: { day: string; hours: number }[] = []
+    const dateWorkHours = new Map<string, number>()
+    const clockInDates = new Set<string>()
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
       const workH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
@@ -826,7 +829,8 @@ export default function HistoryClient({
       totalHours += h
       totalLearning += learnH
       totalBreak += breakH
-      if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
+      dateWorkHours.set(u.date, h)
+      if (u.attendance_status === "present" || u.attendance_status === "wfh") clockInDates.add(u.date)
       hoursPerDay.push(h)
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
       totalTasks += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
@@ -873,7 +877,7 @@ export default function HistoryClient({
     for (const d of attendanceDates) {
       if (updateDates.has(d)) continue
       if (monthPrefix && !d.startsWith(monthPrefix)) continue
-      presentDays++
+      clockInDates.add(d)
     }
 
     // Leave days: count full approved leave range (incl. future dates within an approved leave).
@@ -883,18 +887,47 @@ export default function HistoryClient({
     const leaveRangeEnd   = monthPrefix ? `${monthPrefix}-31` : "9999-12-31"
     const leaveDays = sumLeaveDays(approvedLeaves, leaveRangeStart, leaveRangeEnd)
 
+    // Dates covered by an approved full-day/half-day leave — excluded from present/absent
+    // classification below, same as leaveDays above (permission/wfh/shoot_day are not leave).
+    const leaveDateSet = new Set<string>()
+    for (const l of approvedLeaves) {
+      if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") continue
+      const cur = new Date(l.from_date + "T12:00:00")
+      const end = new Date(l.to_date   + "T12:00:00")
+      while (cur <= end) {
+        const d = cur.toISOString().split("T")[0]
+        if (!monthPrefix || d.startsWith(monthPrefix)) leaveDateSet.add(d)
+        cur.setDate(cur.getDate() + 1)
+      }
+    }
+
     // Office holiday days in the selected month period (include future holidays in the month)
     let holidayDays = 0
+    const holidayDateSet = new Set<string>()
     for (const h of companyLeaves) {
       if (monthPrefix && !h.date.startsWith(monthPrefix)) continue
       holidayDays++
+      holidayDateSet.add(h.date)
     }
 
-    // Absent days: elapsed calendar days in period minus present days
+    // Present Days / Half Days — shared classifier (lib/utils/attendance-stats.ts) so
+    // this matches Dashboard, Attendance, Admin Payroll, and the Payslip PDF for the
+    // same person/month. A half-day (worked hours at or below the half-day threshold,
+    // or clocked in with nothing logged) counts as 0.5, not a full present day.
+    const classifyDates = new Set<string>([...dateWorkHours.keys(), ...clockInDates])
+    const attendanceSummary = summarizeAttendanceDays(Array.from(classifyDates).map(date => ({
+      hasClockIn: clockInDates.has(date),
+      workHours: dateWorkHours.get(date) ?? 0,
+      isApprovedLeave: leaveDateSet.has(date),
+      isHoliday: holidayDateSet.has(date),
+    })))
+    presentDays = attendanceSummary.presentDays
+
+    // Absent days: elapsed calendar days in period minus present, leave, and holiday days
     const todayStr = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().split("T")[0]
     const firstDate = monthFiltered.length > 0 ? monthFiltered[monthFiltered.length - 1].date : todayStr
     const elapsedDays = Math.floor((new Date(todayStr + "T12:00:00").getTime() - new Date(firstDate + "T12:00:00").getTime()) / 86400000) + 1
-    const absentDays = Math.max(0, elapsedDays - presentDays)
+    const absentDays = Math.max(0, elapsedDays - presentDays - leaveDays - holidayDays)
 
     // Overtime = total hours above fixed monthly target (25 days × 8.5h = 212.5h)
     const totalOT = Math.round(Math.max(0, totalHours - 212.5) * 10) / 10

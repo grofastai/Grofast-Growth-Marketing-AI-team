@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import PayrollClient from "./payroll-client"
 import { calcNetWorkHours } from "@/lib/utils/work-hours"
 import { getPayrollSettings } from "@/lib/actions/payroll-settings"
+import { classifyAttendanceDay } from "@/lib/utils/attendance-stats"
 import { listTeams } from "@/lib/actions/teams"
 
 export default async function PayrollPage({
@@ -227,19 +228,16 @@ export default async function PayrollPage({
 
       if (workH > OT_THRESHOLD) otHours += Math.round((workH - OT_THRESHOLD) * 10) / 10
 
-      if (!hasClockIn && workH === 0) {
-        // No clock-in and no work logged = Absent
-        absentDays++
-      } else if (hasClockIn && workH === 0) {
-        // Clocked in but no work hours = missing update (treat as half day)
-        missingUpdates++
-        missingUpdateDates.push(date)
-        halfDays++
-      } else if (workH > 0 && workH <= HALF_DAY_THRESHOLD) {
-        halfDays++
-      } else if (workH > HALF_DAY_THRESHOLD) {
-        presentDays++
-      }
+      // Clocked in but no work hours = missing update (still counted as a half day below)
+      if (hasClockIn && workH === 0) { missingUpdates++; missingUpdateDates.push(date) }
+
+      // Shared with Dashboard/Attendance/History/Payslip (lib/utils/attendance-stats.ts)
+      // so this company's Payroll threshold setting is the one source of truth for
+      // every half-day/full-day/absent classification, everywhere it's shown.
+      const dayClass = classifyAttendanceDay({ hasClockIn, workHours: workH }, HALF_DAY_THRESHOLD)
+      if (dayClass === "full") presentDays++
+      else if (dayClass === "half") halfDays++
+      else if (dayClass === "absent") absentDays++
     }
 
     // Deductible: absent=1.0, half_day=0.5

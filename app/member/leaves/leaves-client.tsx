@@ -1049,7 +1049,11 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                   <span style={{ fontSize: 16 }}>⚠️</span>
                   <div>
                     <p style={{ fontSize: 12, fontWeight: 700, color: "#92400E", margin: 0 }}>Exceptional Leave Request</p>
-                    <p style={{ fontSize: 11, color: "#B45309", margin: 0 }}>Monthly limit exceeded. Admin approval required.</p>
+                    <p style={{ fontSize: 11, color: "#B45309", margin: 0 }}>
+                      {(leaveType === "full_day" || leaveType === "half_day")
+                        ? "Monthly limit exceeded. Admin approval required."
+                        : "Conflicts with an existing request on that date. Admin approval required."}
+                    </p>
                   </div>
                 </div>
               )}

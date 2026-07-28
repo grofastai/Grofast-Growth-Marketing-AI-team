@@ -8,6 +8,7 @@ import { calcNetWorkHours } from "@/lib/utils/work-hours"
 import { getPayrollSettings } from "@/lib/actions/payroll-settings"
 import { classifyAttendanceDay } from "@/lib/utils/attendance-stats"
 import { listTeams } from "@/lib/actions/teams"
+import { todayIST } from "@/lib/utils/ist-date"
 
 export default async function PayrollPage({
   searchParams,
@@ -24,6 +25,7 @@ export default async function PayrollPage({
   const [year, mon] = month.split("-").map(Number)
   const monthStart  = `${month}-01`
   const monthEnd    = `${month}-${new Date(year, mon, 0).getDate()}`
+  const today       = todayIST()
 
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -98,14 +100,16 @@ export default async function PayrollPage({
       .in("status", ["confirmed", "edited_confirmed"])
       .gte("date", monthStart)
       .lte("date", monthEnd),
-    // Pre-payroll checklist: pending collab confirmations
+    // Pre-payroll checklist: pending collab confirmations — excludes today,
+    // since today isn't finished yet and confirmations for it aren't overdue.
     admin
       .from("collaboration_confirmations")
       .select("id", { count: "exact", head: true })
       .eq("company_id", cid)
       .eq("status", "pending")
       .gte("date", monthStart)
-      .lte("date", monthEnd),
+      .lte("date", monthEnd)
+      .lt("date", today),
     // Pre-payroll checklist: pending leave requests
     admin
       .from("leaves")
@@ -228,8 +232,9 @@ export default async function PayrollPage({
 
       if (workH > OT_THRESHOLD) otHours += Math.round((workH - OT_THRESHOLD) * 10) / 10
 
-      // Clocked in but no work hours = missing update (still counted as a half day below)
-      if (hasClockIn && workH === 0) { missingUpdates++; missingUpdateDates.push(date) }
+      // Clocked in but no work hours = missing update (still counted as a half day below).
+      // Skip today — the day isn't finished yet, so no update yet isn't a real gap.
+      if (hasClockIn && workH === 0 && date !== today) { missingUpdates++; missingUpdateDates.push(date) }
 
       // Shared with Dashboard/Attendance/History/Payslip (lib/utils/attendance-stats.ts)
       // so this company's Payroll threshold setting is the one source of truth for

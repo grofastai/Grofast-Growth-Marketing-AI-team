@@ -2860,9 +2860,53 @@ function CancelReasonModal({ item, onClose, onCancelled }: {
   )
 }
 
-// ── "Who edited this?" — the accountability prompt when an item moves to Edited ──
-// There's no separate Editing stage to capture this at anymore, so it's asked here,
-// at the point the item is actually marked Edited.
+// ── "Who's editing this?" — the assignment prompt when an item enters Editing ──
+// Fires on the Ready to Edit -> Editing / Design -> Editing move, before any actual edit
+// or design work exists to record — just picking who's taking it on. No date or drive
+// link yet; those are still captured later at the Editing -> Completed Edit move, where
+// this same person is pre-filled but can be reassigned if someone else finishes it.
+function AssignEditorModal({ item, members, currentUserId, onClose, onConfirm }: {
+  item: ContentItem
+  members: Member[]
+  currentUserId: string
+  onClose: () => void
+  onConfirm: (editorId: string, editorName: string) => void
+}) {
+  const isPoster = item.content_type === "poster"
+  const [editorId, setEditorId] = useState(
+    members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
+  )
+  const [error, setError] = useState<string | null>(null)
+
+  function submit() {
+    const editor = members.find(m => m.id === editorId)
+    if (!editor) { setError(isPoster ? "Pick who's designing this" : "Pick who's editing this"); return }
+    onConfirm(editor.id, editor.name)
+  }
+
+  return (
+    <Modal title={isPoster ? "Who's designing this?" : "Who's editing this?"} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <div>
+          <label style={LABEL}>{isPoster ? "Designer *" : "Editor *"}</label>
+          <select style={{ ...FIELD, cursor: "pointer" }} value={editorId} onChange={e => setEditorId(e.target.value)}>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>{upper(m.name)}{m.id === currentUserId ? " (me)" : ""}</option>
+            ))}
+          </select>
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit}>{isPoster ? "Assign Designer" : "Assign Editor"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── "Who edited this?" — the accountability prompt when an item moves to Completed Edit ──
+// Asked at the Editing -> Completed Edit move, where the date and drive link finally
+// exist to capture. Pre-fills whoever was assigned back at Ready to Edit/Design ->
+// Editing (AssignEditorModal above), but stays editable — a different person may have
+// actually finished the work.
 function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
   item: ContentItem
   members: Member[]
@@ -2873,10 +2917,12 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
   // A poster has no "edit" step to hand off — it's designed, not edited, and there's no
   // drive file to link (the design itself is what's attached to the client/post).
   const isPoster = item.content_type === "poster"
-  // Defaults to whoever clicked — the common case is "I edited this" — but a manager
-  // can reassign to anyone.
+  // Prefers whoever was already assigned at the Editing hand-off; otherwise defaults to
+  // whoever clicked — the common case for an unassigned item is "I edited this" — but a
+  // manager can reassign to anyone either way.
   const [editorId, setEditorId] = useState(
-    members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
+    item.editedByUser && members.some(m => m.id === item.editedByUser!.id) ? item.editedByUser.id
+    : members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
   )
   const [editedDate, setEditedDate] = useState(todayIST())
   // Where the edited file actually lives — required so On Review always has somewhere
@@ -3624,6 +3670,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const [showNewShoot, setShowNewShoot] = useState(false)
   const [completeShootFor, setCompleteShootFor] = useState<Shoot | null>(null)
   const [markEditedItem, setMarkEditedItem] = useState<ContentItem | null>(null)
+  const [assignEditorItem, setAssignEditorItem] = useState<ContentItem | null>(null)
   const [voiceOverItem, setVoiceOverItem] = useState<ContentItem | null>(null)
   const [moveToShootFor, setMoveToShootFor] = useState<ContentItem | null>(null)
   const [moveOnReviewFor, setMoveOnReviewFor] = useState<ContentItem | null>(null)
@@ -3789,6 +3836,11 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   )
 
   function advance(item: ContentItem, next: ContentStatus) {
+    // Entering Editing from Ready to Edit/Design asks who's taking it on — the assignment
+    // moment, before any actual edit/design work exists to record. Not asked again on an
+    // undo move back from Completed Edit (item.status === "on_review") — that's a revert,
+    // not a fresh hand-off.
+    if (next === "edited" && (item.status === "ready_to_edit" || item.status === "design") && members.length > 0) { setAssignEditorItem(item); return }
     // Reaching On Review (Completed Edit) asks who edited it — the accountability moment,
     // asked at the Edited -> Completed Edit move. Not asked again on an undo move back
     // from Branding/Ads Ready — that's not a fresh edit, just reverting an approval.
@@ -3821,6 +3873,21 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       if (!res.success) {
         setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: previous, cancelled_by: null } : i))
         alert(res.error ?? "Failed to cancel")
+      }
+    })
+  }
+
+  function handleAssignEditor(item: ContentItem, editorId: string, editorName: string) {
+    const previous = item.status
+    setItems(prev => prev.map(i => i.id === item.id
+      ? { ...i, status: "edited", editedByUser: { id: editorId, name: editorName } }
+      : i))
+    setAssignEditorItem(null)
+    startTransition(async () => {
+      const res = await updateContentItemStatus(item.id, "edited", editorId)
+      if (!res.success) {
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: previous, editedByUser: item.editedByUser } : i))
+        alert(res.error ?? "Failed to move to Editing")
       }
     })
   }
@@ -5238,6 +5305,11 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         <EditAdModal ad={editAdFor} clients={clients} pastClients={pastClients}
           onClose={() => setEditAdFor(null)}
           onSaved={patch => handleAdSaved(editAdFor.id, patch)} />
+      )}
+      {assignEditorItem && (
+        <AssignEditorModal item={assignEditorItem} members={editingMembers} currentUserId={currentUserId}
+          onClose={() => setAssignEditorItem(null)}
+          onConfirm={(editorId, editorName) => handleAssignEditor(assignEditorItem, editorId, editorName)} />
       )}
       {markEditedItem && (
         <MarkEditedModal item={markEditedItem} members={editingMembers} currentUserId={currentUserId}

@@ -258,6 +258,9 @@ export async function updateContentItemStatus(
 
   const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
 
+  // Entering Editing records who's taking it on — the assignment moment, before any
+  // actual edit/design work exists (no date/drive link yet, those come at on_review).
+  if (status === 'edited' && editorId) updates.edited_by = editorId
   if (status === 'on_review') {
     updates.edited_date = editedDate || todayIST()
     if (!isPoster) updates.edited_drive_link = editedDriveLink!.trim()

@@ -362,6 +362,23 @@ export async function getTickets(role: 'ADMIN' | 'MEMBER') {
   return enriched
 }
 
+// Admin-only: every active team member who could file a support ticket — used for the
+// inbox's member filter dropdown so it lists the whole team, not just past requesters.
+export async function getSupportMembers(): Promise<{ id: string; name: string }[]> {
+  const profile = await getProfile()
+  if (!profile || profile.role !== 'ADMIN') return []
+  const admin = adminSupabase()
+  const { data } = await admin
+    .from('users')
+    .select('id, name')
+    .eq('company_id', profile.company_id)
+    .neq('role', 'FREELANCER')
+    .eq('status', 'active')
+    .is('deleted_at', null)
+    .order('name')
+  return data ?? []
+}
+
 export async function getMemberName(user_id: string): Promise<string> {
   const admin = adminSupabase()
   const { data } = await admin.from('users').select('name').eq('id', user_id).single()

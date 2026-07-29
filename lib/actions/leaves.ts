@@ -8,6 +8,7 @@ import { sendNotification } from '@/lib/notifications/send'
 import { insertNotification, insertManyNotifications } from './notifications'
 import { formatLeaveDetail } from '@/lib/leave-approval-effects'
 import { sumLeaveDays } from '@/lib/utils/leave-balance'
+import { HALF_DAY_THRESHOLD_HOURS } from '@/lib/utils/attendance-stats'
 import { toISTTimeString } from '@/lib/utils/ist-date'
 import { z } from 'zod'
 
@@ -42,6 +43,22 @@ const leaveSchema = z.object({
   if (data.leave_type === 'half_day') {
     if (!data.half_day_from_time) ctx.addIssue({ code: 'custom', path: ['half_day_from_time'], message: 'From time is required for half day leave' })
     if (!data.half_day_to_time)   ctx.addIssue({ code: 'custom', path: ['half_day_to_time'],   message: 'To time is required for half day leave' })
+    // A "half day" must always cost exactly HALF_DAY_THRESHOLD_HOURS (4.5h) — otherwise
+    // someone could apply "half day" for 1h off (barely an absence) or 8h off (basically
+    // a full day) and still only get charged the flat 0.5-day rate. Shared with
+    // lib/utils/attendance-stats.ts so the leave request itself and the present-day/
+    // payroll classification can never disagree on what "half day" means.
+    if (data.half_day_from_time && data.half_day_to_time) {
+      let mins = timeToMinutes(data.half_day_to_time) - timeToMinutes(data.half_day_from_time)
+      if (mins <= 0) mins += 1440
+      const requiredMins = HALF_DAY_THRESHOLD_HOURS * 60
+      if (mins !== requiredMins) {
+        ctx.addIssue({
+          code: 'custom', path: ['half_day_to_time'],
+          message: `Half day leave must be exactly ${HALF_DAY_THRESHOLD_HOURS}h (this is ${(mins / 60).toFixed(1)}h)`,
+        })
+      }
+    }
   }
   if (data.leave_type === 'permission') {
     if (!data.permission_time)     ctx.addIssue({ code: 'custom', path: ['permission_time'],     message: 'Leave From time is required for permission' })
@@ -543,6 +560,123 @@ export async function updateLeaveRequest(
 
   revalidatePath('/member/leaves')
   revalidatePath('/admin/leaves')
+  return { success: true }
+}
+
+// Admin correction for an existing leave request — unlike updateLeaveRequest (the
+// member's own edit, which only works on their own still-pending request), this
+// works on ANY employee's request in ANY status (pending, approved, even rejected),
+// since it exists to fix a mistake after the fact (e.g. a 2-hour absence that was
+// mistakenly logged as Half Day instead of Permission) rather than to let someone
+// keep tweaking a request that's still awaiting a decision. Same validation rules
+// as every other leave write (permission's 4h hard cap, the monthly cap unless
+// is_exceptional, and the overlap check) so an admin correction can't silently
+// produce a leave record the app's own rules would never have allowed otherwise.
+export async function adminUpdateLeaveRequest(input: {
+  leaveId: string
+  leaveType: 'full_day' | 'half_day' | 'permission' | 'wfh' | 'shoot_day'
+  fromDate: string
+  toDate: string
+  reason: string
+  halfDayPeriod?: string
+  halfDayFromTime?: string
+  halfDayToTime?: string
+  permissionTime?: string
+  permissionEndTime?: string
+  permissionHours?: number
+  isExceptional?: boolean
+}): Promise<{ error: string } | { success: true }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const adminCl = createAdminClient()
+  const { data: adminUser } = await adminCl.from('users').select('role').eq('id', user.id).single()
+  if (adminUser?.role !== 'ADMIN') return { error: 'Admin only' }
+
+  const { leaveId } = input
+  const { data: existing } = await adminCl.from('leaves').select('user_id').eq('id', leaveId).single()
+  if (!existing) return { error: 'Leave request not found' }
+
+  const raw = {
+    leave_type:          input.leaveType,
+    from_date:           input.fromDate,
+    to_date:             (input.leaveType === 'full_day' || input.leaveType === 'wfh') ? input.toDate : input.fromDate,
+    half_day_period:     input.halfDayPeriod || undefined,
+    half_day_from_time:  input.halfDayFromTime || undefined,
+    half_day_to_time:    input.halfDayToTime || undefined,
+    permission_hours:    input.permissionHours,
+    permission_time:     input.permissionTime || undefined,
+    permission_end_time: input.permissionEndTime || undefined,
+    reason:              input.reason,
+  }
+  const parsed = leaveSchema.safeParse(raw)
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const permCapError = permissionHoursCapError(parsed.data.leave_type, parsed.data.permission_time, parsed.data.permission_end_time)
+  if (permCapError) return { error: permCapError }
+
+  const isExceptional = input.isExceptional === true
+  if (!isExceptional) {
+    const limitError = await checkMonthlyLeaveLimit(
+      adminCl, existing.user_id, parsed.data.leave_type, parsed.data.from_date, parsed.data.to_date, leaveId, parsed.data.permission_hours
+    )
+    if (limitError) return { error: limitError }
+
+    const { data: overlapping } = await adminCl
+      .from('leaves')
+      .select('id, leave_type, half_day_from_time, half_day_to_time, permission_time, permission_end_time')
+      .eq('user_id', existing.user_id)
+      .lte('from_date', parsed.data.to_date)
+      .gte('to_date', parsed.data.from_date)
+      .not('status', 'eq', 'rejected')
+      .neq('id', leaveId)
+
+    if (overlapping && overlapping.length > 0) {
+      const newWindow = getLeaveTimeWindow({
+        leave_type: parsed.data.leave_type,
+        half_day_from_time: parsed.data.half_day_from_time,
+        half_day_to_time: parsed.data.half_day_to_time,
+        permission_time: parsed.data.permission_time,
+        permission_end_time: parsed.data.permission_end_time,
+      })
+      const blocking = overlapping.filter(l => {
+        const conflict = typesConflict(parsed.data.leave_type as LeaveKind, (l.leave_type ?? 'full_day') as LeaveKind)
+        if (conflict === 'never') return false
+        if (conflict === 'always') return true
+        const existingWindow = getLeaveTimeWindow(l as LeaveTimeFields)
+        if (!newWindow || !existingWindow) return true
+        return timeRangesOverlap(newWindow, existingWindow)
+      })
+      if (blocking.length > 0) {
+        return { error: (parsed.data.leave_type === 'permission' || parsed.data.leave_type === 'half_day')
+          ? 'That time overlaps with an existing leave request on that date.'
+          : 'You already have a leave request for those dates.' }
+      }
+    }
+  }
+
+  const { error } = await (adminCl.from('leaves') as any)
+    .update({
+      from_date:           parsed.data.from_date,
+      to_date:             parsed.data.to_date,
+      reason:              parsed.data.reason,
+      leave_type:          parsed.data.leave_type,
+      permission_hours:    parsed.data.permission_hours ?? null,
+      permission_time:     parsed.data.permission_time ?? null,
+      permission_end_time: parsed.data.permission_end_time ?? null,
+      half_day_period:     parsed.data.half_day_period ?? null,
+      half_day_from_time:  parsed.data.half_day_from_time ?? null,
+      half_day_to_time:    parsed.data.half_day_to_time ?? null,
+    })
+    .eq('id', leaveId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/member/leaves')
+  revalidatePath('/admin/leaves')
+  revalidatePath('/admin/dashboard')
+  revalidatePath('/member/dashboard')
   return { success: true }
 }
 

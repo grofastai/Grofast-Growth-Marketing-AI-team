@@ -540,6 +540,28 @@ export async function updateShootCrew(
   return { success: true }
 }
 
+// Corrects the Drive link after the fact — Mark Done captures it, but a wrong or
+// swapped link is otherwise stuck with no way to fix it short of re-completing the shoot.
+export async function updateShootDriveLink(
+  shootId: string,
+  driveLink: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+  if (!isValidDriveLink(driveLink)) return { success: false, error: 'A valid Google Drive link is required' }
+
+  const admin = adminSupabase()
+  const { error } = await admin.from('shoots').update({ drive_link: driveLink.trim() }).eq('id', shootId)
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/shoots')
+  revalidatePath('/member/shoots')
+  revalidatePath('/admin/media-tracker')
+  revalidatePath('/member/media-tracker')
+  return { success: true }
+}
+
 // Spins a real shoot off an Ads Video item that's still in Scripting — e.g. the client
 // wants to speak the script on camera instead of using a recorded voice-over, so there's
 // no need to record one at all. The linked content_item stays at "scripting" until this

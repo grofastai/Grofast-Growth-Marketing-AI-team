@@ -2,6 +2,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayrollSettings } from '@/lib/actions/payroll-settings'
+import { classifyAttendanceDay } from '@/lib/utils/attendance-stats'
+import { calcNetWorkHours } from '@/lib/utils/work-hours'
 
 function adminSupabase() {
   return createClient(
@@ -11,14 +13,16 @@ function adminSupabase() {
   )
 }
 
-function workingDaysInMonth(year: number, month: number) {
-  let count = 0
+// All calendar days in the month, minus company holidays — weekends ARE working
+// days for this business (see project leave policy), so this must not skip them.
+function calendarWorkDays(year: number, month: number, holidayDates: Set<string>) {
   const days = new Date(year, month, 0).getDate()
+  const out: string[] = []
   for (let d = 1; d <= days; d++) {
-    const day = new Date(year, month - 1, d).getDay()
-    if (day !== 0 && day !== 6) count++
+    const date = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    if (!holidayDates.has(date)) out.push(date)
   }
-  return count
+  return out
 }
 
 function inWords(n: number): string {
@@ -55,43 +59,112 @@ export async function GET(request: NextRequest) {
   const [year, mon] = month.split('-').map(Number)
   const monthStart  = `${month}-01`
   const monthEnd    = `${month}-${new Date(year, mon, 0).getDate()}`
-  const workDays    = workingDaysInMonth(year, mon)
   const settings    = await getPayrollSettings(requester.company_id)
 
-  const [{ data: memberRaw }, { data: updatesRaw }, { data: logsRaw }, { data: companyRaw }, { data: runRaw }, { data: kycRaw }, { data: collabRaw }] = await Promise.all([
+  const [
+    { data: memberRaw }, { data: updatesRaw }, { data: logsRaw }, { data: companyRaw },
+    { data: runRaw }, { data: kycRaw }, { data: collabRaw },
+    { data: approvedLeavesRaw }, { data: holidaysRaw },
+  ] = await Promise.all([
     admin.from('users')
       .select('id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, created_at, phone, passport_photo_url')
       .eq('id', userId).eq('company_id', requester.company_id).single(),
-    admin.from('daily_updates').select('working_hours')
+    admin.from('daily_updates').select('date, working_hours, learning_hours, work_entries')
       .eq('user_id', userId).gte('date', monthStart).lte('date', monthEnd),
-    admin.from('attendance_logs').select('date, clock_in, clock_out')
+    admin.from('attendance_logs').select('date, clock_in, clock_out, status')
       .eq('user_id', userId).gte('date', monthStart).lte('date', monthEnd),
     admin.from('companies').select('name, slug').eq('id', requester.company_id).single(),
     admin.from('payroll_runs').select('bonus, advance, incentive, is_paid, paid_at')
       .eq('user_id', userId).eq('month', month).maybeSingle(),
     admin.from('member_kyc').select('bank_account, bank_name, bank_ifsc')
       .eq('user_id', userId).maybeSingle(),
-    admin.from('collaboration_confirmations').select('confirmed_hours')
+    admin.from('collaboration_confirmations').select('date, confirmed_hours')
       .eq('collaborator_id', userId)
       .in('status', ['confirmed', 'edited_confirmed'])
+      .gte('date', monthStart).lte('date', monthEnd),
+    // Approved leaves — may span the month boundary
+    admin.from('leaves').select('from_date, to_date, leave_type')
+      .eq('user_id', userId).eq('status', 'approved')
+      .lte('from_date', monthEnd).gte('to_date', monthStart),
+    // Company holidays this month
+    admin.from('company_leaves').select('date')
+      .eq('company_id', requester.company_id)
       .gte('date', monthStart).lte('date', monthEnd),
   ])
 
   if (!memberRaw) return new NextResponse('Member not found', { status: 404 })
 
-  type UpdateRow = { working_hours: number | null }
-  type LogRow    = { date: string; clock_in: string | null; clock_out: string | null }
+  type UpdateRow = { date: string; working_hours: number | null; learning_hours: number | null; work_entries: { task_type?: string; duration_hours?: number | null; start_time?: string | null; end_time?: string | null }[] | null }
+  type LogRow    = { date: string; clock_in: string | null; clock_out: string | null; status: string | null }
+  type LeaveRow  = { from_date: string; to_date: string; leave_type: string }
 
-  const updates     = (updatesRaw ?? []) as UpdateRow[]
-  const logs        = (logsRaw   ?? []) as LogRow[]
-  const presentDays = logs.filter(l => l.clock_in !== null).length || updates.filter(u => (u.working_hours ?? 0) > 0).length
-  const absentDays  = Math.max(workDays - presentDays, 0)
-  const leaveDays   = absentDays
-  const collabHours = ((collabRaw ?? []) as { confirmed_hours: number | null }[]).reduce((s, c) => s + (c.confirmed_hours ?? 0), 0)
-  const totalHours  = Math.round((updates.reduce((s, u) => s + (u.working_hours ?? 0), 0) + collabHours) * 10) / 10
-  const otHours     = Math.round(updates.reduce((s, u) => {
-    const h = u.working_hours ?? 0; return h > settings.ot_threshold_hrs ? s + (h - settings.ot_threshold_hrs) : s
-  }, 0) * 10) / 10
+  const updates        = (updatesRaw ?? []) as UpdateRow[]
+  const logs           = (logsRaw ?? []) as LogRow[]
+  const approvedLeaves = (approvedLeavesRaw ?? []) as LeaveRow[]
+  const holidayDates   = new Set(((holidaysRaw ?? []) as { date: string }[]).map(h => h.date))
+
+  const collabByDate: Record<string, number> = {}
+  for (const c of (collabRaw ?? []) as { date: string; confirmed_hours: number | null }[]) {
+    collabByDate[c.date] = (collabByDate[c.date] ?? 0) + (c.confirmed_hours ?? 0)
+  }
+  const updateByDate: Record<string, number> = {}
+  for (const u of updates) {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+    updateByDate[u.date] = entries.length > 0
+      ? calcNetWorkHours(entries as Parameters<typeof calcNetWorkHours>[0])
+      : (u.working_hours ?? 0) + (u.learning_hours ?? 0)
+  }
+  const clockedInDates = new Set(logs.filter(l => l.clock_in !== null || l.status === 'present').map(l => l.date))
+
+  // Approved leave dates (excluding permission/wfh/shoot_day, which aren't absences)
+  const leaveDateMap = new Map<string, "full" | "half">()
+  for (const l of approvedLeaves) {
+    if (l.leave_type === 'permission' || l.leave_type === 'wfh' || l.leave_type === 'shoot_day') continue
+    const weight = l.leave_type === 'half_day' ? 'half' : 'full'
+    const cur = new Date(l.from_date + 'T12:00:00')
+    const end = new Date(l.to_date   + 'T12:00:00')
+    while (cur <= end) {
+      const d = cur.toISOString().split('T')[0]
+      if (d >= monthStart && d <= monthEnd) leaveDateMap.set(d, weight)
+      cur.setDate(cur.getDate() + 1)
+    }
+  }
+
+  // Same per-day classification as the Admin Payroll run (lib/utils/attendance-stats.ts)
+  // — approved leave is never deducted and a half-day only deducts 0.5 — so this PDF's
+  // numbers always match what the member actually gets paid via Payroll, not an
+  // independently-recomputed guess.
+  const workDayDates = calendarWorkDays(year, mon, holidayDates)
+  let presentDays = 0, halfDays = 0, absentDays = 0, leaveDays = 0
+  let totalHours = 0
+  for (const date of workDayDates) {
+    const hasClockIn = clockedInDates.has(date)
+    const workH      = (updateByDate[date] ?? 0) + (collabByDate[date] ?? 0)
+    const leaveType  = leaveDateMap.get(date)
+    const dayClass   = classifyAttendanceDay({ hasClockIn, workHours: workH, leaveType }, settings.half_day_threshold_hrs)
+
+    if (dayClass === 'leave' || dayClass === 'half_leave') {
+      leaveDays += dayClass === 'half_leave' ? 0.5 : 1
+      if (dayClass === 'half_leave') presentDays += 0.5
+      totalHours += workH
+      continue
+    }
+
+    totalHours += workH
+
+    if (dayClass === 'full') presentDays++
+    else if (dayClass === 'half') halfDays++
+    else if (dayClass === 'absent') absentDays++
+  }
+  totalHours = Math.round(totalHours * 10) / 10
+  // Overtime is cumulative for the whole month, not per-day (matches Admin Payroll,
+  // confirmed 2026-07-28): only hours beyond the fixed 212.5h monthly target count,
+  // regardless of how many days it took to get there.
+  const HOURS_TARGET = 25 * 8.5
+  const otHours = Math.round(Math.max(0, totalHours - HOURS_TARGET) * 10) / 10
+  const deductibleDays  = absentDays + halfDays * 0.5
+  const presentDaysShow = presentDays + halfDays * 0.5
+  const workDays        = workDayDates.length
 
   type MemberRow = {
     id: string; name: string; employee_id: string; team: string | null
@@ -112,13 +185,13 @@ export async function GET(request: NextRequest) {
 
   if (empType === 'regular' && member.monthly_salary) {
     const gross     = member.monthly_salary
-    const dailyRate = gross / workDays
+    const dailyRate = gross / settings.salary_basis_days
     basic             = Math.round(gross * (settings.basic_pct / 100))
     hra               = Math.round(basic * (settings.hra_pct / 100))        // hra_pct is "of basic"
     travelAllowance   = Math.round(gross * (settings.travel_pct / 100))
     medicalAllowance  = Math.round(gross * (settings.medical_pct / 100))
     otherAllowance    = Math.max(0, gross - basic - hra - travelAllowance - medicalAllowance)
-    deduction = Math.round(absentDays * dailyRate * 100) / 100
+    deduction = Math.round(deductibleDays * dailyRate * 100) / 100
     otPay     = Math.round(otHours * (dailyRate / settings.ot_threshold_hrs) * 100) / 100
   } else if (member.hourly_rate) {
     basic = Math.round(totalHours * member.hourly_rate * 100) / 100
@@ -127,7 +200,7 @@ export async function GET(request: NextRequest) {
   const totalEarnings   = Math.round((basic + hra + travelAllowance + medicalAllowance + otherAllowance + otPay + bonus + incentive) * 100) / 100
   const totalDeductions = Math.round((deduction + advance) * 100) / 100
   const finalNetPay     = Math.round((totalEarnings - totalDeductions) * 100) / 100
-  const attendPct      = workDays > 0 ? Math.round((presentDays / workDays) * 100) : 0
+  const attendPct       = workDays > 0 ? Math.round((presentDaysShow / workDays) * 100) : 0
 
   const payDate     = new Date(year, mon, 5)
   const payDateStr  = payDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -411,12 +484,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
       <div class="kpi-val kpi-red">${fmt(totalEarnings)}</div>${spDotRed}
     </div>
     <div class="kpi-card">
-      <div class="kpi-top"><div class="kpi-icon kpi-ico-red"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 16 16 12"/><line x1="12" y1="8" x2="12" y2="16"/></svg></div><div class="kpi-lbl">Leave Deduction</div></div>
+      <div class="kpi-top"><div class="kpi-icon kpi-ico-red"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 16 16 12"/><line x1="12" y1="8" x2="12" y2="16"/></svg></div><div class="kpi-lbl">Attendance Deduction</div></div>
       <div class="kpi-val kpi-red">${deduction > 0 ? fmt(deduction) : '₹ 0'}</div>${spDotRed}
     </div>
     <div class="kpi-card">
       <div class="kpi-top"><div class="kpi-icon kpi-ico-green"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 15 11 17 15 13"/></svg></div><div class="kpi-lbl">Paid Days</div></div>
-      <div class="kpi-val kpi-dark">${presentDays} / ${workDays}</div>${spDotGreen}
+      <div class="kpi-val kpi-dark">${presentDaysShow} / ${workDays}</div>${spDotGreen}
     </div>
     <div class="kpi-card">
       <div class="kpi-top"><div class="kpi-icon kpi-ico-orange"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="kpi-lbl">Overtime Hours</div></div>
@@ -442,7 +515,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
     </div>
     <div class="ed-card">
       <div class="ed-hdr ed-hdr-red"><div class="ed-ico ed-ico-red"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#991B1B" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div><span class="ed-title ed-title-red">Deductions</span><span style="margin-left:auto;font-size:9px;color:#9CA3AF;font-weight:600">Amount (₹)</span></div>
-      ${deduction > 0 ? `<div class="ed-row"><span class="ed-row-name">Leave Deduction (${leaveDays} day${leaveDays !== 1 ? 's' : ''})</span><span class="ed-row-amt">${Math.round(deduction).toLocaleString('en-IN')}</span></div>` : `<div class="ed-row"><span class="ed-row-name" style="color:#9CA3AF">No deductions this month</span><span class="ed-row-amt" style="color:#9CA3AF">—</span></div>`}
+      ${deduction > 0 ? `<div class="ed-row"><span class="ed-row-name">Attendance Deduction (${deductibleDays} day${deductibleDays !== 1 ? 's' : ''})</span><span class="ed-row-amt">${Math.round(deduction).toLocaleString('en-IN')}</span></div>` : `<div class="ed-row"><span class="ed-row-name" style="color:#9CA3AF">No deductions this month</span><span class="ed-row-amt" style="color:#9CA3AF">—</span></div>`}
       ${advance > 0 ? `<div class="ed-row"><span class="ed-row-name">Advance Recovery</span><span class="ed-row-amt">${Math.round(advance).toLocaleString('en-IN')}</span></div>` : ''}
       <div class="ed-total ed-total-red"><span>Total Deductions</span><span>${fmt(totalDeductions)}</span></div>
     </div>
@@ -462,9 +535,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
     <div class="bot-card">
       <div class="bot-hdr"><div class="bot-hdr-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><span class="bot-hdr-title">Attendance Summary</span></div>
       <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><span class="bot-lbl">Total Working Days</span></div><span class="bot-val">${workDays}</span></div>
-      <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div><span class="bot-lbl">Present Days</span></div><span class="bot-val">${presentDays}</span></div>
+      <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div><span class="bot-lbl">Present Days</span></div><span class="bot-val">${presentDaysShow}</span></div>
       <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><span class="bot-lbl">Leave Days</span></div><span class="bot-val">${leaveDays}</span></div>
-      <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg></div><span class="bot-lbl">Absent Days</span></div><span class="bot-val">${Math.max(0,leaveDays)}</span></div>
+      <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg></div><span class="bot-lbl">Absent Days</span></div><span class="bot-val">${absentDays}</span></div>
       <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><span class="bot-lbl">Overtime Hours</span></div><span class="bot-val">${otHours} hrs</span></div>
     </div>
     <div class="bot-card">

@@ -24,11 +24,13 @@ import {
   createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, requestCorrection,
   createAdsVideoScript, recordVoiceOver, updateAdsVideoScript, updateVoiceOver, setClientMonthlyTarget,
 } from "@/lib/actions/media-tracker"
-import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, renameShootTitle, deleteShootTitle, addShootTitle, updateShootActualTime, type CreatedShootItem } from "@/lib/actions/shoots"
+import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, renameShootTitle, deleteShootTitle, addShootTitle, updateShootActualTime, updateShootDriveLink, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
 import { isValidPipelineTransition } from "@/lib/media-tracker/pipeline-transitions"
 import { computeOverview, type AttentionItem } from "@/lib/media-tracker/overview"
 import { isValidDriveLink } from "@/lib/utils/drive-link"
+import type { ScheduleEntry } from "@/lib/media-tracker/schedule"
+import { ScheduleTab } from "./schedule/schedule-tab"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 // "ads" is a real posting destination — an Ads Video can be scheduled/posted straight
@@ -191,7 +193,7 @@ const STATUS_CFG: Record<ContentStatus, { label: string; accent: string }> = {
   voiceover:       { label: "Voice Over",      accent: "#1E3A8A" },
   design:          { label: "Design",          accent: "#F59E0B" },
   ready_to_edit:   { label: "Ready to Edit",   accent: "#0D9488" },
-  edited:          { label: "Edited",          accent: "#8B5CF6" },
+  edited:          { label: "Editing",         accent: "#8B5CF6" },
   // Renamed from "On Review" — this is the admin sign-off gate now that editor hand-off
   // has its own Edited stage before it; the DB value stays on_review, display-only rename.
   // Was #EC4899 (pink) — too close to neighboring stages once darkened for the badge fill.
@@ -513,11 +515,12 @@ function PrimaryButton({ children, onClick, disabled, type = "button" }: { child
 // ── Pill toggle (tab switcher) ───────────────────────────────────────────────
 // Each mode owns an accent so you always know which board you're on at a glance —
 // the section rail below picks it up, tying the two levels together.
-type TrackerMode = "overview" | "video" | "poster" | "ads"
+type TrackerMode = "overview" | "video" | "poster" | "schedule" | "ads"
 const MODE_ACCENT: Record<TrackerMode, { solid: string; grad: string; glow: string; soft: string }> = {
   overview: { solid: "#0EA5E9", grad: "linear-gradient(135deg,#38BDF8,#0EA5E9)", glow: "rgba(14,165,233,0.45)", soft: "rgba(14,165,233,0.10)" },
   video: { solid: "#DE1A1A", grad: "linear-gradient(135deg,#FF4D4D,#DE1A1A)", glow: "rgba(222,26,26,0.45)", soft: "rgba(222,26,26,0.10)" },
   poster: { solid: "#7C3AED", grad: "linear-gradient(135deg,#A78BFA,#7C3AED)", glow: "rgba(124,58,237,0.45)", soft: "rgba(124,58,237,0.10)" },
+  schedule: { solid: "#0D9488", grad: "linear-gradient(135deg,#2DD4BF,#0D9488)", glow: "rgba(13,148,136,0.45)", soft: "rgba(13,148,136,0.10)" },
   ads: { solid: "#D97706", grad: "linear-gradient(135deg,#FBBF24,#D97706)", glow: "rgba(217,119,6,0.45)", soft: "rgba(217,119,6,0.10)" },
 }
 
@@ -542,6 +545,7 @@ const NAV_MODES: { key: TrackerMode; label: string; icon: typeof Layers }[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "video", label: "Video", icon: Video },
   { key: "poster", label: "Poster", icon: ImageIcon },
+  { key: "schedule", label: "Schedule", icon: CalendarDays },
 ]
 
 // Two levels, two different visual languages: the mode rail is a solid switch on dark,
@@ -1193,7 +1197,7 @@ function ClientStatsBox({ client, stats, monthPicked, onSaveTarget, contentType 
 
       <SectionLabel>Production Status</SectionLabel>
       <StatRow label={isPoster ? "Undesigned" : "Unedited"} value={stats.unedited} color="#F97316" />
-      <StatRow label={isPoster ? "Designs Completed" : "Edited"} value={stats.edited} color="#0EA5E9" />
+      <StatRow label={isPoster ? "Designs Completed" : "Editing"} value={stats.edited} color="#0EA5E9" />
       <StatRow label="Ready to Publish" value={stats.unposted} color="#D97706" />
 
       <SectionLabel>Publishing Status</SectionLabel>
@@ -2768,13 +2772,19 @@ function RequestCorrectionModal({ item, members, onClose, onRequested }: {
 }
 
 // ── "Move" — the On Review 3-way branch: Branding, Ads, or Cancelled (with who caused it) ──
-function MoveOnReviewModal({ item, onClose, onMoved, onCancelled }: {
+function MoveOnReviewModal({ item, presetDestination, onClose, onMoved, onCancelled }: {
   item: ContentItem
+  presetDestination?: "branding_ready" | "ads_ready" | null
   onClose: () => void
-  onMoved: (next: "branding_ready" | "ads_ready") => void
+  onMoved: (next: "branding_ready" | "ads_ready", postDate: string) => void
   onCancelled: (cancelledBy: CancelledBy) => void
 }) {
   const [showCancelReasons, setShowCancelReasons] = useState(false)
+  // Branding is posted organically, Ads is published as a paid campaign — same field,
+  // different question depending on where it's headed, asked right at the move so an
+  // item never sits in Branding/Ads Ready without a date the Schedule tab can show.
+  const [pendingMove, setPendingMove] = useState<"branding_ready" | "ads_ready" | null>(presetDestination ?? null)
+  const [postDate, setPostDate] = useState(todayIST())
 
   return (
     <Modal title="Move" onClose={onClose}>
@@ -2789,14 +2799,33 @@ function MoveOnReviewModal({ item, onClose, onMoved, onCancelled }: {
             </span>
           </div>
         )}
-        {!showCancelReasons ? (
+        {pendingMove ? (
           <>
-            <button onClick={() => onMoved("branding_ready")}
+            <div>
+              <label style={LABEL}>{pendingMove === "branding_ready" ? "Posting Date *" : "Publishing Date *"}</label>
+              <input type="date" style={FIELD} value={postDate} onChange={e => setPostDate(e.target.value)} />
+            </div>
+            <button onClick={() => onMoved(pendingMove, postDate)}
+              className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
+              style={{ background: statusButtonGradient(pendingMove), color: "#fff" }}>
+              {pendingMove === "branding_ready" ? "Move to Branding" : "Move to Ads"}
+            </button>
+            {!presetDestination && (
+              <button onClick={() => setPendingMove(null)}
+                className="w-full py-2 rounded-xl text-[12px] font-bold transition-all hover:opacity-90"
+                style={{ background: "#fff", color: "#6B7280", border: "1.5px solid #E5E7EB" }}>
+                Back
+              </button>
+            )}
+          </>
+        ) : !showCancelReasons ? (
+          <>
+            <button onClick={() => setPendingMove("branding_ready")}
               className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
               style={{ background: statusButtonGradient("branding_ready"), color: "#fff" }}>
               Move to Branding
             </button>
-            <button onClick={() => onMoved("ads_ready")}
+            <button onClick={() => setPendingMove("ads_ready")}
               className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
               style={{ background: statusButtonGradient("ads_ready"), color: "#fff" }}>
               Move to Ads
@@ -2860,9 +2889,53 @@ function CancelReasonModal({ item, onClose, onCancelled }: {
   )
 }
 
-// ── "Who edited this?" — the accountability prompt when an item moves to Edited ──
-// There's no separate Editing stage to capture this at anymore, so it's asked here,
-// at the point the item is actually marked Edited.
+// ── "Who's editing this?" — the assignment prompt when an item enters Editing ──
+// Fires on the Ready to Edit -> Editing / Design -> Editing move, before any actual edit
+// or design work exists to record — just picking who's taking it on. No date or drive
+// link yet; those are still captured later at the Editing -> Completed Edit move, where
+// this same person is pre-filled but can be reassigned if someone else finishes it.
+function AssignEditorModal({ item, members, currentUserId, onClose, onConfirm }: {
+  item: ContentItem
+  members: Member[]
+  currentUserId: string
+  onClose: () => void
+  onConfirm: (editorId: string, editorName: string) => void
+}) {
+  const isPoster = item.content_type === "poster"
+  const [editorId, setEditorId] = useState(
+    members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
+  )
+  const [error, setError] = useState<string | null>(null)
+
+  function submit() {
+    const editor = members.find(m => m.id === editorId)
+    if (!editor) { setError(isPoster ? "Pick who's designing this" : "Pick who's editing this"); return }
+    onConfirm(editor.id, editor.name)
+  }
+
+  return (
+    <Modal title={isPoster ? "Who's designing this?" : "Who's editing this?"} onClose={onClose}>
+      <div className="flex flex-col gap-3">
+        <div>
+          <label style={LABEL}>{isPoster ? "Designer *" : "Editor *"}</label>
+          <select style={{ ...FIELD, cursor: "pointer" }} value={editorId} onChange={e => setEditorId(e.target.value)}>
+            {members.map(m => (
+              <option key={m.id} value={m.id}>{upper(m.name)}{m.id === currentUserId ? " (me)" : ""}</option>
+            ))}
+          </select>
+        </div>
+        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
+        <PrimaryButton onClick={submit}>{isPoster ? "Assign Designer" : "Assign Editor"}</PrimaryButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ── "Who edited this?" — the accountability prompt when an item moves to Completed Edit ──
+// Asked at the Editing -> Completed Edit move, where the date and drive link finally
+// exist to capture. Pre-fills whoever was assigned back at Ready to Edit/Design ->
+// Editing (AssignEditorModal above), but stays editable — a different person may have
+// actually finished the work.
 function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
   item: ContentItem
   members: Member[]
@@ -2873,10 +2946,12 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
   // A poster has no "edit" step to hand off — it's designed, not edited, and there's no
   // drive file to link (the design itself is what's attached to the client/post).
   const isPoster = item.content_type === "poster"
-  // Defaults to whoever clicked — the common case is "I edited this" — but a manager
-  // can reassign to anyone.
+  // Prefers whoever was already assigned at the Editing hand-off; otherwise defaults to
+  // whoever clicked — the common case for an unassigned item is "I edited this" — but a
+  // manager can reassign to anyone either way.
   const [editorId, setEditorId] = useState(
-    members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
+    item.editedByUser && members.some(m => m.id === item.editedByUser!.id) ? item.editedByUser.id
+    : members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
   )
   const [editedDate, setEditedDate] = useState(todayIST())
   // Where the edited file actually lives — required so On Review always has somewhere
@@ -3301,7 +3376,7 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
 // client (kept in sync with the linked Ads Video item, if any), video titles (rename keeps
 // the linked content_item's title in sync, add one that was missed), the actual shoot time,
 // and who went. ──────────────────────────────────────
-function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastClients, onClose, onRenamed, onAdded, onTimeSaved, onCrewSaved, onClientSaved }: {
+function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastClients, onClose, onRenamed, onAdded, onTimeSaved, onCrewSaved, onClientSaved, onDriveLinkSaved }: {
   shoot: Shoot
   members: Member[]
   currentUserId: string
@@ -3312,6 +3387,7 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
   onTimeSaved: (fromTime: string, toTime: string) => void
   onCrewSaved: (crew: Member[]) => void
   onClientSaved: (client: string) => void
+  onDriveLinkSaved: (driveLink: string) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
@@ -3327,17 +3403,19 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
   const [fromTime, setFromTime] = useState(toISTTimeString(shoot.start_time))
   const [toTime, setToTime] = useState(toISTTimeString(shoot.end_time))
   const [crew, setCrew] = useState<string[]>(shoot.goingByUsers.map(u => u.id))
+  const [driveLink, setDriveLink] = useState(shoot.drive_link ?? "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
-  // Everything above (Client, Video Title edits, Actual Shoot Time, Who Went) is
-  // submitted together with this one button instead of a separate Save per field —
+  // Everything above (Client, Video Title edits, Actual Shoot Time, Who Went, Drive Link)
+  // is submitted together with this one button instead of a separate Save per field —
   // the per-field pattern meant re-editing several things meant clicking Save several
   // times with no single confirmation that it all went through.
   async function handleUpdateAll() {
     if (!client) { setError("Client is required"); return }
     if (!fromTime || !toTime) { setError("Both times are required"); return }
+    if (!isValidDriveLink(driveLink)) { setError("A valid Google Drive link is required"); return }
     setSaving(true); setError(null)
 
     const renamed = titles.filter(t => (titleEdits[t.id] ?? t.title).trim() && titleEdits[t.id] !== t.title)
@@ -3350,6 +3428,7 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
       }),
       updateShootActualTime(shoot.id, fromTime, toTime),
       updateShootCrew(shoot.id, crew),
+      updateShootDriveLink(shoot.id, driveLink.trim()),
       ...renamed.map(t => renameShootTitle(t.id, titleEdits[t.id].trim())),
     ])
     setSaving(false)
@@ -3360,6 +3439,7 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
     onClientSaved(client)
     onTimeSaved(fromTime, toTime)
     onCrewSaved(members.filter(m => crew.includes(m.id)))
+    onDriveLinkSaved(driveLink.trim())
     for (const t of renamed) onRenamed(t.id, titleEdits[t.id].trim())
     setTitlesState(prev => prev.map(t => renamed.some(r => r.id === t.id) ? { ...t, title: titleEdits[t.id].trim() } : t))
     setSuccessMsg("Shoot Updated Successfully")
@@ -3443,6 +3523,15 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
               <input type="time" style={FIELD} value={fromTime} onChange={e => setFromTime(e.target.value)} />
               <input type="time" style={FIELD} value={toTime} onChange={e => setToTime(e.target.value)} />
             </div>
+          </div>
+
+          <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
+            <label style={LABEL}>Drive Link *</label>
+            <input type="url" style={FIELD} value={driveLink} onChange={e => setDriveLink(e.target.value)}
+              placeholder="https://drive.google.com/…" />
+            {driveLink.trim().length > 0 && !isValidDriveLink(driveLink) && (
+              <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>Must be a drive.google.com or docs.google.com link</p>
+            )}
           </div>
 
           <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
@@ -3599,6 +3688,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   // so the Shoots sub-tab only exists in Video mode.
   const [mode, setMode] = useState<TrackerMode>("overview")
   const [subTab, setSubTab] = useState<"shoots" | "adsvideo" | "pipeline" | "log" | "adlog">("shoots")
+  // Schedule mode's own sub-tab axis — kept separate from `subTab` (rather than widening
+  // its union) so switching back to Video/Poster mode never leaves `subTab` on a
+  // Schedule-only key that matches none of those modes' render conditions.
+  const [scheduleSubTab, setScheduleSubTab] = useState<"shoot" | "video" | "poster" | "ads">("shoot")
   // Derived rather than reset via an effect — avoids a cascading-render setState-in-effect.
   // Posters have neither Shoots nor Ads Video, so both fall back to Pipeline.
   const tab = mode === "poster" && (subTab === "shoots" || subTab === "adsvideo") ? "pipeline" : subTab
@@ -3624,9 +3717,14 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const [showNewShoot, setShowNewShoot] = useState(false)
   const [completeShootFor, setCompleteShootFor] = useState<Shoot | null>(null)
   const [markEditedItem, setMarkEditedItem] = useState<ContentItem | null>(null)
+  const [assignEditorItem, setAssignEditorItem] = useState<ContentItem | null>(null)
   const [voiceOverItem, setVoiceOverItem] = useState<ContentItem | null>(null)
   const [moveToShootFor, setMoveToShootFor] = useState<ContentItem | null>(null)
   const [moveOnReviewFor, setMoveOnReviewFor] = useState<ContentItem | null>(null)
+  // Set only when the Branding/Ads destination is already known before the modal opens
+  // (a direct drag onto that kanban column) — skips straight to the date step instead of
+  // asking the destination question again.
+  const [moveOnReviewPreset, setMoveOnReviewPreset] = useState<"branding_ready" | "ads_ready" | null>(null)
   // The direct "Cancel" menu action (Ready to Edit/Design/Scripting/Voice Over cards, and
   // dragging any card straight into the Cancelled column) — same "who caused it" prompt as
   // the On Review Move modal's Cancelled branch, just reached from a shorter path.
@@ -3789,10 +3887,24 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   )
 
   function advance(item: ContentItem, next: ContentStatus) {
+    // Entering Editing from Ready to Edit/Design asks who's taking it on — the assignment
+    // moment, before any actual edit/design work exists to record. Not asked again on an
+    // undo move back from Completed Edit (item.status === "on_review") — that's a revert,
+    // not a fresh hand-off.
+    if (next === "edited" && (item.status === "ready_to_edit" || item.status === "design") && members.length > 0) { setAssignEditorItem(item); return }
     // Reaching On Review (Completed Edit) asks who edited it — the accountability moment,
     // asked at the Edited -> Completed Edit move. Not asked again on an undo move back
     // from Branding/Ads Ready — that's not a fresh edit, just reverting an approval.
     if (next === "on_review" && item.status === "edited" && members.length > 0) { setMarkEditedItem(item); return }
+    // Reaching Branding/Ads Ready asks for the posting/publishing date — same prompt the
+    // Move button already shows, also triggered here so a direct drag onto that column
+    // doesn't skip it. The modal already knows the destination, so it goes straight to
+    // the date step instead of asking again.
+    if ((next === "branding_ready" || next === "ads_ready") && item.status === "on_review") {
+      setMoveOnReviewFor(item)
+      setMoveOnReviewPreset(next)
+      return
+    }
     // Entering Voice Over asks who recorded it.
     if (next === "voiceover") { setVoiceOverItem(item); return }
     // Cancelling (menu action or a direct drag into the Cancelled column) asks who caused it,
@@ -3815,12 +3927,47 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     const previous = item.status
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: "cancelled", cancelled_by: cancelledBy } : i))
     setMoveOnReviewFor(null)
+    setMoveOnReviewPreset(null)
     setCancelReasonFor(null)
     startTransition(async () => {
       const res = await updateContentItemStatus(item.id, "cancelled", undefined, cancelledBy)
       if (!res.success) {
         setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: previous, cancelled_by: null } : i))
         alert(res.error ?? "Failed to cancel")
+      }
+    })
+  }
+
+  // Reaching Branding/Ads Ready always carries a posting/publishing date now — captured
+  // here instead of the generic advance() path so both the Move modal's own buttons and
+  // the drag-onto-column shortcut (redirected into the same modal in advance() above)
+  // go through one place.
+  function handleMoveToPostingStage(item: ContentItem, next: "branding_ready" | "ads_ready", postDate: string) {
+    const previous = item.status
+    const previousDate = item.scheduled_post_date
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, scheduled_post_date: postDate } : i))
+    setMoveOnReviewFor(null)
+    setMoveOnReviewPreset(null)
+    startTransition(async () => {
+      const res = await updateContentItemStatus(item.id, next, undefined, undefined, undefined, undefined, postDate)
+      if (!res.success) {
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: previous, scheduled_post_date: previousDate } : i))
+        alert(res.error ?? `Failed to move to ${STATUS_CFG[next].label}`)
+      }
+    })
+  }
+
+  function handleAssignEditor(item: ContentItem, editorId: string, editorName: string) {
+    const previous = item.status
+    setItems(prev => prev.map(i => i.id === item.id
+      ? { ...i, status: "edited", editedByUser: { id: editorId, name: editorName } }
+      : i))
+    setAssignEditorItem(null)
+    startTransition(async () => {
+      const res = await updateContentItemStatus(item.id, "edited", editorId)
+      if (!res.success) {
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: previous, editedByUser: item.editedByUser } : i))
+        alert(res.error ?? "Failed to move to Editing")
       }
     })
   }
@@ -3947,10 +4094,21 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     overview: overview.attention.reduce((sum, a) => sum + a.count, 0),
     video: items.filter(i => i.content_type === "video" && i.status !== "posted" && i.status !== "cancelled").length,
     poster: items.filter(i => i.content_type === "poster" && i.status !== "posted" && i.status !== "cancelled").length,
+    schedule: shoots.filter(s => s.status === "scheduled").length
+      + items.filter(i => (i.status === "branding_ready" || i.status === "ads_ready") && !!i.scheduled_post_date).length,
     ads: ads.filter(a => a.status === "active").length,
-  }), [items, ads, overview])
+  }), [items, shoots, ads, overview])
 
   const navSections = useMemo(() => {
+    if (mode === "schedule") {
+      const scheduledContent = items.filter(i => (i.status === "branding_ready" || i.status === "ads_ready") && i.scheduled_post_date)
+      return [
+        { key: "shoot", label: "Shoot", icon: Camera, count: shoots.filter(s => s.status === "scheduled").length },
+        { key: "video", label: "Video", icon: Video, count: scheduledContent.filter(i => i.content_type === "video").length },
+        { key: "poster", label: "Poster", icon: ImageIcon, count: scheduledContent.filter(i => i.content_type === "poster").length },
+        { key: "ads", label: "Ads", icon: Megaphone, count: scheduledContent.filter(i => i.status === "ads_ready").length },
+      ]
+    }
     if (mode === "ads" || mode === "overview") return []
     const ofMode = items.filter(i => i.content_type === contentTypeForMode)
     // Excludes scripting items already sent to a shoot — those are done as far as this
@@ -3969,6 +4127,66 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       { key: "adlog", label: "Advertisement", icon: Megaphone, count: ofMode.filter(i => i.posted_ads).length },
     ]
   }, [mode, items, shoots, contentTypeForMode, pipelineOrder, shootLinkedItemIds])
+
+  // Schedule tab — one ScheduleEntry per pending shoot/scheduled post, so its four
+  // sub-tabs are just filtered/mapped views over the same shoots/items already loaded
+  // for the rest of the tracker. Nothing here is fetched separately, and every action
+  // calls a handler that already exists elsewhere in this file.
+  const scheduleShootEntries: ScheduleEntry[] = useMemo(() => shoots
+    .filter(s => s.status === "scheduled")
+    .map(s => {
+      const date = s.start_time.split("T")[0]
+      return {
+        id: s.id,
+        date,
+        time: toISTTimeString(s.start_time) || null,
+        title: s.legacyTitle,
+        client: s.client,
+        accent: SHOOT_STATUS_CFG.scheduled.color,
+        overdue: date < today,
+        actions: [
+          { label: "Mark Done", onClick: () => handleShootStatus(s.id, "completed") },
+          { label: "Cancel", onClick: () => handleShootStatus(s.id, "cancelled"), danger: true },
+        ],
+      }
+    }), [shoots, today])
+
+  const scheduledContentItems = useMemo(
+    () => items.filter(i => (i.status === "branding_ready" || i.status === "ads_ready") && i.scheduled_post_date),
+    [items]
+  )
+  function toScheduleEntry(i: ContentItem): ScheduleEntry {
+    return {
+      id: i.id,
+      date: i.scheduled_post_date!,
+      time: i.scheduled_post_time,
+      title: i.title,
+      client: i.client_name,
+      accent: STATUS_CFG[i.status].accent,
+      overdue: i.scheduled_post_date! < today,
+      actions: [
+        { label: "Mark Posted", onClick: () => { setPlatformModalKind(i.status === "ads_ready" ? "ads" : "branding"); setPlatformModalItem(i) } },
+        { label: "Reschedule", onClick: () => setEditingItem(i) },
+      ],
+    }
+  }
+  const scheduleVideoEntries: ScheduleEntry[] = useMemo(
+    () => scheduledContentItems.filter(i => i.content_type === "video").map(toScheduleEntry),
+    [scheduledContentItems, today, toScheduleEntry]
+  )
+  const schedulePosterEntries: ScheduleEntry[] = useMemo(
+    () => scheduledContentItems.filter(i => i.content_type === "poster").map(toScheduleEntry),
+    [scheduledContentItems, today, toScheduleEntry]
+  )
+  const scheduleAdsEntries: ScheduleEntry[] = useMemo(
+    () => scheduledContentItems.filter(i => i.status === "ads_ready").map(toScheduleEntry),
+    [scheduledContentItems, today, toScheduleEntry]
+  )
+  const activeScheduleEntries: ScheduleEntry[] =
+    scheduleSubTab === "shoot" ? scheduleShootEntries
+    : scheduleSubTab === "video" ? scheduleVideoEntries
+    : scheduleSubTab === "poster" ? schedulePosterEntries
+    : scheduleAdsEntries
 
   const stats = useMemo(() => {
     const readyToEdit = items.filter(i => i.status === "ready_to_edit").length
@@ -4247,6 +4465,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     setShoots(prev => prev.map(s => s.id === shootId ? { ...s, start_time, end_time } : s))
   }
 
+  function handleShootDriveLinkSaved(shootId: string, driveLink: string) {
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, drive_link: driveLink } : s))
+  }
+
   function handleDeleteShoot(shoot: Shoot) {
     // A shoot that produced no videos has nothing to choose between — just confirm plainly.
     if (shoot.titles.length === 0) {
@@ -4400,8 +4622,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       <TrackerNav
         mode={mode}
         onMode={setMode}
-        tab={tab}
-        onTab={k => setSubTab(k as typeof subTab)}
+        tab={mode === "schedule" ? scheduleSubTab : tab}
+        onTab={k => { if (mode === "schedule") setScheduleSubTab(k as typeof scheduleSubTab); else setSubTab(k as typeof subTab) }}
         modeCounts={navCounts}
         sections={navSections}
       />
@@ -4635,7 +4857,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             {colItems(activeMobileCol).length === 0 ? (
               <KanbanEmptyCell isOver={false} />
             ) : colItems(activeMobileCol).map(item => (
-              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={(item, kind) => { setPlatformModalKind(kind ?? "branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onMove={setMoveOnReviewFor} />
+              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={(item, kind) => { setPlatformModalKind(kind ?? "branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onMove={item => { setMoveOnReviewFor(item); setMoveOnReviewPreset(null) }} />
             ))}
           </div>
 
@@ -4658,7 +4880,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                         {list.length === 0 ? (
                           <KanbanEmptyCell isOver={overCol === status} />
                         ) : list.map(item => (
-                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={(item, kind) => { setPlatformModalKind(kind ?? "branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onMove={setMoveOnReviewFor} />
+                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={(item, kind) => { setPlatformModalKind(kind ?? "branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onMove={item => { setMoveOnReviewFor(item); setMoveOnReviewPreset(null) }} />
                         ))}
                       </div>
                     </DroppableColumn>
@@ -5061,6 +5283,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         </div>
       )}
 
+      {mode === "schedule" && (
+        <ScheduleTab entries={activeScheduleEntries} activeClientOptions={activeClientOptions} pastClientOptions={pastClientOptions} />
+      )}
+
       {mode === "video" && tab === "shoots" && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-end flex-wrap gap-2">
@@ -5232,12 +5458,18 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           onAdded={created => handleShootTitleAdded(editCompletedShootFor.id, created)}
           onTimeSaved={(fromTime, toTime) => handleShootActualTimeSaved(editCompletedShootFor.id, fromTime, toTime)}
           onCrewSaved={crew => handleCompletedShootCrewSaved(editCompletedShootFor.id, crew)}
+          onDriveLinkSaved={driveLink => handleShootDriveLinkSaved(editCompletedShootFor.id, driveLink)}
           onClientSaved={client => handleShootCompletedClientSaved(editCompletedShootFor.id, client)} />
       )}
       {editAdFor && (
         <EditAdModal ad={editAdFor} clients={clients} pastClients={pastClients}
           onClose={() => setEditAdFor(null)}
           onSaved={patch => handleAdSaved(editAdFor.id, patch)} />
+      )}
+      {assignEditorItem && (
+        <AssignEditorModal item={assignEditorItem} members={editingMembers} currentUserId={currentUserId}
+          onClose={() => setAssignEditorItem(null)}
+          onConfirm={(editorId, editorName) => handleAssignEditor(assignEditorItem, editorId, editorName)} />
       )}
       {markEditedItem && (
         <MarkEditedModal item={markEditedItem} members={editingMembers} currentUserId={currentUserId}
@@ -5290,8 +5522,9 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       {moveOnReviewFor && (
         <MoveOnReviewModal
           item={moveOnReviewFor}
-          onClose={() => setMoveOnReviewFor(null)}
-          onMoved={next => { advance(moveOnReviewFor, next); setMoveOnReviewFor(null) }}
+          presetDestination={moveOnReviewPreset}
+          onClose={() => { setMoveOnReviewFor(null); setMoveOnReviewPreset(null) }}
+          onMoved={(next, postDate) => handleMoveToPostingStage(moveOnReviewFor, next, postDate)}
           onCancelled={cancelledBy => handleCancelConfirmed(moveOnReviewFor, cancelledBy)}
         />
       )}

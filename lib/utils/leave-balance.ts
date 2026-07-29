@@ -6,12 +6,9 @@
 // updating the "one spot asked about" but not its duplicates). One formula,
 // one function, called everywhere.
 
-// Standard workday: 9:30 AM – 7:00 PM = 9.5 hours (confirmed 2026-07-23).
-// Half day = exactly half of that, 4.75h / 4h45m (fixed 2026-07-29 — was
-// wrongly 4.5h/4h30m, which didn't match the 9.5h full-day definition it's
-// derived from).
-export const WORKDAY_HOURS = 9.5
-export const HALF_DAY_THRESHOLD_HOURS = 4.75
+// Shared with lib/utils/attendance-stats.ts, which uses the same 9.5h/4.75h
+// rule to classify present/half/absent days — one constant, not two.
+import { FULL_DAY_HOURS as WORKDAY_HOURS, HALF_DAY_THRESHOLD_HOURS } from './attendance-stats'
 
 // Converts a cumulative Permission-hours total into day-equivalents:
 // full days = floor(hours / 9.5), plus one more half-day if what's left over

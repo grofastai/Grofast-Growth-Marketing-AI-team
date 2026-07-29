@@ -82,7 +82,11 @@ async function getRootFolder(t: string): Promise<string> {
   if (!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID) {
     throw new Error('GOOGLE_DRIVE_ROOT_FOLDER_ID env var is required. Set it to your Shared Drive ID.')
   }
-  rootFolderIdCache = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID
+  // .trim() — a stray trailing newline pasted into the Vercel env var value gets
+  // embedded straight into the Drive query string below (`'<id>\n' in parents`),
+  // which breaks Drive's query parser silently ("File not found: .") with no hint
+  // it's a whitespace problem.
+  rootFolderIdCache = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID.trim()
   return rootFolderIdCache
 }
 
@@ -148,7 +152,7 @@ export async function uploadFileToBackupFolder(
   fileName: string,
   content: string,
 ): Promise<string> {
-  const backupRoot = process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID
+  const backupRoot = process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID?.trim()
   if (!backupRoot) throw new Error('GOOGLE_DRIVE_BACKUP_FOLDER_ID env var is not set')
   const t = await token()
   const yearId = await findOrCreate(year, backupRoot, t)
@@ -184,7 +188,7 @@ export async function uploadFileToBackupFolder(
 
 /** Creates (or finds) a member folder under GOOGLE_DRIVE_MEMBER_DOCS_FOLDER_ID */
 export async function getOrCreateMemberFolder(memberName: string): Promise<string> {
-  const parentId = process.env.GOOGLE_DRIVE_MEMBER_DOCS_FOLDER_ID
+  const parentId = process.env.GOOGLE_DRIVE_MEMBER_DOCS_FOLDER_ID?.trim()
   if (!parentId) throw new Error('GOOGLE_DRIVE_MEMBER_DOCS_FOLDER_ID env var is not set')
   const t = await token()
   return findOrCreate(memberName, parentId, t)

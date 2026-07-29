@@ -7,6 +7,7 @@ import { syncMemberDocumentsNow } from "@/lib/actions/member-documents"
 import Image from "next/image"
 import { PageHero } from "@/components/admin/PageHero"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
+import { useToast } from "@/components/ui/useToast"
 import {
   FileText, Upload, Trash2, FolderOpen, Loader2, X, Download,
   Phone, Mail, Briefcase, Calendar, Shield, HeartPulse, MapPin,
@@ -357,6 +358,7 @@ export default function DocumentsClient({
   driveRootUrl: string | null
 }) {
   const confirm = useConfirm()
+  const { toastEl, showToast } = useToast()
   const [selectedId, setSelectedId]   = useState<string>(members[0]?.id ?? "")
   const [empSearch, setEmpSearch]     = useState("")
   const [activeTab, setActiveTab]     = useState<"documents" | "personal" | "kyc" | "activity">("documents")
@@ -374,7 +376,6 @@ export default function DocumentsClient({
   const [isUploading, setIsUploading]     = useState(false)
   const [isPending, start]            = useTransition()
   const [syncingDrive, setSyncingDrive] = useState(false)
-  const [syncResult, setSyncResult]     = useState<string | null>(null)
   const fileRef                       = useRef<HTMLInputElement>(null)
   const router                        = useRouter()
 
@@ -474,12 +475,18 @@ export default function DocumentsClient({
 
   async function handleSyncDrive() {
     if (!selectedId) return
-    setSyncingDrive(true); setSyncResult(null)
+    setSyncingDrive(true)
     try {
       const res = await syncMemberDocumentsNow(selectedId)
-      if (!res.success) { setSyncResult(res.error ?? "Sync failed"); return }
-      setSyncResult(`Synced ${res.synced ?? 0}, already up to date ${res.skipped ?? 0}${res.failed ? `, failed ${res.failed}` : ""}`)
+      if (!res.success) { showToast(res.error ?? "Sync failed", "error"); return }
+      const summary = `Synced ${res.synced ?? 0}, already up to date ${res.skipped ?? 0}${res.failed ? `, failed ${res.failed}` : ""}`
+      showToast(summary, res.failed ? "error" : "success")
       router.refresh()
+    } catch (err) {
+      // Without this, an exception here (e.g. the request itself failing) left the
+      // button silently reverting to "Sync to Drive" with zero feedback — indistinguishable
+      // from the click not registering at all.
+      showToast(err instanceof Error ? err.message : "Sync failed", "error")
     } finally { setSyncingDrive(false) }
   }
 
@@ -505,6 +512,7 @@ export default function DocumentsClient({
 
   return (
     <div style={{ background: "#F7F8FA", minHeight: "100vh" }}>
+      {toastEl}
 
       {/* ── SUCCESS TOAST ─────────────────────────────────────────────────── */}
       {uploadSuccess && (
@@ -757,18 +765,18 @@ export default function DocumentsClient({
               {activeTab === "documents" && (
                 <>
                   {/* Filter bar */}
-                  <div style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(0,0,0,0.07)", padding: "12px 16px", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                    <div style={{ display: "flex", gap: 6, flex: 1, flexWrap: "wrap" }}>
-                      {FILTER_CHIPS.map(chip => (
-                        <button key={chip} onClick={() => setDocFilter(chip)} style={{
-                          padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "none",
-                          background: docFilter === chip ? "#de1a1a" : "rgba(0,0,0,0.04)",
-                          color: docFilter === chip ? "#fff" : "#1B4332",
-                        }}>{chip}</button>
-                      ))}
+                  <div style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(0,0,0,0.07)", padding: "12px 16px", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start" }}>
+                    <div style={{ flex: 1 }}>
+                      <select value={docFilter} onChange={e => setDocFilter(e.target.value)}
+                        style={{
+                          padding: "7px 10px", borderRadius: 9, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                          border: "1px solid #E5E7EB", outline: "none", color: "#1B4332", background: "#fff",
+                        }}>
+                        {FILTER_CHIPS.map(chip => <option key={chip} value={chip}>{chip}</option>)}
+                      </select>
                     </div>
                     {/* Search + view toggle */}
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
                       <div style={{ position: "relative" }}>
                         <Search size={11} style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#1B4332" }} />
                         <input placeholder="Search documents..." value={docSearch} onChange={e => setDocSearch(e.target.value)}
@@ -788,10 +796,6 @@ export default function DocumentsClient({
                       </button>
                     </div>
                   </div>
-                  {syncResult && (
-                    <p style={{ fontSize: 11, fontWeight: 600, color: "#1B4332", margin: 0 }}>{syncResult}</p>
-                  )}
-
                   {/* Documents */}
                   {shownDocs.length === 0 ? (
                     <div style={{ background: "#fff", borderRadius: 20, padding: "48px 20px", textAlign: "center", border: "1px solid rgba(0,0,0,0.07)" }}>

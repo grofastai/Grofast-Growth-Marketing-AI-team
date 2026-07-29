@@ -9,9 +9,9 @@ import Link from "next/link"
 import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
 import MonthFilterTabs from "@/components/member/MonthFilterTabs"
-import { calcNetWorkHours } from "@/lib/utils/work-hours"
 import { todayIST, nowISTShifted } from "@/lib/utils/ist-date"
 import { sumLeaveDays } from "@/lib/utils/leave-balance"
+import { summarizeAttendanceDays, dailyWorkHours } from "@/lib/utils/attendance-stats"
 
 function adminClient() {
   return createClient(
@@ -76,6 +76,17 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     monthName  = now.toLocaleString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })
   }
 
+  // Leave Taken should count the WHOLE month, including already-approved leave
+  // dated later this month — unlike attendance/updates (monthEnd, clipped to today,
+  // since there's no data for days that haven't happened), a leave someone already
+  // has approved for next week is already "used" against their allowance right now.
+  // Only "this" mode needs a separate bound — every other mode's monthEnd is already
+  // a real month-end (or, for "all", already today). Confirmed 2026-07-28, matches
+  // History's existing behavior; Dashboard/Attendance previously clipped to today.
+  const leaveRangeEnd = monthMode === "this"
+    ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).toISOString().split("T")[0]
+    : monthEnd
+
   type ProfileRow    = { name: string; employee_id: string; phone: string | null; photo_url: string | null; blood_group: string | null; emergency_contact_name: string | null; team: string | null }
   type UpdateRow     = { working_hours: number | null; shoot_count: number | null }
   type TaskRow       = { id: string; title: string; status: string; priority: string; due_date: string | null }
@@ -107,7 +118,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     db.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", effectiveUserId).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
     db.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
     db.from("daily_updates").select("date, working_hours, attendance_status, learning_hours, shoot_count, editing_count, work_entries").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
-    adminClient().from("leaves").select("from_date, to_date, leave_type, permission_hours").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
+    adminClient().from("leaves").select("from_date, to_date, leave_type, permission_hours").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", leaveRangeEnd),
     db.from("attendance_logs").select("work_type, status, date, break_total_mins, clock_in, clock_out").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
     db.from("collaboration_confirmations").select("date, confirmed_hours, entry_snapshot").eq("collaborator_id", effectiveUserId).in("status", ["confirmed", "edited_confirmed"]).gte("date", monthStart).lte("date", monthEnd),
     // Ever-logged type detection (all-time, not month-scoped) — decides which
@@ -172,43 +183,68 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const pendingLeaves  = pendingLeavesCount ?? 0
   const todayOverdue   = myTasks.filter(t => t.due_date && t.due_date < today)
 
-  // Monthly calculations — use attendance_logs as source of truth for presence
+  // Monthly calculations — attendance_logs still drives the office/WFH/shoot
+  // location breakdown, but Present Days itself now comes from the shared
+  // classifier (lib/utils/attendance-stats.ts) so it matches Attendance,
+  // History, Admin Payroll, and the Payslip PDF for the same person/month.
   const presentAttLogs = monthlyAttLogs.filter(l => l.status === "present")
   const officeDays     = presentAttLogs.filter(l => l.work_type === "office").length
   const wfhDays        = presentAttLogs.filter(l => l.work_type === "wfh").length
   const shootDays      = presentAttLogs.filter(l => l.work_type === "shoot" || l.work_type === "outside").length
-  const presentDays    = presentAttLogs.length  // all present (office + wfh + shoot)
   const holidayDays    = monthlyUpdates.filter(u => u.attendance_status === "holiday").length
 
   // Per-day working hours computed from work_entries + confirmed collab hours
   const monthlyDayHours = monthlyUpdates.map(u => {
-    const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
-    // calcNetWorkHours already includes learning entries (filters task_type !== 'break').
-    // Only add learning separately when falling back to stored fields (no entries).
-    const workH = entries.length > 0
-      ? calcNetWorkHours(entries)
-      : (u.working_hours ?? 0) + (u.learning_hours ?? 0)
     const dayCollabH = collabByDate[u.date] ?? 0
-    return { totalH: workH + dayCollabH, attendanceStatus: u.attendance_status }
+    return { totalH: dailyWorkHours(u) + dayCollabH, attendanceStatus: u.attendance_status }
   })
   const totalMonthHrs  = Math.round(monthlyDayHours.reduce((s, d) => s + d.totalH, 0) * 10) / 10
   const MONTHLY_TARGET_HRS = 25 * 8.5  // 212.5h — fixed for all months
-  const monthlyAvgHrs = presentDays > 0 ? Math.round((totalMonthHrs / presentDays) * 10) / 10 : 0
-  const overtimeHrs   = Math.round(Math.max(0, totalMonthHrs - MONTHLY_TARGET_HRS) * 10) / 10
 
   // Dates that are WFH/shoot_day/permission — NOT actual leave days
   const nonLeaveDates = new Set<string>()
+  // Dates covered by an approved full-day/half-day leave — excluded (fully or
+  // partially, see summarizeAttendanceDays) from present/absent classification below.
+  const leaveDateMap = new Map<string, "full" | "half">()
   for (const l of approvedLeaves) {
-    if (l.leave_type !== "permission" && l.leave_type !== "wfh" && l.leave_type !== "shoot_day") continue
+    if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") {
+      const cur = new Date(l.from_date + "T12:00:00")
+      const end = new Date(l.to_date   + "T12:00:00")
+      while (cur <= end) { nonLeaveDates.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
+      continue
+    }
+    const weight = l.leave_type === "half_day" ? "half" : "full"
     const cur = new Date(l.from_date + "T12:00:00")
     const end = new Date(l.to_date   + "T12:00:00")
-    while (cur <= end) { nonLeaveDates.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
+    while (cur <= end) {
+      const d = cur.toISOString().split("T")[0]
+      if (d >= monthStart && d <= today) leaveDateMap.set(d, weight)
+      cur.setDate(cur.getDate() + 1)
+    }
   }
 
-  // LEAVE-1: cap leave date ranges to current month [monthStart..today]
-  // LEAVE-2: only count approved leave records (not absence logs)
+  const clockInDates   = new Set(monthlyAttLogs.filter(l => l.clock_in !== null || l.status === "present").map(l => l.date))
+  const workHoursByDate: Record<string, number> = {}
+  for (const u of monthlyUpdates) workHoursByDate[u.date] = dailyWorkHours(u) + (collabByDate[u.date] ?? 0)
+  const rangeDates: string[] = []
+  for (let d = new Date(monthStart + "T12:00:00"); d.toISOString().split("T")[0] <= today; d.setDate(d.getDate() + 1)) {
+    rangeDates.push(d.toISOString().split("T")[0])
+  }
+  const attendanceSummary = summarizeAttendanceDays(rangeDates.map(date => ({
+    hasClockIn: clockInDates.has(date),
+    workHours: workHoursByDate[date] ?? 0,
+    leaveType: leaveDateMap.get(date),
+  })))
+  const presentDays   = attendanceSummary.presentDays
+  const monthlyAvgHrs = presentDays > 0 ? Math.round((totalMonthHrs / presentDays) * 10) / 10 : 0
+  const overtimeHrs   = Math.round(Math.max(0, totalMonthHrs - MONTHLY_TARGET_HRS) * 10) / 10
+
+  // LEAVE-1: cap leave date ranges to the current month [monthStart..leaveRangeEnd] —
+  // the WHOLE month, including already-approved leave dated later this month (see
+  // leaveRangeEnd above), not just up to today.
+  // LEAVE-2: only count approved leave records (not absence logs, not pending)
   // half_day counts as 0.5, permission = cumulative hours converted to day-equivalents
-  const leaveDays = sumLeaveDays(approvedLeaves, monthStart, today)
+  const leaveDays = sumLeaveDays(approvedLeaves, monthStart, leaveRangeEnd)
 
   // Login hours — raw clock_in → clock_out span, no break deduction
   const logsWithClockData = presentAttLogs.filter(l => l.clock_in && l.clock_out)

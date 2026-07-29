@@ -222,7 +222,34 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   const myConfirmationEntryIds = new Set(
     ((confirmationsResult.data ?? []) as { entry_id: string }[]).map(c => c.entry_id)
   )
-  const participatedUpdates = ((participatedResult.data ?? []) as unknown as ParticipatedUpdate[])
+  // The .contains("participant_ids", ...) filter above reads the daily_updates row's
+  // top-level column, which can drift out of sync with an entry's own participant_ids
+  // (tagged on the entry, but the parent row's column never resynced) — when that
+  // happens the whole row is dropped before it ever reaches the client, so the
+  // collaboration is invisible in the member's timeline even though a confirmation
+  // (and its hours) exist for it. A confirmation's daily_update_id is the same
+  // authoritative source already trusted below for myConfirmationEntryIds, so
+  // backfill any row it points at that the .contains() filter missed.
+  const fetchedParticipatedIds = new Set(
+    ((participatedResult.data ?? []) as unknown as ParticipatedUpdate[]).map(pu => pu.id)
+  )
+  const missingDailyUpdateIds = Array.from(new Set(
+    ((confirmationsResult.data ?? []) as CollaborationConfirmation[])
+      .map(c => c.daily_update_id)
+      .filter(id => id && !fetchedParticipatedIds.has(id))
+  ))
+  const backfillResult = (missingDailyUpdateIds.length && companyId)
+    ? await admin
+        .from("daily_updates")
+        .select("id, date, user_id, attendance_status, working_hours, work_entries")
+        .in("id", missingDailyUpdateIds)
+        .neq("user_id", effectiveUserId)
+    : { data: [] as unknown as ParticipatedUpdate[] }
+  const allParticipatedRows = [
+    ...((participatedResult.data ?? []) as unknown as ParticipatedUpdate[]),
+    ...((backfillResult.data ?? []) as unknown as ParticipatedUpdate[]),
+  ]
+  const participatedUpdates = allParticipatedRows
     .map(pu => ({
       ...pu,
       work_entries: (Array.isArray(pu.work_entries) ? pu.work_entries : []).filter(

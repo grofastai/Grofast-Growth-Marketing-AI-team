@@ -6,7 +6,6 @@ import { redirect } from 'next/navigation'
 import InsightsClient, { type AllMember } from './insights-client'
 import { calcNetWorkHours } from '@/lib/utils/work-hours'
 import { hourlyRateOnDate, type SalaryHistoryRow } from '@/lib/salary'
-import { listTeams } from '@/lib/actions/teams'
 import { sumLeaveDays, type LeaveForBalance } from '@/lib/utils/leave-balance'
 import { dailyWorkHours, summarizeAttendanceDays } from '@/lib/utils/attendance-stats'
 
@@ -587,8 +586,6 @@ export default async function InsightsPage({
       hourlyRate: deriveHourly(m),
     }))
 
-  const teams = await listTeams()
-
   return (
     <InsightsClient
       month={month}
@@ -600,7 +597,6 @@ export default async function InsightsPage({
       prevMonthClientHours={prevMonthClientHours}
       spendByCategory={spendByCategory}
       allMembers={allMembers}
-      teams={teams}
     />
   )
 }

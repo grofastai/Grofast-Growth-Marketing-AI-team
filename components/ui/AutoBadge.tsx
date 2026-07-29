@@ -22,7 +22,7 @@ export default function AutoBadge() {
         textShadow: "0 1px 0 rgba(255,255,255,0.7)",
       }}
     >
-      AUTO
+      AUTO INSERTED
     </span>
   )
 }

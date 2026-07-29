@@ -2017,7 +2017,11 @@ export default function HistoryClient({
                               <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap" }}>
                                 <Clock size={11} style={{ color:"#9CA3AF" }}/>
                                 {fmtH(displayH)}
-                                {collabH > 0 && <span style={{ fontSize:9, fontWeight:600, color:"#6366F1", whiteSpace:"nowrap" }}>(+{fmtH(collabH)})</span>}
+                                {/* Only "+X" when it's genuinely on top of your own logged hours (workH > 0) —
+                                    a day with zero own work entries (e.g. "1 break only") shows workH=0, so
+                                    displayH is just the collaboration hours; appending "(+collabH)" there made
+                                    a single 7h30m collaboration read as "7h30m + 7h30m = 15h", which it isn't. */}
+                                {collabH > 0 && workH > 0 && <span style={{ fontSize:9, fontWeight:600, color:"#6366F1", whiteSpace:"nowrap" }}>(+{fmtH(collabH)})</span>}
                               </span>
                             )}
                             {travelH > 0 && (

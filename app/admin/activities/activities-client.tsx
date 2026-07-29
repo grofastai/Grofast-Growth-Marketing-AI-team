@@ -260,7 +260,9 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, members, te
                           {displayH > 0 && (
                             <span style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 4 }}>
                               <Clock size={11} style={{ color: "#9CA3AF" }} /> {fmtHours(displayH)}
-                              {collabH > 0 && <span style={{ fontSize: 9, fontWeight: 600, color: "#6366F1" }}>(+{fmtHours(collabH)})</span>}
+                              {/* Only "+X" when it's on top of their own logged hours — see the matching
+                                  fix in History's header for why workH=0 must never pair with "(+collabH)". */}
+                              {collabH > 0 && workH > 0 && <span style={{ fontSize: 9, fontWeight: 600, color: "#6366F1" }}>(+{fmtHours(collabH)})</span>}
                             </span>
                           )}
                           {travelH > 0 && (

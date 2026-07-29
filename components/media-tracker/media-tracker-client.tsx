@@ -1125,28 +1125,31 @@ function DayFilter({ value, onChange }: { value: string; onChange: (v: string) =
 
 // ── Per-client stats box — sits beside Waiting to Post once a single client is picked ──
 export type ClientStatsShape = {
-  target: number | null
+  target: number
+  // The month the target above applies to — always resolved (falls back to the current
+  // month when the Log tab's own month filter is "All Time"), so target editing works
+  // no matter which month filter is selected.
+  targetMonth: string
   posted: number
   unposted: number
   edited: number
   unedited: number
-  remaining: number | null
+  remaining: number
   completionPct: number | null
   // Independent of Branding/Ads (logKind) — same count shows on both tabs since the
   // Promotion flag isn't tied to which side it posted to.
   promotion: number
 }
 
-function ClientStatsBox({ client, stats, monthPicked, onSaveTarget, contentType = "video" }: {
+function ClientStatsBox({ client, stats, onSaveTarget, contentType = "video" }: {
   client: string
   stats: ClientStatsShape
-  monthPicked: boolean
   onSaveTarget: (n: number) => void
   contentType?: "video" | "poster"
 }) {
   const isPoster = contentType === "poster"
   const [editingTarget, setEditingTarget] = useState(false)
-  const [draft, setDraft] = useState(String(stats.target ?? 0))
+  const [draft, setDraft] = useState(String(stats.target))
 
   function commit() {
     const n = Math.max(0, Math.round(Number(draft) || 0))
@@ -1158,9 +1161,7 @@ function ClientStatsBox({ client, stats, monthPicked, onSaveTarget, contentType 
     return (
       <div className="flex items-center justify-between" style={{ fontSize: 12 }}>
         <span style={{ color: "#6B7280", fontWeight: 600 }}>{label}</span>
-        {editable && !monthPicked ? (
-          <span style={{ color: "#9CA3AF", fontWeight: 800 }}>—</span>
-        ) : editable && editingTarget ? (
+        {editable && editingTarget ? (
           <input autoFocus type="number" min={0} value={draft}
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
@@ -1168,7 +1169,7 @@ function ClientStatsBox({ client, stats, monthPicked, onSaveTarget, contentType 
             style={{ width: 48, fontSize: 12, fontWeight: 800, textAlign: "right", border: `1.5px solid ${color}`, borderRadius: 6, padding: "1px 4px", color }} />
         ) : (
           <button
-            onClick={editable ? () => { setDraft(String(stats.target ?? 0)); setEditingTarget(true) } : undefined}
+            onClick={editable ? () => { setDraft(String(stats.target)); setEditingTarget(true) } : undefined}
             className="flex items-center gap-1"
             style={{ border: "none", background: "transparent", padding: 0, cursor: editable ? "pointer" : "default", color, fontWeight: 800, fontSize: 12 }}>
             {value}
@@ -1190,9 +1191,9 @@ function ClientStatsBox({ client, stats, monthPicked, onSaveTarget, contentType 
       </p>
 
       <SectionLabel>Monthly Goal</SectionLabel>
-      <StatRow label="Monthly Target" value={stats.target ?? 0} color="#7C3AED" editable />
+      <StatRow label={`Monthly Target (${fmtMonth(stats.targetMonth)})`} value={stats.target} color="#7C3AED" editable />
       <StatRow label="Published" value={stats.posted} color="#16A34A" />
-      <StatRow label="Remaining" value={stats.remaining ?? "—"} color="#D97706" />
+      <StatRow label="Remaining" value={stats.remaining} color="#D97706" />
       <StatRow label="Completion %" value={stats.completionPct !== null ? `${stats.completionPct}%` : "—"} color="#0EA5E9" />
 
       <SectionLabel>Production Status</SectionLabel>
@@ -4285,11 +4286,14 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       i.client_name === logClientFilter && i.content_type === contentTypeForMode &&
       i.edited_date && (logMonthFilter === "all" || i.edited_date.slice(0, 7) === logMonthFilter)
     ).length
-    const targetRow = logMonthFilter === "all" ? undefined : clientTargets.find(
-      t => t.client_name === logClientFilter && t.kind === logKind && t.content_type === contentTypeForMode && t.month === logMonthFilter
+    // Target is a monthly figure — "All Time" falls back to the current month (same as
+    // the Overview tab's Per-Client KPIs table) instead of going blank.
+    const targetMonth = logMonthFilter === "all" ? today.slice(0, 7) : logMonthFilter
+    const targetRow = clientTargets.find(
+      t => t.client_name === logClientFilter && t.kind === logKind && t.content_type === contentTypeForMode && t.month === targetMonth
     )
     const posted = kpiRow?.posted ?? 0
-    const target = logMonthFilter === "all" ? null : (targetRow?.target ?? 0)
+    const target = targetRow?.target ?? 0
     // Not scoped to logKind — the same Promotion count shows on both the Branding and
     // Ads tabs, since the flag isn't tied to which side it posted to.
     const promotion = items.filter(i =>
@@ -4303,15 +4307,16 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       edited,
       unedited: kpiRow?.unedited ?? 0,
       target,
-      remaining: target === null ? null : Math.max(target - posted, 0),
+      targetMonth,
+      remaining: Math.max(target - posted, 0),
       completionPct: target ? Math.round((posted / target) * 100) : null,
       promotion,
     }
-  }, [items, clientTargets, logClientFilter, logKind, logMonthFilter, contentTypeForMode])
+  }, [items, clientTargets, logClientFilter, logKind, logMonthFilter, contentTypeForMode, today])
 
   function handleSetClientTarget(newTarget: number) {
-    if (logClientFilter === "all" || logMonthFilter === "all") return
-    const key = { client_name: logClientFilter, kind: logKind, content_type: contentTypeForMode, month: logMonthFilter }
+    if (logClientFilter === "all" || !logClientStats) return
+    const key = { client_name: logClientFilter, kind: logKind, content_type: contentTypeForMode, month: logClientStats.targetMonth }
     const previous = clientTargets.find(t => t.client_name === key.client_name && t.kind === key.kind && t.content_type === key.content_type && t.month === key.month)
     setClientTargets(prev => {
       const others = prev.filter(t => !(t.client_name === key.client_name && t.kind === key.kind && t.content_type === key.content_type && t.month === key.month))
@@ -5126,7 +5131,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               )}
               {logClientStats && (
                 <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-                  <ClientStatsBox client={logClientFilter} stats={logClientStats} monthPicked={logMonthFilter !== "all"} onSaveTarget={handleSetClientTarget} contentType={contentTypeForMode} />
+                  <ClientStatsBox client={logClientFilter} stats={logClientStats} onSaveTarget={handleSetClientTarget} contentType={contentTypeForMode} />
                 </div>
               )}
             </div>

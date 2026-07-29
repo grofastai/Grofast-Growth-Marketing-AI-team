@@ -2772,13 +2772,19 @@ function RequestCorrectionModal({ item, members, onClose, onRequested }: {
 }
 
 // ── "Move" — the On Review 3-way branch: Branding, Ads, or Cancelled (with who caused it) ──
-function MoveOnReviewModal({ item, onClose, onMoved, onCancelled }: {
+function MoveOnReviewModal({ item, presetDestination, onClose, onMoved, onCancelled }: {
   item: ContentItem
+  presetDestination?: "branding_ready" | "ads_ready" | null
   onClose: () => void
-  onMoved: (next: "branding_ready" | "ads_ready") => void
+  onMoved: (next: "branding_ready" | "ads_ready", postDate: string) => void
   onCancelled: (cancelledBy: CancelledBy) => void
 }) {
   const [showCancelReasons, setShowCancelReasons] = useState(false)
+  // Branding is posted organically, Ads is published as a paid campaign — same field,
+  // different question depending on where it's headed, asked right at the move so an
+  // item never sits in Branding/Ads Ready without a date the Schedule tab can show.
+  const [pendingMove, setPendingMove] = useState<"branding_ready" | "ads_ready" | null>(presetDestination ?? null)
+  const [postDate, setPostDate] = useState(todayIST())
 
   return (
     <Modal title="Move" onClose={onClose}>
@@ -2793,14 +2799,33 @@ function MoveOnReviewModal({ item, onClose, onMoved, onCancelled }: {
             </span>
           </div>
         )}
-        {!showCancelReasons ? (
+        {pendingMove ? (
           <>
-            <button onClick={() => onMoved("branding_ready")}
+            <div>
+              <label style={LABEL}>{pendingMove === "branding_ready" ? "Posting Date *" : "Publishing Date *"}</label>
+              <input type="date" style={FIELD} value={postDate} onChange={e => setPostDate(e.target.value)} />
+            </div>
+            <button onClick={() => onMoved(pendingMove, postDate)}
+              className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
+              style={{ background: statusButtonGradient(pendingMove), color: "#fff" }}>
+              {pendingMove === "branding_ready" ? "Move to Branding" : "Move to Ads"}
+            </button>
+            {!presetDestination && (
+              <button onClick={() => setPendingMove(null)}
+                className="w-full py-2 rounded-xl text-[12px] font-bold transition-all hover:opacity-90"
+                style={{ background: "#fff", color: "#6B7280", border: "1.5px solid #E5E7EB" }}>
+                Back
+              </button>
+            )}
+          </>
+        ) : !showCancelReasons ? (
+          <>
+            <button onClick={() => setPendingMove("branding_ready")}
               className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
               style={{ background: statusButtonGradient("branding_ready"), color: "#fff" }}>
               Move to Branding
             </button>
-            <button onClick={() => onMoved("ads_ready")}
+            <button onClick={() => setPendingMove("ads_ready")}
               className="w-full py-3 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
               style={{ background: statusButtonGradient("ads_ready"), color: "#fff" }}>
               Move to Ads
@@ -3682,6 +3707,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const [voiceOverItem, setVoiceOverItem] = useState<ContentItem | null>(null)
   const [moveToShootFor, setMoveToShootFor] = useState<ContentItem | null>(null)
   const [moveOnReviewFor, setMoveOnReviewFor] = useState<ContentItem | null>(null)
+  // Set only when the Branding/Ads destination is already known before the modal opens
+  // (a direct drag onto that kanban column) — skips straight to the date step instead of
+  // asking the destination question again.
+  const [moveOnReviewPreset, setMoveOnReviewPreset] = useState<"branding_ready" | "ads_ready" | null>(null)
   // The direct "Cancel" menu action (Ready to Edit/Design/Scripting/Voice Over cards, and
   // dragging any card straight into the Cancelled column) — same "who caused it" prompt as
   // the On Review Move modal's Cancelled branch, just reached from a shorter path.
@@ -3853,6 +3882,15 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     // asked at the Edited -> Completed Edit move. Not asked again on an undo move back
     // from Branding/Ads Ready — that's not a fresh edit, just reverting an approval.
     if (next === "on_review" && item.status === "edited" && members.length > 0) { setMarkEditedItem(item); return }
+    // Reaching Branding/Ads Ready asks for the posting/publishing date — same prompt the
+    // Move button already shows, also triggered here so a direct drag onto that column
+    // doesn't skip it. The modal already knows the destination, so it goes straight to
+    // the date step instead of asking again.
+    if ((next === "branding_ready" || next === "ads_ready") && item.status === "on_review") {
+      setMoveOnReviewFor(item)
+      setMoveOnReviewPreset(next)
+      return
+    }
     // Entering Voice Over asks who recorded it.
     if (next === "voiceover") { setVoiceOverItem(item); return }
     // Cancelling (menu action or a direct drag into the Cancelled column) asks who caused it,
@@ -3875,12 +3913,32 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     const previous = item.status
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: "cancelled", cancelled_by: cancelledBy } : i))
     setMoveOnReviewFor(null)
+    setMoveOnReviewPreset(null)
     setCancelReasonFor(null)
     startTransition(async () => {
       const res = await updateContentItemStatus(item.id, "cancelled", undefined, cancelledBy)
       if (!res.success) {
         setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: previous, cancelled_by: null } : i))
         alert(res.error ?? "Failed to cancel")
+      }
+    })
+  }
+
+  // Reaching Branding/Ads Ready always carries a posting/publishing date now — captured
+  // here instead of the generic advance() path so both the Move modal's own buttons and
+  // the drag-onto-column shortcut (redirected into the same modal in advance() above)
+  // go through one place.
+  function handleMoveToPostingStage(item: ContentItem, next: "branding_ready" | "ads_ready", postDate: string) {
+    const previous = item.status
+    const previousDate = item.scheduled_post_date
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: next, scheduled_post_date: postDate } : i))
+    setMoveOnReviewFor(null)
+    setMoveOnReviewPreset(null)
+    startTransition(async () => {
+      const res = await updateContentItemStatus(item.id, next, undefined, undefined, undefined, undefined, postDate)
+      if (!res.success) {
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: previous, scheduled_post_date: previousDate } : i))
+        alert(res.error ?? `Failed to move to ${STATUS_CFG[next].label}`)
       }
     })
   }
@@ -4781,7 +4839,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             {colItems(activeMobileCol).length === 0 ? (
               <KanbanEmptyCell isOver={false} />
             ) : colItems(activeMobileCol).map(item => (
-              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={(item, kind) => { setPlatformModalKind(kind ?? "branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onMove={setMoveOnReviewFor} />
+              <ContentCardInner key={item.id} item={item} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={(item, kind) => { setPlatformModalKind(kind ?? "branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onMove={item => { setMoveOnReviewFor(item); setMoveOnReviewPreset(null) }} />
             ))}
           </div>
 
@@ -4804,7 +4862,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                         {list.length === 0 ? (
                           <KanbanEmptyCell isOver={overCol === status} />
                         ) : list.map(item => (
-                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={(item, kind) => { setPlatformModalKind(kind ?? "branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onMove={setMoveOnReviewFor} />
+                          <DraggableCard key={item.id} item={item} isDragging={dragId === item.id} onAdvance={advance} onDelete={handleDeleteItem} onAddPlatform={(item, kind) => { setPlatformModalKind(kind ?? "branding"); setPlatformModalItem(item) }} onEdit={setEditingItem} onMove={item => { setMoveOnReviewFor(item); setMoveOnReviewPreset(null) }} />
                         ))}
                       </div>
                     </DroppableColumn>
@@ -5445,8 +5503,9 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       {moveOnReviewFor && (
         <MoveOnReviewModal
           item={moveOnReviewFor}
-          onClose={() => setMoveOnReviewFor(null)}
-          onMoved={next => { advance(moveOnReviewFor, next); setMoveOnReviewFor(null) }}
+          presetDestination={moveOnReviewPreset}
+          onClose={() => { setMoveOnReviewFor(null); setMoveOnReviewPreset(null) }}
+          onMoved={(next, postDate) => handleMoveToPostingStage(moveOnReviewFor, next, postDate)}
           onCancelled={cancelledBy => handleCancelConfirmed(moveOnReviewFor, cancelledBy)}
         />
       )}

@@ -234,7 +234,8 @@ export async function updateContentItemStatus(
   editorId?: string,
   cancelledBy?: 'client' | 'us',
   editedDate?: string,
-  editedDriveLink?: string
+  editedDriveLink?: string,
+  scheduledPostDate?: string
 ): Promise<{ success: boolean; error?: string }> {
   const ctx = await currentUser()
   if (!ctx) return { success: false, error: 'Not authenticated' }
@@ -255,6 +256,12 @@ export async function updateContentItemStatus(
   if (status === 'on_review' && !isPoster && !isValidDriveLink(editedDriveLink ?? '')) {
     return { success: false, error: 'A valid Google Drive link is required' }
   }
+  // Branding/Ads Ready is only ever reached from On Review (see TRANSITIONS), so this is
+  // always the Completed Edit -> Branding/Ads move — the posting/publishing date is
+  // required there too, not just on the client.
+  if ((status === 'branding_ready' || status === 'ads_ready') && !scheduledPostDate) {
+    return { success: false, error: `A ${status === 'branding_ready' ? 'posting' : 'publishing'} date is required` }
+  }
 
   const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
 
@@ -268,6 +275,9 @@ export async function updateContentItemStatus(
     // accountability moment ("who edited this?"), asked at the Edited -> On Review move.
     if (editorId) updates.edited_by = editorId
     else if (!current.edited_by) updates.edited_by = ctx.id
+  }
+  if ((status === 'branding_ready' || status === 'ads_ready') && scheduledPostDate) {
+    updates.scheduled_post_date = scheduledPostDate
   }
   if (status === 'cancelled' && cancelledBy) updates.cancelled_by = cancelledBy
 

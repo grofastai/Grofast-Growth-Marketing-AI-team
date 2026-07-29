@@ -758,14 +758,14 @@ export default function DocumentsClient({
                 <>
                   {/* Filter bar */}
                   <div style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(0,0,0,0.07)", padding: "12px 16px", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start" }}>
-                    <div style={{ display: "flex", gap: 6, flex: 1, flexWrap: "wrap", alignContent: "flex-start" }}>
-                      {FILTER_CHIPS.map(chip => (
-                        <button key={chip} onClick={() => setDocFilter(chip)} style={{
-                          padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "none",
-                          background: docFilter === chip ? "#de1a1a" : "rgba(0,0,0,0.04)",
-                          color: docFilter === chip ? "#fff" : "#1B4332",
-                        }}>{chip}</button>
-                      ))}
+                    <div style={{ flex: 1 }}>
+                      <select value={docFilter} onChange={e => setDocFilter(e.target.value)}
+                        style={{
+                          padding: "7px 10px", borderRadius: 9, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                          border: "1px solid #E5E7EB", outline: "none", color: "#1B4332", background: "#fff",
+                        }}>
+                        {FILTER_CHIPS.map(chip => <option key={chip} value={chip}>{chip}</option>)}
+                      </select>
                     </div>
                     {/* Search + view toggle */}
                     <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>

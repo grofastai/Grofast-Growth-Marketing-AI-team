@@ -717,7 +717,11 @@ export default function InsightsClient({
 
         {/* Member Performance Cards */}
         <Card title="Member Breakdown" meta="Tap to expand">
-          <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+          {/* No internal scroll — only one member expands at a time (expandedMember
+              is a single id, not a set), so the list never grows tall enough to need
+              its own scrollbar, and a nested scrollbar was overlapping the right-aligned
+              hour values in the expanded Work Type breakdown anyway. */}
+          <div>
             {memberUtilization.length === 0 ? (
               <p style={{ textAlign: 'center', color: MUTED, fontSize: 12, padding: '32px 0' }}>No data</p>
             ) : memberUtilization.map(m => {

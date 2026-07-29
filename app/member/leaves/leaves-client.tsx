@@ -120,8 +120,6 @@ function timeRangesOverlap(a: [string, string], b: [string, string]): boolean {
   return Math.min(aEnd, bEnd) - Math.max(aStart, bStart) > 0
 }
 
-const WORKDAY_OPEN_MINS = 9 * 60 + 30   // 09:30
-const WORKDAY_CLOSE_MINS = 19 * 60      // 19:00
 const PERMISSION_MIN_MINS = 60
 const PERMISSION_MAX_MINS = 240
 function minsToTime(mins: number) {
@@ -132,10 +130,10 @@ function timeToMins(t: string) {
   const [h, m] = t.split(":").map(Number)
   return h * 60 + m
 }
-// Splits a >4h45m Half Day range into a fixed 4h45m Half Day block anchored to
-// whichever workday boundary (09:30 open or 19:00 close) it sits closer to, plus a
-// Permission for the leftover — same pattern used to fix every historical bad
-// half-day record this month (see conversation 2026-07-29). Returns null if the
+// Splits a >4h45m Half Day range into a Permission for the EARLY portion + a fixed
+// 4h45m Half Day for the LATE portion (ending at the range's own end time) — always
+// this order, never the reverse (confirmed 2026-07-29). Same pattern used to fix
+// every historical bad half-day record this month. Returns null if the early
 // leftover wouldn't be a valid Permission (under 1h or over 4h).
 function computeSplit(fromTime: string, toTime: string, requiredHalfMins: number): { halfFrom: string; halfTo: string; permFrom: string; permTo: string } | null {
   const toMins = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
@@ -145,14 +143,8 @@ function computeSplit(fromTime: string, toTime: string, requiredHalfMins: number
   const excessMins = totalMins - requiredHalfMins
   if (excessMins < PERMISSION_MIN_MINS || excessMins > PERMISSION_MAX_MINS) return null
 
-  const distToOpen = fromMins - WORKDAY_OPEN_MINS
-  const distToClose = WORKDAY_CLOSE_MINS - endMins
-  if (distToClose <= distToOpen) {
-    const halfFromMins = endMins - requiredHalfMins
-    return { halfFrom: minsToTime(halfFromMins), halfTo: minsToTime(endMins), permFrom: minsToTime(fromMins), permTo: minsToTime(halfFromMins) }
-  }
-  const halfToMins = fromMins + requiredHalfMins
-  return { halfFrom: minsToTime(fromMins), halfTo: minsToTime(halfToMins), permFrom: minsToTime(halfToMins), permTo: minsToTime(endMins) }
+  const halfFromMins = endMins - requiredHalfMins
+  return { halfFrom: minsToTime(halfFromMins), halfTo: minsToTime(endMins), permFrom: minsToTime(fromMins), permTo: minsToTime(halfFromMins) }
 }
 
 function canWithdraw(leave: Leave): boolean {

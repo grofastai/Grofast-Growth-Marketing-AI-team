@@ -59,12 +59,16 @@ export function sumLeaveDays(leaves: LeaveForBalance[], rangeStart: string, rang
   return days + permissionHoursToDays(permissionHours)
 }
 
-// Strips the internal "[BACKFILL] " audit tag from a leave's reason before it's shown to
-// the employee — the tag stays in the DB (useful for us to tell a live submission apart
-// from a 2026-07-29 history correction) but "[BACKFILL]" itself means nothing to them.
-// Callers render the AutoBadge chip (components/ui/AutoBadge.tsx) when isAuto is true.
-export function parseLeaveReason(reason: string | null | undefined): { text: string; isAuto: boolean } {
-  if (!reason) return { text: '', isAuto: false }
-  const match = reason.match(/^\[BACKFILL\]\s*(.*)$/)
-  return match ? { text: match[1], isAuto: true } : { text: reason, isAuto: false }
+// Strips internal bracket tags ("[BACKFILL] ", "[EXCEPTIONAL] ") from a leave's reason
+// before it's shown to the employee — both stay in the DB (BACKFILL marks a 2026-07-29
+// history correction, EXCEPTIONAL marks a request that bypassed the monthly cap or a
+// date collision and needed admin approval) but neither reads as English to them.
+// Callers render AutoBadge / ExceptionalBadge (components/ui/) when the flag is true.
+export function parseLeaveReason(reason: string | null | undefined): { text: string; isAuto: boolean; isExceptional: boolean } {
+  if (!reason) return { text: '', isAuto: false, isExceptional: false }
+  const backfill = reason.match(/^\[BACKFILL\]\s*(.*)$/)
+  if (backfill) return { text: backfill[1], isAuto: true, isExceptional: false }
+  const exceptional = reason.match(/^\[EXCEPTIONAL\]\s*(.*)$/)
+  if (exceptional) return { text: exceptional[1], isAuto: false, isExceptional: true }
+  return { text: reason, isAuto: false, isExceptional: false }
 }

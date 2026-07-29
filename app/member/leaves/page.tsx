@@ -43,12 +43,16 @@ export default async function MemberLeavesPage() {
   const companyId = profileData?.company_id ?? ""
 
   const [leavesResult, usedResult, absentResult, companyLeavesResult] = await Promise.all([
+    // Ordered by from_date (the actual leave date), not created_at — a bulk backfill
+    // that inserts many rows at once all stamped with today's created_at could otherwise
+    // crowd out older-but-still-relevant real submissions once past a row-count limit.
+    // No cap: one employee's full leave history is at most a few hundred rows, never
+    // worth risking silently dropping real leaves for.
     db
       .from("leaves")
       .select("*")
       .eq("user_id", effectiveUserId)
-      .order("created_at", { ascending: false })
-      .limit(50),
+      .order("from_date", { ascending: false }),
     admin
       .from("leaves")
       .select("from_date, to_date, leave_type, permission_hours")

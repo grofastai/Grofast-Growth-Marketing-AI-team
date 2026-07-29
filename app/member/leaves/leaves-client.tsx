@@ -13,6 +13,7 @@ import { submitLeaveRequest, submitSplitLeaveRequest, deleteLeaveRequest, update
 import { todayIST } from "@/lib/utils/ist-date"
 import { sumLeaveDays, parseLeaveReason } from "@/lib/utils/leave-balance"
 import AutoBadge from "@/components/ui/AutoBadge"
+import ExceptionalBadge from "@/components/ui/ExceptionalBadge"
 import { FULL_DAY_HOURS as WORKDAY_HOURS, HALF_DAY_THRESHOLD_HOURS } from "@/lib/utils/attendance-stats"
 
 interface Leave {
@@ -842,6 +843,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                             <p style={{ fontSize: 12, color: "#6B7280", margin: "0 0 5px", display: "flex", alignItems: "center", gap: 5 }}>
                               <span style={{ fontSize: 13 }}>⭐</span> {parseLeaveReason(leave.reason).text}
                               {parseLeaveReason(leave.reason).isAuto && <AutoBadge />}
+                              {parseLeaveReason(leave.reason).isExceptional && <ExceptionalBadge />}
                             </p>
                             <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
                               <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc.color, display: "inline-block", flexShrink: 0 }} />

@@ -1141,10 +1141,9 @@ export type ClientStatsShape = {
   promotion: number
 }
 
-function ClientStatsBox({ client, stats, onSaveTarget, contentType = "video" }: {
+function ClientStatsBox({ client, stats, contentType = "video" }: {
   client: string
   stats: ClientStatsShape
-  onSaveTarget: (n: number) => void
   contentType?: "video" | "poster"
 }) {
   const isPoster = contentType === "poster"
@@ -1169,13 +1168,9 @@ function ClientStatsBox({ client, stats, onSaveTarget, contentType = "video" }: 
       </p>
 
       <SectionLabel>Monthly Goal</SectionLabel>
-      {/* Same reusable editable cell as the Overview tab's Per-Client KPIs table — a
-          visible bordered input, not a hidden click-to-edit affordance, so it's obvious
-          at a glance that this number can be changed. */}
-      <div className="flex items-center justify-between" style={{ fontSize: 12 }}>
-        <span style={{ color: "#6B7280", fontWeight: 600 }}>{`Monthly Target (${fmtMonth(stats.targetMonth)})`}</span>
-        <EditableTargetCell value={stats.target} onSave={async n => onSaveTarget(n)} />
-      </div>
+      {/* Read-only here — Target is only editable from the Overview tab's Per-Client
+          KPIs table, so there's exactly one place admins go to change it. */}
+      <StatRow label={`Monthly Target (${fmtMonth(stats.targetMonth)})`} value={stats.target} color="#7C3AED" />
       <StatRow label="Published" value={stats.posted} color="#16A34A" />
       <StatRow label="Remaining" value={stats.remaining} color="#D97706" />
       <StatRow label="Completion %" value={stats.completionPct !== null ? `${stats.completionPct}%` : "—"} color="#0EA5E9" />
@@ -3657,35 +3652,57 @@ function EditAdModal({ ad, clients, pastClients, onClose, onSaved }: {
   )
 }
 
-// Inline-editable Target cell for the Overview tab's Per-Client KPIs table — moved
-// here from the Clients page (which had its own standalone Video/Poster + Save
-// Target card). Same setClientMonthlyTarget action, same content_client_targets
-// rows, just edited directly in the table row instead of a separate widget.
+// Inline-editable Target cell for the Overview tab's Per-Client KPIs table — the only
+// place Target is editable (the Log tab's per-client stats box shows it read-only).
+// Moved here from the Clients page (which had its own standalone Video/Poster + Save
+// Target card); same setClientMonthlyTarget action, same content_client_targets rows.
+// Click-to-edit with an explicit Save/Cancel, rather than an always-open input, so
+// nothing writes until confirmed and a stray click or scroll-wheel bump can't save.
 function EditableTargetCell({ value, onSave }: { value: number; onSave: (n: number) => Promise<void> }) {
+  const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(String(value))
   const [saving, setSaving] = useState(false)
-  // Re-sync the draft when `value` changes for a reason other than our own save
-  // (switching the Video/Poster toggle or the month, while this row stays mounted)
-  // — adjusting state during render per React's guidance, not via a useEffect.
-  const [prevValue, setPrevValue] = useState(value)
-  if (value !== prevValue) {
-    setPrevValue(value)
+
+  function startEdit() {
     setDraft(String(value))
+    setEditing(true)
   }
+
   async function commit() {
     const n = Math.max(0, Math.round(Number(draft)) || 0)
-    setDraft(String(n))
-    if (n === value) return
+    if (n === value) { setEditing(false); return }
     setSaving(true)
     await onSave(n)
     setSaving(false)
+    setEditing(false)
   }
+
+  if (!editing) {
+    return (
+      <button type="button" onClick={startEdit}
+        className="flex items-center gap-1.5"
+        style={{ border: "none", background: "transparent", padding: "3px 6px", borderRadius: 7, cursor: "pointer", color: "#7C3AED", fontWeight: 800, fontSize: 12 }}>
+        {value}
+        <Pencil size={10} style={{ opacity: 0.6 }} />
+      </button>
+    )
+  }
+
   return (
-    <input type="number" min={0} value={draft} disabled={saving}
-      onChange={e => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur() }}
-      style={{ width: 56, padding: "4px 6px", borderRadius: 6, border: "1.5px solid #E5E7EB", fontSize: 12, fontWeight: 800, textAlign: "center", color: "#7C3AED", background: saving ? "#F9FAFB" : "#fff" }} />
+    <span className="inline-flex items-center gap-1">
+      <input autoFocus type="number" min={0} value={draft} disabled={saving}
+        onChange={e => setDraft(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false) }}
+        style={{ width: 48, padding: "3px 4px", borderRadius: 6, border: "1.5px solid #7C3AED", fontSize: 12, fontWeight: 800, textAlign: "center", color: "#7C3AED" }} />
+      <button type="button" onClick={commit} disabled={saving} title="Save"
+        style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "none", background: "rgba(22,163,74,0.12)", color: "#16A34A", cursor: saving ? "wait" : "pointer" }}>
+        <Check size={12} />
+      </button>
+      <button type="button" onClick={() => setEditing(false)} disabled={saving} title="Cancel"
+        style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "1px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: saving ? "wait" : "pointer" }}>
+        <X size={11} />
+      </button>
+    </span>
   )
 }
 
@@ -4298,29 +4315,9 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     }
   }, [items, clientTargets, logClientFilter, logKind, logMonthFilter, contentTypeForMode, today])
 
-  function handleSetClientTarget(newTarget: number) {
-    if (logClientFilter === "all" || !logClientStats) return
-    const key = { client_name: logClientFilter, kind: logKind, content_type: contentTypeForMode, month: logClientStats.targetMonth }
-    const previous = clientTargets.find(t => t.client_name === key.client_name && t.kind === key.kind && t.content_type === key.content_type && t.month === key.month)
-    setClientTargets(prev => {
-      const others = prev.filter(t => !(t.client_name === key.client_name && t.kind === key.kind && t.content_type === key.content_type && t.month === key.month))
-      return [...others, { ...key, target: newTarget }]
-    })
-    startTransition(async () => {
-      const res = await setClientMonthlyTarget({ ...key, target: newTarget })
-      if (!res.success) {
-        setClientTargets(prev => {
-          const others = prev.filter(t => !(t.client_name === key.client_name && t.kind === key.kind && t.month === key.month))
-          return previous ? [...others, previous] : others
-        })
-      }
-    })
-  }
-
-  // Same underlying save as handleSetClientTarget above, generalized for the
-  // Overview tab's Per-Client KPIs table — one client/month per row instead of a
-  // single selected client/month, and awaited so the inline cell can show its own
-  // per-row saving state instead of sharing one page-wide pending flag.
+  // Target is only ever edited from the Overview tab's Per-Client KPIs table — one
+  // client/month per row instead of a single selected client/month, and awaited so
+  // the inline cell can show its own per-row saving state.
   async function handleSetOverviewTarget(clientName: string, kind: "branding" | "ads", contentType: "video" | "poster", month: string, newTarget: number) {
     const key = { client_name: clientName, kind, content_type: contentType, month }
     const previous = clientTargets.find(t => t.client_name === key.client_name && t.kind === key.kind && t.content_type === key.content_type && t.month === key.month)
@@ -5115,7 +5112,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               )}
               {logClientStats && (
                 <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-                  <ClientStatsBox client={logClientFilter} stats={logClientStats} onSaveTarget={handleSetClientTarget} contentType={contentTypeForMode} />
+                  <ClientStatsBox client={logClientFilter} stats={logClientStats} contentType={contentTypeForMode} />
                 </div>
               )}
             </div>

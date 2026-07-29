@@ -11,7 +11,7 @@ import {
 } from "lucide-react"
 import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest, withdrawWfhForDate } from "@/lib/actions/leaves"
 import { todayIST } from "@/lib/utils/ist-date"
-import { sumLeaveDays } from "@/lib/utils/leave-balance"
+import { sumLeaveDays, WORKDAY_HOURS, HALF_DAY_THRESHOLD_HOURS } from "@/lib/utils/leave-balance"
 
 interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
@@ -33,12 +33,62 @@ const STATUS_CFG = {
 }
 
 const TYPE_ILLUSTRATION: Record<string, { emoji: string; bg: string }> = {
-  half_day:   { emoji: "🌤️", bg: "rgba(251,191,36,0.12)"   },
-  full_day:   { emoji: "🌴", bg: "rgba(16,185,129,0.12)"   },
-  permission: { emoji: "⏰", bg: "rgba(99,102,241,0.12)"   },
-  absent:     { emoji: "🏠", bg: "rgba(107,114,128,0.1)"   },
-  wfh:        { emoji: "🏠", bg: "rgba(99,102,241,0.12)"   },
-  shoot_day:  { emoji: "📷", bg: "rgba(245,158,11,0.12)"   },
+  half_day:      { emoji: "🌤️", bg: "rgba(251,191,36,0.12)"   },
+  full_day:      { emoji: "🌴", bg: "rgba(16,185,129,0.12)"   },
+  permission:    { emoji: "⏰", bg: "rgba(99,102,241,0.12)"   },
+  absent:        { emoji: "🏠", bg: "rgba(107,114,128,0.1)"   },
+  wfh:           { emoji: "🏠", bg: "rgba(99,102,241,0.12)"   },
+  shoot_day:     { emoji: "📷", bg: "rgba(245,158,11,0.12)"   },
+  half_day_auto: { emoji: "🔔", bg: "rgba(251,191,36,0.12)"   },
+  full_day_auto: { emoji: "🔔", bg: "rgba(16,185,129,0.12)"   },
+}
+
+// Auto-deduction banner: NOT a real row in `leaves` — computed fresh on every
+// render from that month's approved Permission hours. Deliberately virtual
+// (see conversation 2026-07-29) so it can never go stale: recalculating from
+// scratch each time means it automatically flips from "Half Day deducted" to
+// "Full Day deducted" the moment the running total crosses WORKDAY_HOURS,
+// with no delete/upgrade step needed anywhere. One entry per month, at the
+// date of the permission request that actually crossed the threshold (so it
+// sorts into its correct place in the timeline, not stuck at month start).
+function buildPermissionDeductionEntries(leaves: Leave[]): Leave[] {
+  const byMonth = new Map<string, Leave[]>()
+  for (const l of leaves) {
+    if (l.leave_type !== "permission" || l.status !== "approved") continue
+    const month = l.from_date.slice(0, 7)
+    const bucket = byMonth.get(month) ?? []
+    bucket.push(l)
+    byMonth.set(month, bucket)
+  }
+
+  const entries: Leave[] = []
+  for (const [month, rows] of byMonth) {
+    const sorted = [...rows].sort((a, b) =>
+      a.from_date.localeCompare(b.from_date) || (a.permission_time ?? "").localeCompare(b.permission_time ?? "")
+    )
+    let cumulative = 0
+    let halfCrossedAt: string | null = null
+    let fullCrossedAt: string | null = null
+    for (const r of sorted) {
+      cumulative += Number(r.permission_hours) || 0
+      if (!halfCrossedAt && cumulative >= HALF_DAY_THRESHOLD_HOURS) halfCrossedAt = r.from_date
+      if (!fullCrossedAt && cumulative >= WORKDAY_HOURS) fullCrossedAt = r.from_date
+    }
+    if (fullCrossedAt) {
+      entries.push({
+        id: `perm-deduct-${month}`, from_date: fullCrossedAt, to_date: fullCrossedAt,
+        reason: `Permission hours this month reached ${cumulative.toFixed(1)}h — Full Day Leave deducted`,
+        status: "approved", created_at: fullCrossedAt, leave_type: "full_day_auto",
+      })
+    } else if (halfCrossedAt) {
+      entries.push({
+        id: `perm-deduct-${month}`, from_date: halfCrossedAt, to_date: halfCrossedAt,
+        reason: `Permission hours this month reached ${cumulative.toFixed(1)}h — Half Day Leave deducted`,
+        status: "approved", created_at: halfCrossedAt, leave_type: "half_day_auto",
+      })
+    }
+  }
+  return entries
 }
 
 function daysBetween(from: string, to: string) {
@@ -223,6 +273,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
       leave_type: "absent",
     }))
   const allEntries = [...leaves, ...absentEntries].sort((a, b) => b.from_date.localeCompare(a.from_date))
+  // Timeline-only view: adds the virtual Permission auto-deduction banners on
+  // top of allEntries. Kept separate from allEntries so the stat cards / WLB
+  // score / monthly-limit math above never double-count a synthetic entry —
+  // those already derive their numbers from the real `leaves` rows.
+  const permissionDeductionEntries = buildPermissionDeductionEntries(leaves)
+  const timelineEntries = [...allEntries, ...permissionDeductionEntries].sort((a, b) => b.from_date.localeCompare(a.from_date))
   const [showForm, setShowForm]         = useState(false)
   const [leaveType, setLeaveType]       = useState<LeaveType>("full_day")
   const [halfPeriod, setHalfPeriod]     = useState<"morning" | "afternoon">("morning")
@@ -426,7 +482,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   function matchesMode(l: { leave_type?: string; status: string }) {
     const t = l.leave_type ?? "full_day"
     if (filterMode === "all")        return true
-    if (filterMode === "leaves")     return t === "full_day" || t === "half_day" || t === "permission"
+    if (filterMode === "leaves")     return t === "full_day" || t === "half_day" || t === "permission" || t === "half_day_auto" || t === "full_day_auto"
     if (filterMode === "permission") return t === "wfh" || t === "shoot_day"
     if (filterMode === "approved")   return l.status === "approved"
     if (filterMode === "rejected")   return l.status === "rejected"
@@ -441,8 +497,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     if (rangeTo   && l.from_date > rangeTo)   return false
     return true
   }
-  // allEntries is already sorted recent-date-first (see above), so filtering preserves that order.
-  const filteredLeaves = allEntries.filter(l => matchesMode(l) && matchesDate(l))
+  // timelineEntries is already sorted recent-date-first (see above), so filtering preserves that order.
+  const filteredLeaves = timelineEntries.filter(l => matchesMode(l) && matchesDate(l))
   const visibleLeaves  = showMore ? filteredLeaves : filteredLeaves.slice(0, 5)
 
   const shiftMonth = (ym: string, delta: number) => {
@@ -643,6 +699,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     const illus = TYPE_ILLUSTRATION[type] ?? TYPE_ILLUSTRATION.full_day
                     const isPerm  = type === "permission"
                     const isHalf  = type === "half_day"
+                    const isAutoDeduct = type === "half_day_auto" || type === "full_day_auto"
                     const days    = (!isPerm && !isHalf) ? daysBetween(leave.from_date, leave.to_date) : null
                     const dateObj = new Date(leave.from_date)
                     const mon     = dateObj.toLocaleDateString("en-US", { month: "short" }).toUpperCase()
@@ -650,13 +707,13 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     const yr      = dateObj.getFullYear()
                     const wd      = dateObj.toLocaleDateString("en-US", { weekday: "short" })
                     const StatusIcon = sc.icon
-                    const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : type === "permission" ? "Permission" : type === "absent" ? "On Leave" : type === "wfh" ? "Work From Home" : type === "shoot_day" ? "Shoot Day" : "Full Day Leave"
+                    const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : type === "permission" ? "Permission" : type === "absent" ? "On Leave" : type === "wfh" ? "Work From Home" : type === "shoot_day" ? "Shoot Day" : type === "half_day_auto" ? "Half Day Leave (Auto-deducted)" : type === "full_day_auto" ? "Full Day Leave (Auto-deducted)" : "Full Day Leave"
                     const halfTimeRange = leave.half_day_from_time && leave.half_day_to_time ? `${fmtTimeStr(leave.half_day_from_time)}–${fmtTimeStr(leave.half_day_to_time)}` : null
                     const permTimeRange = leave.permission_time && leave.permission_end_time ? `${fmtTimeStr(leave.permission_time)}–${fmtTimeStr(leave.permission_end_time)}` : leave.permission_time ? fmtTimeStr(leave.permission_time) : null
-                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}${halfTimeRange ? ` · ${halfTimeRange}` : ""}` : type === "permission" ? `${leave.permission_hours ?? 1}h${permTimeRange ? ` · ${permTimeRange}` : ""}` : type === "absent" ? "Leave" : type === "wfh" ? "WFH" : type === "shoot_day" ? "Shoot Day" : "Full Day"
-                    const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : type === "absent" ? "rgba(107,114,128,0.12)" : type === "wfh" ? "rgba(99,102,241,0.12)" : type === "shoot_day" ? "rgba(245,158,11,0.12)" : "rgba(245,158,11,0.12)"
-                    const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : type === "absent" ? "#6B7280" : type === "wfh" ? "#6366F1" : type === "shoot_day" ? "#F59E0B" : "#F59E0B"
-                    const duration  = isPerm ? `${leave.permission_hours}h session` : isHalf ? "1 Session" : `${days} Day${days && days > 1 ? "s" : ""}`
+                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}${halfTimeRange ? ` · ${halfTimeRange}` : ""}` : type === "permission" ? `${leave.permission_hours ?? 1}h${permTimeRange ? ` · ${permTimeRange}` : ""}` : type === "absent" ? "Leave" : type === "wfh" ? "WFH" : type === "shoot_day" ? "Shoot Day" : type === "half_day_auto" ? "Permission → Half Day" : type === "full_day_auto" ? "Permission → Full Day" : "Full Day"
+                    const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : type === "absent" ? "rgba(107,114,128,0.12)" : type === "wfh" ? "rgba(99,102,241,0.12)" : type === "shoot_day" ? "rgba(245,158,11,0.12)" : type === "half_day_auto" ? "rgba(251,191,36,0.14)" : type === "full_day_auto" ? "rgba(16,185,129,0.12)" : "rgba(245,158,11,0.12)"
+                    const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : type === "absent" ? "#6B7280" : type === "wfh" ? "#6366F1" : type === "shoot_day" ? "#F59E0B" : type === "half_day_auto" ? "#B45309" : type === "full_day_auto" ? "#10B981" : "#F59E0B"
+                    const duration  = isPerm ? `${leave.permission_hours}h session` : isHalf ? "1 Session" : isAutoDeduct ? "Auto" : `${days} Day${days && days > 1 ? "s" : ""}`
 
                     return (
                       <div key={leave.id} style={{ display: "flex", alignItems: "stretch", gap: 12, position: "relative", zIndex: 1 }}>
@@ -670,7 +727,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                           <span style={{ fontSize: 8, fontWeight: 900, color: sc.color, letterSpacing: "0.1em" }}>{mon}</span>
                           <span style={{ fontSize: 26, fontWeight: 900, color: sc.color, lineHeight: 1 }}>{day}</span>
                           <span style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600 }}>{yr}</span>
-                          <span style={{ fontSize: 8, color: "#9CA3AF" }}>{wd} · {isHalf ? (leave.half_day_period ?? "Morning") : isPerm ? "Session" : type === "absent" ? "Leave" : "Full Day"}</span>
+                          <span style={{ fontSize: 8, color: "#9CA3AF" }}>{wd} · {isHalf ? (leave.half_day_period ?? "Morning") : isPerm ? "Session" : type === "absent" ? "Leave" : isAutoDeduct ? "Auto" : "Full Day"}</span>
                         </div>
 
                         {/* Card */}
@@ -686,7 +743,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                             </p>
                             <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
                               <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc.color, display: "inline-block", flexShrink: 0 }} />
-                              {isHalf || isPerm ? fmtFull(leave.from_date) : `${fmtShort(leave.from_date)} — ${fmtShort(leave.to_date)}`} · {duration}
+                              {isHalf || isPerm || isAutoDeduct ? fmtFull(leave.from_date) : `${fmtShort(leave.from_date)} — ${fmtShort(leave.to_date)}`} · {duration}
                             </p>
                             {leave.status === "rejected" && (
                               <p style={{ fontSize: 10, color: "#9CA3AF", margin: "4px 0 0", fontStyle: "italic" }}>Reviewed by HR Team</p>

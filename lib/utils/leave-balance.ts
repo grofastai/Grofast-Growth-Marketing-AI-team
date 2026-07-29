@@ -7,12 +7,15 @@
 // one function, called everywhere.
 
 // Standard workday: 9:30 AM – 7:00 PM = 9.5 hours (confirmed 2026-07-23).
-const WORKDAY_HOURS = 9.5
-const HALF_DAY_THRESHOLD_HOURS = 4.5
+// Half day = exactly half of that, 4.75h / 4h45m (fixed 2026-07-29 — was
+// wrongly 4.5h/4h30m, which didn't match the 9.5h full-day definition it's
+// derived from).
+export const WORKDAY_HOURS = 9.5
+export const HALF_DAY_THRESHOLD_HOURS = 4.75
 
 // Converts a cumulative Permission-hours total into day-equivalents:
 // full days = floor(hours / 9.5), plus one more half-day if what's left over
-// is >= 4.5h. E.g. 4.5h -> 0.5, 9.5h -> 1.0, 13h -> 1.0, 15h -> 1.5, 19h -> 2.0.
+// is >= 4.75h. E.g. 4.75h -> 0.5, 9.5h -> 1.0, 13h -> 1.0, 15.25h -> 1.5, 19h -> 2.0.
 export function permissionHoursToDays(hours: number): number {
   if (!hours || hours <= 0) return 0
   const fullDays = Math.floor(hours / WORKDAY_HOURS)

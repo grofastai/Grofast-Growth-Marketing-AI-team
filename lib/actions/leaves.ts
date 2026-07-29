@@ -138,7 +138,7 @@ async function checkMonthlyLeaveLimit(
 
   // Combined into ONE sumLeaveDays call, not summed separately then added — the
   // permission-hours conversion isn't linear (3h alone + 2h alone both round to
-  // 0 days, but 5h combined crosses the 4.5h threshold = 0.5 days), so existing
+  // 0 days, but 5h combined crosses the 4.75h threshold = 0.5 days), so existing
   // rows and this new request must accumulate together before the one conversion.
   const newRow = { leave_type: leaveType, from_date: fromDate, to_date: toDate, permission_hours: permissionHours ?? null }
   const combinedDays = sumLeaveDays([...((monthLeaves ?? []) as { leave_type: string | null; from_date: string; to_date: string; permission_hours: number | string | null }[]), newRow], monthStart, monthEnd)

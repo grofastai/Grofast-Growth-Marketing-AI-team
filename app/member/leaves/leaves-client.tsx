@@ -520,6 +520,17 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     const total = calcMonthlyDays(entries, month)
     return { real, auto: Math.max(0, total - real), total }
   }
+  // Same real-vs-auto split as calcMonthlyDaysSplit, totaled across the whole
+  // year — feeds the "Total Leaves This Year" stat card's split bar. Same
+  // formula for every member regardless of team (Media/Non-Media), since this
+  // Leaves page and its stat cards are shared, not team-specific.
+  function calcYearlyDaysSplit(entries: Leave[], year: string) {
+    const yearEntries = entries.filter(l => l.from_date.startsWith(year) && l.status === "approved")
+    const nonPermission = yearEntries.filter(l => l.leave_type !== "permission")
+    const real = sumLeaveDays(nonPermission, `${year}-01-01`, `${year}-12-31`)
+    const total = sumLeaveDays(yearEntries, `${year}-01-01`, `${year}-12-31`)
+    return { real, auto: Math.max(0, total - real), total }
+  }
   // Always the real current month — gates whether a new Full/Half Day request is
   // allowed right now, so this must never follow the Leave Timeline's browsed month.
   const monthlyUsed     = calcMonthlyDays(leaves, currentMonth)
@@ -529,6 +540,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   // not always today's real month.
   const filterMonthUsed    = calcMonthlyDays(leaves, filterMonth)
   const filterMonthSplit   = calcMonthlyDaysSplit(leaves, filterMonth)
+  const yearSplit          = calcYearlyDaysSplit(leaves, currentYear)
   const filterMonthBalance = MONTHLY_LIMIT - filterMonthUsed   // can go negative — shown as-is, not clamped, so an over-limit month is visible instead of hidden behind a floor of 0
   // "WFH Days" card counts both work-from-home and shoot days — both are logged
   // work, not leave (see the no-monthly-cap rule for wfh/shoot_day), so they share one tile.
@@ -667,7 +679,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
           {/* ── Stats Cards ──────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
             {[
-              { label: "Total Leaves\nThis Year",        val: allEntries.filter(l => (l.status === "approved" || l.status === "absent") && l.leave_type !== "wfh" && l.leave_type !== "shoot_day" && l.leave_type !== "permission" && l.from_date.startsWith(currentYear)).length, color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: null, sub: null, subColor: "" },
+              { label: "Total Leaves\nThis Year",        val: yearSplit.total,     color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: null, sub: null, subColor: "" },
               { label: `Leave Taken\n${monthTag}`,       val: filterMonthUsed,     color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "📅", trend: null, sub: `of ${MONTHLY_LIMIT} days allowed`, subColor: "#9CA3AF" },
               { label: `WFH + Shoot\n${monthTag}`,       val: wfhShootFilterMonth, color: "#6366F1", bg: "rgba(99,102,241,0.1)",  icon: "🏠", trend: null, sub: wfhShootFilterMonth > 0 ? `${wfhShootFilterMonth} approved` : "None that month", subColor: "#6366F1" },
               { label: `Leave Left\n${monthTag}`,        val: filterMonthBalance,  color: filterMonthBalance < 0 ? "#EF4444" : "#8B5CF6", bg: filterMonthBalance < 0 ? "rgba(239,68,68,0.1)" : "rgba(139,92,246,0.1)", icon: filterMonthBalance < 0 ? "⚠️" : "🗓️", trend: null, sub: filterMonthBalance < 0 ? `${filterMonthUsed} used — ${Math.abs(filterMonthBalance)} over the ${MONTHLY_LIMIT}-day limit` : `${filterMonthUsed} of ${MONTHLY_LIMIT} used`, subColor: filterMonthBalance < 0 ? "#EF4444" : "#9CA3AF" },
@@ -710,6 +722,21 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     <p style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#F59E0B", display: "inline-block" }} />{filterMonthSplit.real} applied</span>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#8B5CF6", display: "inline-block" }} />{filterMonthSplit.auto} auto</span>
+                    </p>
+                  </div>
+                ) : s.label.includes("Total Leaves") ? (
+                  <div>
+                    <div style={{ height: 4, borderRadius: 99, background: "#EEF0F5", marginBottom: 8, overflow: "hidden", display: "flex" }}>
+                      {yearSplit.total > 0 && (
+                        <>
+                          <div style={{ height: "100%", width: `${Math.round((yearSplit.real / yearSplit.total) * 100)}%`, background: "#EF4444" }} />
+                          <div style={{ height: "100%", width: `${Math.round((yearSplit.auto / yearSplit.total) * 100)}%`, background: "#8B5CF6" }} />
+                        </>
+                      )}
+                    </div>
+                    <p style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#EF4444", display: "inline-block" }} />{yearSplit.real} applied</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#8B5CF6", display: "inline-block" }} />{yearSplit.auto} auto</span>
                     </p>
                   </div>
                 ) : s.sub ? (

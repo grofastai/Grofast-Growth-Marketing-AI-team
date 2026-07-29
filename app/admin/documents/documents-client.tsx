@@ -4,6 +4,7 @@ import { useState, useTransition, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { deleteDocument, verifyMemberKYC } from "@/lib/actions/documents"
 import { syncMemberDocumentsNow } from "@/lib/actions/member-documents"
+import { kycDocFields } from "@/lib/utils/kyc-documents"
 import Image from "next/image"
 import { PageHero } from "@/components/admin/PageHero"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
@@ -12,7 +13,7 @@ import {
   FileText, Upload, Trash2, FolderOpen, Loader2, X, Download,
   Phone, Mail, Briefcase, Calendar, Shield, HeartPulse, MapPin,
   UserPlus, Landmark, CreditCard, ExternalLink, Search,
-  List, CheckCircle2, Eye, MoreVertical, CloudUpload,
+  List, CheckCircle2, Eye, MoreVertical, CloudUpload, Cloud,
   Building2, LayoutGrid, ArrowUpRight, Layers, ChevronRight, Sparkles, Users,
   BadgeCheck, PenLine,
 } from "lucide-react"
@@ -70,16 +71,9 @@ function computeCompletionPct(m: Member, k: KYCRecord | undefined, hasDocs: bool
 
 function kycRecordToDocs(k: KYCRecord, member?: { name: string; employee_id: string }): Doc[] {
   const createdAt = k.updated_at ?? new Date(0).toISOString()
-  const fields: Array<{ url: string | null; name: string; docType: string }> = [
-    { url: k.govt_id_url, name: k.govt_id_type ? `${k.govt_id_type} (Front)` : "Government ID", docType: "Govt ID Proof" },
-    { url: k.aadhaar_back_url, name: "Aadhaar Back", docType: "Govt ID Proof" },
-    { url: k.pan_front_url, name: "PAN Card Front", docType: "Govt ID Proof" },
-    { url: k.pan_back_url, name: "PAN Card Back", docType: "Govt ID Proof" },
-    { url: k.ration_card_url, name: "Ration Card", docType: "Ration Card" },
-    { url: k.ration_card_url2, name: "Ration Card (Page 2)", docType: "Ration Card" },
-    { url: k.signature_url, name: "Signature", docType: "Signature" },
-  ]
-  return fields
+  // kycDocFields() is shared with syncMemberDocumentsNow (member-documents.ts) so a
+  // card's name here always matches what member_documents.name records as synced.
+  return kycDocFields(k)
     .filter(f => !!f.url)
     .map((f, i) => ({
       id: `kyc__${k.user_id}__${i}`,
@@ -206,7 +200,7 @@ function InfoRow({ icon: Icon, label, value, url }: {
 }
 
 // ── Doc File Card (grid) ─────────────────────────────────────────────────────
-function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => void; isPending: boolean }) {
+function DocCardGrid({ doc, onDelete, isPending, synced }: { doc: Doc; onDelete: () => void; isPending: boolean; synced: boolean }) {
   const badge = getExtBadge(doc.file_type, doc.name)
   const typeColor = DOC_TYPE_COLOR[doc.doc_type] ?? "#6B7280"
   const verified = doc.doc_type !== "Other"
@@ -254,10 +248,18 @@ function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => v
       </div>
       {/* File icon area */}
       <div style={{
-        height: 52, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center",
+        height: 52, borderRadius: 14, position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
         background: `linear-gradient(135deg, ${badge.bg}, ${badge.bg.replace("0.12)", "0.06)")})`
       }}>
         <FileText size={26} style={{ color: badge.color }} />
+        {synced && (
+          <div title="Synced to Drive" style={{
+            position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%",
+            background: "#16A34A", boxShadow: "0 0 0 2px #fff", display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Cloud size={11} color="#fff" />
+          </div>
+        )}
       </div>
       {/* Name */}
       <div>
@@ -265,7 +267,7 @@ function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => v
         <p style={{ fontSize: 10, color: "#1B4332", marginTop: 2 }}>{formatDateShort(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}</p>
       </div>
       {/* Status + actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-1.5 flex-wrap">
         <span style={{
           fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 6,
           background: verified ? "rgba(22,163,74,0.1)" : "rgba(249,115,22,0.1)",
@@ -273,9 +275,18 @@ function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => v
         }}>
           {verified ? "✓ Verified" : "Pending"}
         </span>
+        {synced && (
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 3,
+            fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 6,
+            background: "rgba(22,163,74,0.1)", color: "#16A34A",
+          }}>
+            <Cloud size={9} /> Uploaded to Drive
+          </span>
+        )}
         <span style={{
           fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 6,
-          background: `${typeColor}14`, color: typeColor,
+          background: `${typeColor}14`, color: typeColor, marginLeft: "auto",
         }}>{doc.doc_type}</span>
       </div>
       {/* Action buttons */}
@@ -294,7 +305,7 @@ function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => v
 }
 
 // ── Doc Row (list) ───────────────────────────────────────────────────────────
-function DocRowList({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => void; isPending: boolean }) {
+function DocRowList({ doc, onDelete, isPending, synced }: { doc: Doc; onDelete: () => void; isPending: boolean; synced: boolean }) {
   const badge = getExtBadge(doc.file_type, doc.name)
   const typeColor = DOC_TYPE_COLOR[doc.doc_type] ?? "#6B7280"
   const verified = doc.doc_type !== "Other"
@@ -305,12 +316,17 @@ function DocRowList({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => vo
         <FileText size={18} style={{ color: badge.color }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <p style={{ fontSize: 13, fontWeight: 700, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</p>
           <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: `${typeColor}14`, color: typeColor, flexShrink: 0 }}>{doc.doc_type}</span>
           <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: verified ? "rgba(22,163,74,0.1)" : "rgba(249,115,22,0.1)", color: verified ? "#16A34A" : "#EA580C", flexShrink: 0 }}>
             {verified ? "✓ Verified" : "Pending"}
           </span>
+          {synced && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: "rgba(22,163,74,0.1)", color: "#16A34A", flexShrink: 0 }}>
+              <Cloud size={9} /> Uploaded to Drive
+            </span>
+          )}
         </div>
         <p style={{ fontSize: 11, color: "#1B4332", marginTop: 2 }}>{formatDate(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}</p>
       </div>
@@ -349,11 +365,12 @@ function ActivityDot({ type }: { type: string }) {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 export default function DocumentsClient({
-  members, documents, kycRecords, companyId, driveRootUrl,
+  members, documents, kycRecords, syncedDocs, companyId, driveRootUrl,
 }: {
   members: Member[]
   documents: Doc[]
   kycRecords: KYCRecord[]
+  syncedDocs: { user_id: string; name: string }[]
   companyId: string
   driveRootUrl: string | null
 }) {
@@ -392,6 +409,11 @@ export default function DocumentsClient({
     const kycDocs = kycRecordToDocs(selectedKYC, { name: selectedMember.name, employee_id: selectedMember.employee_id })
     return [...kycDocs, ...fromTable]
   }, [selectedId, documents, selectedKYC, selectedMember])
+
+  // Matched by user_id + exact name against member_documents — the real record of what's
+  // actually landed in Drive, not just an optimistic guess from the last "Sync to Drive" click.
+  const syncedNameSet = useMemo(() => new Set(syncedDocs.map(d => `${d.user_id}::${d.name}`)), [syncedDocs])
+  function isDocSynced(doc: Doc) { return syncedNameSet.has(`${doc.user_id}::${doc.name}`) }
 
   const filteredMembers = empSearch.trim()
     ? members.filter(m =>
@@ -825,11 +847,11 @@ export default function DocumentsClient({
                     </div>
                   ) : viewMode === "grid" ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {shownDocs.map(doc => <DocCardGrid key={doc.id} doc={doc} onDelete={() => handleDelete(doc.id)} isPending={isPending} />)}
+                      {shownDocs.map(doc => <DocCardGrid key={doc.id} doc={doc} onDelete={() => handleDelete(doc.id)} isPending={isPending} synced={isDocSynced(doc)} />)}
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {shownDocs.map(doc => <DocRowList key={doc.id} doc={doc} onDelete={() => handleDelete(doc.id)} isPending={isPending} />)}
+                      {shownDocs.map(doc => <DocRowList key={doc.id} doc={doc} onDelete={() => handleDelete(doc.id)} isPending={isPending} synced={isDocSynced(doc)} />)}
                     </div>
                   )}
 

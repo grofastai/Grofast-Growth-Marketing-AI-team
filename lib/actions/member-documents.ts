@@ -2,6 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js"
 import { getOrCreateMemberFolder, uploadMemberDocument } from "@/lib/google/drive"
+import { kycDocFields } from "@/lib/utils/kyc-documents"
 
 function adminClient() {
   return createClient(
@@ -79,24 +80,18 @@ export async function syncMemberDocumentsNow(userId: string): Promise<{ success:
     const [{ data: alreadyDriveSynced }, { data: docRows }, { data: kyc }] = await Promise.all([
       admin.from("member_documents").select("name").eq("user_id", userId),
       admin.from("documents").select("name, file_url, file_type").eq("user_id", userId),
-      admin.from("member_kyc").select("govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2, signature_url").eq("user_id", userId).maybeSingle(),
+      admin.from("member_kyc").select("govt_id_type, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2, signature_url").eq("user_id", userId).maybeSingle(),
     ])
 
     const alreadySynced = new Set((alreadyDriveSynced ?? []).map(d => d.name as string))
 
-    const kycTargets: { name: string; url: string | null }[] = kyc ? [
-      { name: "Aadhaar Front",      url: kyc.govt_id_url },
-      { name: "Aadhaar Back",       url: kyc.aadhaar_back_url },
-      { name: "PAN Front",          url: kyc.pan_front_url },
-      { name: "PAN Back",           url: kyc.pan_back_url },
-      { name: "Ration Card",        url: kyc.ration_card_url },
-      { name: "Ration Card (2)",    url: kyc.ration_card_url2 },
-      { name: "Signature",          url: kyc.signature_url },
-    ] : []
+    // Uses kycDocFields() — the same function documents-client.tsx uses to name these
+    // as document cards — so a name here always matches the card's displayed name.
+    const kycTargets = kyc ? kycDocFields(kyc) : []
 
     const targets = [
       ...(docRows ?? []).map(d => ({ name: d.name as string, url: d.file_url as string, type: (d.file_type as string | null) ?? "application/octet-stream" })),
-      ...kycTargets.filter((f): f is { name: string; url: string } => !!f.url).map(f => ({ ...f, type: "image/jpeg" })),
+      ...kycTargets.filter((f): f is { name: string; url: string; docType: string } => !!f.url).map(f => ({ name: f.name, url: f.url, type: "image/jpeg" })),
     ]
 
     let synced = 0, skipped = 0, failed = 0

@@ -3672,6 +3672,38 @@ function EditAdModal({ ad, clients, pastClients, onClose, onSaved }: {
   )
 }
 
+// Inline-editable Target cell for the Overview tab's Per-Client KPIs table — moved
+// here from the Clients page (which had its own standalone Video/Poster + Save
+// Target card). Same setClientMonthlyTarget action, same content_client_targets
+// rows, just edited directly in the table row instead of a separate widget.
+function EditableTargetCell({ value, onSave }: { value: number; onSave: (n: number) => Promise<void> }) {
+  const [draft, setDraft] = useState(String(value))
+  const [saving, setSaving] = useState(false)
+  // Re-sync the draft when `value` changes for a reason other than our own save
+  // (switching the Video/Poster toggle or the month, while this row stays mounted)
+  // — adjusting state during render per React's guidance, not via a useEffect.
+  const [prevValue, setPrevValue] = useState(value)
+  if (value !== prevValue) {
+    setPrevValue(value)
+    setDraft(String(value))
+  }
+  async function commit() {
+    const n = Math.max(0, Math.round(Number(draft)) || 0)
+    setDraft(String(n))
+    if (n === value) return
+    setSaving(true)
+    await onSave(n)
+    setSaving(false)
+  }
+  return (
+    <input type="number" min={0} value={draft} disabled={saving}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur() }}
+      style={{ width: 56, padding: "4px 6px", borderRadius: 6, border: "1.5px solid #E5E7EB", fontSize: 12, fontWeight: 800, textAlign: "center", color: "#7C3AED", background: saving ? "#F9FAFB" : "#fff" }} />
+  )
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 export default function MediaTrackerClient({ initialItems, initialAds, initialShoots, members, currentUserId, clients, pastClients, voiceoverFreelancers, scriptingMembers, editingMembers, shootingMembers, voiceoverMembers, initialClientTargets }: Props) {
   const [items, setItems] = useState(initialItems)
@@ -4296,6 +4328,26 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     })
   }
 
+  // Same underlying save as handleSetClientTarget above, generalized for the
+  // Overview tab's Per-Client KPIs table — one client/month per row instead of a
+  // single selected client/month, and awaited so the inline cell can show its own
+  // per-row saving state instead of sharing one page-wide pending flag.
+  async function handleSetOverviewTarget(clientName: string, kind: "branding" | "ads", contentType: "video" | "poster", month: string, newTarget: number) {
+    const key = { client_name: clientName, kind, content_type: contentType, month }
+    const previous = clientTargets.find(t => t.client_name === key.client_name && t.kind === key.kind && t.content_type === key.content_type && t.month === key.month)
+    setClientTargets(prev => {
+      const others = prev.filter(t => !(t.client_name === key.client_name && t.kind === key.kind && t.content_type === key.content_type && t.month === key.month))
+      return [...others, { ...key, target: newTarget }]
+    })
+    const res = await setClientMonthlyTarget({ ...key, target: newTarget })
+    if (!res.success) {
+      setClientTargets(prev => {
+        const others = prev.filter(t => !(t.client_name === key.client_name && t.kind === key.kind && t.month === key.month))
+        return previous ? [...others, previous] : others
+      })
+    }
+  }
+
   const logRows = useMemo(() => {
     let rows = postedItems
     if (logPlatformFilter !== "all") rows = rows.filter(i => i.posts.some(p => p.platform === logPlatformFilter))
@@ -4737,6 +4789,14 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                                 <td style={{ padding: "9px 14px", textAlign: "center" }}>
                                   {target === null ? (
                                     <span style={{ fontWeight: 800, color: "#D1D5DB" }}>—</span>
+                                  ) : block.kind === "branding" ? (
+                                    // Editable here (moved from the standalone Media Target card on
+                                    // the Clients page) — Ads targets stay read-only, matching that
+                                    // card's original scope (it only ever set Branding targets).
+                                    <EditableTargetCell
+                                      value={target}
+                                      onSave={n => handleSetOverviewTarget(row.client, block.kind, overviewKpiContentType, overviewKpiMonth, n)}
+                                    />
                                   ) : target > 0 ? (
                                     <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 999, fontWeight: 800, background: "rgba(124,58,237,0.12)", color: "#7C3AED" }}>
                                       {target}

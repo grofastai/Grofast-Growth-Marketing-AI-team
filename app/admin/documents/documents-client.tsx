@@ -414,6 +414,15 @@ export default function DocumentsClient({
   // actually landed in Drive, not just an optimistic guess from the last "Sync to Drive" click.
   const syncedNameSet = useMemo(() => new Set(syncedDocs.map(d => `${d.user_id}::${d.name}`)), [syncedDocs])
   function isDocSynced(doc: Doc) { return syncedNameSet.has(`${doc.user_id}::${doc.name}`) }
+  // Real state from member_documents on page load, not just a click-memory flag — and a
+  // real 3-way state (none/partial/all), not just binary. Before this, a member with 3 of
+  // 7 documents already synced showed the exact same "Sync to Drive" button as a member
+  // with zero synced, so there was no way to tell partial progress apart at a glance.
+  const totalDocCount   = memberDocs.length
+  const syncedDocCount  = memberDocs.filter(isDocSynced).length
+  const allMemberDocsSynced  = totalDocCount > 0 && syncedDocCount === totalDocCount
+  const someMemberDocsSynced = syncedDocCount > 0 && syncedDocCount < totalDocCount
+  const isUploadedState = syncingDrive ? false : (syncedIds.has(selectedId) || allMemberDocsSynced)
 
   const filteredMembers = empSearch.trim()
     ? members.filter(m =>
@@ -821,20 +830,24 @@ export default function DocumentsClient({
                         <List size={13} style={{ color: viewMode === "list" ? "#fff" : "#1B4332" }} />
                       </button>
                       <button onClick={handleSyncDrive} disabled={syncingDrive}
-                        title={syncedIds.has(selectedId) ? "All documents are synced to Google Drive — click to re-check" : "Push any documents not yet in Google Drive"}
+                        title={
+                          isUploadedState        ? "All documents are uploaded to Google Drive — click to re-check"
+                          : someMemberDocsSynced ? `${syncedDocCount} of ${totalDocCount} documents uploaded — click to push the rest`
+                          : "Push any documents not yet in Google Drive"
+                        }
                         style={{
                           display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700,
                           cursor: syncingDrive ? "not-allowed" : "pointer",
-                          border: syncedIds.has(selectedId) ? "1px solid #A7F3D0" : "1px solid #E5E7EB",
-                          background: syncedIds.has(selectedId) ? "#ECFDF5" : "#fff",
-                          color: syncedIds.has(selectedId) ? "#059669" : "#1B4332",
+                          border: isUploadedState ? "1px solid #A7F3D0" : someMemberDocsSynced ? "1px solid #FED7AA" : "1px solid #E5E7EB",
+                          background: isUploadedState ? "#ECFDF5" : someMemberDocsSynced ? "#FFF7ED" : "#fff",
+                          color: isUploadedState ? "#059669" : someMemberDocsSynced ? "#EA580C" : "#1B4332",
                         }}>
                         {syncingDrive
                           ? <CloudUpload size={13} style={{ color: "#0EA5E9" }} />
-                          : syncedIds.has(selectedId)
+                          : isUploadedState
                             ? <CheckCircle2 size={13} style={{ color: "#059669" }} />
-                            : <CloudUpload size={13} style={{ color: "#0EA5E9" }} />}
-                        {syncingDrive ? "Syncing…" : syncedIds.has(selectedId) ? "Synced" : "Sync to Drive"}
+                            : <CloudUpload size={13} style={{ color: someMemberDocsSynced ? "#EA580C" : "#0EA5E9" }} />}
+                        {syncingDrive ? "Syncing…" : isUploadedState ? "Uploaded" : someMemberDocsSynced ? `${syncedDocCount}/${totalDocCount} Uploaded` : "Sync to Drive"}
                       </button>
                     </div>
                   </div>
@@ -843,7 +856,7 @@ export default function DocumentsClient({
                     <div style={{ background: "#fff", borderRadius: 20, padding: "48px 20px", textAlign: "center", border: "1px solid rgba(0,0,0,0.07)" }}>
                       <FolderOpen size={36} style={{ color: "#E5E7EB", margin: "0 auto 12px" }} />
                       <p style={{ fontSize: 14, fontWeight: 700, color: "#1B4332" }}>No documents found</p>
-                      <p style={{ fontSize: 12, color: "#1B4332", marginTop: 4 }}>{selectedMember.name} hasn't uploaded any documents yet</p>
+                      <p style={{ fontSize: 12, color: "#1B4332", marginTop: 4 }}>{selectedMember.name} hasn&apos;t uploaded any documents yet</p>
                     </div>
                   ) : viewMode === "grid" ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

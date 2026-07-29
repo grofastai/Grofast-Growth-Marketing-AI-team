@@ -480,6 +480,11 @@ export default function DocumentsClient({
       if (!res.success) { setSyncResult(res.error ?? "Sync failed"); return }
       setSyncResult(`Synced ${res.synced ?? 0}, already up to date ${res.skipped ?? 0}${res.failed ? `, failed ${res.failed}` : ""}`)
       router.refresh()
+    } catch (err) {
+      // Without this, an exception here (e.g. the request itself failing) left the
+      // button silently reverting to "Sync to Drive" with zero feedback — indistinguishable
+      // from the click not registering at all.
+      setSyncResult(err instanceof Error ? err.message : "Sync failed")
     } finally { setSyncingDrive(false) }
   }
 

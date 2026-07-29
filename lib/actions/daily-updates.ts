@@ -7,7 +7,18 @@ import { revalidatePath } from 'next/cache'
 import { dailyUpdateSchema, type DailyUpdateInput } from '@/lib/validations/daily-update'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertManyNotifications } from './notifications'
-import { calcNetWorkHours, findEntryOverlap, type OverlapCheckEntry } from '@/lib/utils/work-hours'
+import { calcNetWorkHours, findEntryOverlap, breakCapError, type OverlapCheckEntry } from '@/lib/utils/work-hours'
+
+// Server-side guard so a break can never exceed its type's cap regardless of which form/
+// action wrote it — mirrors findEntryOverlap's role as the one place every write path funnels through.
+function findBreakCapViolation(entries: Array<{ task_type?: string; title?: string; duration_hours?: number | null }>): string | null {
+  for (const e of entries) {
+    if (e.task_type !== 'break') continue
+    const err = breakCapError(e.title ?? '', Number(e.duration_hours) || 0)
+    if (err) return err
+  }
+  return null
+}
 import { todayIST } from '@/lib/utils/ist-date'
 import { findUnfiledUpdateDate } from '@/lib/attendance-gate'
 
@@ -407,6 +418,8 @@ export async function submitDailyUpdate(
 
     const overlapErr = findEntryOverlap(combinedEntries as OverlapCheckEntry[])
     if (overlapErr) return { success: false, error: overlapErr }
+    const capErr1 = findBreakCapViolation(combinedEntries as Array<{ task_type?: string; title?: string; duration_hours?: number | null }>)
+    if (capErr1) return { success: false, error: capErr1 }
 
     // Always sync duration_hours to time span before saving
     combinedEntries = fixEntryDurations(combinedEntries)
@@ -457,6 +470,8 @@ export async function submitDailyUpdate(
     isFirstSubmission = true
     const overlapErr = findEntryOverlap(d.work_entries as OverlapCheckEntry[])
     if (overlapErr) return { success: false, error: overlapErr }
+    const capErr2 = findBreakCapViolation(d.work_entries as Array<{ task_type?: string; title?: string; duration_hours?: number | null }>)
+    if (capErr2) return { success: false, error: capErr2 }
     const fixedNewEntries = fixEntryDurations(d.work_entries as Record<string, unknown>[])
     const { data: inserted, error: insertError } = await admin
       .from('daily_updates')
@@ -653,6 +668,8 @@ export async function updatePastDailyUpdate(
 
   const overlapErr = findEntryOverlap(finalEntries as OverlapCheckEntry[])
   if (overlapErr) return { success: false, error: overlapErr }
+  const capErr3 = findBreakCapViolation(finalEntries as Array<{ task_type?: string; title?: string; duration_hours?: number | null }>)
+  if (capErr3) return { success: false, error: capErr3 }
 
   const finalLearnHours = Math.round(
     finalEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10
@@ -798,6 +815,8 @@ export async function addEntryToDate(
 
   const overlapErr = findEntryOverlap(allEntries as OverlapCheckEntry[])
   if (overlapErr) return { success: false, error: overlapErr }
+  const capErr4 = findBreakCapViolation(allEntries as Array<{ task_type?: string; title?: string; duration_hours?: number | null }>)
+  if (capErr4) return { success: false, error: capErr4 }
 
   // Recomputed from scratch off allEntries (the actual final set for this date) — see
   // updatePastDailyUpdate above for why unioning with the old column value is wrong.

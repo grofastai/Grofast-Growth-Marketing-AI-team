@@ -384,21 +384,26 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const absentCount = allEntries.filter(l => l.status === "absent").length
 
   const MONTHLY_LIMIT = 5
-  const currentMonth  = today.slice(0, 7) // "YYYY-MM"
+  const currentMonth  = today.slice(0, 7) // "YYYY-MM" — the REAL current month, not whatever month is being browsed below
   // Approved-only — matches Dashboard/Attendance/History's "Leave Taken" (confirmed
   // 2026-07-28). The actual 5-day submit-blocking cap (checkMonthlyLeaveLimit in
   // lib/actions/leaves.ts) still counts pending requests too, on purpose, so this
   // displayed number can occasionally look more forgiving than what a new submission
   // will actually be blocked against if a pending request is already in the queue.
-  function calcMonthlyDays(entries: Leave[]) {
-    const monthEntries = entries.filter(l => l.from_date.startsWith(currentMonth) && l.status === "approved")
-    return sumLeaveDays(monthEntries, `${currentMonth}-01`, `${currentMonth}-31`)
+  function calcMonthlyDays(entries: Leave[], month: string) {
+    const monthEntries = entries.filter(l => l.from_date.startsWith(month) && l.status === "approved")
+    return sumLeaveDays(monthEntries, `${month}-01`, `${month}-31`)
   }
-  const monthlyUsed     = calcMonthlyDays(leaves)
+  // Always the real current month — gates whether a new Full/Half Day request is
+  // allowed right now, so this must never follow the Leave Timeline's browsed month.
+  const monthlyUsed     = calcMonthlyDays(leaves, currentMonth)
   const monthlyLimitHit = monthlyUsed >= MONTHLY_LIMIT
-  const monthlyBalance  = Math.max(0, MONTHLY_LIMIT - monthlyUsed)
-  const wfhThisMonth    = allEntries.filter(l => l.leave_type === "wfh" && l.status === "approved" && l.from_date.startsWith(currentMonth)).length
-  const balancePct      = Math.round((monthlyBalance / MONTHLY_LIMIT) * 100)
+  // Follows the Leave Timeline's month picker (filterMonth) — these feed the "This
+  // Month" stat cards, which should reflect whichever month the member is browsing,
+  // not always today's real month.
+  const filterMonthUsed    = calcMonthlyDays(leaves, filterMonth)
+  const filterMonthBalance = Math.max(0, MONTHLY_LIMIT - filterMonthUsed)
+  const wfhFilterMonth     = allEntries.filter(l => l.leave_type === "wfh" && l.status === "approved" && l.from_date.startsWith(filterMonth)).length
   const nextHoliday = companyLeaves.find(h => h.date >= today) ?? null
   const thisMonthHolidays = companyLeaves.filter(h => h.date.startsWith(currentMonth))
   const wlbScore    = Math.min(100, Math.max(30, Math.round(72 - pendingL.length * 3 + approved.length * 2)))
@@ -460,6 +465,9 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     const [y, m] = ym.split("-").map(Number)
     return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short", year: "numeric" })
   }
+  // Stat-card second line: "This Month" while browsing the real current month,
+  // otherwise the actual browsed month so the card never silently mislabels its number.
+  const monthTag = filterMonth === currentMonth ? "This Month" : monthLabel(filterMonth)
 
   const FIELD: React.CSSProperties = { background: "#F9FAFB", border: "1.5px solid #E8EAED", color: "#111827", borderRadius: "12px", padding: "11px 14px", fontSize: "13px", outline: "none", width: "100%" }
 
@@ -531,9 +539,9 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
             {[
               { label: "Total Leaves\nThis Year",        val: allEntries.filter(l => (l.status === "approved" || l.status === "absent") && l.leave_type !== "wfh" && l.leave_type !== "shoot_day" && l.leave_type !== "permission").length, color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: null, sub: null, subColor: "" },
-              { label: "Leave Taken\nThis Month",       val: monthlyUsed,     color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "📅", trend: null, sub: `of ${MONTHLY_LIMIT} days allowed`, subColor: "#9CA3AF" },
-              { label: "WFH Days\nThis Month",          val: wfhThisMonth,    color: "#6366F1", bg: "rgba(99,102,241,0.1)",  icon: "🏠", trend: null, sub: wfhThisMonth > 0 ? `${wfhThisMonth} approved WFH` : "No WFH this month", subColor: "#6366F1" },
-              { label: "Leave Left\nThis Month",        val: monthlyBalance,  color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "🗓️", trend: null, sub: `${monthlyUsed} of ${MONTHLY_LIMIT} used`, subColor: "#9CA3AF" },
+              { label: `Leave Taken\n${monthTag}`,       val: filterMonthUsed,     color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "📅", trend: null, sub: `of ${MONTHLY_LIMIT} days allowed`, subColor: "#9CA3AF" },
+              { label: `WFH Days\n${monthTag}`,          val: wfhFilterMonth,      color: "#6366F1", bg: "rgba(99,102,241,0.1)",  icon: "🏠", trend: null, sub: wfhFilterMonth > 0 ? `${wfhFilterMonth} approved WFH` : "No WFH that month", subColor: "#6366F1" },
+              { label: `Leave Left\n${monthTag}`,        val: filterMonthBalance,  color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "🗓️", trend: null, sub: `${filterMonthUsed} of ${MONTHLY_LIMIT} used`, subColor: "#9CA3AF" },
               { label: "Annual Leave\nRemaining",       val: Math.max(0, 60 - usedLeaveDays), color: "#0EA5E9", bg: "rgba(14,165,233,0.1)", icon: "🏖️", trend: null, sub: null, subColor: "" },
               { label: "This Month's\nHolidays",        val: thisMonthHolidays.length, color: "#EC4899", bg: "rgba(236,72,153,0.1)", icon: "🎉", trend: null, sub: thisMonthHolidays.length > 0 ? thisMonthHolidays[0].name : "No holidays", subColor: "#EC4899" },
             ].map((s, i) => (

@@ -679,22 +679,35 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
           {/* ── Stats Cards ──────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
             {[
-              { label: "Total Leaves\nThis Year",        val: yearSplit.total,     color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: null, sub: null, subColor: "" },
-              { label: `Leave Taken\n${monthTag}`,       val: filterMonthUsed,     color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "📅", trend: null, sub: `of ${MONTHLY_LIMIT} days allowed`, subColor: "#9CA3AF" },
-              { label: `WFH + Shoot\n${monthTag}`,       val: wfhShootFilterMonth, color: "#6366F1", bg: "rgba(99,102,241,0.1)",  icon: "🏠", trend: null, sub: wfhShootFilterMonth > 0 ? `${wfhShootFilterMonth} approved` : "None that month", subColor: "#6366F1" },
-              { label: `Leave Left\n${monthTag}`,        val: filterMonthBalance,  color: filterMonthBalance < 0 ? "#EF4444" : "#8B5CF6", bg: filterMonthBalance < 0 ? "rgba(239,68,68,0.1)" : "rgba(139,92,246,0.1)", icon: filterMonthBalance < 0 ? "⚠️" : "🗓️", trend: null, sub: filterMonthBalance < 0 ? `${filterMonthUsed} used — ${Math.abs(filterMonthBalance)} over the ${MONTHLY_LIMIT}-day limit` : `${filterMonthUsed} of ${MONTHLY_LIMIT} used`, subColor: filterMonthBalance < 0 ? "#EF4444" : "#9CA3AF" },
-              { label: "Annual Leave\nRemaining",       val: Math.max(0, 60 - usedLeaveDays), color: "#0EA5E9", bg: "rgba(14,165,233,0.1)", icon: "🏖️", trend: null, sub: null, subColor: "" },
-              { label: "This Month's\nHolidays",        val: thisMonthHolidays.length, color: "#EC4899", bg: "rgba(236,72,153,0.1)", icon: "🎉", trend: null, sub: thisMonthHolidays.length > 0 ? thisMonthHolidays[0].name : "No holidays", subColor: "#EC4899" },
+              { label1: "Total Leaves",  label2: "This Year",  val: yearSplit.total,     color: "#DC2626", color2: "#7C3AED", bg: "rgba(220,38,38,0.12)",  icon: "📋", trend: null, sub: null, subColor: "" },
+              { label1: "Leave Taken",   label2: monthTag,     val: filterMonthUsed,     color: "#D97706", color2: "#7C3AED", bg: "rgba(217,119,6,0.12)",  icon: "📅", trend: null, sub: `of ${MONTHLY_LIMIT} days allowed`, subColor: "#9CA3AF" },
+              { label1: "WFH + Shoot",  label2: monthTag,     val: wfhShootFilterMonth, color: "#4F46E5", color2: "#4F46E5", bg: "rgba(79,70,229,0.12)",  icon: "🏠", trend: null, sub: wfhShootFilterMonth > 0 ? `${wfhShootFilterMonth} approved` : "None that month", subColor: "#4F46E5" },
+              { label1: "Leave Left",   label2: monthTag,     val: filterMonthBalance,  color: filterMonthBalance < 0 ? "#DC2626" : "#7C3AED", color2: filterMonthBalance < 0 ? "#7C2D12" : "#7C3AED", bg: filterMonthBalance < 0 ? "rgba(220,38,38,0.12)" : "rgba(124,58,237,0.12)", icon: filterMonthBalance < 0 ? "⚠️" : "🗓️", trend: null, sub: filterMonthBalance < 0 ? `${filterMonthUsed} used — ${Math.abs(filterMonthBalance)} over the ${MONTHLY_LIMIT}-day limit` : `${filterMonthUsed} of ${MONTHLY_LIMIT} used`, subColor: filterMonthBalance < 0 ? "#DC2626" : "#9CA3AF" },
+              { label1: "Annual Leave", label2: "Remaining",  val: Math.max(0, 60 - usedLeaveDays), color: "#0891B2", color2: "#0891B2", bg: "rgba(8,145,178,0.12)", icon: "🏖️", trend: null, sub: null, subColor: "" },
+              { label1: "This Month's", label2: "Holidays",   val: thisMonthHolidays.length, color: "#DB2777", color2: "#DB2777", bg: "rgba(219,39,119,0.12)", icon: "🎉", trend: null, sub: thisMonthHolidays.length > 0 ? thisMonthHolidays[0].name : "No holidays", subColor: "#DB2777" },
             ].map((s, i) => (
-              <div key={i} style={{ background: "#fff", borderRadius: 18, padding: "18px 16px 14px", border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", gap: 0, position: "relative", overflow: "hidden" }}>
+              <div key={i} style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #FBFAF9 100%)", borderRadius: 22, padding: "20px 18px 16px", border: "1px solid rgba(20,15,10,0.07)", boxShadow: "0 1px 2px rgba(20,15,10,0.04), 0 12px 26px -12px rgba(20,15,10,0.16), inset 0 1px 0 rgba(255,255,255,0.7)", display: "flex", flexDirection: "column", gap: 0, position: "relative", overflow: "hidden" }}>
                 {/* Icon badge */}
-                <div style={{ width: 38, height: 38, borderRadius: 11, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 14, boxShadow: "inset 0 1px 1px rgba(255,255,255,0.6), 0 1px 3px rgba(0,0,0,0.06)" }}>
                   {s.icon}
                 </div>
-                {/* Number */}
-                <p style={{ fontSize: "clamp(22px,2vw,30px)", fontWeight: 900, color: s.color, lineHeight: 1, marginBottom: 4, fontFamily: "var(--font-jakarta)" }}>{s.val}</p>
-                {/* Label */}
-                <p style={{ fontSize: 10, fontWeight: 600, color: "#9CA3AF", lineHeight: 1.4, whiteSpace: "pre-line", marginBottom: 10 }}>{s.label}</p>
+                {/* Number — gradient fill for a bit of depth */}
+                <p style={{
+                  fontSize: "clamp(24px,2.2vw,32px)", fontWeight: 800, lineHeight: 1, marginBottom: 6,
+                  letterSpacing: "-0.02em", fontFamily: "var(--font-jakarta)", fontVariantNumeric: "tabular-nums",
+                  backgroundImage: `linear-gradient(180deg, ${s.color} 0%, ${s.color2} 130%)`,
+                  WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
+                  filter: "drop-shadow(0 1px 0 rgba(255,255,255,0.5)) drop-shadow(0 2px 3px rgba(20,15,10,0.08))",
+                  width: "fit-content",
+                }}>{s.val}</p>
+                {/* Label — accent tick + two-tier hierarchy */}
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 12 }}>
+                  <span style={{ width: 3, height: 20, borderRadius: 99, flexShrink: 0, marginTop: 1, background: `linear-gradient(180deg, ${s.color}, ${s.color}66)` }} />
+                  <span style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: 12, fontWeight: 750, color: "#231F1A", letterSpacing: "-0.01em", lineHeight: 1.3 }}>{s.label1}</span>
+                    <span style={{ fontSize: 9.5, fontWeight: 650, color: "#9C968D", textTransform: "uppercase", letterSpacing: "0.08em", lineHeight: 1.5 }}>{s.label2}</span>
+                  </span>
+                </div>
 
                 {/* Bottom: sparkline or progress */}
                 {s.trend ? (
@@ -702,43 +715,51 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     <p style={{ fontSize: 9, color: s.subColor, fontWeight: 600 }}>{s.sub}</p>
                     <Sparkline color={s.color} trend={s.trend} />
                   </div>
-                ) : s.label.includes("Annual Leave") ? (
+                ) : s.label1 === "Annual Leave" ? (
                   <div>
-                    <div style={{ height: 4, borderRadius: 99, background: "#EEF0F5", marginBottom: 8, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${Math.min(100, Math.round((usedLeaveDays / 60) * 100))}%`, background: "#0EA5E9", borderRadius: 99 }} />
+                    <div style={{ height: 6, borderRadius: 99, background: "#EEEBE5", marginBottom: 9, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(20,15,10,0.08)" }}>
+                      <div style={{ height: "100%", width: `${Math.min(100, Math.round((usedLeaveDays / 60) * 100))}%`, borderRadius: 99, background: `linear-gradient(90deg, ${s.color}, ${s.color}99)`, position: "relative" }}>
+                        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(255,255,255,0.4), transparent 60%)" }} />
+                      </div>
                     </div>
-                    <p style={{ fontSize: 10, color: "#0EA5E9", fontWeight: 700 }}>{usedLeaveDays} of 60 days used</p>
+                    <p style={{ fontSize: 10, color: s.color, fontWeight: 700 }}>{usedLeaveDays} of 60 days used</p>
                   </div>
-                ) : s.label.includes("Leave Taken") ? (
+                ) : s.label1 === "Leave Taken" ? (
                   <div>
-                    <div style={{ height: 4, borderRadius: 99, background: "#EEF0F5", marginBottom: 8, overflow: "hidden", display: "flex" }}>
+                    <div style={{ height: 6, borderRadius: 99, background: "#EEEBE5", marginBottom: 9, overflow: "hidden", display: "flex", boxShadow: "inset 0 1px 2px rgba(20,15,10,0.08)" }}>
                       {filterMonthSplit.total > 0 && (
                         <>
-                          <div style={{ height: "100%", width: `${Math.round((filterMonthSplit.real / filterMonthSplit.total) * 100)}%`, background: "#F59E0B" }} />
-                          <div style={{ height: "100%", width: `${Math.round((filterMonthSplit.auto / filterMonthSplit.total) * 100)}%`, background: "#8B5CF6" }} />
+                          <div style={{ height: "100%", width: `${Math.round((filterMonthSplit.real / filterMonthSplit.total) * 100)}%`, background: "linear-gradient(90deg, #D97706, #F0A93A)", boxShadow: "1px 0 0 #FBFAF9" }} />
+                          <div style={{ height: "100%", width: `${Math.round((filterMonthSplit.auto / filterMonthSplit.total) * 100)}%`, background: "linear-gradient(90deg, #7C3AED, #A78BFA)" }} />
                         </>
                       )}
                     </div>
                     <p style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#F59E0B", display: "inline-block" }} />{filterMonthSplit.real} applied</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#8B5CF6", display: "inline-block" }} />{filterMonthSplit.auto} auto</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#D97706", display: "inline-block", boxShadow: "0 0 0 3px rgba(217,119,6,0.18)" }} />{filterMonthSplit.real} applied</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#7C3AED", display: "inline-block", boxShadow: "0 0 0 3px rgba(124,58,237,0.18)" }} />{filterMonthSplit.auto} auto</span>
                     </p>
                   </div>
-                ) : s.label.includes("Total Leaves") ? (
+                ) : s.label1 === "Total Leaves" ? (
                   <div>
-                    <div style={{ height: 4, borderRadius: 99, background: "#EEF0F5", marginBottom: 8, overflow: "hidden", display: "flex" }}>
+                    <div style={{ height: 6, borderRadius: 99, background: "#EEEBE5", marginBottom: 9, overflow: "hidden", display: "flex", boxShadow: "inset 0 1px 2px rgba(20,15,10,0.08)" }}>
                       {yearSplit.total > 0 && (
                         <>
-                          <div style={{ height: "100%", width: `${Math.round((yearSplit.real / yearSplit.total) * 100)}%`, background: "#EF4444" }} />
-                          <div style={{ height: "100%", width: `${Math.round((yearSplit.auto / yearSplit.total) * 100)}%`, background: "#8B5CF6" }} />
+                          <div style={{ height: "100%", width: `${Math.round((yearSplit.real / yearSplit.total) * 100)}%`, background: "linear-gradient(90deg, #DC2626, #F87171)", boxShadow: "1px 0 0 #FBFAF9" }} />
+                          <div style={{ height: "100%", width: `${Math.round((yearSplit.auto / yearSplit.total) * 100)}%`, background: "linear-gradient(90deg, #7C3AED, #A78BFA)" }} />
                         </>
                       )}
                     </div>
                     <p style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#EF4444", display: "inline-block" }} />{yearSplit.real} applied</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#8B5CF6", display: "inline-block" }} />{yearSplit.auto} auto</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#DC2626", display: "inline-block", boxShadow: "0 0 0 3px rgba(220,38,38,0.18)" }} />{yearSplit.real} applied</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#7C3AED", display: "inline-block", boxShadow: "0 0 0 3px rgba(124,58,237,0.18)" }} />{yearSplit.auto} auto</span>
                     </p>
                   </div>
+                ) : s.label1 === "Leave Left" ? (
+                  filterMonthBalance < 0 ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10.5, fontWeight: 700, color: "#fff", background: "linear-gradient(135deg, #E13A30, #A31C15)", padding: "6px 10px", borderRadius: 9, boxShadow: "0 3px 10px -3px rgba(196,39,31,0.55)", width: "fit-content" }}>{s.sub}</span>
+                  ) : (
+                    <p style={{ fontSize: 9, color: s.subColor || "#9CA3AF", fontWeight: 600, marginTop: "auto" }}>{s.sub}</p>
+                  )
                 ) : s.sub ? (
                   <p style={{ fontSize: 9, color: s.subColor || "#9CA3AF", fontWeight: 600, marginTop: "auto" }}>{s.sub}</p>
                 ) : null}

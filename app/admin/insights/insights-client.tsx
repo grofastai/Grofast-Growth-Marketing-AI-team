@@ -10,8 +10,6 @@ import type { MemberUtilization, ClientHour, InsightsKPIs, SpendCategory, LeaveB
 // duplicated rather than imported so this client component never pulls in page.tsx's
 // server-only imports (next/headers via lib/supabase/server.ts) into the browser bundle.
 const MONTHLY_LEAVE_CAP = 5
-import type { TeamRow } from '@/lib/actions/teams'
-import { hexToRgba } from '@/lib/utils/team-colors'
 
 // ── design tokens — matches the shared admin design system (red-gradient hero
 // banner, white cards, Jakarta/Bebas type) used by Leaves/Attendance/Goals/Team,
@@ -19,6 +17,8 @@ import { hexToRgba } from '@/lib/utils/team-colors'
 
 const PAGE_BG   = 'linear-gradient(160deg,#F8F9FF 0%,#F5F6FA 100%)'
 const HERO_GRAD = 'linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)'
+// Same red→black gradient as the Leave Requests hero banner (app/member/leaves/leaves-client.tsx) — reused here for table headers instead of inventing a new one.
+const TABLE_HEAD_GRAD = 'linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)'
 const CARD      = '#FFFFFF'
 const BORDER    = '#E5E7EB'
 const INK       = '#111827'
@@ -29,6 +29,26 @@ const HEAD_BG   = '#F9FAFB'
 const RED       = '#de1a1a'
 
 const JAKARTA = 'var(--font-jakarta)'
+
+// Shared cell styles for the grouped-header data tables (Attendance, Team Utilization,
+// Employee Per-Hour Rate) — monochrome ink + muted avg, no per-column rainbow hues.
+const groupThStyle: React.CSSProperties = {
+  color: '#FFFFFF', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
+  textAlign: 'center', whiteSpace: 'nowrap', padding: '9px 13px', borderRight: '1px solid rgba(255,255,255,0.12)',
+}
+const subThStyle: React.CSSProperties = {
+  color: '#FFFFFF', fontSize: 9.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
+  textAlign: 'center', whiteSpace: 'nowrap', padding: '7px 13px', borderRight: '1px solid rgba(255,255,255,0.12)',
+}
+const primaryTdStyle: React.CSSProperties = {
+  padding: '11px 16px', fontSize: 13, fontWeight: 600, color: INK, textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+}
+const avgTdStyle: React.CSSProperties = {
+  padding: '11px 16px', fontSize: 12, fontWeight: 500, color: MUTED, textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+}
+const footTdStyle: React.CSSProperties = {
+  padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 700, color: INK, fontVariantNumeric: 'tabular-nums',
+}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -41,27 +61,6 @@ function monthLabel(m: string) {
   const [y, mo] = m.split('-').map(Number)
   return `${MONTH_NAMES[mo - 1]} ${y}`
 }
-
-// ── Team badge colors (mirrors app/admin/team/team-client.tsx palette) ────────
-const TEAM_BADGE: Record<string, { bg: string; color: string }> = {
-  'media production team':                  { bg: 'rgba(236,72,153,0.12)', color: '#EC4899' },
-  'media team':                              { bg: 'rgba(236,72,153,0.12)', color: '#EC4899' },
-  'creative studio':                         { bg: 'rgba(245,158,11,0.12)', color: '#F59E0B' },
-  'software development & automation':       { bg: 'rgba(99,102,241,0.12)', color: '#6366F1' },
-  'ai development & automation':             { bg: 'rgba(99,102,241,0.12)', color: '#6366F1' },
-  'performance marketing & operations':      { bg: 'rgba(16,185,129,0.12)', color: '#10B981' },
-  'ai development & creative production':    { bg: 'rgba(139,92,246,0.12)', color: '#8B5CF6' },
-  'ai development & media':                  { bg: 'rgba(139,92,246,0.12)', color: '#8B5CF6' },
-}
-function teamBadge(team: string | null, teams: TeamRow[] = []) {
-  if (!team) return { bg: 'rgba(0,0,0,0.06)', color: MUTED }
-  const row = teams.find(t => t.name === team)
-  if (row?.color) return { bg: hexToRgba(row.color, 0.12), color: row.color }
-  return TEAM_BADGE[team.toLowerCase().trim()] ?? { bg: 'rgba(0,0,0,0.06)', color: '#6B7280' }
-}
-
-// ── Column color pairs (Attendance table: metric + its avg share one color) ───
-const COL = { login: '#3B82F6', working: '#10B981', learning: '#8B5CF6', brk: '#F97316' }
 
 // Semantic colors reused from the shared .badge-* classes in globals.css
 const SEMANTIC = { success: '#16A34A', warning: '#D97706', danger: '#de1a1a', info: '#2563EB' }
@@ -199,7 +198,7 @@ export type AllMember = {
 }
 
 export default function InsightsClient({
-  month, today, kpis, memberUtilization, leaveBreakdown, clientHours, prevMonthClientHours, spendByCategory, allMembers, teams = [],
+  month, today, kpis, memberUtilization, leaveBreakdown, clientHours, prevMonthClientHours, spendByCategory, allMembers,
 }: {
   month: string
   today: string
@@ -210,7 +209,6 @@ export default function InsightsClient({
   prevMonthClientHours: number
   spendByCategory: SpendCategory[]
   allMembers: AllMember[]
-  teams?: TeamRow[]
 }) {
   const router  = useRouter()
   const [expandedMember, setExpandedMember] = useState<string | null>(null)
@@ -250,12 +248,6 @@ export default function InsightsClient({
   const avgLoginFooter     = totalPresentDays > 0 ? totalLoginHours / totalPresentDays : 0
   const avgWorkingFooter   = totalPresentDays > 0 ? totalWorkingHoursX / totalPresentDays : 0
   const avgBreakFooter     = totalPresentDays > 0 ? totalBreakHours / totalPresentDays : 0
-
-  const tableHeadStyle = (h: string): React.CSSProperties => ({
-    padding: '10px 16px', fontSize: 11, fontWeight: 700, color: '#6B7280',
-    textAlign: h === 'Member' || h === 'Team' || h === 'Employee' || h === 'ID' ? 'left' : 'right',
-    textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', background: HEAD_BG,
-  })
 
   return (
     <div style={{ background: PAGE_BG, minHeight: '100vh', padding: 'clamp(16px,4vw,24px) clamp(16px,4vw,28px) 60px', display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -392,92 +384,64 @@ export default function InsightsClient({
         </Card>
       </div>
 
-      {/* ── Attendance — clean data table, matches the shared .data-table look ─ */}
+      {/* ── Attendance — grouped two-tier header (Login/Working/Break each
+          span an Hrs+Avg pair), red→black gradient matching the Leave
+          Requests hero banner, semi-bold weights, no Team column. ── */}
       <Card title="Attendance" meta="Login, working & break hours by member">
         <div style={{ overflowX: 'auto', margin: '0 -22px', padding: '0 22px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
-            <thead>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
+            <thead style={{ background: TABLE_HEAD_GRAD }}>
               <tr>
-                {['Member', 'Team', 'Present', 'Login Hrs', 'Avg Login', 'Working Hrs', 'Avg Working', 'Learning Hrs', 'Break Hrs', 'Avg Break'].map(h => (
-                  <th key={h} style={tableHeadStyle(h)}>{h}</th>
-                ))}
+                <th rowSpan={2} style={{ ...groupThStyle, textAlign: 'left' }}>Member</th>
+                <th rowSpan={2} style={groupThStyle}>Present</th>
+                <th colSpan={2} style={groupThStyle}>Login</th>
+                <th colSpan={2} style={groupThStyle}>Working</th>
+                <th rowSpan={2} style={groupThStyle}>Learning</th>
+                <th colSpan={2} style={{ ...groupThStyle, borderRight: 'none' }}>Break</th>
+              </tr>
+              <tr>
+                <th style={subThStyle}>Hrs</th><th style={subThStyle}>Avg</th>
+                <th style={subThStyle}>Hrs</th><th style={subThStyle}>Avg</th>
+                <th style={{ ...subThStyle, borderRight: 'none' }}>Hrs</th><th style={{ ...subThStyle, borderRight: 'none' }}>Avg</th>
               </tr>
             </thead>
             <tbody>
               {memberUtilization.length === 0 ? (
-                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: MUTED, fontSize: 13 }}>No attendance data for this month</td></tr>
-              ) : memberUtilization.map((m) => {
-                const tb = teamBadge(m.team, teams)
-                return (
-                  <tr key={m.id} className="hover:bg-[#F9FAFB]" style={{ borderBottom: `1px solid #F3F4F6` }}>
-                    <td style={{ padding: '11px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Avatar name={m.name} />
-                        <div>
-                          <p style={{ fontSize: 13, fontWeight: 700, color: INK, margin: 0 }}>{m.name}</p>
-                          <p style={{ fontSize: 10, color: DIM, margin: 0 }}>{m.employeeId}</p>
-                        </div>
+                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '40px 0', color: MUTED, fontSize: 13 }}>No attendance data for this month</td></tr>
+              ) : memberUtilization.map((m, i) => (
+                <tr key={m.id} style={{ background: i % 2 === 0 ? CARD : HEAD_BG }}>
+                  <td style={{ padding: '11px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Avatar name={m.name} />
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: INK, margin: 0 }}>{m.name}</p>
+                        <p style={{ fontSize: 10, color: DIM, margin: 0 }}>{m.employeeId}</p>
                       </div>
-                    </td>
-                    <td style={{ padding: '11px 16px' }}>
-                      <Badge color={tb.color} bg={tb.bg}>{m.team ?? '—'}</Badge>
-                    </td>
-                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: INK, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {m.workingDays}
-                    </td>
-                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: COL.login, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {fmtH(m.loginHours)}
-                    </td>
-                    <td style={{ padding: '11px 16px', fontSize: 12, fontWeight: 600, color: COL.login, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {m.avgLoginHours > 0 ? fmtH(m.avgLoginHours) : '—'}
-                    </td>
-                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: COL.working, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {fmtH(m.workingHoursExclLearning)}
-                    </td>
-                    <td style={{ padding: '11px 16px', fontSize: 12, fontWeight: 600, color: COL.working, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {m.avgWorkingHoursExclLearning > 0 ? fmtH(m.avgWorkingHoursExclLearning) : '—'}
-                    </td>
-                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: m.learningHours > 0 ? COL.learning : '#D1D5DB', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {m.learningHours > 0 ? fmtH(m.learningHours) : '—'}
-                    </td>
-                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: COL.brk, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {fmtH(m.breakHours)}
-                    </td>
-                    <td style={{ padding: '11px 16px', fontSize: 12, fontWeight: 600, color: COL.brk, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {m.avgBreakHours > 0 ? fmtH(m.avgBreakHours) : '—'}
-                    </td>
-                  </tr>
-                )
-              })}
+                    </div>
+                  </td>
+                  <td style={primaryTdStyle}>{m.workingDays}</td>
+                  <td style={primaryTdStyle}>{fmtH(m.loginHours)}</td>
+                  <td style={avgTdStyle}>{m.avgLoginHours > 0 ? fmtH(m.avgLoginHours) : '—'}</td>
+                  <td style={primaryTdStyle}>{fmtH(m.workingHoursExclLearning)}</td>
+                  <td style={avgTdStyle}>{m.avgWorkingHoursExclLearning > 0 ? fmtH(m.avgWorkingHoursExclLearning) : '—'}</td>
+                  <td style={{ ...primaryTdStyle, color: m.learningHours > 0 ? INK : DIM }}>{m.learningHours > 0 ? fmtH(m.learningHours) : '—'}</td>
+                  <td style={primaryTdStyle}>{fmtH(m.breakHours)}</td>
+                  <td style={avgTdStyle}>{m.avgBreakHours > 0 ? fmtH(m.avgBreakHours) : '—'}</td>
+                </tr>
+              ))}
             </tbody>
             {memberUtilization.length > 0 && (
               <tfoot>
                 <tr style={{ borderTop: `2px solid ${RED}` }}>
-                  <td colSpan={2} style={{ padding: '10px 16px', fontSize: 11, fontWeight: 800, color: INK }}>TOTAL / AVG</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: INK, fontVariantNumeric: 'tabular-nums' }}>
-                    {memberUtilization.reduce((s, m) => s + m.workingDays, 0)}
-                  </td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: COL.login, fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtH(totalLoginHours)}
-                  </td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: COL.login, fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtH(avgLoginFooter)}
-                  </td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: COL.working, fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtH(totalWorkingHoursX)}
-                  </td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: COL.working, fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtH(avgWorkingFooter)}
-                  </td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: COL.learning, fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtH(kpis.totalLearningHours)}
-                  </td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: COL.brk, fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtH(totalBreakHours)}
-                  </td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: COL.brk, fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtH(avgBreakFooter)}
-                  </td>
+                  <td style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: INK }}>Total / Avg</td>
+                  <td style={footTdStyle}>{memberUtilization.reduce((s, m) => s + m.workingDays, 0)}</td>
+                  <td style={footTdStyle}>{fmtH(totalLoginHours)}</td>
+                  <td style={{ ...footTdStyle, color: MUTED }}>{fmtH(avgLoginFooter)}</td>
+                  <td style={footTdStyle}>{fmtH(totalWorkingHoursX)}</td>
+                  <td style={{ ...footTdStyle, color: MUTED }}>{fmtH(avgWorkingFooter)}</td>
+                  <td style={footTdStyle}>{fmtH(kpis.totalLearningHours)}</td>
+                  <td style={footTdStyle}>{fmtH(totalBreakHours)}</td>
+                  <td style={{ ...footTdStyle, color: MUTED }}>{fmtH(avgBreakFooter)}</td>
                 </tr>
               </tfoot>
             )}
@@ -485,52 +449,44 @@ export default function InsightsClient({
         </div>
       </Card>
 
-      {/* ── Team Utilization — Days In / Expected / Overtime / Gap / Prod. Gap / Efficiency ── */}
+      {/* ── Team Utilization — Days In / Expected / Overtime / Gap / Prod. Gap / Efficiency
+          Same red→black gradient header + semi-bold as Attendance; red/green here stay
+          because they're genuine status signals (overworked, gap, efficiency), not decoration. ── */}
       <Card title="Team Utilization" meta="Productivity gap tracker">
         <div style={{ overflowX: 'auto', margin: '0 -22px', padding: '0 22px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
-            <thead>
+            <thead style={{ background: TABLE_HEAD_GRAD }}>
               <tr>
-                {['Member', 'Team', 'Days In', 'Expected', 'Tracked', 'Avg/Day', 'Overtime', 'Gap Hrs', 'Prod. Gap', 'Efficiency'].map(h => (
-                  <th key={h} style={tableHeadStyle(h)}>{h}</th>
+                {['Member', 'Days In', 'Expected', 'Tracked', 'Avg/Day', 'Overtime', 'Gap Hrs', 'Prod. Gap', 'Efficiency'].map(h => (
+                  <th key={h} style={h === 'Member' ? { ...groupThStyle, textAlign: 'left', borderRight: 'none' } : { ...groupThStyle, borderRight: h === 'Efficiency' ? 'none' : groupThStyle.borderRight }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {memberUtilization.length === 0 ? (
-                <tr><td colSpan={10} style={{ textAlign: 'center', padding: '40px 0', color: MUTED, fontSize: 13 }}>No attendance data for this month</td></tr>
-              ) : memberUtilization.map((m) => {
+                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '40px 0', color: MUTED, fontSize: 13 }}>No attendance data for this month</td></tr>
+              ) : memberUtilization.map((m, i) => {
                 const eColor = effColor(m.efficiency, m.overworked)
-                const tb     = teamBadge(m.team, teams)
                 return (
-                  <tr key={m.id} className="hover:bg-[#F9FAFB]" style={{ borderBottom: `1px solid #F3F4F6` }}>
+                  <tr key={m.id} style={{ background: i % 2 === 0 ? CARD : HEAD_BG }}>
                     <td style={{ padding: '11px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Avatar name={m.name} />
                         <div>
-                          <p style={{ fontSize: 12, fontWeight: 700, color: INK, margin: 0 }}>{m.name}</p>
+                          <p style={{ fontSize: 12, fontWeight: 600, color: INK, margin: 0 }}>{m.name}</p>
                           <p style={{ fontSize: 10, color: DIM, margin: 0 }}>{m.employeeId}</p>
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: '11px 16px' }}>
-                      <Badge color={tb.color} bg={tb.bg}>{m.team ?? '—'}</Badge>
-                    </td>
-                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: INK, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {m.workingDays}
-                    </td>
-                    <td style={{ padding: '11px 16px', fontSize: 12, color: MUTED, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {fmtH(m.expectedHours)}
-                    </td>
-                    <td style={{ padding: '11px 16px', fontSize: 13, fontWeight: 700, color: COL.working, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                      {fmtH(m.trackedHours)}
-                    </td>
+                    <td style={primaryTdStyle}>{m.workingDays}</td>
+                    <td style={avgTdStyle}>{fmtH(m.expectedHours)}</td>
+                    <td style={primaryTdStyle}>{fmtH(m.trackedHours)}</td>
                     {(() => {
                       const avg = m.workingDays > 0 ? m.trackedHours / m.workingDays : 0
                       const avgColor = avg >= 8 ? SEMANTIC.success : avg >= 6 ? SEMANTIC.warning : SEMANTIC.danger
                       return (
                         <td style={{ padding: '11px 16px', textAlign: 'right' }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: avgColor, fontVariantNumeric: 'tabular-nums' }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: avgColor, fontVariantNumeric: 'tabular-nums' }}>
                             {avg > 0 ? fmtH(avg) : '—'}
                           </span>
                         </td>
@@ -538,25 +494,25 @@ export default function InsightsClient({
                     })()}
                     <td style={{ padding: '11px 16px', textAlign: 'right' }}>
                       {m.overtimeHours > 0 ? (
-                        <span style={{ fontSize: 12, fontWeight: 700, color: SEMANTIC.info, fontVariantNumeric: 'tabular-nums' }}>+{fmtH(m.overtimeHours)}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: SEMANTIC.info, fontVariantNumeric: 'tabular-nums' }}>+{fmtH(m.overtimeHours)}</span>
                       ) : (
-                        <span style={{ fontSize: 12, color: '#D1D5DB', fontWeight: 600 }}>—</span>
+                        <span style={{ fontSize: 12, color: '#D1D5DB', fontWeight: 500 }}>—</span>
                       )}
                     </td>
                     <td style={{ padding: '11px 16px', textAlign: 'right' }}>
                       {m.untrackedHours > 0 ? (
-                        <span style={{ fontSize: 12, fontWeight: 700, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>{fmtH(m.untrackedHours)}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>{fmtH(m.untrackedHours)}</span>
                       ) : (
-                        <span style={{ fontSize: 12, color: SEMANTIC.success, fontWeight: 700 }}>—</span>
+                        <span style={{ fontSize: 12, color: SEMANTIC.success, fontWeight: 600 }}>—</span>
                       )}
                     </td>
                     <td style={{ padding: '11px 16px', textAlign: 'right' }}>
                       {m.wastedCost > 0 ? (
-                        <span style={{ fontSize: 12, fontWeight: 800, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>{fmtRupee(m.wastedCost)}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>{fmtRupee(m.wastedCost)}</span>
                       ) : m.overtimeValue > 0 ? (
-                        <span style={{ fontSize: 12, fontWeight: 800, color: SEMANTIC.success, fontVariantNumeric: 'tabular-nums' }}>+{fmtRupee(m.overtimeValue)}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: SEMANTIC.success, fontVariantNumeric: 'tabular-nums' }}>+{fmtRupee(m.overtimeValue)}</span>
                       ) : (
-                        <span style={{ fontSize: 12, color: SEMANTIC.success, fontWeight: 700 }}>₹0</span>
+                        <span style={{ fontSize: 12, color: SEMANTIC.success, fontWeight: 600 }}>₹0</span>
                       )}
                     </td>
                     <td style={{ padding: '11px 16px', textAlign: 'right' }}>
@@ -574,26 +530,20 @@ export default function InsightsClient({
               return (
                 <tfoot>
                   <tr style={{ borderTop: `2px solid ${RED}` }}>
-                    <td colSpan={2} style={{ padding: '10px 16px', fontSize: 11, fontWeight: 800, color: INK }}>TOTAL / AVG</td>
-                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: INK, fontVariantNumeric: 'tabular-nums' }}>
-                      {avgDaysIn}
-                    </td>
-                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
-                      {fmtH(memberUtilization.reduce((s, m) => s + m.expectedHours, 0))}
-                    </td>
-                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: COL.working, fontVariantNumeric: 'tabular-nums' }}>
-                      {fmtH(kpis.totalTrackedHours)}
-                    </td>
+                    <td style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: INK }}>Total / Avg</td>
+                    <td style={footTdStyle}>{avgDaysIn}</td>
+                    <td style={{ ...footTdStyle, color: MUTED }}>{fmtH(memberUtilization.reduce((s, m) => s + m.expectedHours, 0))}</td>
+                    <td style={footTdStyle}>{fmtH(kpis.totalTrackedHours)}</td>
                     <td style={{ padding: '10px 16px', textAlign: 'right' }}>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: avgPerDayColor, fontVariantNumeric: 'tabular-nums' }}>{avgPerDay > 0 ? fmtH(avgPerDay) : '—'}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: avgPerDayColor, fontVariantNumeric: 'tabular-nums' }}>{avgPerDay > 0 ? fmtH(avgPerDay) : '—'}</span>
                     </td>
-                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: SEMANTIC.info, fontVariantNumeric: 'tabular-nums' }}>
+                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: SEMANTIC.info, fontVariantNumeric: 'tabular-nums' }}>
                       {fmtH(memberUtilization.reduce((s, m) => s + m.overtimeHours, 0))}
                     </td>
-                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>
+                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>
                       {fmtH(memberUtilization.reduce((s, m) => s + m.untrackedHours, 0))}
                     </td>
-                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 800, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>
+                    <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 13, fontWeight: 700, color: SEMANTIC.danger, fontVariantNumeric: 'tabular-nums' }}>
                       {fmtRupee(kpis.totalWastedCost)}
                     </td>
                     <td style={{ padding: '10px 16px', textAlign: 'right' }}>
@@ -779,7 +729,7 @@ export default function InsightsClient({
                     <Avatar name={m.name} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 12, fontWeight: 700, color: INK, margin: 0 }}>{m.name}</p>
-                      <p style={{ fontSize: 10, color: DIM, margin: 0 }}>{m.team ?? ''}</p>
+                      <p style={{ fontSize: 10, color: DIM, margin: 0 }}>{m.employeeId}</p>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <p style={{ fontSize: 12, fontWeight: 800, color: INK, margin: 0 }}>{fmtH(m.trackedHours)}</p>
@@ -958,37 +908,32 @@ export default function InsightsClient({
       <Card title="Employee Per-Hour Rate Reference" meta="Monthly salary ÷ 212.5 hrs (25 days × 8.5 hrs)">
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
+            <thead style={{ background: TABLE_HEAD_GRAD }}>
               <tr>
-                {['Employee', 'ID', 'Team', 'Monthly Salary', 'Per Hour Rate'].map(h => (
-                  <th key={h} style={tableHeadStyle(h)}>{h}</th>
+                {['Employee', 'ID', 'Monthly Salary', 'Per Hour Rate'].map(h => (
+                  <th key={h} style={h === 'Employee' || h === 'ID' ? { ...groupThStyle, textAlign: 'left', borderRight: h === 'ID' ? groupThStyle.borderRight : 'none' } : { ...groupThStyle, borderRight: h === 'Per Hour Rate' ? 'none' : groupThStyle.borderRight }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {allMembers.map((m) => {
-                const tb = teamBadge(m.team, teams)
-                return (
-                <tr key={m.employeeId} style={{ borderBottom: `1px solid ${RULE}` }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 700, color: INK }}>{m.name.trim()}</td>
-                  <td style={{ padding: '12px 16px', color: MUTED, fontWeight: 700, fontFamily: 'monospace' }}>{m.employeeId}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <Badge color={tb.color} bg={tb.bg}>{m.team ?? '—'}</Badge>
-                  </td>
-                  <td style={{ padding: '12px 16px', fontWeight: 700, color: INK }}>
+              {allMembers.map((m, i) => (
+                <tr key={m.employeeId} style={{ background: i % 2 === 0 ? CARD : HEAD_BG }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, color: INK }}>{m.name.trim()}</td>
+                  <td style={{ padding: '12px 16px', color: MUTED, fontWeight: 600, fontFamily: 'monospace' }}>{m.employeeId}</td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, color: INK }}>
                     {m.monthlySalary > 0 ? `₹${m.monthlySalary.toLocaleString('en-IN')}` : '—'}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     {m.hourlyRate > 0 ? (
                       <span style={{
-                        color: RED, fontWeight: 800, fontSize: 13, fontFamily: 'monospace',
+                        color: RED, fontWeight: 700, fontSize: 13, fontFamily: 'monospace',
                       }}>
                         ₹{m.hourlyRate.toFixed(2)}/hr
                       </span>
                     ) : <span style={{ color: MUTED }}>—</span>}
                   </td>
                 </tr>
-              )})}
+              ))}
             </tbody>
           </table>
         </div>

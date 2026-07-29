@@ -757,18 +757,18 @@ export default function DocumentsClient({
               {activeTab === "documents" && (
                 <>
                   {/* Filter bar */}
-                  <div style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(0,0,0,0.07)", padding: "12px 16px", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                    <div style={{ display: "flex", gap: 6, flex: 1, flexWrap: "wrap" }}>
+                  <div style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(0,0,0,0.07)", padding: "12px 16px", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start" }}>
+                    <div style={{ display: "flex", gap: 6, flex: 1, flexWrap: "wrap", alignContent: "flex-start" }}>
                       {FILTER_CHIPS.map(chip => (
                         <button key={chip} onClick={() => setDocFilter(chip)} style={{
-                          padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "none",
+                          padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "none",
                           background: docFilter === chip ? "#de1a1a" : "rgba(0,0,0,0.04)",
                           color: docFilter === chip ? "#fff" : "#1B4332",
                         }}>{chip}</button>
                       ))}
                     </div>
                     {/* Search + view toggle */}
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
                       <div style={{ position: "relative" }}>
                         <Search size={11} style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#1B4332" }} />
                         <input placeholder="Search documents..." value={docSearch} onChange={e => setDocSearch(e.target.value)}

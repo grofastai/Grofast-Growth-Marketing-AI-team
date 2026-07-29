@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Inter } from 'next/font/google'
 import { Users, TrendingUp, BarChart3, AlertTriangle } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts'
 import type { MemberUtilization, ClientHour, InsightsKPIs, SpendCategory, LeaveBreakdownRow } from './page'
@@ -29,6 +30,12 @@ const HEAD_BG   = '#F9FAFB'
 const RED       = '#de1a1a'
 
 const JAKARTA = 'var(--font-jakarta)'
+
+// Inter for the data tables specifically — the rest of the page keeps the shared
+// Jakarta brand type (hero banner, headings), but Inter's tighter, more neutral
+// numerals read better in dense rows of figures than Jakarta's rounder letterforms.
+const inter = Inter({ subsets: ['latin'], weight: ['400', '500', '600', '700'] })
+const TABLE_FONT = inter.style.fontFamily
 
 // Shared cell styles for the grouped-header data tables (Attendance, Team Utilization,
 // Employee Per-Hour Rate) — monochrome ink + muted avg, no per-column rainbow hues.
@@ -389,7 +396,7 @@ export default function InsightsClient({
           Requests hero banner, semi-bold weights, no Team column. ── */}
       <Card title="Attendance" meta="Login, working & break hours by member">
         <div style={{ overflowX: 'auto', margin: '0 -22px', padding: '0 22px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720, fontFamily: TABLE_FONT }}>
             <thead style={{ background: TABLE_HEAD_GRAD }}>
               <tr>
                 <th rowSpan={2} style={{ ...groupThStyle, textAlign: 'left' }}>Member</th>
@@ -454,7 +461,7 @@ export default function InsightsClient({
           because they're genuine status signals (overworked, gap, efficiency), not decoration. ── */}
       <Card title="Team Utilization" meta="Productivity gap tracker">
         <div style={{ overflowX: 'auto', margin: '0 -22px', padding: '0 22px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780, fontFamily: TABLE_FONT }}>
             <thead style={{ background: TABLE_HEAD_GRAD }}>
               <tr>
                 {['Member', 'Days In', 'Expected', 'Tracked', 'Avg/Day', 'Overtime', 'Gap Hrs', 'Prod. Gap', 'Efficiency'].map(h => (
@@ -847,7 +854,7 @@ export default function InsightsClient({
           ) : undefined}
         >
           <div style={{ overflowX: 'auto', borderRadius: 12, border: `1px solid ${BORDER}` }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5, fontFamily: TABLE_FONT }}>
               <thead>
                 <tr style={{ background: HERO_GRAD }}>
                   {['Member', 'Full Day', 'Half Day', 'Permission', 'Days Used', 'Balance'].map(h => (
@@ -907,7 +914,7 @@ export default function InsightsClient({
       {/* ── Per-Hour Rate Reference Table ───────────────────────────────── */}
       <Card title="Employee Per-Hour Rate Reference" meta="Monthly salary ÷ 212.5 hrs (25 days × 8.5 hrs)">
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, fontFamily: TABLE_FONT }}>
             <thead style={{ background: TABLE_HEAD_GRAD }}>
               <tr>
                 {['Employee', 'ID', 'Monthly Salary', 'Per Hour Rate'].map(h => (

@@ -58,3 +58,13 @@ export function sumLeaveDays(leaves: LeaveForBalance[], rangeStart: string, rang
   }
   return days + permissionHoursToDays(permissionHours)
 }
+
+// Strips the internal "[BACKFILL] " audit tag from a leave's reason before it's shown to
+// the employee — the tag stays in the DB (useful for us to tell a live submission apart
+// from a 2026-07-29 history correction) but "[BACKFILL]" itself means nothing to them.
+// Callers render the AutoBadge chip (components/ui/AutoBadge.tsx) when isAuto is true.
+export function parseLeaveReason(reason: string | null | undefined): { text: string; isAuto: boolean } {
+  if (!reason) return { text: '', isAuto: false }
+  const match = reason.match(/^\[BACKFILL\]\s*(.*)$/)
+  return match ? { text: match[1], isAuto: true } : { text: reason, isAuto: false }
+}

@@ -11,7 +11,8 @@ import {
 } from "lucide-react"
 import { submitLeaveRequest, submitSplitLeaveRequest, deleteLeaveRequest, updateLeaveRequest, withdrawWfhForDate } from "@/lib/actions/leaves"
 import { todayIST } from "@/lib/utils/ist-date"
-import { sumLeaveDays } from "@/lib/utils/leave-balance"
+import { sumLeaveDays, parseLeaveReason } from "@/lib/utils/leave-balance"
+import AutoBadge from "@/components/ui/AutoBadge"
 import { FULL_DAY_HOURS as WORKDAY_HOURS, HALF_DAY_THRESHOLD_HOURS } from "@/lib/utils/attendance-stats"
 
 interface Leave {
@@ -44,14 +45,17 @@ const TYPE_ILLUSTRATION: Record<string, { emoji: string; bg: string }> = {
   full_day_auto: { emoji: "🔔", bg: "rgba(16,185,129,0.12)"   },
 }
 
-// Auto-deduction banner: NOT a real row in `leaves` — computed fresh on every
-// render from that month's approved Permission hours. Deliberately virtual
-// (see conversation 2026-07-29) so it can never go stale: recalculating from
-// scratch each time means it automatically flips from "Half Day deducted" to
-// "Full Day deducted" the moment the running total crosses WORKDAY_HOURS,
-// with no delete/upgrade step needed anywhere. One entry per month, at the
-// date of the permission request that actually crossed the threshold (so it
-// sorts into its correct place in the timeline, not stuck at month start).
+// Auto-deduction banners: NOT real rows in `leaves` — computed fresh on every render
+// from that month's approved Permission hours. Deliberately virtual (see conversation
+// 2026-07-29) so they can never go stale. The running total is CONTINUOUS through the
+// month (never reset mid-month) and cycles repeatedly: every time it crosses a new
+// 4.75h mark, a Half Day banner appears at whichever permission crossed it; every time
+// it crosses a new 9.5h mark, that Half Day banner is superseded by a Full Day banner
+// (half + half-again = a full day, not a half sitting next to a full) and the next
+// cycle starts counting from there — so ONE month can carry multiple banners if enough
+// permissions stack up (e.g. Half Day around 10h45, Full Day around 15h, another Half
+// Day starting a third cycle). At the month boundary the leftover always resets to
+// zero — no carry-over into the next month.
 function buildPermissionDeductionEntries(leaves: Leave[]): Leave[] {
   const byMonth = new Map<string, Leave[]>()
   for (const l of leaves) {
@@ -68,25 +72,38 @@ function buildPermissionDeductionEntries(leaves: Leave[]): Leave[] {
       a.from_date.localeCompare(b.from_date) || (a.permission_time ?? "").localeCompare(b.permission_time ?? "")
     )
     let cumulative = 0
-    let halfCrossedAt: string | null = null
-    let fullCrossedAt: string | null = null
+    let segmentStart = 0    // cumulative value at which the CURRENT cycle began
+    let cycleIndex = 0
+    let pendingHalf: Leave | null = null   // this cycle's Half Day banner, if not yet superseded
+
     for (const r of sorted) {
       cumulative += Number(r.permission_hours) || 0
-      if (!halfCrossedAt && cumulative >= HALF_DAY_THRESHOLD_HOURS) halfCrossedAt = r.from_date
-      if (!fullCrossedAt && cumulative >= WORKDAY_HOURS) fullCrossedAt = r.from_date
-    }
-    if (fullCrossedAt) {
-      entries.push({
-        id: `perm-deduct-${month}`, from_date: fullCrossedAt, to_date: fullCrossedAt,
-        reason: `Permission hours this month reached ${cumulative.toFixed(1)}h — Full Day Leave deducted`,
-        status: "approved", created_at: fullCrossedAt, leave_type: "full_day_auto",
-      })
-    } else if (halfCrossedAt) {
-      entries.push({
-        id: `perm-deduct-${month}`, from_date: halfCrossedAt, to_date: halfCrossedAt,
-        reason: `Permission hours this month reached ${cumulative.toFixed(1)}h — Half Day Leave deducted`,
-        status: "approved", created_at: halfCrossedAt, leave_type: "half_day_auto",
-      })
+      let progress = cumulative - segmentStart
+
+      while (progress >= WORKDAY_HOURS) {
+        if (pendingHalf) {
+          const idx = entries.indexOf(pendingHalf)
+          if (idx !== -1) entries.splice(idx, 1)
+          pendingHalf = null
+        }
+        cycleIndex += 1
+        entries.push({
+          id: `perm-deduct-${month}-${cycleIndex}`, from_date: r.from_date, to_date: r.from_date,
+          reason: `Permission hours this month reached ${cumulative.toFixed(1)}h — Full Day Leave deducted`,
+          status: "approved", created_at: r.from_date, leave_type: "full_day_auto",
+        })
+        segmentStart += WORKDAY_HOURS
+        progress = cumulative - segmentStart
+      }
+      if (!pendingHalf && progress >= HALF_DAY_THRESHOLD_HOURS) {
+        cycleIndex += 1
+        pendingHalf = {
+          id: `perm-deduct-${month}-${cycleIndex}`, from_date: r.from_date, to_date: r.from_date,
+          reason: `Permission hours this month reached ${cumulative.toFixed(1)}h — Half Day Leave deducted`,
+          status: "approved", created_at: r.from_date, leave_type: "half_day_auto",
+        }
+        entries.push(pendingHalf)
+      }
     }
   }
   return entries
@@ -796,7 +813,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                               <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 99, background: badgeBg, color: badgeCol }}>{badgeText}</span>
                             </div>
                             <p style={{ fontSize: 12, color: "#6B7280", margin: "0 0 5px", display: "flex", alignItems: "center", gap: 5 }}>
-                              <span style={{ fontSize: 13 }}>⭐</span> {leave.reason}
+                              <span style={{ fontSize: 13 }}>⭐</span> {parseLeaveReason(leave.reason).text}
+                              {parseLeaveReason(leave.reason).isAuto && <AutoBadge />}
                             </p>
                             <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
                               <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc.color, display: "inline-block", flexShrink: 0 }} />

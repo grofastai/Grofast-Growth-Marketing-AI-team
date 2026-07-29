@@ -10,7 +10,8 @@ import ClientSelector from "@/components/ui/ClientSelector"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
 import { confirmCollaboration, editCollaborationTime, rejectCollaboration, deleteCollaborationsByEntry } from "@/lib/actions/collaboration"
 import { toISTDateString, todayIST } from "@/lib/utils/ist-date"
-import { sumLeaveDays } from "@/lib/utils/leave-balance"
+import { sumLeaveDays, parseLeaveReason } from "@/lib/utils/leave-balance"
+import AutoBadge from "@/components/ui/AutoBadge"
 import { summarizeAttendanceDays } from "@/lib/utils/attendance-stats"
 import { breakCapError } from "@/lib/utils/work-hours"
 
@@ -1684,7 +1685,7 @@ export default function HistoryClient({
                         <div style={{ fontSize:36, lineHeight:1 }}>🌴</div>
                         <div>
                           <p style={{ fontSize:14, fontWeight:900, color:"#059669", margin:"0 0 3px" }}>Full Day Leave</p>
-                          <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leave.reason ?? "Approved Leave"}</p>
+                          <p style={{ fontSize:12, color:"#6B7280", margin:0, display:"flex", alignItems:"center", gap:6 }}>{parseLeaveReason(leave.reason).text || "Approved Leave"}{parseLeaveReason(leave.reason).isAuto && <AutoBadge />}</p>
                         </div>
                       </div>
                     </div>
@@ -1719,7 +1720,7 @@ export default function HistoryClient({
                         <div style={{ fontSize:32, lineHeight:1 }}>🕐</div>
                         <div style={{ flex:1 }}>
                           <p style={{ fontSize:14, fontWeight:900, color:"#6366F1", margin:"0 0 3px" }}>Permission</p>
-                          <p style={{ fontSize:12, color:"#6B7280", margin:"0 0 6px" }}>{leave.reason ?? "Permission Leave"}</p>
+                          <p style={{ fontSize:12, color:"#6B7280", margin:"0 0 6px", display:"flex", alignItems:"center", gap:6 }}>{parseLeaveReason(leave.reason).text || "Permission Leave"}{parseLeaveReason(leave.reason).isAuto && <AutoBadge />}</p>
                           {startT && (
                             <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                               <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
@@ -1757,7 +1758,7 @@ export default function HistoryClient({
                         <div style={{ fontSize:36, lineHeight:1 }}>🏠</div>
                         <div>
                           <p style={{ fontSize:14, fontWeight:900, color:"#0EA5E9", margin:"0 0 3px" }}>Work From Home</p>
-                          <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leave.reason ?? "Approved WFH"}</p>
+                          <p style={{ fontSize:12, color:"#6B7280", margin:0, display:"flex", alignItems:"center", gap:6 }}>{parseLeaveReason(leave.reason).text || "Approved WFH"}{parseLeaveReason(leave.reason).isAuto && <AutoBadge />}</p>
                         </div>
                       </div>
                     </div>
@@ -1784,7 +1785,7 @@ export default function HistoryClient({
                         <div style={{ fontSize:36, lineHeight:1 }}>🎥</div>
                         <div>
                           <p style={{ fontSize:14, fontWeight:900, color:"#DB2777", margin:"0 0 3px" }}>Shoot Day</p>
-                          <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leave.reason ?? "Approved Shoot Day"}</p>
+                          <p style={{ fontSize:12, color:"#6B7280", margin:0, display:"flex", alignItems:"center", gap:6 }}>{parseLeaveReason(leave.reason).text || "Approved Shoot Day"}{parseLeaveReason(leave.reason).isAuto && <AutoBadge />}</p>
                         </div>
                       </div>
                     </div>
@@ -1815,7 +1816,7 @@ export default function HistoryClient({
                         <div style={{ fontSize:32, lineHeight:1 }}>🌓</div>
                         <div style={{ flex:1 }}>
                           <p style={{ fontSize:14, fontWeight:900, color:"#D97706", margin:"0 0 3px" }}>Half Day Leave</p>
-                          <p style={{ fontSize:12, color:"#6B7280", margin:"0 0 6px" }}>{leave.reason ?? "Half Day Leave"}</p>
+                          <p style={{ fontSize:12, color:"#6B7280", margin:"0 0 6px", display:"flex", alignItems:"center", gap:6 }}>{parseLeaveReason(leave.reason).text || "Half Day Leave"}{parseLeaveReason(leave.reason).isAuto && <AutoBadge />}</p>
                           {startT && endT && (
                             <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                               <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
@@ -1969,7 +1970,7 @@ export default function HistoryClient({
                   {leaveNeedsFallbackBanner && (
                     <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 18px", background:leaveBanner!.bg, borderBottom:`1px solid ${leaveBanner!.color}20` }}>
                       <span style={{ fontSize:14 }}>{leaveBanner!.emoji}</span>
-                      <span style={{ fontSize:11, fontWeight:700, color:leaveBanner!.color }}>{leaveBanner!.title}{leaveOnDay?.reason ? `: ${leaveOnDay.reason}` : ""}</span>
+                      <span style={{ fontSize:11, fontWeight:700, color:leaveBanner!.color, display:"inline-flex", alignItems:"center", gap:6 }}>{leaveBanner!.title}{parseLeaveReason(leaveOnDay?.reason).text ? `: ${parseLeaveReason(leaveOnDay?.reason).text}` : ""}{parseLeaveReason(leaveOnDay?.reason).isAuto && <AutoBadge />}</span>
                     </div>
                   )}
                   {/* Holiday banner */}
@@ -2200,7 +2201,7 @@ export default function HistoryClient({
                           <div style={{ fontSize:40, lineHeight:1 }}>🌴</div>
                           <div>
                             <p style={{ fontSize:14, fontWeight:900, color:"#059669", margin:"0 0 3px" }}>Full Day Leave</p>
-                            <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leaveForDay.reason ?? "Approved Leave"}</p>
+                            <p style={{ fontSize:12, color:"#6B7280", margin:0, display:"flex", alignItems:"center", gap:6 }}>{parseLeaveReason(leaveForDay.reason).text || "Approved Leave"}{parseLeaveReason(leaveForDay.reason).isAuto && <AutoBadge />}</p>
                           </div>
                           <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>Approved</span>
                         </div>
@@ -2344,7 +2345,7 @@ export default function HistoryClient({
                                     <span style={{ fontSize:13, fontWeight:900, color:banner.color }}>{banner.title}</span>
                                     <span style={{ fontSize:10, fontWeight:700, color:banner.color, background:`${banner.color}1A`, padding:"2px 8px", borderRadius:99 }}>Approved</span>
                                   </div>
-                                  {leave.reason && <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{leave.reason}</p>}
+                                  {leave.reason && <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600, display:"flex", alignItems:"center", gap:6 }}>{parseLeaveReason(leave.reason).text}{parseLeaveReason(leave.reason).isAuto && <AutoBadge />}</p>}
                                   <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:4, flexWrap:"wrap" }}>
                                     {dur && dur > 0 && (
                                       <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:3 }}>

@@ -9,7 +9,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, MoreVertical, Palmtree, CalendarDays,
   Bell, Clock, SlidersHorizontal, Trash2, Pencil, AlertTriangle,
 } from "lucide-react"
-import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest, withdrawWfhForDate } from "@/lib/actions/leaves"
+import { submitLeaveRequest, submitSplitLeaveRequest, deleteLeaveRequest, updateLeaveRequest, withdrawWfhForDate } from "@/lib/actions/leaves"
 import { todayIST } from "@/lib/utils/ist-date"
 import { sumLeaveDays } from "@/lib/utils/leave-balance"
 import { FULL_DAY_HOURS as WORKDAY_HOURS, HALF_DAY_THRESHOLD_HOURS } from "@/lib/utils/attendance-stats"
@@ -118,6 +118,41 @@ function timeRangesOverlap(a: [string, string], b: [string, string]): boolean {
   if (aEnd <= aStart) aEnd += 1440
   if (bEnd <= bStart) bEnd += 1440
   return Math.min(aEnd, bEnd) - Math.max(aStart, bStart) > 0
+}
+
+const WORKDAY_OPEN_MINS = 9 * 60 + 30   // 09:30
+const WORKDAY_CLOSE_MINS = 19 * 60      // 19:00
+const PERMISSION_MIN_MINS = 60
+const PERMISSION_MAX_MINS = 240
+function minsToTime(mins: number) {
+  const h = Math.floor(mins / 60), m = mins % 60
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+}
+function timeToMins(t: string) {
+  const [h, m] = t.split(":").map(Number)
+  return h * 60 + m
+}
+// Splits a >4h45m Half Day range into a fixed 4h45m Half Day block anchored to
+// whichever workday boundary (09:30 open or 19:00 close) it sits closer to, plus a
+// Permission for the leftover — same pattern used to fix every historical bad
+// half-day record this month (see conversation 2026-07-29). Returns null if the
+// leftover wouldn't be a valid Permission (under 1h or over 4h).
+function computeSplit(fromTime: string, toTime: string, requiredHalfMins: number): { halfFrom: string; halfTo: string; permFrom: string; permTo: string } | null {
+  const toMins = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+  const fromMins = toMins(fromTime), endMins = toMins(toTime)
+  const totalMins = endMins - fromMins
+  if (totalMins <= requiredHalfMins) return null
+  const excessMins = totalMins - requiredHalfMins
+  if (excessMins < PERMISSION_MIN_MINS || excessMins > PERMISSION_MAX_MINS) return null
+
+  const distToOpen = fromMins - WORKDAY_OPEN_MINS
+  const distToClose = WORKDAY_CLOSE_MINS - endMins
+  if (distToClose <= distToOpen) {
+    const halfFromMins = endMins - requiredHalfMins
+    return { halfFrom: minsToTime(halfFromMins), halfTo: minsToTime(endMins), permFrom: minsToTime(fromMins), permTo: minsToTime(halfFromMins) }
+  }
+  const halfToMins = fromMins + requiredHalfMins
+  return { halfFrom: minsToTime(fromMins), halfTo: minsToTime(halfToMins), permFrom: minsToTime(halfToMins), permTo: minsToTime(endMins) }
 }
 
 function canWithdraw(leave: Leave): boolean {
@@ -317,6 +352,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [newFormError, setNewFormError] = useState<string | null>(null)
   const [dateError, setDateError]       = useState<string | null>(null)
   const [state, action, pending]    = useActionState(submitLeaveRequest, null)
+  const [splitMode, setSplitMode]   = useState(false)
+  const [splitHalfFrom, setSplitHalfFrom] = useState("")
+  const [splitHalfTo, setSplitHalfTo]     = useState("")
+  const [splitPermFrom, setSplitPermFrom] = useState("")
+  const [splitPermTo, setSplitPermTo]     = useState("")
+  const [splitState, splitAction, splitPending] = useActionState(submitSplitLeaveRequest, null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Close dropdown on outside click
@@ -347,6 +388,9 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
   if (state && "success" in state && state.success && showForm && !editingLeave) {
     setShowForm(false); setEditingLeave(null); setNewFormError(null); router.refresh()
+  }
+  if (splitState && "success" in splitState && splitState.success && showForm && !editingLeave) {
+    setShowForm(false); setSplitMode(false); setNewFormError(null); router.refresh()
   }
 
   function checkDuplicateDate(e: React.FormEvent<HTMLFormElement>) {
@@ -1064,7 +1108,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: "0 0 2px" }}>{editingLeave ? "Edit Leave Request" : "Apply for Leave"}</p>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Fill in the details below</p>
               </div>
-              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
+              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setSplitMode(false); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
                 style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <X size={16} color="#fff" />
               </button>
@@ -1126,7 +1170,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 </div>
               )}
               <form
-                action={editingLeave ? undefined : action}
+                action={editingLeave ? undefined : (splitMode ? splitAction : action)}
                 onSubmit={editingLeave ? (e) => {
                   e.preventDefault()
                   const fd = new FormData(e.currentTarget)
@@ -1158,7 +1202,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 } : checkDuplicateDate}
                 style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <input type="hidden" name="leave_type" value={leaveType} />
-                {leaveType === "half_day" && <input type="hidden" name="half_day_period" value={halfPeriod} />}
+                {leaveType === "half_day" && !splitMode && <input type="hidden" name="half_day_period" value={halfPeriod} />}
 
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Leave Type *</label>
@@ -1170,7 +1214,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                       { key: "wfh",        label: "Work From Home", emoji: "🏠" },
                       ...(isMedia ? [{ key: "shoot_day", label: "Shoot Day", emoji: "📷" }] : []),
                     ] as { key: LeaveType; label: string; emoji: string }[]).map(({ key, label, emoji }) => (
-                      <button key={key} type="button" onClick={() => setLeaveType(key)}
+                      <button key={key} type="button" onClick={() => { setLeaveType(key); setSplitMode(false) }}
                         style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 0", borderRadius: 14, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", ...(leaveType === key ? { background: "#DE1A1A", color: "#fff", boxShadow: "0 4px 12px rgba(222,26,26,0.35)" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
                         <span style={{ fontSize: 20 }}>{emoji}</span>{label}
                       </button>
@@ -1187,7 +1231,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}
                   </div>
                 )}
-                {leaveType === "half_day" && (
+                {leaveType === "half_day" && !splitMode && (
                   <>
                     <input type="hidden" name="half_day_from_time" value={halfFrom} />
                     <input type="hidden" name="half_day_to_time" value={halfTo} />
@@ -1220,14 +1264,83 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                         if (diff <= 0) return <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0", fontWeight: 600 }}>To time must be after From time</p>
                         const hrs = Math.floor(diff / 60), mins = diff % 60
                         const requiredMins = HALF_DAY_THRESHOLD_HOURS * 60
-                        const isValid = diff === requiredMins
+                        if (diff === requiredMins) {
+                          return <p style={{ fontSize: 11, color: "#6366F1", margin: "6px 0 0", fontWeight: 600 }}>Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""}</p>
+                        }
+                        // Longer than 4h45m: offer the split IF the excess would make a valid
+                        // Permission (1h-4h). Otherwise explain why not, no split possible.
+                        const excess = diff - requiredMins
+                        // Split only offered for a brand-new request — editing an existing row only
+                        // ever updates that one row, so a split here would silently drop the
+                        // Permission portion instead of creating it.
+                        const split = (diff > requiredMins && !editingLeave) ? computeSplit(halfFrom, halfTo, requiredMins) : null
                         return (
-                          <p style={{ fontSize: 11, color: isValid ? "#6366F1" : "#EF4444", margin: "6px 0 0", fontWeight: 600 }}>
-                            Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""}
-                            {!isValid && ` — half day must be exactly ${HALF_DAY_THRESHOLD_HOURS}h`}
-                          </p>
+                          <div style={{ marginTop: 8, padding: 12, borderRadius: 12, background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.35)" }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: "#92400E", margin: "0 0 4px" }}>
+                              Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""} — Half Day cannot be more than {HALF_DAY_THRESHOLD_HOURS}h.
+                            </p>
+                            {diff < requiredMins ? (
+                              <p style={{ fontSize: 11.5, color: "#B45309", margin: 0, lineHeight: 1.5 }}>Extend the To time so this is exactly {HALF_DAY_THRESHOLD_HOURS}h.</p>
+                            ) : split ? (
+                              <>
+                                <p style={{ fontSize: 11.5, color: "#B45309", margin: "0 0 8px", lineHeight: 1.5 }}>Split this into a Half Day + Permission instead.</p>
+                                <button type="button" onClick={() => {
+                                  setSplitHalfFrom(split.halfFrom); setSplitHalfTo(split.halfTo)
+                                  setSplitPermFrom(split.permFrom); setSplitPermTo(split.permTo)
+                                  setSplitMode(true)
+                                }}
+                                  style={{ width: "100%", padding: "10px 0", borderRadius: 10, fontSize: 12.5, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer" }}>
+                                  Split &amp; Apply
+                                </button>
+                              </>
+                            ) : excess > PERMISSION_MAX_MINS ? (
+                              <p style={{ fontSize: 11.5, color: "#B45309", margin: 0, lineHeight: 1.5 }}>This is over {((requiredMins + PERMISSION_MAX_MINS) / 60).toFixed(2).replace(/\.?0+$/, "")}h total. Apply as Full Day Leave instead.</p>
+                            ) : (
+                              <p style={{ fontSize: 11.5, color: "#B45309", margin: 0, lineHeight: 1.5 }}>The extra {excess}m is too short to apply as Permission (minimum 1h). Extend to exactly {HALF_DAY_THRESHOLD_HOURS}h, or add more time to split it.</p>
+                            )}
+                          </div>
                         )
                       })()}
+                    </div>
+                  </>
+                )}
+                {leaveType === "half_day" && splitMode && (
+                  <>
+                    <input type="hidden" name="from_date" value={halfDaySelectedDate} />
+                    <input type="hidden" name="half_day_period" value={halfPeriod} />
+                    <input type="hidden" name="half_day_from_time" value={splitHalfFrom} />
+                    <input type="hidden" name="half_day_to_time" value={splitHalfTo} />
+                    <input type="hidden" name="permission_time" value={splitPermFrom} />
+                    <input type="hidden" name="permission_end_time" value={splitPermTo} />
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", margin: "0 0 8px" }}>
+                        {halfDaySelectedDate ? fmtFull(halfDaySelectedDate) : "Selected date"} — split automatically
+                      </p>
+                      <div style={{ borderRadius: 14, border: "1.5px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.08)", padding: 12, marginBottom: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: "#6366F1" }}>🌤️ Half Day</span>
+                          <span style={{ fontSize: 9.5, fontWeight: 800, padding: "2px 8px", borderRadius: 99, background: "#fff", color: "#6B7280" }}>{HALF_DAY_THRESHOLD_HOURS}h · fixed</span>
+                        </div>
+                        <p style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>{fmtTimeStr(splitHalfFrom)} → {fmtTimeStr(splitHalfTo)}</p>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "#9CA3AF", fontSize: 10, margin: "4px 0" }}>
+                        <span style={{ flex: 1, height: 1, background: "#EBEDF2" }} />
+                        immediately followed by
+                        <span style={{ flex: 1, height: 1, background: "#EBEDF2" }} />
+                      </div>
+                      <div style={{ borderRadius: 14, border: "1.5px solid rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.08)", padding: 12, marginTop: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: "#10B981" }}>⏰ Permission</span>
+                          <span style={{ fontSize: 9.5, fontWeight: 800, padding: "2px 8px", borderRadius: 99, background: "#fff", color: "#6B7280" }}>
+                            {(() => { const m = timeToMins(splitPermTo) - timeToMins(splitPermFrom); return `${Math.floor(m/60)}h ${m%60 ? `${m%60}m` : ""}`.trim() })()}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>{fmtTimeStr(splitPermFrom)} → {fmtTimeStr(splitPermTo)}</p>
+                      </div>
+                      <button type="button" onClick={() => setSplitMode(false)}
+                        style={{ width: "100%", marginTop: 10, padding: "9px 0", borderRadius: 10, fontSize: 12, fontWeight: 700, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>
+                        ← Edit time instead
+                      </button>
                     </div>
                   </>
                 )}
@@ -1295,7 +1408,13 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                         const diff = (th * 60 + tm) - (fh * 60 + fm)
                         if (diff <= 0) return <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0", fontWeight: 600 }}>Return time must be after leave time</p>
                         const hrs = Math.floor(diff / 60), mins = diff % 60
-                        return <p style={{ fontSize: 11, color: "#6366F1", margin: "6px 0 0", fontWeight: 600 }}>Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""}</p>
+                        const tooShort = diff < PERMISSION_MIN_MINS
+                        return (
+                          <p style={{ fontSize: 11, color: tooShort ? "#EF4444" : "#6366F1", margin: "6px 0 0", fontWeight: 600 }}>
+                            Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""}
+                            {tooShort && " — permission must be at least 1 hour"}
+                          </p>
+                        )
                       })()}
                     </div>
                   </>
@@ -1308,6 +1427,9 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
                 {(state && "error" in state && state.error) && (
                   <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>{state.error}</p>
+                )}
+                {(splitState && "error" in splitState && splitState.error) && (
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>{splitState.error}</p>
                 )}
                 {newFormError && (
                   <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>⚠️ {newFormError}</p>
@@ -1326,11 +1448,11 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 )}
 
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
+                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setSplitMode(false); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
-                  <button type="submit" disabled={pending || editing}
-                    style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: (pending || editing) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>
-                    {(pending || editing) && <Loader2 size={13} className="animate-spin" />} {editingLeave ? "Update Request" : "Submit Request"}
+                  <button type="submit" disabled={pending || editing || splitPending}
+                    style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: (pending || editing || splitPending) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>
+                    {(pending || editing || splitPending) && <Loader2 size={13} className="animate-spin" />} {editingLeave ? "Update Request" : splitMode ? "Confirm & Submit Both" : "Submit Request"}
                   </button>
                 </div>
               </form>

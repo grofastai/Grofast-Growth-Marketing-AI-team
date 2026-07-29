@@ -63,8 +63,7 @@ function completionScore(p: ProfileData | null, k: KYCData | null) {
     { label: "Bank account",      done: !!(k?.bank_account && k?.bank_ifsc) },
     { label: "Aadhaar front",     done: !!k?.govt_id_url },
     { label: "Aadhaar back",      done: !!k?.aadhaar_back_url },
-    { label: "PAN card front",    done: !!k?.pan_front_url },
-    { label: "PAN card back",     done: !!k?.pan_back_url },
+    { label: "PAN card",          done: !!k?.pan_front_url },
     { label: "Ration card",        done: !!(k?.ration_card_url || k?.ration_card_url2) },
   ]
   return { score: Math.round((items.filter(i => i.done).length / items.length) * 100), items }
@@ -199,8 +198,7 @@ export default function ProfileClient({
     startKYC(async () => {
       if (!kycForm.govt_id_url)      { setKYCError("Aadhaar front photo required"); return }
       if (!kycForm.aadhaar_back_url) { setKYCError("Aadhaar back photo required"); return }
-      if (!kycForm.pan_front_url)    { setKYCError("PAN front photo required"); return }
-      if (!kycForm.pan_back_url)     { setKYCError("PAN back photo required"); return }
+      if (!kycForm.pan_front_url)    { setKYCError("PAN card photo required"); return }
       const res = await updateKYC({
         bank_name: kycForm.bank_name||null, bank_account: kycForm.bank_account||null,
         bank_ifsc: kycForm.bank_ifsc||null, aadhaar_number: kycForm.aadhaar_number||null,
@@ -623,13 +621,13 @@ export default function ProfileClient({
                   </div>
                   {([
                     { title: "Aadhaar Card", fields: [{ f: "govt_id_url" as const, l: "Front" }, { f: "aadhaar_back_url" as const, l: "Back" }] },
-                    { title: "PAN Card",     fields: [{ f: "pan_front_url" as const, l: "Front" }, { f: "pan_back_url" as const, l: "Back" }] },
+                    { title: "PAN Card",     fields: [{ f: "pan_front_url" as const, l: "PAN Card" }] },
                     { title: "Ration Card",  fields: [{ f: "ration_card_url" as const, l: "Front Side" }, { f: "ration_card_url2" as const, l: "Back Side" }] },
                     { title: "Signature",    fields: [{ f: "signature_url" as const, l: "Signature" }] },
                   ]).map((sec, si) => (
                     <div key={sec.title}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: "#374151", margin: "0 0 7px" }}>{sec.title} <span style={{ fontSize: 9, color: si === 2 || si === 3 ? "#6B7280" : "#DE1A1A" }}>{si === 2 || si === 3 ? "(optional)" : "*both required"}</span></p>
-                      <div style={{ display: "grid", gridTemplateColumns: si === 3 ? "1fr" : "1fr 1fr", gap: 7 }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: "#374151", margin: "0 0 7px" }}>{sec.title} <span style={{ fontSize: 9, color: si === 2 || si === 3 ? "#6B7280" : "#DE1A1A" }}>{si === 2 || si === 3 ? "(optional)" : si === 1 ? "*required" : "*both required"}</span></p>
+                      <div style={{ display: "grid", gridTemplateColumns: si === 1 || si === 3 ? "1fr" : "1fr 1fr", gap: 7 }}>
                         {sec.fields.map(({ f, l }) => (
                           <div key={f}>
                             <label style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600, display: "block", marginBottom: 4 }}>{l}</label>
@@ -673,8 +671,7 @@ export default function ProfileClient({
                     {([
                       { f: "govt_id_url" as KYCDocField,      l: "Aadhaar Front" },
                       { f: "aadhaar_back_url" as KYCDocField, l: "Aadhaar Back" },
-                      { f: "pan_front_url" as KYCDocField,    l: "PAN Front" },
-                      { f: "pan_back_url" as KYCDocField,     l: "PAN Back" },
+                      { f: "pan_front_url" as KYCDocField,    l: "PAN Card" },
                       { f: "ration_card_url" as KYCDocField,  l: "Ration Card – Front Side" },
                       { f: "ration_card_url2" as KYCDocField, l: "Ration Card – Back Side" },
                       { f: "signature_url" as KYCDocField,    l: "Signature" },

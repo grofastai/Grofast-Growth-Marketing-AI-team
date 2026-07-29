@@ -4770,32 +4770,32 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                         <thead>
                           <tr style={{ background: "#F9FAFB" }}>
-                            {["Client", block.postedLabel, "Target", "Unposted", "Unedited"].map(h => (
+                            {["Client", block.postedLabel, overviewKpiMonth === "all" ? `Target (${fmtMonth(today.slice(0, 7))})` : "Target", "Unposted", "Unedited"].map(h => (
                               <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           {block.rows.map(row => {
-                            // Target is only meaningful for a specific month — "All Time" has
-                            // no single figure to show, matching the Waiting to Post stats box.
-                            const target = overviewKpiMonth === "all" ? null : (clientTargets.find(
-                              t => t.client_name === row.client && t.kind === block.kind && t.content_type === overviewKpiContentType && t.month === overviewKpiMonth
-                            )?.target ?? 0)
+                            // Target is a monthly figure — "All Time" has no single month to read
+                            // it from, so it falls back to the current month (the one that matters
+                            // for ongoing work) instead of showing a blank dash.
+                            const targetMonth = overviewKpiMonth === "all" ? today.slice(0, 7) : overviewKpiMonth
+                            const target = clientTargets.find(
+                              t => t.client_name === row.client && t.kind === block.kind && t.content_type === overviewKpiContentType && t.month === targetMonth
+                            )?.target ?? 0
                             return (
                               <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6" }}>
                                 <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
                                 <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
                                 <td style={{ padding: "9px 14px", textAlign: "center" }}>
-                                  {target === null ? (
-                                    <span style={{ fontWeight: 800, color: "#D1D5DB" }}>—</span>
-                                  ) : block.kind === "branding" ? (
+                                  {block.kind === "branding" ? (
                                     // Editable here (moved from the standalone Media Target card on
                                     // the Clients page) — Ads targets stay read-only, matching that
                                     // card's original scope (it only ever set Branding targets).
                                     <EditableTargetCell
                                       value={target}
-                                      onSave={n => handleSetOverviewTarget(row.client, block.kind, overviewKpiContentType, overviewKpiMonth, n)}
+                                      onSave={n => handleSetOverviewTarget(row.client, block.kind, overviewKpiContentType, targetMonth, n)}
                                     />
                                   ) : target > 0 ? (
                                     <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 999, fontWeight: 800, background: "rgba(124,58,237,0.12)", color: "#7C3AED" }}>

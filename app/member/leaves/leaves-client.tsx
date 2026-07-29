@@ -279,7 +279,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   // score / monthly-limit math above never double-count a synthetic entry —
   // those already derive their numbers from the real `leaves` rows.
   const permissionDeductionEntries = buildPermissionDeductionEntries(leaves)
-  const timelineEntries = [...allEntries, ...permissionDeductionEntries].sort((a, b) => b.from_date.localeCompare(a.from_date))
+  // Synthetic entries go FIRST in the pre-sort array: the auto-deduction only
+  // exists because a same-date Permission was applied, so it's the logically
+  // later event of the two — on a same-date tie, Array.sort's stability keeps
+  // earlier-array-position entries earlier in the output, so this puts the
+  // auto-deduction banner above (more recent than) the Permission that triggered it.
+  const timelineEntries = [...permissionDeductionEntries, ...allEntries].sort((a, b) => b.from_date.localeCompare(a.from_date))
   const [showForm, setShowForm]         = useState(false)
   const [leaveType, setLeaveType]       = useState<LeaveType>("full_day")
   const [halfPeriod, setHalfPeriod]     = useState<"morning" | "afternoon">("morning")

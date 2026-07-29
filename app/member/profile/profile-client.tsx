@@ -281,9 +281,23 @@ export default function ProfileClient({
       const fd = new FormData(); fd.append("file", file); fd.append("folder", "kyc")
       const res = await fetch("/api/upload-photo", { method: "POST", body: fd })
       const json = await res.json()
-      if (res.ok && json.url) { setKYCForm(p => ({ ...p, [field]: json.url })); return json.url as string }
-      setKYCError(json.error ?? "Upload failed — please try again")
-      return null
+      if (!res.ok || !json.url) {
+        setKYCError(json.error ?? "Upload failed — please try again")
+        return null
+      }
+      // Persisted immediately instead of only staging into local kycForm state —
+      // Save KYC requires all 4 mandatory documents to be present at once, so an
+      // upload that succeeded here was previously lost entirely if the session
+      // ended (tab closed, navigated away) before every document was done. This
+      // was the actual cause of "I uploaded it but it's not there" — the file
+      // upload always worked, it just never reached the database.
+      const saveRes = await updateKYC({ [field]: json.url })
+      if ('error' in saveRes) {
+        setKYCError(saveRes.error ?? "Upload saved the file but failed to record it — please try again")
+        return null
+      }
+      setKYCForm(p => ({ ...p, [field]: json.url }))
+      return json.url as string
     } catch {
       setKYCError("Upload failed — check your connection and try again")
       return null
@@ -294,8 +308,7 @@ export default function ProfileClient({
     field: KYCDocField,
     file: File
   ) {
-    const url = await handleDocUpload(field, file)
-    if (url) await updateKYC({ [field]: url })
+    await handleDocUpload(field, file)
     router.refresh()
   }
 

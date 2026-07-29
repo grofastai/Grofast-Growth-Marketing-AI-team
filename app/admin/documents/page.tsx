@@ -19,7 +19,7 @@ export default async function AdminDocumentsPage() {
   const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
   if (!profile) redirect("/login")
 
-  const [{ data: members }, { data: documents }, { data: kycRecords }] = await Promise.all([
+  const [{ data: members }, { data: documents }, { data: kycRecords }, { data: syncedDocs }] = await Promise.all([
     admin
       .from("users")
       .select("id, name, employee_id, role, email, phone, status, team, employment_type, created_at, blood_group, address, emergency_contact_name, emergency_contact_phone, photo_url")
@@ -39,6 +39,8 @@ export default async function AdminDocumentsPage() {
       .in("user_id",
         (await admin.from("users").select("id").eq("company_id", profile.company_id)).data?.map(u => u.id) ?? []
       ),
+    // Which documents/KYC files already have a Drive copy — drives the per-card "Synced" badge.
+    admin.from("member_documents").select("user_id, name").eq("company_id", profile.company_id),
   ])
 
   const driveRootUrl = process.env.GOOGLE_DRIVE_MEMBER_DOCS_FOLDER_ID
@@ -50,6 +52,7 @@ export default async function AdminDocumentsPage() {
       members={members ?? []}
       documents={documents ?? []}
       kycRecords={kycRecords ?? []}
+      syncedDocs={syncedDocs ?? []}
       companyId={profile.company_id}
       driveRootUrl={driveRootUrl}
     />

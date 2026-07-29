@@ -1125,56 +1125,34 @@ function DayFilter({ value, onChange }: { value: string; onChange: (v: string) =
 
 // ── Per-client stats box — sits beside Waiting to Post once a single client is picked ──
 export type ClientStatsShape = {
-  target: number | null
+  target: number
+  // The month the target above applies to — always resolved (falls back to the current
+  // month when the Log tab's own month filter is "All Time"), so target editing works
+  // no matter which month filter is selected.
+  targetMonth: string
   posted: number
   unposted: number
   edited: number
   unedited: number
-  remaining: number | null
+  remaining: number
   completionPct: number | null
   // Independent of Branding/Ads (logKind) — same count shows on both tabs since the
   // Promotion flag isn't tied to which side it posted to.
   promotion: number
 }
 
-function ClientStatsBox({ client, stats, monthPicked, onSaveTarget, contentType = "video" }: {
+function ClientStatsBox({ client, stats, contentType = "video" }: {
   client: string
   stats: ClientStatsShape
-  monthPicked: boolean
-  onSaveTarget: (n: number) => void
   contentType?: "video" | "poster"
 }) {
   const isPoster = contentType === "poster"
-  const [editingTarget, setEditingTarget] = useState(false)
-  const [draft, setDraft] = useState(String(stats.target ?? 0))
 
-  function commit() {
-    const n = Math.max(0, Math.round(Number(draft) || 0))
-    setEditingTarget(false)
-    if (n !== stats.target) onSaveTarget(n)
-  }
-
-  function StatRow({ label, value, color, editable }: { label: string; value: string | number; color: string; editable?: boolean }) {
+  function StatRow({ label, value, color }: { label: string; value: string | number; color: string }) {
     return (
       <div className="flex items-center justify-between" style={{ fontSize: 12 }}>
         <span style={{ color: "#6B7280", fontWeight: 600 }}>{label}</span>
-        {editable && !monthPicked ? (
-          <span style={{ color: "#9CA3AF", fontWeight: 800 }}>—</span>
-        ) : editable && editingTarget ? (
-          <input autoFocus type="number" min={0} value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditingTarget(false) }}
-            style={{ width: 48, fontSize: 12, fontWeight: 800, textAlign: "right", border: `1.5px solid ${color}`, borderRadius: 6, padding: "1px 4px", color }} />
-        ) : (
-          <button
-            onClick={editable ? () => { setDraft(String(stats.target ?? 0)); setEditingTarget(true) } : undefined}
-            className="flex items-center gap-1"
-            style={{ border: "none", background: "transparent", padding: 0, cursor: editable ? "pointer" : "default", color, fontWeight: 800, fontSize: 12 }}>
-            {value}
-            {editable && <Pencil size={9} />}
-          </button>
-        )}
+        <span style={{ color, fontWeight: 800, fontSize: 12 }}>{value}</span>
       </div>
     )
   }
@@ -1190,9 +1168,11 @@ function ClientStatsBox({ client, stats, monthPicked, onSaveTarget, contentType 
       </p>
 
       <SectionLabel>Monthly Goal</SectionLabel>
-      <StatRow label="Monthly Target" value={stats.target ?? 0} color="#7C3AED" editable />
+      {/* Read-only here — Target is only editable from the Overview tab's Per-Client
+          KPIs table, so there's exactly one place admins go to change it. */}
+      <StatRow label={`Monthly Target (${fmtMonth(stats.targetMonth)})`} value={stats.target} color="#7C3AED" />
       <StatRow label="Published" value={stats.posted} color="#16A34A" />
-      <StatRow label="Remaining" value={stats.remaining ?? "—"} color="#D97706" />
+      <StatRow label="Remaining" value={stats.remaining} color="#D97706" />
       <StatRow label="Completion %" value={stats.completionPct !== null ? `${stats.completionPct}%` : "—"} color="#0EA5E9" />
 
       <SectionLabel>Production Status</SectionLabel>
@@ -3672,6 +3652,60 @@ function EditAdModal({ ad, clients, pastClients, onClose, onSaved }: {
   )
 }
 
+// Inline-editable Target cell for the Overview tab's Per-Client KPIs table — the only
+// place Target is editable (the Log tab's per-client stats box shows it read-only).
+// Moved here from the Clients page (which had its own standalone Video/Poster + Save
+// Target card); same setClientMonthlyTarget action, same content_client_targets rows.
+// Click-to-edit with an explicit Save/Cancel, rather than an always-open input, so
+// nothing writes until confirmed and a stray click or scroll-wheel bump can't save.
+function EditableTargetCell({ value, onSave }: { value: number; onSave: (n: number) => Promise<void> }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(String(value))
+  const [saving, setSaving] = useState(false)
+
+  function startEdit() {
+    setDraft(String(value))
+    setEditing(true)
+  }
+
+  async function commit() {
+    const n = Math.max(0, Math.round(Number(draft)) || 0)
+    if (n === value) { setEditing(false); return }
+    setSaving(true)
+    await onSave(n)
+    setSaving(false)
+    setEditing(false)
+  }
+
+  if (!editing) {
+    return (
+      <button type="button" onClick={startEdit}
+        className="flex items-center gap-1.5"
+        style={{ border: "none", background: "transparent", padding: "3px 6px", borderRadius: 7, cursor: "pointer", color: "#7C3AED", fontWeight: 800, fontSize: 12 }}>
+        {value}
+        <Pencil size={10} style={{ opacity: 0.6 }} />
+      </button>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      <input autoFocus type="number" min={0} value={draft} disabled={saving}
+        onChange={e => setDraft(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false) }}
+        style={{ width: 48, padding: "3px 4px", borderRadius: 6, border: "1.5px solid #7C3AED", fontSize: 12, fontWeight: 800, textAlign: "center", color: "#7C3AED" }} />
+      <button type="button" onClick={commit} disabled={saving} title="Save"
+        style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "none", background: "rgba(22,163,74,0.12)", color: "#16A34A", cursor: saving ? "wait" : "pointer" }}>
+        <Check size={12} />
+      </button>
+      <button type="button" onClick={() => setEditing(false)} disabled={saving} title="Cancel"
+        style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "1px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: saving ? "wait" : "pointer" }}>
+        <X size={11} />
+      </button>
+    </span>
+  )
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 export default function MediaTrackerClient({ initialItems, initialAds, initialShoots, members, currentUserId, clients, pastClients, voiceoverFreelancers, scriptingMembers, editingMembers, shootingMembers, voiceoverMembers, initialClientTargets }: Props) {
   const [items, setItems] = useState(initialItems)
@@ -4253,11 +4287,14 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       i.client_name === logClientFilter && i.content_type === contentTypeForMode &&
       i.edited_date && (logMonthFilter === "all" || i.edited_date.slice(0, 7) === logMonthFilter)
     ).length
-    const targetRow = logMonthFilter === "all" ? undefined : clientTargets.find(
-      t => t.client_name === logClientFilter && t.kind === logKind && t.content_type === contentTypeForMode && t.month === logMonthFilter
+    // Target is a monthly figure — "All Time" falls back to the current month (same as
+    // the Overview tab's Per-Client KPIs table) instead of going blank.
+    const targetMonth = logMonthFilter === "all" ? today.slice(0, 7) : logMonthFilter
+    const targetRow = clientTargets.find(
+      t => t.client_name === logClientFilter && t.kind === logKind && t.content_type === contentTypeForMode && t.month === targetMonth
     )
     const posted = kpiRow?.posted ?? 0
-    const target = logMonthFilter === "all" ? null : (targetRow?.target ?? 0)
+    const target = targetRow?.target ?? 0
     // Not scoped to logKind — the same Promotion count shows on both the Branding and
     // Ads tabs, since the flag isn't tied to which side it posted to.
     const promotion = items.filter(i =>
@@ -4271,29 +4308,30 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       edited,
       unedited: kpiRow?.unedited ?? 0,
       target,
-      remaining: target === null ? null : Math.max(target - posted, 0),
+      targetMonth,
+      remaining: Math.max(target - posted, 0),
       completionPct: target ? Math.round((posted / target) * 100) : null,
       promotion,
     }
-  }, [items, clientTargets, logClientFilter, logKind, logMonthFilter, contentTypeForMode])
+  }, [items, clientTargets, logClientFilter, logKind, logMonthFilter, contentTypeForMode, today])
 
-  function handleSetClientTarget(newTarget: number) {
-    if (logClientFilter === "all" || logMonthFilter === "all") return
-    const key = { client_name: logClientFilter, kind: logKind, content_type: contentTypeForMode, month: logMonthFilter }
+  // Target is only ever edited from the Overview tab's Per-Client KPIs table — one
+  // client/month per row instead of a single selected client/month, and awaited so
+  // the inline cell can show its own per-row saving state.
+  async function handleSetOverviewTarget(clientName: string, kind: "branding" | "ads", contentType: "video" | "poster", month: string, newTarget: number) {
+    const key = { client_name: clientName, kind, content_type: contentType, month }
     const previous = clientTargets.find(t => t.client_name === key.client_name && t.kind === key.kind && t.content_type === key.content_type && t.month === key.month)
     setClientTargets(prev => {
       const others = prev.filter(t => !(t.client_name === key.client_name && t.kind === key.kind && t.content_type === key.content_type && t.month === key.month))
       return [...others, { ...key, target: newTarget }]
     })
-    startTransition(async () => {
-      const res = await setClientMonthlyTarget({ ...key, target: newTarget })
-      if (!res.success) {
-        setClientTargets(prev => {
-          const others = prev.filter(t => !(t.client_name === key.client_name && t.kind === key.kind && t.month === key.month))
-          return previous ? [...others, previous] : others
-        })
-      }
-    })
+    const res = await setClientMonthlyTarget({ ...key, target: newTarget })
+    if (!res.success) {
+      setClientTargets(prev => {
+        const others = prev.filter(t => !(t.client_name === key.client_name && t.kind === key.kind && t.month === key.month))
+        return previous ? [...others, previous] : others
+      })
+    }
   }
 
   const logRows = useMemo(() => {
@@ -4718,25 +4756,33 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                         <thead>
                           <tr style={{ background: "#F9FAFB" }}>
-                            {["Client", block.postedLabel, "Target", "Unposted", "Unedited"].map(h => (
+                            {["Client", block.postedLabel, overviewKpiMonth === "all" ? `Target (${fmtMonth(today.slice(0, 7))})` : "Target", "Unposted", "Unedited"].map(h => (
                               <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           {block.rows.map(row => {
-                            // Target is only meaningful for a specific month — "All Time" has
-                            // no single figure to show, matching the Waiting to Post stats box.
-                            const target = overviewKpiMonth === "all" ? null : (clientTargets.find(
-                              t => t.client_name === row.client && t.kind === block.kind && t.content_type === overviewKpiContentType && t.month === overviewKpiMonth
-                            )?.target ?? 0)
+                            // Target is a monthly figure — "All Time" has no single month to read
+                            // it from, so it falls back to the current month (the one that matters
+                            // for ongoing work) instead of showing a blank dash.
+                            const targetMonth = overviewKpiMonth === "all" ? today.slice(0, 7) : overviewKpiMonth
+                            const target = clientTargets.find(
+                              t => t.client_name === row.client && t.kind === block.kind && t.content_type === overviewKpiContentType && t.month === targetMonth
+                            )?.target ?? 0
                             return (
                               <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6" }}>
                                 <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
                                 <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
                                 <td style={{ padding: "9px 14px", textAlign: "center" }}>
-                                  {target === null ? (
-                                    <span style={{ fontWeight: 800, color: "#D1D5DB" }}>—</span>
+                                  {block.kind === "branding" ? (
+                                    // Editable here (moved from the standalone Media Target card on
+                                    // the Clients page) — Ads targets stay read-only, matching that
+                                    // card's original scope (it only ever set Branding targets).
+                                    <EditableTargetCell
+                                      value={target}
+                                      onSave={n => handleSetOverviewTarget(row.client, block.kind, overviewKpiContentType, targetMonth, n)}
+                                    />
                                   ) : target > 0 ? (
                                     <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 999, fontWeight: 800, background: "rgba(124,58,237,0.12)", color: "#7C3AED" }}>
                                       {target}
@@ -5066,7 +5112,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               )}
               {logClientStats && (
                 <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-                  <ClientStatsBox client={logClientFilter} stats={logClientStats} monthPicked={logMonthFilter !== "all"} onSaveTarget={handleSetClientTarget} contentType={contentTypeForMode} />
+                  <ClientStatsBox client={logClientFilter} stats={logClientStats} contentType={contentTypeForMode} />
                 </div>
               )}
             </div>

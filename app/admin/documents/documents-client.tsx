@@ -4,6 +4,7 @@ import { useState, useTransition, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { deleteDocument, verifyMemberKYC } from "@/lib/actions/documents"
 import { syncMemberDocumentsNow } from "@/lib/actions/member-documents"
+import { kycDocFields } from "@/lib/utils/kyc-documents"
 import Image from "next/image"
 import { PageHero } from "@/components/admin/PageHero"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
@@ -12,7 +13,7 @@ import {
   FileText, Upload, Trash2, FolderOpen, Loader2, X, Download,
   Phone, Mail, Briefcase, Calendar, Shield, HeartPulse, MapPin,
   UserPlus, Landmark, CreditCard, ExternalLink, Search,
-  List, CheckCircle2, Eye, MoreVertical, CloudUpload,
+  List, CheckCircle2, Eye, MoreVertical, CloudUpload, Cloud,
   Building2, LayoutGrid, ArrowUpRight, Layers, ChevronRight, Sparkles, Users,
   BadgeCheck, PenLine,
 } from "lucide-react"
@@ -70,16 +71,9 @@ function computeCompletionPct(m: Member, k: KYCRecord | undefined, hasDocs: bool
 
 function kycRecordToDocs(k: KYCRecord, member?: { name: string; employee_id: string }): Doc[] {
   const createdAt = k.updated_at ?? new Date(0).toISOString()
-  const fields: Array<{ url: string | null; name: string; docType: string }> = [
-    { url: k.govt_id_url, name: k.govt_id_type ? `${k.govt_id_type} (Front)` : "Government ID", docType: "Govt ID Proof" },
-    { url: k.aadhaar_back_url, name: "Aadhaar Back", docType: "Govt ID Proof" },
-    { url: k.pan_front_url, name: "PAN Card Front", docType: "Govt ID Proof" },
-    { url: k.pan_back_url, name: "PAN Card Back", docType: "Govt ID Proof" },
-    { url: k.ration_card_url, name: "Ration Card", docType: "Ration Card" },
-    { url: k.ration_card_url2, name: "Ration Card (Page 2)", docType: "Ration Card" },
-    { url: k.signature_url, name: "Signature", docType: "Signature" },
-  ]
-  return fields
+  // kycDocFields() is shared with syncMemberDocumentsNow (member-documents.ts) so a
+  // card's name here always matches what member_documents.name records as synced.
+  return kycDocFields(k)
     .filter(f => !!f.url)
     .map((f, i) => ({
       id: `kyc__${k.user_id}__${i}`,
@@ -206,7 +200,7 @@ function InfoRow({ icon: Icon, label, value, url }: {
 }
 
 // ── Doc File Card (grid) ─────────────────────────────────────────────────────
-function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => void; isPending: boolean }) {
+function DocCardGrid({ doc, onDelete, isPending, synced }: { doc: Doc; onDelete: () => void; isPending: boolean; synced: boolean }) {
   const badge = getExtBadge(doc.file_type, doc.name)
   const typeColor = DOC_TYPE_COLOR[doc.doc_type] ?? "#6B7280"
   const verified = doc.doc_type !== "Other"
@@ -254,10 +248,18 @@ function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => v
       </div>
       {/* File icon area */}
       <div style={{
-        height: 52, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center",
+        height: 52, borderRadius: 14, position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
         background: `linear-gradient(135deg, ${badge.bg}, ${badge.bg.replace("0.12)", "0.06)")})`
       }}>
         <FileText size={26} style={{ color: badge.color }} />
+        {synced && (
+          <div title="Synced to Drive" style={{
+            position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%",
+            background: "#16A34A", boxShadow: "0 0 0 2px #fff", display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Cloud size={11} color="#fff" />
+          </div>
+        )}
       </div>
       {/* Name */}
       <div>
@@ -265,7 +267,7 @@ function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => v
         <p style={{ fontSize: 10, color: "#1B4332", marginTop: 2 }}>{formatDateShort(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}</p>
       </div>
       {/* Status + actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-1.5 flex-wrap">
         <span style={{
           fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 6,
           background: verified ? "rgba(22,163,74,0.1)" : "rgba(249,115,22,0.1)",
@@ -273,9 +275,18 @@ function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => v
         }}>
           {verified ? "✓ Verified" : "Pending"}
         </span>
+        {synced && (
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 3,
+            fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 6,
+            background: "rgba(22,163,74,0.1)", color: "#16A34A",
+          }}>
+            <Cloud size={9} /> Uploaded to Drive
+          </span>
+        )}
         <span style={{
           fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 6,
-          background: `${typeColor}14`, color: typeColor,
+          background: `${typeColor}14`, color: typeColor, marginLeft: "auto",
         }}>{doc.doc_type}</span>
       </div>
       {/* Action buttons */}
@@ -294,7 +305,7 @@ function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => v
 }
 
 // ── Doc Row (list) ───────────────────────────────────────────────────────────
-function DocRowList({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => void; isPending: boolean }) {
+function DocRowList({ doc, onDelete, isPending, synced }: { doc: Doc; onDelete: () => void; isPending: boolean; synced: boolean }) {
   const badge = getExtBadge(doc.file_type, doc.name)
   const typeColor = DOC_TYPE_COLOR[doc.doc_type] ?? "#6B7280"
   const verified = doc.doc_type !== "Other"
@@ -305,12 +316,17 @@ function DocRowList({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => vo
         <FileText size={18} style={{ color: badge.color }} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <p style={{ fontSize: 13, fontWeight: 700, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</p>
           <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: `${typeColor}14`, color: typeColor, flexShrink: 0 }}>{doc.doc_type}</span>
           <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: verified ? "rgba(22,163,74,0.1)" : "rgba(249,115,22,0.1)", color: verified ? "#16A34A" : "#EA580C", flexShrink: 0 }}>
             {verified ? "✓ Verified" : "Pending"}
           </span>
+          {synced && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: "rgba(22,163,74,0.1)", color: "#16A34A", flexShrink: 0 }}>
+              <Cloud size={9} /> Uploaded to Drive
+            </span>
+          )}
         </div>
         <p style={{ fontSize: 11, color: "#1B4332", marginTop: 2 }}>{formatDate(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}</p>
       </div>
@@ -349,11 +365,12 @@ function ActivityDot({ type }: { type: string }) {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 export default function DocumentsClient({
-  members, documents, kycRecords, companyId, driveRootUrl,
+  members, documents, kycRecords, syncedDocs, companyId, driveRootUrl,
 }: {
   members: Member[]
   documents: Doc[]
   kycRecords: KYCRecord[]
+  syncedDocs: { user_id: string; name: string }[]
   companyId: string
   driveRootUrl: string | null
 }) {
@@ -376,6 +393,10 @@ export default function DocumentsClient({
   const [isUploading, setIsUploading]     = useState(false)
   const [isPending, start]            = useTransition()
   const [syncingDrive, setSyncingDrive] = useState(false)
+  // Members confirmed fully synced by the last "Sync to Drive" click, so the button can
+  // show "Synced" instead of reverting to a plain, indistinguishable "Sync to Drive" —
+  // cleared for a member as soon as a new document is uploaded for them (unconfirmed).
+  const [syncedIds, setSyncedIds]     = useState<Set<string>>(() => new Set())
   const fileRef                       = useRef<HTMLInputElement>(null)
   const router                        = useRouter()
 
@@ -388,6 +409,20 @@ export default function DocumentsClient({
     const kycDocs = kycRecordToDocs(selectedKYC, { name: selectedMember.name, employee_id: selectedMember.employee_id })
     return [...kycDocs, ...fromTable]
   }, [selectedId, documents, selectedKYC, selectedMember])
+
+  // Matched by user_id + exact name against member_documents — the real record of what's
+  // actually landed in Drive, not just an optimistic guess from the last "Sync to Drive" click.
+  const syncedNameSet = useMemo(() => new Set(syncedDocs.map(d => `${d.user_id}::${d.name}`)), [syncedDocs])
+  function isDocSynced(doc: Doc) { return syncedNameSet.has(`${doc.user_id}::${doc.name}`) }
+  // Real state from member_documents on page load, not just a click-memory flag — and a
+  // real 3-way state (none/partial/all), not just binary. Before this, a member with 3 of
+  // 7 documents already synced showed the exact same "Sync to Drive" button as a member
+  // with zero synced, so there was no way to tell partial progress apart at a glance.
+  const totalDocCount   = memberDocs.length
+  const syncedDocCount  = memberDocs.filter(isDocSynced).length
+  const allMemberDocsSynced  = totalDocCount > 0 && syncedDocCount === totalDocCount
+  const someMemberDocsSynced = syncedDocCount > 0 && syncedDocCount < totalDocCount
+  const isUploadedState = syncingDrive ? false : (syncedIds.has(selectedId) || allMemberDocsSynced)
 
   const filteredMembers = empSearch.trim()
     ? members.filter(m =>
@@ -460,6 +495,7 @@ export default function DocumentsClient({
       setShowUpload(false); setFile(null); setDocName(""); setUploadFor(""); setDocType("Other")
       setSelectedId(targetMember)
       setActiveTab("documents")
+      setSyncedIds(prev => { const next = new Set(prev); next.delete(targetMember); return next })
       setUploadSuccess(`"${docName.trim()}" uploaded successfully!`)
       setTimeout(() => setUploadSuccess(""), 4000)
       router.refresh()
@@ -481,6 +517,11 @@ export default function DocumentsClient({
       if (!res.success) { showToast(res.error ?? "Sync failed", "error"); return }
       const summary = `Synced ${res.synced ?? 0}, already up to date ${res.skipped ?? 0}${res.failed ? `, failed ${res.failed}` : ""}`
       showToast(summary, res.failed ? "error" : "success")
+      setSyncedIds(prev => {
+        const next = new Set(prev)
+        if (res.failed) next.delete(selectedId); else next.add(selectedId)
+        return next
+      })
       router.refresh()
     } catch (err) {
       // Without this, an exception here (e.g. the request itself failing) left the
@@ -789,10 +830,24 @@ export default function DocumentsClient({
                         <List size={13} style={{ color: viewMode === "list" ? "#fff" : "#1B4332" }} />
                       </button>
                       <button onClick={handleSyncDrive} disabled={syncingDrive}
-                        title="Push any documents not yet in Google Drive"
-                        style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, border: "1px solid #E5E7EB", background: "#fff", color: "#1B4332", fontSize: 11, fontWeight: 700, cursor: syncingDrive ? "not-allowed" : "pointer" }}>
-                        <CloudUpload size={13} style={{ color: "#0EA5E9" }} />
-                        {syncingDrive ? "Syncing…" : "Sync to Drive"}
+                        title={
+                          isUploadedState        ? "All documents are uploaded to Google Drive — click to re-check"
+                          : someMemberDocsSynced ? `${syncedDocCount} of ${totalDocCount} documents uploaded — click to push the rest`
+                          : "Push any documents not yet in Google Drive"
+                        }
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700,
+                          cursor: syncingDrive ? "not-allowed" : "pointer",
+                          border: isUploadedState ? "1px solid #A7F3D0" : someMemberDocsSynced ? "1px solid #FED7AA" : "1px solid #E5E7EB",
+                          background: isUploadedState ? "#ECFDF5" : someMemberDocsSynced ? "#FFF7ED" : "#fff",
+                          color: isUploadedState ? "#059669" : someMemberDocsSynced ? "#EA580C" : "#1B4332",
+                        }}>
+                        {syncingDrive
+                          ? <CloudUpload size={13} style={{ color: "#0EA5E9" }} />
+                          : isUploadedState
+                            ? <CheckCircle2 size={13} style={{ color: "#059669" }} />
+                            : <CloudUpload size={13} style={{ color: someMemberDocsSynced ? "#EA580C" : "#0EA5E9" }} />}
+                        {syncingDrive ? "Syncing…" : isUploadedState ? "Uploaded" : someMemberDocsSynced ? `${syncedDocCount}/${totalDocCount} Uploaded` : "Sync to Drive"}
                       </button>
                     </div>
                   </div>
@@ -801,15 +856,15 @@ export default function DocumentsClient({
                     <div style={{ background: "#fff", borderRadius: 20, padding: "48px 20px", textAlign: "center", border: "1px solid rgba(0,0,0,0.07)" }}>
                       <FolderOpen size={36} style={{ color: "#E5E7EB", margin: "0 auto 12px" }} />
                       <p style={{ fontSize: 14, fontWeight: 700, color: "#1B4332" }}>No documents found</p>
-                      <p style={{ fontSize: 12, color: "#1B4332", marginTop: 4 }}>{selectedMember.name} hasn't uploaded any documents yet</p>
+                      <p style={{ fontSize: 12, color: "#1B4332", marginTop: 4 }}>{selectedMember.name} hasn&apos;t uploaded any documents yet</p>
                     </div>
                   ) : viewMode === "grid" ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {shownDocs.map(doc => <DocCardGrid key={doc.id} doc={doc} onDelete={() => handleDelete(doc.id)} isPending={isPending} />)}
+                      {shownDocs.map(doc => <DocCardGrid key={doc.id} doc={doc} onDelete={() => handleDelete(doc.id)} isPending={isPending} synced={isDocSynced(doc)} />)}
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {shownDocs.map(doc => <DocRowList key={doc.id} doc={doc} onDelete={() => handleDelete(doc.id)} isPending={isPending} />)}
+                      {shownDocs.map(doc => <DocRowList key={doc.id} doc={doc} onDelete={() => handleDelete(doc.id)} isPending={isPending} synced={isDocSynced(doc)} />)}
                     </div>
                   )}
 

@@ -171,7 +171,6 @@ export default async function ClientsUnifiedPage({
   // ── Conditionally: compute deliverables for selected client ───────────────
   let deliverables: DeliverableResult | null = null
   let selectedClientRow: ClientRow | null = null
-  let mediaTargets: { video: number | null; poster: number | null } | null = null
 
   if (selectedClient) {
     const virtual = VIRTUAL_CLIENTS[selectedClient]
@@ -181,23 +180,6 @@ export default async function ClientsUnifiedPage({
       const nameLower = selectedClient.toLowerCase()
       selectedClientRow =
         [...activeClients, ...pastClients].find(c => c.name.toLowerCase() === nameLower) ?? null
-    }
-
-    // Current month's Branding target (video + poster) — settable right here so it
-    // doesn't require opening Media Tracker just to set a number for the month.
-    if (selectedClientRow && !virtual) {
-      const currentMonth = todayStr.slice(0, 7)
-      const { data: targetRows } = await admin
-        .from('content_client_targets')
-        .select('content_type, target')
-        .eq('company_id', cid)
-        .eq('client_name', selectedClientRow.name)
-        .eq('kind', 'branding')
-        .eq('month', currentMonth)
-      mediaTargets = {
-        video:  targetRows?.find(t => t.content_type === 'video')?.target ?? null,
-        poster: targetRows?.find(t => t.content_type === 'poster')?.target ?? null,
-      }
     }
 
     const clientFilter: string | string[] | null = VIRTUAL_CLIENTS[selectedClient]?.filter
@@ -292,7 +274,6 @@ export default async function ClientsUnifiedPage({
       selectedClientName={selectedClient ?? null}
       selectedClientRow={selectedClientRow}
       deliverables={deliverables}
-      mediaTargets={mediaTargets}
       initialSearch={initialSearch ?? ''}
 
       mode={mode}

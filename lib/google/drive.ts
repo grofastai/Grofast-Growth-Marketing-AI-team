@@ -1,24 +1,34 @@
-import { GoogleAuth } from 'google-auth-library'
+import { OAuth2Client } from 'google-auth-library'
 
 const DRIVE = 'https://www.googleapis.com/drive/v3'
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3'
 
 // ── Auth ──────────────────────────────────────────────────────
+// OAuth as the real Gmail account that owns these folders, not a service
+// account — service accounts have zero storage quota of their own and can
+// only write into a Shared Drive (Workspace-only, not available on a plain
+// personal Gmail account), which is exactly what this account is. Files
+// created via this OAuth token count against the real account's own quota,
+// so writes actually succeed. Set up once via `pnpm drive:oauth-setup`
+// (scripts/google-drive-oauth-setup.ts) — see
+// docs/superpowers/specs/2026-07-26-google-drive-oauth-fix-design.md.
 
-let _auth: GoogleAuth | null = null
+let _oauthClient: OAuth2Client | null = null
 
-function getAuth(): GoogleAuth {
-  if (_auth) return _auth
-  const raw = (process.env.GOOGLE_SERVICE_ACCOUNT_KEY2 || process.env.GOOGLE_SERVICE_ACCOUNT_KEY)!
-  const credentials = JSON.parse(raw)
-  _auth = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] })
-  return _auth
+function getOAuthClient(): OAuth2Client {
+  if (_oauthClient) return _oauthClient
+  _oauthClient = new OAuth2Client({
+    clientId: process.env.GOOGLE_OAUTH_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET!,
+  })
+  _oauthClient.setCredentials({ refresh_token: process.env.GOOGLE_OAUTH_REFRESH_TOKEN! })
+  return _oauthClient
 }
 
 async function token(): Promise<string> {
-  const client = await getAuth().getClient()
-  const res = await (client as any).getAccessToken()
-  return res.token as string
+  const res = await getOAuthClient().getAccessToken()
+  if (!res.token) throw new Error('Failed to obtain Google OAuth access token')
+  return res.token
 }
 
 // ── Folder cache (in-memory per server instance) ──────────────

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Users, TrendingUp, BarChart3 } from 'lucide-react'
+import { Users, TrendingUp, BarChart3, AlertTriangle } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts'
 import type { MemberUtilization, ClientHour, InsightsKPIs, SpendCategory, LeaveBreakdownRow } from './page'
 
@@ -876,40 +876,83 @@ export default function InsightsClient({
         </Card>
       </div>
 
-      {/* ── Leave Summary — only members who actually took leave this month ── */}
-      {leaveBreakdown.length > 0 && (
-        <Card title="Leave Summary" meta={`Monthly cap: ${MONTHLY_LEAVE_CAP} days`}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+      {/* ── Leave Summary — bold header table, riskiest balance first ──
+          Header uses the shared brand gradient (matches the hero banner);
+          each row keeps an avatar + a mini usage bar under Days Used so the
+          cap is still readable at a glance without leaving the table shape. ── */}
+      {leaveBreakdown.length > 0 && (() => {
+        const cap = MONTHLY_LEAVE_CAP
+        const overCapCount = leaveBreakdown.filter(r => r.balance < 0).length
+        // Riskiest (most over cap) first.
+        const sorted = [...leaveBreakdown].sort((a, b) => a.balance - b.balance)
+
+        return (
+        <Card
+          title="Leave Summary"
+          meta={`Monthly cap: ${cap} days`}
+          action={overCapCount > 0 ? (
+            <Badge color={RED} bg="rgba(222,26,26,0.1)">
+              <AlertTriangle size={11} /> {overCapCount} over cap
+            </Badge>
+          ) : undefined}
+        >
+          <div style={{ overflowX: 'auto', borderRadius: 12, border: `1px solid ${BORDER}` }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
               <thead>
-                <tr style={{ background: HEAD_BG }}>
+                <tr style={{ background: HERO_GRAD }}>
                   {['Member', 'Full Day', 'Half Day', 'Permission', 'Days Used', 'Balance'].map(h => (
-                    <th key={h} style={{ textAlign: h === 'Member' ? 'left' : 'center', padding: '8px 14px', fontSize: 10, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1px solid ${RULE}` }}>{h}</th>
+                    <th key={h} style={{
+                      textAlign: h === 'Member' ? 'left' : 'center', padding: '12px 14px', fontSize: 10, fontWeight: 800, color: '#FFFFFF',
+                      textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap',
+                    }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {leaveBreakdown.map(r => (
-                  <tr key={r.id} style={{ borderBottom: `1px solid ${RULE}` }}>
-                    <td style={{ padding: '9px 14px', fontWeight: 700, color: INK }}>{r.name}</td>
-                    <td style={{ padding: '9px 14px', textAlign: 'center', color: r.fullDays > 0 ? INK : DIM }}>{r.fullDays > 0 ? r.fullDays : '—'}</td>
-                    <td style={{ padding: '9px 14px', textAlign: 'center', color: r.halfDays > 0 ? INK : DIM }}>
-                      {r.halfDays > 0 ? `${r.halfDays} (${r.halfDayHours}h)` : '—'}
-                    </td>
-                    <td style={{ padding: '9px 14px', textAlign: 'center', color: r.permissionHours > 0 ? INK : DIM }}>{r.permissionHours > 0 ? `${r.permissionHours}h` : '—'}</td>
-                    <td style={{ padding: '9px 14px', textAlign: 'center', fontWeight: 700, color: INK }}>{r.daysUsed}</td>
-                    <td style={{ padding: '9px 14px', textAlign: 'center' }}>
-                      <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 999, fontWeight: 800, background: r.balance < 0 ? 'rgba(222,26,26,0.12)' : 'rgba(22,163,74,0.1)', color: r.balance < 0 ? RED : '#16A34A' }}>
-                        {r.balance < 0 ? r.balance : `+${r.balance}`}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {sorted.map((r, i) => {
+                  const overCap = r.balance < 0
+                  const usedPct = Math.min((r.daysUsed / cap) * 100, 100)
+                  const barColor = overCap ? RED : usedPct >= 80 ? SEMANTIC.warning : SEMANTIC.success
+                  const isLast = i === sorted.length - 1
+                  return (
+                    <tr key={r.id} style={{ background: i % 2 === 0 ? CARD : HEAD_BG }}>
+                      <td style={{ padding: '11px 14px', borderBottom: isLast ? 'none' : `1px solid ${RULE}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                          <Avatar name={r.name} />
+                          <span style={{ fontWeight: 800, color: INK, whiteSpace: 'nowrap' }}>{r.name}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '11px 14px', textAlign: 'center', fontWeight: 700, color: r.fullDays > 0 ? INK : DIM, borderBottom: isLast ? 'none' : `1px solid ${RULE}`, fontVariantNumeric: 'tabular-nums' }}>
+                        {r.fullDays > 0 ? r.fullDays : '—'}
+                      </td>
+                      <td style={{ padding: '11px 14px', textAlign: 'center', fontWeight: 700, color: r.halfDays > 0 ? INK : DIM, borderBottom: isLast ? 'none' : `1px solid ${RULE}`, fontVariantNumeric: 'tabular-nums' }}>
+                        {r.halfDays > 0 ? r.halfDays : '—'}
+                      </td>
+                      <td style={{ padding: '11px 14px', textAlign: 'center', fontWeight: 700, color: r.permissionHours > 0 ? INK : DIM, borderBottom: isLast ? 'none' : `1px solid ${RULE}`, fontVariantNumeric: 'tabular-nums' }}>
+                        {r.permissionHours > 0 ? `${r.permissionHours}h` : '—'}
+                      </td>
+                      <td style={{ padding: '11px 14px', borderBottom: isLast ? 'none' : `1px solid ${RULE}` }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                          <span style={{ fontWeight: 800, color: INK, fontVariantNumeric: 'tabular-nums' }}>{r.daysUsed}<span style={{ color: DIM, fontWeight: 600 }}>/{cap}</span></span>
+                          <span style={{ width: 48, height: 5, borderRadius: 999, background: RULE, overflow: 'hidden', display: 'block' }}>
+                            <span style={{ width: `${usedPct}%`, height: '100%', borderRadius: 999, background: barColor, display: 'block' }} />
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '11px 14px', textAlign: 'center', borderBottom: isLast ? 'none' : `1px solid ${RULE}` }}>
+                        <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 999, fontWeight: 800, fontVariantNumeric: 'tabular-nums', background: overCap ? 'rgba(222,26,26,0.12)' : 'rgba(22,163,74,0.1)', color: overCap ? RED : '#16A34A' }}>
+                          {overCap ? r.balance : `+${r.balance}`}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         </Card>
-      )}
+        )
+      })()}
 
       {/* ── Per-Hour Rate Reference Table ───────────────────────────────── */}
       <Card title="Employee Per-Hour Rate Reference" meta="Monthly salary ÷ 212.5 hrs (25 days × 8.5 hrs)">

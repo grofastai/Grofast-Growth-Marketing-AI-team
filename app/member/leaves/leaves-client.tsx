@@ -403,7 +403,9 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   // not always today's real month.
   const filterMonthUsed    = calcMonthlyDays(leaves, filterMonth)
   const filterMonthBalance = Math.max(0, MONTHLY_LIMIT - filterMonthUsed)
-  const wfhFilterMonth     = allEntries.filter(l => l.leave_type === "wfh" && l.status === "approved" && l.from_date.startsWith(filterMonth)).length
+  // "WFH Days" card counts both work-from-home and shoot days — both are logged
+  // work, not leave (see the no-monthly-cap rule for wfh/shoot_day), so they share one tile.
+  const wfhShootFilterMonth = allEntries.filter(l => (l.leave_type === "wfh" || l.leave_type === "shoot_day") && l.status === "approved" && l.from_date.startsWith(filterMonth)).length
   const nextHoliday = companyLeaves.find(h => h.date >= today) ?? null
   const thisMonthHolidays = companyLeaves.filter(h => h.date.startsWith(currentMonth))
   const wlbScore    = Math.min(100, Math.max(30, Math.round(72 - pendingL.length * 3 + approved.length * 2)))
@@ -540,7 +542,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
             {[
               { label: "Total Leaves\nThis Year",        val: allEntries.filter(l => (l.status === "approved" || l.status === "absent") && l.leave_type !== "wfh" && l.leave_type !== "shoot_day" && l.leave_type !== "permission").length, color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: null, sub: null, subColor: "" },
               { label: `Leave Taken\n${monthTag}`,       val: filterMonthUsed,     color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "📅", trend: null, sub: `of ${MONTHLY_LIMIT} days allowed`, subColor: "#9CA3AF" },
-              { label: `WFH Days\n${monthTag}`,          val: wfhFilterMonth,      color: "#6366F1", bg: "rgba(99,102,241,0.1)",  icon: "🏠", trend: null, sub: wfhFilterMonth > 0 ? `${wfhFilterMonth} approved WFH` : "No WFH that month", subColor: "#6366F1" },
+              { label: `WFH + Shoot\n${monthTag}`,       val: wfhShootFilterMonth, color: "#6366F1", bg: "rgba(99,102,241,0.1)",  icon: "🏠", trend: null, sub: wfhShootFilterMonth > 0 ? `${wfhShootFilterMonth} approved` : "None that month", subColor: "#6366F1" },
               { label: `Leave Left\n${monthTag}`,        val: filterMonthBalance,  color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "🗓️", trend: null, sub: `${filterMonthUsed} of ${MONTHLY_LIMIT} used`, subColor: "#9CA3AF" },
               { label: "Annual Leave\nRemaining",       val: Math.max(0, 60 - usedLeaveDays), color: "#0EA5E9", bg: "rgba(14,165,233,0.1)", icon: "🏖️", trend: null, sub: null, subColor: "" },
               { label: "This Month's\nHolidays",        val: thisMonthHolidays.length, color: "#EC4899", bg: "rgba(236,72,153,0.1)", icon: "🎉", trend: null, sub: thisMonthHolidays.length > 0 ? thisMonthHolidays[0].name : "No holidays", subColor: "#EC4899" },

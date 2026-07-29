@@ -1148,34 +1148,12 @@ function ClientStatsBox({ client, stats, onSaveTarget, contentType = "video" }: 
   contentType?: "video" | "poster"
 }) {
   const isPoster = contentType === "poster"
-  const [editingTarget, setEditingTarget] = useState(false)
-  const [draft, setDraft] = useState(String(stats.target))
 
-  function commit() {
-    const n = Math.max(0, Math.round(Number(draft) || 0))
-    setEditingTarget(false)
-    if (n !== stats.target) onSaveTarget(n)
-  }
-
-  function StatRow({ label, value, color, editable }: { label: string; value: string | number; color: string; editable?: boolean }) {
+  function StatRow({ label, value, color }: { label: string; value: string | number; color: string }) {
     return (
       <div className="flex items-center justify-between" style={{ fontSize: 12 }}>
         <span style={{ color: "#6B7280", fontWeight: 600 }}>{label}</span>
-        {editable && editingTarget ? (
-          <input autoFocus type="number" min={0} value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditingTarget(false) }}
-            style={{ width: 48, fontSize: 12, fontWeight: 800, textAlign: "right", border: `1.5px solid ${color}`, borderRadius: 6, padding: "1px 4px", color }} />
-        ) : (
-          <button
-            onClick={editable ? () => { setDraft(String(stats.target)); setEditingTarget(true) } : undefined}
-            className="flex items-center gap-1"
-            style={{ border: "none", background: "transparent", padding: 0, cursor: editable ? "pointer" : "default", color, fontWeight: 800, fontSize: 12 }}>
-            {value}
-            {editable && <Pencil size={9} />}
-          </button>
-        )}
+        <span style={{ color, fontWeight: 800, fontSize: 12 }}>{value}</span>
       </div>
     )
   }
@@ -1191,7 +1169,13 @@ function ClientStatsBox({ client, stats, onSaveTarget, contentType = "video" }: 
       </p>
 
       <SectionLabel>Monthly Goal</SectionLabel>
-      <StatRow label={`Monthly Target (${fmtMonth(stats.targetMonth)})`} value={stats.target} color="#7C3AED" editable />
+      {/* Same reusable editable cell as the Overview tab's Per-Client KPIs table — a
+          visible bordered input, not a hidden click-to-edit affordance, so it's obvious
+          at a glance that this number can be changed. */}
+      <div className="flex items-center justify-between" style={{ fontSize: 12 }}>
+        <span style={{ color: "#6B7280", fontWeight: 600 }}>{`Monthly Target (${fmtMonth(stats.targetMonth)})`}</span>
+        <EditableTargetCell value={stats.target} onSave={async n => onSaveTarget(n)} />
+      </div>
       <StatRow label="Published" value={stats.posted} color="#16A34A" />
       <StatRow label="Remaining" value={stats.remaining} color="#D97706" />
       <StatRow label="Completion %" value={stats.completionPct !== null ? `${stats.completionPct}%` : "—"} color="#0EA5E9" />

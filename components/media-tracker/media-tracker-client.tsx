@@ -24,7 +24,7 @@ import {
   createAd, updateAd, updateAdStatus, deleteAd, addAdRevision, addAdPerformanceEntry, requestCorrection,
   createAdsVideoScript, recordVoiceOver, updateAdsVideoScript, updateVoiceOver, setClientMonthlyTarget,
 } from "@/lib/actions/media-tracker"
-import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, renameShootTitle, deleteShootTitle, addShootTitle, updateShootActualTime, type CreatedShootItem } from "@/lib/actions/shoots"
+import { createTrackerShoot, completeShootWithTitles, updateShootStatus, updateShootCrew, updateTrackerShoot, deleteShoot, moveScriptToShoot, renameShootTitle, deleteShootTitle, addShootTitle, updateShootActualTime, updateShootDriveLink, type CreatedShootItem } from "@/lib/actions/shoots"
 import { isValidShootTransition } from "@/lib/shoots/status-transitions"
 import { isValidPipelineTransition } from "@/lib/media-tracker/pipeline-transitions"
 import { computeOverview, type AttentionItem } from "@/lib/media-tracker/overview"
@@ -3376,7 +3376,7 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
 // client (kept in sync with the linked Ads Video item, if any), video titles (rename keeps
 // the linked content_item's title in sync, add one that was missed), the actual shoot time,
 // and who went. ──────────────────────────────────────
-function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastClients, onClose, onRenamed, onAdded, onTimeSaved, onCrewSaved, onClientSaved }: {
+function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastClients, onClose, onRenamed, onAdded, onTimeSaved, onCrewSaved, onClientSaved, onDriveLinkSaved }: {
   shoot: Shoot
   members: Member[]
   currentUserId: string
@@ -3387,6 +3387,7 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
   onTimeSaved: (fromTime: string, toTime: string) => void
   onCrewSaved: (crew: Member[]) => void
   onClientSaved: (client: string) => void
+  onDriveLinkSaved: (driveLink: string) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
@@ -3402,17 +3403,19 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
   const [fromTime, setFromTime] = useState(toISTTimeString(shoot.start_time))
   const [toTime, setToTime] = useState(toISTTimeString(shoot.end_time))
   const [crew, setCrew] = useState<string[]>(shoot.goingByUsers.map(u => u.id))
+  const [driveLink, setDriveLink] = useState(shoot.drive_link ?? "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
-  // Everything above (Client, Video Title edits, Actual Shoot Time, Who Went) is
-  // submitted together with this one button instead of a separate Save per field —
+  // Everything above (Client, Video Title edits, Actual Shoot Time, Who Went, Drive Link)
+  // is submitted together with this one button instead of a separate Save per field —
   // the per-field pattern meant re-editing several things meant clicking Save several
   // times with no single confirmation that it all went through.
   async function handleUpdateAll() {
     if (!client) { setError("Client is required"); return }
     if (!fromTime || !toTime) { setError("Both times are required"); return }
+    if (!isValidDriveLink(driveLink)) { setError("A valid Google Drive link is required"); return }
     setSaving(true); setError(null)
 
     const renamed = titles.filter(t => (titleEdits[t.id] ?? t.title).trim() && titleEdits[t.id] !== t.title)
@@ -3425,6 +3428,7 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
       }),
       updateShootActualTime(shoot.id, fromTime, toTime),
       updateShootCrew(shoot.id, crew),
+      updateShootDriveLink(shoot.id, driveLink.trim()),
       ...renamed.map(t => renameShootTitle(t.id, titleEdits[t.id].trim())),
     ])
     setSaving(false)
@@ -3435,6 +3439,7 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
     onClientSaved(client)
     onTimeSaved(fromTime, toTime)
     onCrewSaved(members.filter(m => crew.includes(m.id)))
+    onDriveLinkSaved(driveLink.trim())
     for (const t of renamed) onRenamed(t.id, titleEdits[t.id].trim())
     setTitlesState(prev => prev.map(t => renamed.some(r => r.id === t.id) ? { ...t, title: titleEdits[t.id].trim() } : t))
     setSuccessMsg("Shoot Updated Successfully")
@@ -3518,6 +3523,15 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
               <input type="time" style={FIELD} value={fromTime} onChange={e => setFromTime(e.target.value)} />
               <input type="time" style={FIELD} value={toTime} onChange={e => setToTime(e.target.value)} />
             </div>
+          </div>
+
+          <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
+            <label style={LABEL}>Drive Link *</label>
+            <input type="url" style={FIELD} value={driveLink} onChange={e => setDriveLink(e.target.value)}
+              placeholder="https://drive.google.com/…" />
+            {driveLink.trim().length > 0 && !isValidDriveLink(driveLink) && (
+              <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>Must be a drive.google.com or docs.google.com link</p>
+            )}
           </div>
 
           <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
@@ -4449,6 +4463,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     const start_time = `${shotDate}T${fromTime}:00`
     const end_time = `${shotDate}T${toTime}:00`
     setShoots(prev => prev.map(s => s.id === shootId ? { ...s, start_time, end_time } : s))
+  }
+
+  function handleShootDriveLinkSaved(shootId: string, driveLink: string) {
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, drive_link: driveLink } : s))
   }
 
   function handleDeleteShoot(shoot: Shoot) {
@@ -5440,6 +5458,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           onAdded={created => handleShootTitleAdded(editCompletedShootFor.id, created)}
           onTimeSaved={(fromTime, toTime) => handleShootActualTimeSaved(editCompletedShootFor.id, fromTime, toTime)}
           onCrewSaved={crew => handleCompletedShootCrewSaved(editCompletedShootFor.id, crew)}
+          onDriveLinkSaved={driveLink => handleShootDriveLinkSaved(editCompletedShootFor.id, driveLink)}
           onClientSaved={client => handleShootCompletedClientSaved(editCompletedShootFor.id, client)} />
       )}
       {editAdFor && (

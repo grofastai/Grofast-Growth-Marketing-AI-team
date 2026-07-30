@@ -679,8 +679,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
           {/* ── Stats Cards ──────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
             {[
-              { label1: "Total Leaves",  label2: "This Year",  val: yearSplit.total,     color: "#DC2626", color2: "#7C3AED", bg: "rgba(220,38,38,0.12)",  icon: "📋", trend: null, sub: null, subColor: "" },
-              { label1: "Leave Taken",   label2: monthTag,     val: filterMonthUsed,     color: "#D97706", color2: "#7C3AED", bg: "rgba(217,119,6,0.12)",  icon: "📅", trend: null, sub: `of ${MONTHLY_LIMIT} days allowed`, subColor: "#9CA3AF" },
+              { label1: "Total Leaves",  label2: "This Year",  val: yearSplit.total,     color: "#DC2626", color2: "#DC2626", bg: "rgba(220,38,38,0.12)",  icon: "📋", trend: null, sub: null, subColor: "" },
+              { label1: "Leave Taken",   label2: monthTag,     val: filterMonthUsed,     color: "#D97706", color2: "#D97706", bg: "rgba(217,119,6,0.12)",  icon: "📅", trend: null, sub: `of ${MONTHLY_LIMIT} days allowed`, subColor: "#9CA3AF" },
               { label1: "WFH + Shoot",  label2: monthTag,     val: wfhShootFilterMonth, color: "#4F46E5", color2: "#4F46E5", bg: "rgba(79,70,229,0.12)",  icon: "🏠", trend: null, sub: wfhShootFilterMonth > 0 ? `${wfhShootFilterMonth} approved` : "None that month", subColor: "#4F46E5" },
               { label1: "Leave Left",   label2: monthTag,     val: filterMonthBalance,  color: filterMonthBalance < 0 ? "#DC2626" : "#7C3AED", color2: filterMonthBalance < 0 ? "#7C2D12" : "#7C3AED", bg: filterMonthBalance < 0 ? "rgba(220,38,38,0.12)" : "rgba(124,58,237,0.12)", icon: filterMonthBalance < 0 ? "⚠️" : "🗓️", trend: null, sub: filterMonthBalance < 0 ? `${filterMonthUsed} used — ${Math.abs(filterMonthBalance)} over the ${MONTHLY_LIMIT}-day limit` : `${filterMonthUsed} of ${MONTHLY_LIMIT} used`, subColor: filterMonthBalance < 0 ? "#DC2626" : "#9CA3AF" },
               { label1: "Annual Leave", label2: "Remaining",  val: Math.max(0, 60 - usedLeaveDays), color: "#0891B2", color2: "#0891B2", bg: "rgba(8,145,178,0.12)", icon: "🏖️", trend: null, sub: null, subColor: "" },
@@ -726,32 +726,30 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                   </div>
                 ) : s.label1 === "Leave Taken" ? (
                   <div>
-                    <div style={{ height: 6, borderRadius: 99, background: "#EEEBE5", marginBottom: 9, overflow: "hidden", display: "flex", boxShadow: "inset 0 1px 2px rgba(20,15,10,0.08)" }}>
+                    <div style={{ height: 6, borderRadius: 99, background: "#EEEBE5", marginBottom: 9, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(20,15,10,0.08)" }}>
                       {filterMonthSplit.total > 0 && (
-                        <>
-                          <div style={{ height: "100%", width: `${Math.round((filterMonthSplit.real / filterMonthSplit.total) * 100)}%`, background: "linear-gradient(90deg, #D97706, #F0A93A)", boxShadow: "1px 0 0 #FBFAF9" }} />
-                          <div style={{ height: "100%", width: `${Math.round((filterMonthSplit.auto / filterMonthSplit.total) * 100)}%`, background: "linear-gradient(90deg, #7C3AED, #A78BFA)" }} />
-                        </>
+                        <div style={{ height: "100%", width: "100%", borderRadius: 99, background: "linear-gradient(90deg, #D97706, #F0A93A)", position: "relative" }}>
+                          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(255,255,255,0.4), transparent 60%)" }} />
+                        </div>
                       )}
                     </div>
                     <p style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#D97706", display: "inline-block", boxShadow: "0 0 0 3px rgba(217,119,6,0.18)" }} />{filterMonthSplit.real} applied</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#7C3AED", display: "inline-block", boxShadow: "0 0 0 3px rgba(124,58,237,0.18)" }} />{filterMonthSplit.auto} auto</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#D97706", display: "inline-block", boxShadow: "0 0 0 3px rgba(217,119,6,0.18)" }} />{filterMonthSplit.auto} auto</span>
                     </p>
                   </div>
                 ) : s.label1 === "Total Leaves" ? (
                   <div>
-                    <div style={{ height: 6, borderRadius: 99, background: "#EEEBE5", marginBottom: 9, overflow: "hidden", display: "flex", boxShadow: "inset 0 1px 2px rgba(20,15,10,0.08)" }}>
+                    <div style={{ height: 6, borderRadius: 99, background: "#EEEBE5", marginBottom: 9, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(20,15,10,0.08)" }}>
                       {yearSplit.total > 0 && (
-                        <>
-                          <div style={{ height: "100%", width: `${Math.round((yearSplit.real / yearSplit.total) * 100)}%`, background: "linear-gradient(90deg, #DC2626, #F87171)", boxShadow: "1px 0 0 #FBFAF9" }} />
-                          <div style={{ height: "100%", width: `${Math.round((yearSplit.auto / yearSplit.total) * 100)}%`, background: "linear-gradient(90deg, #7C3AED, #A78BFA)" }} />
-                        </>
+                        <div style={{ height: "100%", width: "100%", borderRadius: 99, background: "linear-gradient(90deg, #DC2626, #F87171)", position: "relative" }}>
+                          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(255,255,255,0.4), transparent 60%)" }} />
+                        </div>
                       )}
                     </div>
                     <p style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#DC2626", display: "inline-block", boxShadow: "0 0 0 3px rgba(220,38,38,0.18)" }} />{yearSplit.real} applied</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#7C3AED", display: "inline-block", boxShadow: "0 0 0 3px rgba(124,58,237,0.18)" }} />{yearSplit.auto} auto</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#DC2626", display: "inline-block", boxShadow: "0 0 0 3px rgba(220,38,38,0.18)" }} />{yearSplit.auto} auto</span>
                     </p>
                   </div>
                 ) : s.label1 === "Leave Left" ? (

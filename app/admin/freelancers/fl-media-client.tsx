@@ -311,7 +311,12 @@ export default function FlMediaClient({
                       all flexShrink:0, so title — previously the only shrinkable item sharing
                       the row with them — could get crushed to ~0px width; feedback 2026-07-30). */}
                   <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
-                    <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title || "—"}</p>
+                    {/* Scrollable single line instead of ellipsis-truncating — the full
+                        title is always reachable by swiping, never permanently cut off
+                        (feedback 2026-07-30). */}
+                    <div style={{ overflowX: "auto", overflowY: "hidden" }}>
+                      <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: 0, whiteSpace: "nowrap", width: "max-content" }}>{e.title || "—"}</p>
+                    </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       {typeCfg && (
                         <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 20, background: typeCfg.bg, color: typeCfg.color, fontSize: 10, fontWeight: 800, whiteSpace: "nowrap", flexShrink: 0 }}>

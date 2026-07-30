@@ -764,11 +764,25 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     </p>
                   </div>
                 ) : s.label1 === "Leave Left" ? (
-                  filterMonthBalance < 0 ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10.5, fontWeight: 700, color: "#fff", background: "linear-gradient(135deg, #E13A30, #A31C15)", padding: "6px 10px", borderRadius: 9, boxShadow: "0 3px 10px -3px rgba(196,39,31,0.55)", width: "fit-content" }}>{s.sub}</span>
-                  ) : (
-                    <p style={{ fontSize: 9, color: s.subColor || "#9CA3AF", fontWeight: 600, marginTop: "auto" }}>{s.sub}</p>
-                  )
+                  <div>
+                    <div style={{ height: 6, borderRadius: 99, background: "#EEEBE5", marginBottom: 8, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(20,15,10,0.08)" }}>
+                      <div style={{
+                        height: "100%", width: `${Math.min(100, Math.round((filterMonthUsed / MONTHLY_LIMIT) * 100))}%`, borderRadius: 99,
+                        background: filterMonthBalance < 0 ? "linear-gradient(90deg, #DC2626, #F87171)" : "linear-gradient(90deg, #7C3AED, #A78BFA)",
+                        position: "relative",
+                      }}>
+                        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(255,255,255,0.4), transparent 60%)" }} />
+                      </div>
+                    </div>
+                    <p style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span>{filterMonthUsed} / {MONTHLY_LIMIT} days used</span>
+                      {filterMonthBalance < 0 && (
+                        <span style={{ fontSize: 9, fontWeight: 800, color: "#fff", background: "linear-gradient(135deg, #E13A30, #A31C15)", padding: "1.5px 7px", borderRadius: 99 }}>
+                          +{Math.abs(filterMonthBalance)} OVER
+                        </span>
+                      )}
+                    </p>
+                  </div>
                 ) : s.sub ? (
                   <p style={{ fontSize: 9, color: s.subColor || "#9CA3AF", fontWeight: 600, marginTop: "auto" }}>{s.sub}</p>
                 ) : null}

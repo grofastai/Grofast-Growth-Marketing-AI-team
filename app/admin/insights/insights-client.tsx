@@ -98,9 +98,13 @@ const TYPE_CFG: Record<string, { label: string; emoji: string; color: string }> 
   development: { label: 'Development', emoji: '💻', color: '#4338CA' },
   other_activity: { label: 'Other', emoji: '🗓️', color: '#6B7280' },
   learning:  { label: 'Learning',  emoji: '📚', color: '#0EA5E9' },
+  // Not a work_entries task_type — sourced from the leaves table (approved Permission
+  // hours, team-wide) and injected into workTotals below as its own row, kept separate
+  // from Break (feedback 2026-07-30: Break should stay pure break time).
+  permission: { label: 'Permission', emoji: '⏰', color: '#0D9488' },
   break:     { label: 'Break',     emoji: '☕', color: '#F97316' },
 }
-const TYPE_ORDER = ['shoot', 'edit', 'other', 'voiceover', 'poster', 'scripting', 'development', 'learning', 'other_activity', 'break']
+const TYPE_ORDER = ['shoot', 'edit', 'other', 'voiceover', 'poster', 'scripting', 'development', 'learning', 'other_activity', 'permission', 'break']
 function typeCfg(key: string) {
   return TYPE_CFG[key] ?? { label: key.charAt(0).toUpperCase() + key.slice(1), emoji: '🔹', color: '#9CA3AF' }
 }
@@ -346,8 +350,15 @@ export default function InsightsClient({
   // keys actually appear this month, so a new type (e.g. scripting) shows up
   // automatically with no code change here.
   const allTypeKeys = Array.from(new Set(memberUtilization.flatMap(m => Object.keys(m.workBreakdown))))
-  const workTotals = orderedTypeKeys(allTypeKeys)
-    .map(key => ({ key, ...typeCfg(key), hours: memberUtilization.reduce((s, m) => s + (m.workBreakdown[key] ?? 0), 0) }))
+  // Team-wide approved Permission hours this month, from the leaves table (not
+  // work_entries) — added as its own row (via 'permission' key below) so it never
+  // gets folded into Break.
+  const totalPermissionHours = leaveBreakdown.reduce((s, r) => s + r.permissionHours, 0)
+  const workTotals = orderedTypeKeys([...allTypeKeys, 'permission'])
+    .map(key => ({
+      key, ...typeCfg(key),
+      hours: key === 'permission' ? totalPermissionHours : memberUtilization.reduce((s, m) => s + (m.workBreakdown[key] ?? 0), 0),
+    }))
     .filter(w => w.hours > 0)
   const maxWorkHours = Math.max(...workTotals.map(w => w.hours), 1)
 
@@ -776,12 +787,14 @@ export default function InsightsClient({
                           <Tooltip formatter={(v) => isCostSort ? fmtRupee(Number(v)) : fmtH(Number(v))} labelFormatter={(_l, p) => p?.[0]?.payload?.name ?? ''} />
                         </PieChart>
                       </ResponsiveContainer>
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                        <span style={{ fontFamily: JAKARTA, fontSize: isCostSort ? 32 : 42, fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>
-                          {isCostSort ? fmtRupee(totalCost) : totalHours.toFixed(1)}
+                      {/* Same 2-line layout for both modes (big number + one sub-label) — the
+                          Hours variant previously ran a bigger font plus an extra "Hours" line,
+                          which overflowed the donut's center circle (feedback 2026-07-30). */}
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', padding: '0 12px', textAlign: 'center' }}>
+                        <span style={{ fontFamily: JAKARTA, fontSize: 32, fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>
+                          {isCostSort ? fmtRupee(totalCost) : `${totalHours.toFixed(1)}h`}
                         </span>
-                        {!isCostSort && <span style={{ fontSize: 16, fontWeight: 600, color: '#334155', marginTop: 2 }}>Hours</span>}
-                        <span style={{ fontSize: 14, color: '#94A3B8', marginTop: 2 }}>{isCostSort ? 'Total Spend' : 'Total Logged'}</span>
+                        <span style={{ fontSize: 14, color: '#94A3B8', marginTop: 6 }}>{isCostSort ? 'Total Spend' : 'Total Logged'}</span>
                       </div>
                     </div>
                     {deltaPct !== null && (

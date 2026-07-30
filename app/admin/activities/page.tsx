@@ -77,11 +77,16 @@ export default async function ActivitiesPage({
       .eq("company_id", companyId)
       .order("created_at", { ascending: false })
       .limit(200),
+    // Full Day / Half Day only — "On Leave" means actually absent. WFH/Shoot Day are
+    // work arrangements (member is working, not absent) and Permission is an hourly
+    // step-out, not a full day off — same scope as the Dashboard's Leave Calendar
+    // (feedback 2026-07-30).
     admin
       .from("leaves")
-      .select("user_id, from_date, to_date")
+      .select("user_id, from_date, to_date, leave_type")
       .eq("company_id", companyId)
       .eq("status", "approved")
+      .in("leave_type", ["full_day", "half_day"])
       .lte("from_date", to)
       .gte("to_date", from),
     admin

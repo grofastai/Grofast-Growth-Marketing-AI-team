@@ -696,19 +696,21 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
               { label1: "This Month's", label2: "Holidays",   val: thisMonthHolidays.length, color: "#DB2777", color2: "#DB2777", bg: "rgba(219,39,119,0.12)", icon: "🎉", trend: null, sub: thisMonthHolidays.length > 0 ? thisMonthHolidays[0].name : "No holidays", subColor: "#DB2777" },
             ].map((s, i) => (
               <div key={i} style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #FBFAF9 100%)", borderRadius: 22, padding: "20px 18px 16px", border: "1px solid rgba(20,15,10,0.07)", boxShadow: "0 1px 2px rgba(20,15,10,0.04), 0 12px 26px -12px rgba(20,15,10,0.16), inset 0 1px 0 rgba(255,255,255,0.7)", display: "flex", flexDirection: "column", gap: 0, position: "relative", overflow: "hidden" }}>
-                {/* Icon badge */}
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 14, boxShadow: "inset 0 1px 1px rgba(255,255,255,0.6), 0 1px 3px rgba(0,0,0,0.06)" }}>
-                  {s.icon}
+                {/* Icon badge + number, side by side (moved the number up next to the icon per feedback 2026-07-30) */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, boxShadow: "inset 0 1px 1px rgba(255,255,255,0.6), 0 1px 3px rgba(0,0,0,0.06)" }}>
+                    {s.icon}
+                  </div>
+                  {/* Number — gradient fill for a bit of depth */}
+                  <p style={{
+                    fontSize: "clamp(24px,2.2vw,32px)", fontWeight: 800, lineHeight: 1,
+                    letterSpacing: "-0.02em", fontFamily: "var(--font-jakarta)", fontVariantNumeric: "tabular-nums",
+                    backgroundImage: `linear-gradient(180deg, ${s.color} 0%, ${s.color2} 130%)`,
+                    WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
+                    filter: "drop-shadow(0 1px 0 rgba(255,255,255,0.5)) drop-shadow(0 2px 3px rgba(20,15,10,0.08))",
+                    width: "fit-content", margin: 0,
+                  }}>{s.val}</p>
                 </div>
-                {/* Number — gradient fill for a bit of depth */}
-                <p style={{
-                  fontSize: "clamp(24px,2.2vw,32px)", fontWeight: 800, lineHeight: 1, marginBottom: 6,
-                  letterSpacing: "-0.02em", fontFamily: "var(--font-jakarta)", fontVariantNumeric: "tabular-nums",
-                  backgroundImage: `linear-gradient(180deg, ${s.color} 0%, ${s.color2} 130%)`,
-                  WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
-                  filter: "drop-shadow(0 1px 0 rgba(255,255,255,0.5)) drop-shadow(0 2px 3px rgba(20,15,10,0.08))",
-                  width: "fit-content",
-                }}>{s.val}</p>
                 {/* Label — accent tick + two-tier hierarchy */}
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 12 }}>
                   <span style={{ width: 3, height: 20, borderRadius: 99, flexShrink: 0, marginTop: 1, background: `linear-gradient(180deg, ${s.color}, ${s.color}66)` }} />
@@ -743,8 +745,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                       )}
                     </div>
                     <p style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#D97706", display: "inline-block", boxShadow: "0 0 0 3px rgba(217,119,6,0.18)" }} />{filterMonthSplit.real} applied</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#7C3AED", display: "inline-block", boxShadow: "0 0 0 3px rgba(124,58,237,0.18)" }} />{filterMonthSplit.auto} auto</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#D97706", display: "inline-block", boxShadow: "0 0 0 3px rgba(217,119,6,0.18)" }} />{filterMonthSplit.real} APPLIED</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#7C3AED", display: "inline-block", boxShadow: "0 0 0 3px rgba(124,58,237,0.18)" }} />{filterMonthSplit.auto} AUTO</span>
                     </p>
                   </div>
                 ) : s.label1 === "Total Leaves" ? (
@@ -757,8 +759,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                       )}
                     </div>
                     <p style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#DC2626", display: "inline-block", boxShadow: "0 0 0 3px rgba(220,38,38,0.18)" }} />{yearSplit.real} applied</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#7C3AED", display: "inline-block", boxShadow: "0 0 0 3px rgba(124,58,237,0.18)" }} />{yearSplit.auto} auto</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#DC2626", display: "inline-block", boxShadow: "0 0 0 3px rgba(220,38,38,0.18)" }} />{yearSplit.real} APPLIED</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#7C3AED", display: "inline-block", boxShadow: "0 0 0 3px rgba(124,58,237,0.18)" }} />{yearSplit.auto} AUTO</span>
                     </p>
                   </div>
                 ) : s.label1 === "Leave Left" ? (
@@ -799,7 +801,11 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                   style={{ padding: "8px 12px", borderRadius: 10, background: filterMode !== "all" ? "rgba(222,26,26,0.08)" : "#F5F6FA", border: filterMode !== "all" ? "1.5px solid rgba(222,26,26,0.3)" : "1px solid #EBEDF2", fontSize: 12, fontWeight: 700, color: filterMode !== "all" ? "#DE1A1A" : "#374151", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, outline: "none" }}>
                   <option value="all">All</option>
                   <option value="leaves">Leaves</option>
-                  <option value="permission">Permission</option>
+                  {/* Filters to wfh/shoot_day (working outside the office), not leave_type
+                      'permission' — those hourly step-out entries already live inside
+                      "Leaves" above. Labeled "Remote" to match what it actually shows
+                      (feedback 2026-07-30: "Permission" read as misleading here). */}
+                  <option value="permission">Remote</option>
                   <option value="approved">Approved</option>
                   <option value="rejected">Rejected</option>
                 </select>

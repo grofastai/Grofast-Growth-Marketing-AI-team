@@ -28,7 +28,7 @@ export default async function LeavesPage({
   // leaves/permission filter by TYPE, all = everything, holidays = holidays view.
   const mode = params.mode ?? "pending"
   const LEAVE_TYPES = ["full_day", "half_day", "permission"]   // "Leaves" bucket
-  const PERMISSION_TYPES = ["wfh", "shoot_day"]                 // "Permission" bucket
+  const PERMISSION_TYPES = ["wfh", "shoot_day"]                 // "Remote" bucket (UI label — mode value stays "permission")
   const today = todayIST()
   const tomorrow = toISTDateString(Date.now() + 86400000)
 

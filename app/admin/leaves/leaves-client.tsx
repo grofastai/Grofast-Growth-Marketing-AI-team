@@ -62,7 +62,11 @@ interface LeavesClientProps {
 const MODE_OPTIONS = [
   { value: "pending",    label: "Pending" },
   { value: "leaves",     label: "Leaves" },
-  { value: "permission", label: "Permission" },
+  // value stays "permission" (matches PERMISSION_TYPES in page.tsx / the URL param) —
+  // only the visible label changed. It filters to wfh/shoot_day (working outside the
+  // office), not leave_type 'permission' — those already live inside "Leaves" above.
+  // Labeled "Remote" to match what it actually shows (feedback 2026-07-30).
+  { value: "permission", label: "Remote" },
   { value: "approved",   label: "Approved" },
   { value: "rejected",   label: "Rejected" },
   { value: "all",        label: "All" },
@@ -1040,7 +1044,6 @@ export default function LeavesClient({
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <div>
                 <p style={{ fontSize: 15, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>Apply Team Leave</p>
-                <p style={{ fontSize: 11, color: "#6B7280", margin: "2px 0 0" }}>Applies as admin — auto-approved immediately, past dates allowed.</p>
               </div>
               <button onClick={() => { setShowApplyModal(false); resetApplyForm() }} style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "#F3F4F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <X size={15} color="#6B7280" />

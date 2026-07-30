@@ -538,7 +538,7 @@ export default function ClientsUnifiedClient({
             <div style={{
               background: 'linear-gradient(135deg, #DE1A1A 0%, #7F1D1D 100%)',
               borderRadius: 20, padding: '20px 24px',
-              display: 'flex', alignItems: 'center', gap: 16,
+              display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
               boxShadow: '0 6px 24px rgba(222,26,26,0.25)',
               position: 'relative', overflow: 'hidden',
             }}>
@@ -551,7 +551,7 @@ export default function ClientsUnifiedClient({
               }}>
                 {ini(selectedClientRow.name)}
               </div>
-              <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+              <div style={{ flex: 1, minWidth: 140, position: 'relative' }}>
                 <h2 style={{ fontSize: 22, fontWeight: 900, color: '#FFF', margin: '0 0 6px', fontFamily: 'var(--font-jakarta)' }}>
                   {selectedClientRow.name}
                 </h2>

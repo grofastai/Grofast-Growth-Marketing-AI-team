@@ -182,10 +182,12 @@ export default async function DashboardPage() {
       !m.is_management && !m.is_freelancer_login && !yesterdayUpdatedIds.has(m.id) && !yesterdayOnLeaveIds.has(m.id))
     .map((m: { name: string }) => m.name)
 
-  // Build leave calendar map — excludes WFH/Shoot Day, those members are working, not absent
+  // Build leave calendar map — Full Day / Half Day only. Excludes WFH/Shoot Day (those
+  // members are working, not absent) and Permission (an hourly step-out, not a day off —
+  // feedback 2026-07-30) and any auto-detected leave types.
   const leaveCalMap: Record<string, { id: string; name: string }[]> = {}
   for (const leave of (monthLeavesRaw ?? []) as unknown as CalLeaveRow[]) {
-    if (leave.leave_type === "wfh" || leave.leave_type === "shoot_day") continue
+    if (leave.leave_type !== "full_day" && leave.leave_type !== "half_day") continue
     const u    = Array.isArray(leave.users) ? leave.users[0] : leave.users
     const id   = u?.id ?? ""
     const name = u?.name ?? "?"

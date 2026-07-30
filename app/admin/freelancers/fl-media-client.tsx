@@ -306,17 +306,22 @@ export default function FlMediaClient({
 
                   <div style={{ width: 1, height: 44, background: "#FCE8EC", flexShrink: 0 }} />
 
-                  {/* Content — all on one line */}
-                  <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, overflow: "hidden" }}>
-                    {typeCfg && (
-                      <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 20, background: typeCfg.bg, color: typeCfg.color, fontSize: 10, fontWeight: 800, whiteSpace: "nowrap", flexShrink: 0 }}>
-                        {typeCfg.emoji} {typeCfg.label}
-                      </span>
-                    )}
-                    <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: "1 1 0", minWidth: 0 }}>{e.title || "—"}</p>
-                    {e.client_name && <span style={{ fontSize: 11, color: "#DC143C", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>{e.client_name}</span>}
-                    {e.video_duration && <span style={{ fontSize: 11, color: "#0F4C4C", whiteSpace: "nowrap", flexShrink: 0 }}>· {e.video_duration}</span>}
-                    {e.duration_hours ? <span style={{ fontSize: 11, color: "#0F4C4C", whiteSpace: "nowrap", flexShrink: 0 }}>· {fmtH(e.duration_hours)}</span> : null}
+                  {/* Content — title gets its own full-width line so it's never squeezed to
+                      invisible by the badge/client/duration siblings on narrow screens (they're
+                      all flexShrink:0, so title — previously the only shrinkable item sharing
+                      the row with them — could get crushed to ~0px width; feedback 2026-07-30). */}
+                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
+                    <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title || "—"}</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      {typeCfg && (
+                        <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 20, background: typeCfg.bg, color: typeCfg.color, fontSize: 10, fontWeight: 800, whiteSpace: "nowrap", flexShrink: 0 }}>
+                          {typeCfg.emoji} {typeCfg.label}
+                        </span>
+                      )}
+                      {e.client_name && <span style={{ fontSize: 11, color: "#DC143C", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>{e.client_name}</span>}
+                      {e.video_duration && <span style={{ fontSize: 11, color: "#0F4C4C", whiteSpace: "nowrap", flexShrink: 0 }}>· {e.video_duration}</span>}
+                      {e.duration_hours ? <span style={{ fontSize: 11, color: "#0F4C4C", whiteSpace: "nowrap", flexShrink: 0 }}>· {fmtH(e.duration_hours)}</span> : null}
+                    </div>
                   </div>
 
                   {/* Price input + save */}

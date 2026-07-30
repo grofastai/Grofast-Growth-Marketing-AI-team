@@ -1105,8 +1105,11 @@ export default function FreelancersMemberClient({
           </div>
         </div>}
 
-        {/* RIGHT panel */}
-        <div className={(!hideLeftPanel && mobileView === 'list' ? 'hidden md:flex md:flex-col md:flex-1' : 'flex flex-col flex-1') + ' md:overflow-y-auto'}>
+        {/* RIGHT panel — overflow-x-hidden guards against the hero banner's
+            decorative bleed (overflow:visible circles/character art) turning
+            into an accidental horizontal page-scroll on mobile, which is what
+            was cutting off content on some freelancer profiles (2026-07-30). */}
+        <div className={(!hideLeftPanel && mobileView === 'list' ? 'hidden md:flex md:flex-col md:flex-1' : 'flex flex-col flex-1') + ' md:overflow-y-auto overflow-x-hidden'}>
           {/* Mobile back button — only shown when in detail view on mobile */}
           {!hideLeftPanel && mobileView === 'detail' && (
             <button className="md:hidden flex items-center gap-2 px-4 py-3 border-b border-gray-100 bg-white flex-shrink-0"

@@ -569,13 +569,14 @@ function TrackerNav({ mode, onMode, tab, onTab, modeCounts, sections }: {
           const Icon = m.icon
           return (
             <button key={m.key} onClick={() => onMode(m.key)} aria-pressed={on}
-              className="flex-1 md:flex-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              className="flex-1 md:flex-none min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                padding: "9px clamp(10px,2.4vw,20px)", borderRadius: 12, border: "none", cursor: "pointer",
+                padding: "9px clamp(6px,2.4vw,20px)", borderRadius: 12, border: "none", cursor: "pointer",
                 background: on ? a.grad : "transparent",
                 boxShadow: on ? `0 6px 18px ${a.glow}` : "none",
                 transition: "background .18s ease, box-shadow .18s ease",
+                minWidth: 0,
               }}>
               <span style={{
                 display: "grid", placeItems: "center", width: 24, height: 24, borderRadius: 8, flexShrink: 0,
@@ -584,7 +585,7 @@ function TrackerNav({ mode, onMode, tab, onTab, modeCounts, sections }: {
               }}>
                 <Icon size={13} />
               </span>
-              <span style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: "-0.01em", color: on ? "#fff" : "#94A3B8" }}>{m.label}</span>
+              <span style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: "-0.01em", color: on ? "#fff" : "#94A3B8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{m.label}</span>
               <span className="hidden md:inline-block" style={{
                 fontSize: 10.5, fontWeight: 800, fontVariantNumeric: "tabular-nums", lineHeight: "16px",
                 minWidth: 20, textAlign: "center", padding: "0 5px", borderRadius: 6,
@@ -3799,25 +3800,30 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const [logPlatformFilter, setLogPlatformFilter] = useState<Platform | "all">("all")
   const [logClientFilter, setLogClientFilter] = useState<string>("all")
   const [logMonthFilter, setLogMonthFilter] = useState<string>("all")
-  const [overviewKpiMonth, setOverviewKpiMonth] = useState<string>("all")
+  // Overview/Shooting/Ads Video default to the CURRENT month, not All Time — Ready to
+  // Edit (pipelineMonthFilter below) is the one deliberate exception, left on "all"
+  // (confirmed 2026-07-30).
+  const [overviewKpiMonth, setOverviewKpiMonth] = useState<string>(todayIST().slice(0, 7))
   const [overviewKpiContentType, setOverviewKpiContentType] = useState<"video" | "poster">("video")
   const [logDayFilter, setLogDayFilter] = useState("")
   const [pipelineDayFilter, setPipelineDayFilter] = useState("")
-  const [shootsMonthFilter, setShootsMonthFilter] = useState<string>("all")
+  const [shootsMonthFilter, setShootsMonthFilter] = useState<string>(todayIST().slice(0, 7))
   const [shootsDayFilter, setShootsDayFilter] = useState("")
   const [adsMonthFilter, setAdsMonthFilter] = useState<string>("all")
   const [adsDayFilter, setAdsDayFilter] = useState("")
   const [adsVideoSearch, setAdsVideoSearch] = useState("")
   const [adsVideoClientFilter, setAdsVideoClientFilter] = useState<string>("all")
-  const [adsVideoMonthFilter, setAdsVideoMonthFilter] = useState<string>("all")
+  const [adsVideoMonthFilter, setAdsVideoMonthFilter] = useState<string>(todayIST().slice(0, 7))
   const [adsVideoDayFilter, setAdsVideoDayFilter] = useState("")
   const [pipelineClientFilter, setPipelineClientFilter] = useState<string>("all")
+  // Ready to Edit stays "all" (All Time) — deliberately the one exception to the
+  // current-month default above (confirmed 2026-07-30).
   const [pipelineMonthFilter, setPipelineMonthFilter] = useState<string>("all")
   const [activeMobileCol, setActiveMobileCol] = useState<ContentStatus>("ready_to_edit")
-  // Scopes the Overview's stage-count blocks by creation date. "all" leaves them live —
-  // Needs Attention and the posting tiles never look at this, on purpose (see overview.ts).
-  const [overviewRangeMode, setOverviewRangeMode] = useState<"all" | "week" | "month" | "custom">("all")
-  const [overviewMonth, setOverviewMonth] = useState<string>("all")
+  // Scopes the Overview's stage-count blocks by creation date. Defaults to the current
+  // month (see note above) — Needs Attention and the posting tiles never look at this.
+  const [overviewRangeMode, setOverviewRangeMode] = useState<"all" | "week" | "month" | "custom">("month")
+  const [overviewMonth, setOverviewMonth] = useState<string>(todayIST().slice(0, 7))
   const [overviewCustomFrom, setOverviewCustomFrom] = useState("")
   const [overviewCustomTo, setOverviewCustomTo] = useState("")
 

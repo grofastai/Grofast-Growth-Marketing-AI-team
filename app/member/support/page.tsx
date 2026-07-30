@@ -3,7 +3,7 @@ import { getTickets, getCurrentUser } from '@/lib/actions/support'
 import MemberSupportChat from './support-client'
 import SupportInbox from '@/app/admin/support/support-client'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 30 // was force-fresh — safe to cache: every write to this page already calls revalidatePath() (2026-07-30)
 
 export default async function MemberSupportPage() {
   const user = await getCurrentUser()

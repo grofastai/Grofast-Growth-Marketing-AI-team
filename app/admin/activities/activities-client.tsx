@@ -87,6 +87,28 @@ function parseLearningTitle(title: string | undefined): { client: string; topic:
   return m ? { client: m[1], topic: m[2] } : { client: "", topic: title }
 }
 
+// Counts distinct pieces of work, not entries — a video edited/revised 3 times
+// is 1 unique work, not 3, so revisions of the same title don't inflate the count.
+function countUniqueWork(rows: Array<{ title: string }>): number {
+  const seen = new Set<string>()
+  let count = 0
+  for (const r of rows) {
+    const key = r.title.trim().toLowerCase()
+    if (!key) { count++; continue }
+    if (seen.has(key)) continue
+    seen.add(key)
+    count++
+  }
+  return count
+}
+
+// Same exact rule as app/admin/insights/page.tsx's isMediaTeam — only these two
+// team names count as "media"; everything else (incl. AI Dev & Creative teams) is non-media.
+function isMediaTeam(team: string | null | undefined): boolean {
+  const t = (team ?? "").toLowerCase().trim()
+  return t === "media production team" || t === "media team"
+}
+
 function fmt12(t: string | undefined): string {
   if (!t) return ""
   const [h, m] = t.split(":").map(Number)
@@ -100,6 +122,27 @@ function calcDurationFromTimes(start?: string, end?: string): number | null {
   const [eh, em] = end.split(":").map(Number)
   const diff = (eh * 60 + em) - (sh * 60 + sm)
   return diff > 0 ? diff / 60 : null
+}
+
+function shiftYm(ym: string, delta: number): string {
+  const [y, m] = ym.split("-").map(Number)
+  const d = new Date(y, m - 1 + delta, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+}
+
+function ymRange(ym: string): [string, string] {
+  const [y, m] = ym.split("-").map(Number)
+  const first = `${y}-${String(m).padStart(2, "0")}-01`
+  const lastDay = new Date(y, m, 0).getDate()
+  const last = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`
+  return [first, last]
+}
+
+function monthLabel(ym: string): string {
+  try {
+    const [y, m] = ym.split("-").map(Number)
+    return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+  } catch { return ym }
 }
 
 function fmtTravel(h: number): string {
@@ -142,6 +185,71 @@ const TASK_CFG: Record<string, { Icon: typeof Camera; color: string; bg: string;
   scripting:      { Icon: FileText,      color: "#EAB308", bg: "rgba(234,179,8,0.1)",   label: "Scripting" },
   development:    { Icon: Code2,         color: "#6366F1", bg: "rgba(99,102,241,0.1)",  label: "Development" },
   other_activity: { Icon: CalendarClock, color: "#6B7280", bg: "rgba(107,114,128,0.1)", label: "Other" },
+}
+
+// Priority order for the up-to-5 Work Analysis KPI slots: real work types first
+// (shoot/edit/voiceover/poster/scripting/development/other-technical), then
+// Learning, then Other(activity) only fill remaining slots — so a person with
+// 5+ real work types never gets Learning/Other bumping one out, per explicit
+// user spec (2026-07-31).
+const PROPER_WORK_TYPES = ["shoot", "edit", "voiceover", "poster", "scripting", "development", "other"]
+
+// Copied verbatim from app/admin/clients/clients-unified-client.tsx's StatChip —
+// the exact card the user pointed at as the reference to match, not approximate.
+function StatChip({ label, emoji, hours, count, color, isCost }: {
+  label: string; emoji: string; hours: string; count?: number | string; color: string; isCost?: boolean
+}) {
+  const hasHours = hours && hours !== '0.0h' && hours !== '₹0'
+  return (
+    <div style={{
+      background: '#fff', borderRadius: 16,
+      border: `1.5px solid ${color}22`,
+      borderTop: `3px solid ${color}`,
+      padding: '14px 16px 16px', flex: 1, minWidth: 120,
+      boxShadow: `0 4px 16px ${color}12, 0 1px 4px rgba(0,0,0,0.05)`,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+      textAlign: 'center',
+    }}>
+      {/* Line 1 — emoji + colored label */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <span style={{ fontSize: 15, lineHeight: 1 }}>{emoji}</span>
+        <span style={{
+          fontSize: 10, fontWeight: 800, color,
+          textTransform: 'uppercase', letterSpacing: '0.08em',
+        }}>{label}</span>
+      </div>
+
+      {/* Line 2 — value + 3D count badge */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <p style={{
+          fontSize: 22, fontWeight: 900, margin: 0, lineHeight: 1,
+          fontFamily: 'var(--font-jakarta)',
+          color: isCost ? color : '#111827',
+        }}>
+          {hasHours ? hours : (count != null ? String(count) : hours)}
+        </p>
+        {/* 3D badge — only when we have both a real value and a count */}
+        {count != null && hasHours && (
+          <div style={{
+            width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+            background: `linear-gradient(145deg, ${color}EE 0%, ${color} 100%)`,
+            boxShadow: `0 4px 10px ${color}55, 0 1px 3px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.3)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 10, fontWeight: 900, color: '#fff',
+          }}>
+            {count}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Emoji per work type for StatChip — same glyphs as clients-unified-client.tsx's
+// StatChip usages, extended with the extra types Work Analysis needs.
+const TASK_EMOJI: Record<string, string> = {
+  shoot: "📸", edit: "🎬", other: "💼", voiceover: "🎙️", poster: "🖼️",
+  scripting: "📝", development: "💻", learning: "📚", other_activity: "🗓️", break: "☕",
 }
 
 const AVATAR_COLORS = [
@@ -420,6 +528,13 @@ export default function ActivitiesClient({
   const [customTo, setCustomTo]     = useState(to)
   const [showCustom, setShowCustom] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  // Header toggle — design review only for now (2026-07-31): switches which
+  // button is highlighted. The actual "Work Analysis" view isn't built yet;
+  // this just proves out the button placement before the real feature lands.
+  const [viewMode, setViewMode] = useState<"activities" | "work-analysis">("activities")
+  // Separate picker state for Work Analysis — must not reuse selectedUserId,
+  // which belongs to the existing per-day drill-down drawer above.
+  const [waEmployeeId, setWaEmployeeId] = useState<string | null>(null)
 
   void onLeaveIds; void pendingLeaves; void pendingCollabs
 
@@ -558,17 +673,103 @@ export default function ActivitiesClient({
     return people.sort((a, b) => (b.userUpdates[0]?.created_at ?? "") .localeCompare(a.userUpdates[0]?.created_at ?? ""))
   }, [groupedByUser])
 
-  const displayDate = useMemo(() => {
-    try {
-      const d = new Date(to + "T12:00:00")
-      return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-    } catch { return to }
-  }, [to])
-
   const curPreset = activePreset()
 
   // Selected person's updates
   const selectedUserUpdates = selectedUserId ? groupedByUser.get(selectedUserId) ?? null : null
+
+  // ── Work Analysis: selected employee's entries, grouped by work type ──────
+  const activeWaId = waEmployeeId ?? filteredPeople[0]?.userId ?? null
+
+  const waEntries = useMemo(() => {
+    if (!activeWaId) return []
+    const userUpdates = groupedByUser.get(activeWaId) ?? []
+    const rows: Array<{ date: string; task_type: string; title: string; client: string; durationH: number; isRework: boolean; videoDuration: string; travelH: number }> = []
+    for (const u of userUpdates) {
+      const entries = (Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
+      for (const e of entries) {
+        const tt = String(e.task_type ?? "")
+        if (!tt || tt === "break" || tt === "not_started") continue
+        const isLearning = tt === "learning"
+        const rawTitle = (e.title || e.task_name || e.description || "") as string
+        const { client: parsedClient, topic: parsedTopic } = isLearning ? parseLearningTitle(rawTitle) : { client: "", topic: "" }
+        const title = isLearning ? (parsedTopic || rawTitle) : rawTitle
+        const clientVal = (e.client_name || e._brand || e._custom_client || e.client || "") as string
+        const clientNames = isLearning
+          ? parsedClient
+          : (e.is_multi_client && Array.isArray(e.client_names) && e.client_names.length > 0
+              ? (e.client_names as string[]).join(", ")
+              : clientVal)
+        const durationH = calcDurationFromTimes(e.start_time as string | undefined, e.end_time as string | undefined)
+          ?? ((e.duration_hours || e.working_hours || 0) as number)
+        const videoDuration = (e.video_duration as string | undefined) ?? ""
+        const travelH = (e._travel_hours as number | undefined) ?? 0
+        rows.push({ date: u.date, task_type: tt, title: title || (TASK_CFG[tt]?.label ?? tt), client: clientNames, durationH, isRework: !!e.is_rework, videoDuration, travelH })
+      }
+    }
+    // 1st date to latest, per explicit spec.
+    return rows.sort((a, b) => a.date.localeCompare(b.date))
+  }, [groupedByUser, activeWaId])
+
+  // Break isn't a "work" type so it's excluded from waEntries/waByType above,
+  // but it's a valid KPI-tile filler (see waKpiTypes) — tracked separately.
+  const waBreakStats = useMemo(() => {
+    if (!activeWaId) return { count: 0, hours: 0 }
+    const userUpdates = groupedByUser.get(activeWaId) ?? []
+    let count = 0, hours = 0
+    for (const u of userUpdates) {
+      const entries = (Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
+      for (const e of entries) {
+        if (String(e.task_type ?? "") !== "break") continue
+        count++
+        hours += (e.duration_hours || e.working_hours || 0) as number
+      }
+    }
+    return { count, hours }
+  }, [groupedByUser, activeWaId])
+
+  const waByType = useMemo(() => {
+    const map = new Map<string, typeof waEntries>()
+    for (const r of waEntries) {
+      if (!map.has(r.task_type)) map.set(r.task_type, [])
+      map.get(r.task_type)!.push(r)
+    }
+    return [...map.entries()].sort((a, b) => b[1].length - a[1].length)
+  }, [waEntries])
+
+  // Always target 5 KPI slots so the row looks the same shape for everyone:
+  // real work types the person has, in fixed priority order, first — then
+  // Learning, then Other, then Break fill any remaining slots even at 0h/0
+  // entries (so the row never looks "incomplete" for someone with few types).
+  const waIsMedia = isMediaTeam(members.find(m => m.id === activeWaId)?.team)
+
+  const waKpiTypes = useMemo(() => {
+    const present = new Set(waByType.map(([tt]) => tt))
+    const slots: string[] = []
+    if (waIsMedia) {
+      // Media: real work types the person has, in priority order, first.
+      for (const tt of PROPER_WORK_TYPES) {
+        if (present.has(tt)) slots.push(tt)
+        if (slots.length === 5) break
+      }
+    } else {
+      // Non-media: Technical/Work is always the guaranteed first slot (even at
+      // 0h), then whichever other real skill types they have, per explicit spec.
+      slots.push("other")
+      for (const tt of ["voiceover", "poster", "scripting", "development"]) {
+        if (present.has(tt)) slots.push(tt)
+        if (slots.length === 5) break
+      }
+    }
+    for (const filler of ["learning", "other_activity", "break"]) {
+      if (slots.length === 5) break
+      if (!slots.includes(filler)) slots.push(filler)
+    }
+    return slots.slice(0, 5)
+  }, [waByType, waIsMedia])
+
+  const waYm = (to || from || todayIST()).slice(0, 7)
+  const waIsCurrentMonth = waYm >= todayIST().slice(0, 7)
 
   return (
     <div style={{ padding: "24px 24px 64px", maxWidth: 1400, margin: "0 auto", fontFamily: "var(--font-jakarta, Inter, sans-serif)" }}>
@@ -585,7 +786,10 @@ export default function ActivitiesClient({
                and capped shorter than before so it sits with breathing room instead of clipping flush
                against the banner's top/bottom edges now that the search row below it is gone and the
                banner itself is shorter. */
-            <div className="absolute right-2 bottom-2 top-auto md:left-[54%] md:right-auto md:top-[58%] md:bottom-auto md:-translate-x-1/2 md:-translate-y-1/2" style={{ zIndex: 1, pointerEvents: "none" }}>
+            /* Nudged slightly left (was left-[54%]) to make room for the new
+               view-toggle buttons in rightSlot below, without touching the
+               image itself or anything else in this hero (2026-07-31). */
+            <div className="absolute right-2 bottom-2 top-auto md:left-[48%] md:right-auto md:top-[58%] md:bottom-auto md:-translate-x-1/2 md:-translate-y-1/2" style={{ zIndex: 1, pointerEvents: "none" }}>
               <img
                 src="/brand/activities-hero.png"
                 alt=""
@@ -596,86 +800,165 @@ export default function ActivitiesClient({
           }
           rightSlot={
             <div className="flex flex-wrap" style={{ gap: 8, alignItems: "flex-start", justifyContent: "flex-end" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", cursor: "pointer", whiteSpace: "nowrap" }}>
-                <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{displayDate}</span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              {/* View toggle — sits beside the date picker, same row, not stacked
+                  above it (2026-07-31, design review only — see viewMode note above). */}
+              <div style={{ display: "flex", background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 10, padding: 3, gap: 2 }}>
+                <button
+                  onClick={() => setViewMode("activities")}
+                  style={{
+                    border: "none", cursor: "pointer", borderRadius: 8, padding: "7px 13px", fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap", textTransform: "uppercase",
+                    background: viewMode === "activities" ? "#fff" : "transparent",
+                    color: viewMode === "activities" ? "#7F1D1D" : "rgba(255,255,255,0.7)",
+                  }}>
+                  Activities
+                </button>
+                <button
+                  onClick={() => setViewMode("work-analysis")}
+                  style={{
+                    border: "none", cursor: "pointer", borderRadius: 8, padding: "7px 13px", fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap", textTransform: "uppercase",
+                    background: viewMode === "work-analysis" ? "#fff" : "transparent",
+                    color: viewMode === "work-analysis" ? "#7F1D1D" : "rgba(255,255,255,0.7)",
+                  }}>
+                  Work Analysis
+                </button>
               </div>
             </div>
           }
         />
       </div>
 
-      {/* ── 5 KPI Cards — bright/dark gradient fill per metric, matches the Insights page's stat-tile treatment instead of the flat white cards these used to be ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" style={{ gap: 14, marginBottom: 20 }}>
-        {[
-          { label: "Total Updates", value: stats.totalUpdates, sub: "Today", icon: <TrendingUp size={18} color="#fff" />, gradient: "linear-gradient(135deg, #E31E24, #7F1D1D)", shadow: "rgba(227,30,36,0.35)" },
-          { label: "Present",       value: stats.present,      sub: "Members", icon: <Users size={18} color="#fff" />, gradient: "linear-gradient(135deg, #22C55E, #15803D)", shadow: "rgba(22,163,74,0.35)" },
-          { label: "On Leave",      value: stats.onLeave,      sub: "Member",  icon: <AlertCircle size={18} color="#fff" />, gradient: "linear-gradient(135deg, #F59E0B, #B45309)", shadow: "rgba(245,158,11,0.35)" },
-          { label: "Total Hours",   value: fmtHours(stats.totalHours), sub: "Logged", icon: <Clock size={18} color="#fff" />, gradient: "linear-gradient(135deg, #6366F1, #3730A3)", shadow: "rgba(99,102,241,0.35)" },
-          { label: "Not Updated",   value: stats.notUpdated,   sub: "Members", icon: <Bell size={18} color="#fff" />, gradient: "linear-gradient(135deg, #F43F5E, #9F1239)", shadow: "rgba(244,63,94,0.35)" },
-        ].map(card => (
-          <div key={card.label} style={{
-            background: card.gradient, borderRadius: 16, padding: "18px 20px",
-            boxShadow: `0 4px 20px ${card.shadow}`,
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            position: "relative", overflow: "hidden",
-          }}>
-            <div style={{ position: "absolute", top: -18, right: -18, width: 72, height: 72, borderRadius: "50%", background: "rgba(255,255,255,0.15)", pointerEvents: "none" }} />
-            <div style={{ position: "relative" }}>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", fontWeight: 600, marginBottom: 4 }}>{card.label}</div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{card.value}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", marginTop: 3 }}>{card.sub}</div>
+      {/* ── 5 KPI Cards ── */}
+      {viewMode === "activities" ? (
+        /* bright/dark gradient fill per metric, matches the Insights page's stat-tile treatment */
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" style={{ gap: 14, marginBottom: 20 }}>
+          {[
+            { label: "Total Updates", value: stats.totalUpdates, sub: "Today", icon: <TrendingUp size={18} color="#fff" />, gradient: "linear-gradient(135deg, #E31E24, #7F1D1D)", shadow: "rgba(227,30,36,0.35)" },
+            { label: "Present",       value: stats.present,      sub: "Members", icon: <Users size={18} color="#fff" />, gradient: "linear-gradient(135deg, #22C55E, #15803D)", shadow: "rgba(22,163,74,0.35)" },
+            { label: "On Leave",      value: stats.onLeave,      sub: "Member",  icon: <AlertCircle size={18} color="#fff" />, gradient: "linear-gradient(135deg, #F59E0B, #B45309)", shadow: "rgba(245,158,11,0.35)" },
+            { label: "Total Hours",   value: fmtHours(stats.totalHours), sub: "Logged", icon: <Clock size={18} color="#fff" />, gradient: "linear-gradient(135deg, #6366F1, #3730A3)", shadow: "rgba(99,102,241,0.35)" },
+            { label: "Not Updated",   value: stats.notUpdated,   sub: "Members", icon: <Bell size={18} color="#fff" />, gradient: "linear-gradient(135deg, #F43F5E, #9F1239)", shadow: "rgba(244,63,94,0.35)" },
+          ].map(card => (
+            <div key={card.label} style={{
+              background: card.gradient, borderRadius: 16, padding: "18px 20px",
+              boxShadow: `0 4px 20px ${card.shadow}`,
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              position: "relative", overflow: "hidden",
+            }}>
+              <div style={{ position: "absolute", top: -18, right: -18, width: 72, height: 72, borderRadius: "50%", background: "rgba(255,255,255,0.15)", pointerEvents: "none" }} />
+              <div style={{ position: "relative" }}>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", fontWeight: 600, marginBottom: 4 }}>{card.label}</div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: "#fff", lineHeight: 1 }}>{card.value}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)", marginTop: 3 }}>{card.sub}</div>
+              </div>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", flexShrink: 0 }}>
+                {card.icon}
+              </div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", flexShrink: 0 }}>
-              {card.icon}
+          ))}
+        </div>
+      ) : (
+        /* Work-type hour tiles for the selected employee — the exact StatChip
+           card already used on the Clients page, so it's a 100% match, not an
+           approximation. Always 5 slots: real work types first, then
+           Learning/Other/Break fill any remaining gaps. */
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" style={{ gap: 10, marginBottom: 20 }}>
+          {waKpiTypes.length === 0 ? (
+            <div style={{ gridColumn: "1 / -1", padding: "18px 20px", borderRadius: 16, background: "#F9FAFB", border: "1px dashed #E5E7EB", textAlign: "center", color: "#1E3A5F", fontSize: 13 }}>
+              Select a member to see their work-type breakdown
             </div>
-          </div>
-        ))}
-      </div>
+          ) : waKpiTypes.map(tt => {
+            const cfg = TASK_CFG[tt] ?? TASK_CFG.other
+            const rows = tt === "break" ? [] : (waByType.find(([t]) => t === tt)?.[1] ?? [])
+            const count = tt === "break" ? waBreakStats.count : countUniqueWork(rows)
+            const hours = tt === "break" ? waBreakStats.hours : rows.reduce((s, r) => s + r.durationH, 0)
+            return (
+              <StatChip key={tt} label={cfg.label} emoji={TASK_EMOJI[tt] ?? "💼"} hours={`${hours.toFixed(1)}h`} count={count > 0 ? count : undefined} color={cfg.color} />
+            )
+          })}
+        </div>
+      )}
 
-      {/* ── Filter Tabs ── */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, overflowX: "auto", flexWrap: "nowrap", alignItems: "center", paddingBottom: 4 }}>
-        {DATE_PRESETS.map(p => (
+      {/* ── Filter row ── */}
+      {viewMode === "activities" ? (
+        <div style={{ display: "flex", gap: 8, marginBottom: 20, overflowX: "auto", flexWrap: "nowrap", alignItems: "center", paddingBottom: 4 }}>
+          {DATE_PRESETS.map(p => (
+            <button
+              key={p.label}
+              onClick={() => { setShowCustom(false); navigate(p.from, p.to) }}
+              style={{
+                padding: "8px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
+                background: curPreset === p.label ? "#E31E24" : "#F3F4F6",
+                color: curPreset === p.label ? "#fff" : "#1E3A5F",
+                transition: "all 0.15s", flexShrink: 0, whiteSpace: "nowrap",
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
           <button
-            key={p.label}
-            onClick={() => { setShowCustom(false); navigate(p.from, p.to) }}
+            onClick={() => setShowCustom(v => !v)}
             style={{
               padding: "8px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
-              background: curPreset === p.label ? "#E31E24" : "#F3F4F6",
-              color: curPreset === p.label ? "#fff" : "#1E3A5F",
-              transition: "all 0.15s", flexShrink: 0, whiteSpace: "nowrap",
+              background: curPreset === "Custom" ? "#E31E24" : "#F3F4F6",
+              color: curPreset === "Custom" ? "#fff" : "#1E3A5F",
+              flexShrink: 0, whiteSpace: "nowrap",
             }}
           >
-            {p.label}
+            Custom
           </button>
-        ))}
-        <button
-          onClick={() => setShowCustom(v => !v)}
-          style={{
-            padding: "8px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
-            background: curPreset === "Custom" ? "#E31E24" : "#F3F4F6",
-            color: curPreset === "Custom" ? "#fff" : "#1E3A5F",
-            flexShrink: 0, whiteSpace: "nowrap",
-          }}
-        >
-          Custom
-        </button>
-        {showCustom && (
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input type="date" min="2025-01-01" max={todayIST()} value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#1E3A5F" }} />
-            <span style={{ fontSize: 12, color: "#1E3A5F" }}>to</span>
-            <input type="date" min={customFrom || "2025-01-01"} max={todayIST()} value={customTo} onChange={e => setCustomTo(e.target.value)}
-              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#1E3A5F" }} />
-            <button onClick={() => { navigate(customFrom, customTo); setShowCustom(false) }}
-              style={{ padding: "6px 14px", borderRadius: 8, background: "#E31E24", color: "#fff", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
-              Apply
-            </button>
+          {showCustom && (
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input type="date" min="2025-01-01" max={todayIST()} value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+                style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#1E3A5F" }} />
+              <span style={{ fontSize: 12, color: "#1E3A5F" }}>to</span>
+              <input type="date" min={customFrom || "2025-01-01"} max={todayIST()} value={customTo} onChange={e => setCustomTo(e.target.value)}
+                style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#1E3A5F" }} />
+              <button onClick={() => { navigate(customFrom, customTo); setShowCustom(false) }}
+                style={{ padding: "6px 14px", borderRadius: 8, background: "#E31E24", color: "#fff", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                Apply
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Work Analysis only needs a month-level filter — day-by-day/custom-range
+           presets don't apply here. Same pill styling as Team Insights' month nav.
+           Employee picker sits beside it as a dropdown (not a row of chips —
+           doesn't scale once the team is 100+ people). */
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "linear-gradient(135deg, #DE1A1A, #7F1D1D)", borderRadius: 14, padding: "8px 10px", boxShadow: "0 4px 16px rgba(227,30,36,0.25)" }}>
+            <button
+              onClick={() => { const [f, t] = ymRange(shiftYm(waYm, -1)); navigate(f, t) }}
+              aria-label="Previous month"
+              style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.15)", cursor: "pointer", fontSize: 15, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >‹</button>
+            <span style={{ fontSize: 13, fontWeight: 800, color: "#fff", minWidth: 118, textAlign: "center" }}>{monthLabel(waYm)}</span>
+            <button
+              onClick={() => { const [f, t] = ymRange(shiftYm(waYm, 1)); navigate(f, t) }}
+              disabled={waIsCurrentMonth}
+              aria-label="Next month"
+              style={{ width: 28, height: 28, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.15)", cursor: waIsCurrentMonth ? "not-allowed" : "pointer", fontSize: 15, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", opacity: waIsCurrentMonth ? 0.4 : 1 }}
+            >›</button>
           </div>
-        )}
-      </div>
+          <select
+            value={activeWaId ?? ""}
+            onChange={e => setWaEmployeeId(e.target.value)}
+            style={{
+              padding: "0 16px", height: 44, borderRadius: 14, border: "1px solid #E5E7EB", background: "#fff",
+              fontSize: 13, fontWeight: 700, color: "#111827", cursor: "pointer", minWidth: 180,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)", textTransform: "uppercase",
+            }}
+          >
+            {filteredPeople.length === 0 && <option value="">No members in this range</option>}
+            {filteredPeople.map(({ userId, user }) => (
+              <option key={userId} value={userId}>{user.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* ── Main content ── */}
+      {viewMode === "activities" ? (
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px]" style={{ gap: 20 }}>
 
         {/* ── Left: People who updated ── */}
@@ -876,9 +1159,115 @@ export default function ActivitiesClient({
 
         </div>
       </div>
+      ) : (
+        /* ── Work Analysis view — same header/KPI/filter row above, only this
+            section swaps in place of the Recent Activities + sidebar grid. ── */
+        <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.04)", overflow: "hidden" }}>
+          {/* Grouped-by-type detail — each work type gets its own premium card with
+              a fixed-height, internally-scrollable entry list (not one endlessly
+              growing page — same idea as a bounded scroll panel). */}
+          {activeWaId && (
+            <div style={{ padding: "20px 24px 28px" }}>
+              {waByType.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px 0", color: "#1E3A5F", fontSize: 13 }}>No work entries for this person in this range</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                  {waByType.map(([tt, rows]) => {
+                    const cfg = TASK_CFG[tt] ?? TASK_CFG.other
+                    const { Icon } = cfg
+                    return (
+                      <div key={tt} style={{
+                        background: "#fff", borderRadius: 20, overflow: "hidden",
+                        border: "1px solid #F1F2F6",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 10px 28px rgba(0,0,0,0.05)",
+                      }}>
+                        {/* Section header — accent rail + gradient icon tile + embossed count badge (no subtext) */}
+                        <div style={{
+                          display: "flex", alignItems: "center", gap: 14, padding: "14px 18px",
+                          borderLeft: `4px solid ${cfg.color}`,
+                          background: `linear-gradient(90deg, ${cfg.bg} 0%, rgba(255,255,255,0) 75%)`,
+                        }}>
+                          <div style={{
+                            width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+                            background: `linear-gradient(145deg, ${cfg.color}, ${cfg.color}CC)`,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            boxShadow: `0 4px 12px ${cfg.color}55`,
+                          }}>
+                            <Icon size={17} color="#fff" />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0, fontSize: 15, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em" }}>{cfg.label}</div>
+                          <div style={{
+                            minWidth: 34, height: 30, padding: "0 10px", borderRadius: 10, flexShrink: 0,
+                            background: `linear-gradient(145deg, ${cfg.color}, ${cfg.color}CC)`,
+                            color: "#fff", fontSize: 13, fontWeight: 800,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            boxShadow: `0 3px 0 ${cfg.color}66, 0 2px 6px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.35)`,
+                          }}>
+                            {countUniqueWork(rows)}
+                          </div>
+                        </div>
+
+                        {/* Scrollable entry list — everything on one line: date badge, title,
+                            client, an extra type-specific field, then time taken. A revision
+                            entry is signalled purely by tinting that row amber — no Clean/
+                            Revision text pill. */}
+                        <div style={{ maxHeight: 340, overflowY: "auto", padding: "10px 12px 12px" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {rows.map((r, i) => {
+                              const dObj = (() => { try { return new Date(r.date + "T12:00:00") } catch { return null } })()
+                              const dayNum = dObj ? dObj.getDate() : ""
+                              const monthAbbr = dObj ? dObj.toLocaleDateString("en-US", { month: "short" }) : ""
+                              const extra = tt === "edit" ? r.videoDuration : (tt === "shoot" && r.travelH > 0 ? fmtTravel(r.travelH) : "")
+                              const hasExtra = tt === "edit" || tt === "shoot"
+                              return (
+                                <div key={i} style={{
+                                  display: "grid",
+                                  gridTemplateColumns: hasExtra ? "44px minmax(0,1fr) 150px 84px 64px" : "44px minmax(0,1fr) 150px 64px",
+                                  alignItems: "center", gap: 10, padding: "8px 12px",
+                                  borderRadius: 10,
+                                  background: r.isRework ? "rgba(245,158,11,0.08)" : "#FAFAFB",
+                                  border: r.isRework ? "1px solid rgba(245,158,11,0.3)" : "1px solid #F3F4F6",
+                                }}>
+                                  {/* Date — mini calendar tile: colored month tab + white day body, embossed */}
+                                  <div style={{
+                                    width: 40, height: 40, borderRadius: 10, overflow: "hidden",
+                                    background: "#fff", boxShadow: "0 2px 6px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)",
+                                    display: "flex", flexDirection: "column",
+                                  }}>
+                                    <div style={{ height: 13, flexShrink: 0, background: `linear-gradient(180deg, ${cfg.color}, ${cfg.color}CC)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                      <span style={{ fontSize: 7, fontWeight: 800, color: "#fff", textTransform: "uppercase", letterSpacing: "0.03em" }}>{monthAbbr}</span>
+                                    </div>
+                                    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                      <span style={{ fontSize: 14, fontWeight: 900, color: "#111827", lineHeight: 1 }}>{dayNum}</span>
+                                    </div>
+                                  </div>
+                                  <span style={{ fontSize: 12.5, fontWeight: 800, color: "#111111", textTransform: "uppercase", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{r.title || cfg.label}</span>
+                                  <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, textTransform: "uppercase", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{r.client}</span>
+                                  {hasExtra && (
+                                    extra ? (
+                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#D97706", background: "rgba(245,158,11,0.1)", padding: "3px 8px", borderRadius: 99, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                        {tt === "edit" ? `🎞️ ${extra}` : `🚗 ${extra}`}
+                                      </span>
+                                    ) : <span />
+                                  )}
+                                  <span style={{ fontSize: 11.5, fontWeight: 800, color: "#374151", textAlign: "right", whiteSpace: "nowrap" }}>{r.durationH > 0 ? fmtHours(r.durationH) : "—"}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Person Detail Drawer ── */}
-      {selectedUserUpdates && (
+      {viewMode === "activities" && selectedUserUpdates && (
         <PersonDetailDrawer
           updates={selectedUserUpdates}
           onClose={() => setSelectedUserId(null)}

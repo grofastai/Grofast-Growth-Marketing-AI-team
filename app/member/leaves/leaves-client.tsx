@@ -735,7 +735,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     </div>
                     <p style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#D97706", display: "inline-block", boxShadow: "0 0 0 3px rgba(217,119,6,0.18)" }} />{filterMonthSplit.real} applied</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#D97706", display: "inline-block", boxShadow: "0 0 0 3px rgba(217,119,6,0.18)" }} />{filterMonthSplit.auto} auto</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#7C3AED", display: "inline-block", boxShadow: "0 0 0 3px rgba(124,58,237,0.18)" }} />{filterMonthSplit.auto} auto</span>
                     </p>
                   </div>
                 ) : s.label1 === "Total Leaves" ? (
@@ -749,7 +749,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     </div>
                     <p style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#DC2626", display: "inline-block", boxShadow: "0 0 0 3px rgba(220,38,38,0.18)" }} />{yearSplit.real} applied</span>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#DC2626", display: "inline-block", boxShadow: "0 0 0 3px rgba(220,38,38,0.18)" }} />{yearSplit.auto} auto</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#7C3AED", display: "inline-block", boxShadow: "0 0 0 3px rgba(124,58,237,0.18)" }} />{yearSplit.auto} auto</span>
                     </p>
                   </div>
                 ) : s.label1 === "Leave Left" ? (

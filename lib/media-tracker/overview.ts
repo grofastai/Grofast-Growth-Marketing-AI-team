@@ -19,9 +19,19 @@ export type OverviewItem = {
   voiceover_date: string | null
   created_at: string
   corrections: { correction_date: string }[]
+  // Added for computeTodayAndAllTime (Overview Dashboard redesign, Phase 1).
+  posts: { posted_date: string; platform: string }[]
+  posted_ads: boolean
+  scheduled_post_date: string | null
 }
 export type OverviewShoot = { id: string; status: OverviewShootStatus; start_time: string; created_at: string }
-export type OverviewAd = { id: string; status: OverviewAdStatus; created_at: string }
+export type OverviewAd = {
+  id: string
+  status: OverviewAdStatus
+  created_at: string
+  // Added for computeTodayAndAllTime (Overview Dashboard redesign, Phase 1).
+  launch_date: string | null
+}
 
 export type OverviewDateRange = { from: string; to: string } // YYYY-MM-DD, inclusive
 
@@ -193,5 +203,53 @@ export function computeOverview({ items, shoots, ads, today, range }: OverviewIn
     ads: adCounts,
     posting,
     attention: candidates.filter(c => c.count > 0),
+  }
+}
+
+// Mirrors ADS_PLATFORM_SET in media-tracker-client.tsx — kept as a small local copy
+// rather than importing from the client component, matching the precedent already set
+// by that constant's own comment ("Mirrors ADS_PLATFORMS in lib/actions/media-tracker.ts").
+const ADS_PLATFORMS = new Set(['ads', 'meta_ads', 'google_ads'])
+
+export type TodayAndAllTime = {
+  shootsToday: number
+  editingReviewsToday: number
+  brandingPostsToday: number
+  adsToday: number
+  postedAllTime: number
+  usedInAdsAllTime: number
+  overdueBrandingCount: number
+  adsInTestingCount: number
+}
+
+// Powers the Overview Dashboard's rail ("Today's Operations") and main-column flow line
+// ("How Work Moves"). Kept separate from computeOverview() (rather than folded into its
+// return type) so that function's existing return shape and tests stay untouched.
+export function computeTodayAndAllTime({ items, shoots, ads, today }: OverviewInput): TodayAndAllTime {
+  const shootsToday = shoots.filter(
+    s => s.status === 'scheduled' && s.start_time.slice(0, 10) === today
+  ).length
+
+  const editingReviewsToday = items.filter(i => i.status === 'on_review').length
+
+  const brandingPostsToday = items.filter(i =>
+    i.posts.some(p => p.posted_date === today && !ADS_PLATFORMS.has(p.platform))
+  ).length
+
+  const adsToday = ads.filter(a => a.launch_date === today).length
+
+  const postedAllTime = items.filter(i => i.status === 'posted').length
+
+  const usedInAdsAllTime = items.filter(i => i.posted_ads).length
+
+  const overdueBrandingCount = items.filter(
+    i => i.status === 'branding_ready' && !!i.scheduled_post_date && i.scheduled_post_date < today
+  ).length
+
+  const adsInTestingCount = ads.filter(a => a.status === 'testing').length
+
+  return {
+    shootsToday, editingReviewsToday, brandingPostsToday, adsToday,
+    postedAllTime, usedInAdsAllTime, overdueBrandingCount, adsInTestingCount,
   }
 }

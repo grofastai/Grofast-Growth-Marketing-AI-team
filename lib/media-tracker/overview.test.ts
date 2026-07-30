@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeOverview, type OverviewItem, type OverviewShoot, type OverviewAd } from './overview'
+import { computeOverview, computeTodayAndAllTime, type OverviewItem, type OverviewShoot, type OverviewAd } from './overview'
 
 const TODAY = '2026-07-14'
 
@@ -13,6 +13,9 @@ function item(overrides: Partial<OverviewItem> = {}): OverviewItem {
     voiceover_date: null,
     created_at: '2026-07-01T09:00:00Z',
     corrections: [],
+    posts: [],
+    posted_ads: false,
+    scheduled_post_date: null,
     ...overrides,
   }
 }
@@ -20,7 +23,7 @@ function shoot(overrides: Partial<OverviewShoot> = {}): OverviewShoot {
   return { id: 's1', status: 'scheduled', start_time: `${TODAY}T09:00:00`, created_at: `${TODAY}T09:00:00Z`, ...overrides }
 }
 function ad(overrides: Partial<OverviewAd> = {}): OverviewAd {
-  return { id: 'a1', status: 'active', created_at: `${TODAY}T09:00:00Z`, ...overrides }
+  return { id: 'a1', status: 'active', created_at: `${TODAY}T09:00:00Z`, launch_date: null, ...overrides }
 }
 const EMPTY_STAGES = { scripting: 0, voiceover: 0, design: 0, ready_to_edit: 0, edited: 0, on_review: 0, branding_ready: 0, ads_ready: 0, posted: 0, cancelled: 0 }
 
@@ -284,5 +287,109 @@ describe('range filter — scopes stage counts, not posting/attention', () => {
     expect(o.videos.ready_to_edit).toBe(1)
     expect(o.shoots.scheduled).toBe(1)
     expect(o.ads.active).toBe(1)
+  })
+})
+
+describe('computeTodayAndAllTime', () => {
+  it('counts shoots scheduled today, ignoring completed/cancelled ones', () => {
+    const r = computeTodayAndAllTime({
+      items: [], ads: [],
+      shoots: [
+        shoot({ id: 's1', status: 'scheduled', start_time: `${TODAY}T09:00:00` }),
+        shoot({ id: 's2', status: 'scheduled', start_time: '2026-07-13T09:00:00' }),
+        shoot({ id: 's3', status: 'completed', start_time: `${TODAY}T09:00:00` }),
+      ],
+      today: TODAY,
+    })
+    expect(r.shootsToday).toBe(1)
+  })
+
+  it('counts items awaiting review as editingReviewsToday', () => {
+    const r = computeTodayAndAllTime({
+      items: [
+        item({ id: '1', status: 'on_review' }),
+        item({ id: '2', status: 'on_review' }),
+        item({ id: '3', status: 'ready_to_edit' }),
+      ],
+      shoots: [], ads: [], today: TODAY,
+    })
+    expect(r.editingReviewsToday).toBe(2)
+  })
+
+  it('counts items with a branding (non-ads-platform) post dated today', () => {
+    const r = computeTodayAndAllTime({
+      items: [
+        item({ id: '1', posts: [{ posted_date: TODAY, platform: 'instagram' }] }),
+        item({ id: '2', posts: [{ posted_date: '2026-07-01', platform: 'instagram' }] }),
+        item({ id: '3', posts: [{ posted_date: TODAY, platform: 'meta_ads' }] }),
+      ],
+      shoots: [], ads: [], today: TODAY,
+    })
+    expect(r.brandingPostsToday).toBe(1)
+  })
+
+  it('counts ads launching today', () => {
+    const r = computeTodayAndAllTime({
+      items: [], shoots: [],
+      ads: [
+        ad({ id: 'a1', launch_date: TODAY }),
+        ad({ id: 'a2', launch_date: '2026-07-01' }),
+      ],
+      today: TODAY,
+    })
+    expect(r.adsToday).toBe(1)
+  })
+
+  it('counts all-time posted items regardless of month', () => {
+    const r = computeTodayAndAllTime({
+      items: [
+        item({ id: '1', status: 'posted' }),
+        item({ id: '2', status: 'posted' }),
+        item({ id: '3', status: 'ready_to_edit' }),
+      ],
+      shoots: [], ads: [], today: TODAY,
+    })
+    expect(r.postedAllTime).toBe(2)
+  })
+
+  it('counts all-time items ever posted to an ads destination via posted_ads', () => {
+    const r = computeTodayAndAllTime({
+      items: [
+        item({ id: '1', posted_ads: true }),
+        item({ id: '2', posted_ads: false }),
+      ],
+      shoots: [], ads: [], today: TODAY,
+    })
+    expect(r.usedInAdsAllTime).toBe(1)
+  })
+
+  it('counts branding-ready items whose scheduled_post_date has passed as overdue', () => {
+    const r = computeTodayAndAllTime({
+      items: [
+        item({ id: '1', status: 'branding_ready', scheduled_post_date: '2026-07-01' }),
+        item({ id: '2', status: 'branding_ready', scheduled_post_date: TODAY }),
+        item({ id: '3', status: 'branding_ready', scheduled_post_date: null }),
+        item({ id: '4', status: 'ads_ready', scheduled_post_date: '2026-07-01' }),
+      ],
+      shoots: [], ads: [], today: TODAY,
+    })
+    expect(r.overdueBrandingCount).toBe(1)
+  })
+
+  it('counts ads currently in testing', () => {
+    const r = computeTodayAndAllTime({
+      items: [], shoots: [],
+      ads: [ad({ id: 'a1', status: 'testing' }), ad({ id: 'a2', status: 'active' })],
+      today: TODAY,
+    })
+    expect(r.adsInTestingCount).toBe(1)
+  })
+
+  it('returns all zeros for empty input', () => {
+    const r = computeTodayAndAllTime({ items: [], shoots: [], ads: [], today: TODAY })
+    expect(r).toEqual({
+      shootsToday: 0, editingReviewsToday: 0, brandingPostsToday: 0, adsToday: 0,
+      postedAllTime: 0, usedInAdsAllTime: 0, overdueBrandingCount: 0, adsInTestingCount: 0,
+    })
   })
 })

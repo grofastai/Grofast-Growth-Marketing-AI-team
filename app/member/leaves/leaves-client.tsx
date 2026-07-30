@@ -19,6 +19,7 @@ import { FULL_DAY_HOURS as WORKDAY_HOURS, HALF_DAY_THRESHOLD_HOURS } from "@/lib
 interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
   created_at: string; leave_type?: string; permission_hours?: number | null; permission_time?: string | null; permission_end_time?: string | null; half_day_period?: string | null; half_day_from_time?: string | null; half_day_to_time?: string | null
+  permission_reason_type?: "late_login" | "early_logoff" | "other" | null
 }
 type LeaveType = "full_day" | "half_day" | "permission" | "wfh" | "shoot_day"
 
@@ -343,6 +344,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [halfPeriod, setHalfPeriod]     = useState<"morning" | "afternoon">("morning")
   const [permFrom, setPermFrom]         = useState("")
   const [permTo, setPermTo]             = useState("")
+  const [permReasonType, setPermReasonType] = useState<"late_login" | "early_logoff" | "other" | "">("")
   const [showHalfDayPrompt, setShowHalfDayPrompt] = useState(false)
   const [showFullDayPrompt, setShowFullDayPrompt] = useState(false)
   const [existingHalfDayPeriod, setExistingHalfDayPeriod] = useState<string>("morning")
@@ -396,6 +398,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
       if (editingLeave.leave_type === "permission") {
         setPermFrom(editingLeave.permission_time ?? "")
         setPermTo((editingLeave as any).permission_end_time ?? "")
+        setPermReasonType(editingLeave.permission_reason_type ?? "other")
       }
       if (editingLeave.leave_type === "half_day") {
         setHalfFrom((editingLeave as any).half_day_from_time ?? "")
@@ -1234,7 +1237,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: "0 0 2px" }}>{editingLeave ? "Edit Leave Request" : "Apply for Leave"}</p>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Fill in the details below</p>
               </div>
-              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setSplitMode(false); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
+              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setPermReasonType(""); setHalfFrom(""); setHalfTo(""); setSplitMode(false); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
                 style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <X size={16} color="#fff" />
               </button>
@@ -1316,6 +1319,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                       permission_hours: fd.get("permission_hours") ? Number(fd.get("permission_hours")) : l.permission_hours,
                       permission_time: (fd.get("permission_time") as string) || l.permission_time,
                       ...(fd.get("permission_end_time") ? { permission_end_time: fd.get("permission_end_time") as string } : {}),
+                      ...(fd.get("permission_reason_type") ? { permission_reason_type: fd.get("permission_reason_type") as "late_login" | "early_logoff" | "other" } : {}),
                       ...(fd.get("half_day_from_time") ? { half_day_from_time: fd.get("half_day_from_time") as string } : {}),
                       ...(fd.get("half_day_to_time") ? { half_day_to_time: fd.get("half_day_to_time") as string } : {}),
                     } : l))
@@ -1323,7 +1327,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     setEditingLeave(null)
                     setLeaveType("full_day")
                     setHalfPeriod("morning")
-                    setPermFrom(""); setPermTo("")
+                    setPermFrom(""); setPermTo(""); setPermReasonType("")
                     setHalfFrom(""); setHalfTo("")
                   })
                 } : checkDuplicateDate}
@@ -1559,13 +1563,33 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                         )
                       })()}
                     </div>
+                    <input type="hidden" name="permission_reason_type" value={permReasonType} />
+                    <div>
+                      <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Select Reason *</label>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                        {([
+                          { key: "late_login" as const,   label: "Late Login",   emoji: "🌅" },
+                          { key: "early_logoff" as const, label: "Early Logoff", emoji: "🌇" },
+                          { key: "other" as const,        label: "Other",        emoji: "📝" },
+                        ]).map(({ key, label, emoji }) => (
+                          <button key={key} type="button" onClick={() => setPermReasonType(key)}
+                            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "10px 0", borderRadius: 12, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", ...(permReasonType === key ? { background: "#DE1A1A", color: "#fff", boxShadow: "0 4px 12px rgba(222,26,26,0.35)" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
+                            <span style={{ fontSize: 16 }}>{emoji}</span>{label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </>
                 )}
                 {isExceptional && <input type="hidden" name="is_exceptional" value="true" />}
-                <div>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Reason *</label>
-                  <textarea name="reason" required rows={3} placeholder="Explain the reason…" className="resize-none" style={FIELD} defaultValue={editingLeave?.reason ?? ""} />
-                </div>
+                {(leaveType === "permission" && (permReasonType === "late_login" || permReasonType === "early_logoff")) ? (
+                  <input type="hidden" name="reason" value={permReasonType === "late_login" ? "Late Login" : "Early Logoff"} />
+                ) : (
+                  <div>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Reason *</label>
+                    <textarea name="reason" required rows={3} placeholder="Explain the reason…" className="resize-none" style={FIELD} defaultValue={editingLeave?.reason ?? ""} />
+                  </div>
+                )}
 
                 {(state && "error" in state && state.error) && (
                   <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>{state.error}</p>
@@ -1590,7 +1614,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 )}
 
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setSplitMode(false); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
+                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setPermReasonType(""); setHalfFrom(""); setHalfTo(""); setSplitMode(false); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
                   <button type="submit" disabled={pending || editing || splitPending}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: (pending || editing || splitPending) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>

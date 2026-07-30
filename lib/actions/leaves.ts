@@ -38,6 +38,9 @@ const leaveSchema = z.object({
   permission_hours:    z.coerce.number().min(0.1).max(12).optional(),
   permission_time:     z.string().optional(),
   permission_end_time: z.string().optional(),
+  // Structured Permission reason — Late Login / Early Logoff cover the two common cases
+  // without typing; "other" still requires the freeform reason text below.
+  permission_reason_type: z.enum(['late_login', 'early_logoff', 'other']).optional(),
   reason:              z.string().min(3, 'Please provide a reason'),
 }).superRefine((data, ctx) => {
   if (data.leave_type === 'half_day') {
@@ -63,6 +66,7 @@ const leaveSchema = z.object({
   if (data.leave_type === 'permission') {
     if (!data.permission_time)     ctx.addIssue({ code: 'custom', path: ['permission_time'],     message: 'Leave From time is required for permission' })
     if (!data.permission_end_time) ctx.addIssue({ code: 'custom', path: ['permission_end_time'], message: 'Return By time is required for permission' })
+    if (!data.permission_reason_type) ctx.addIssue({ code: 'custom', path: ['permission_reason_type'], message: 'Select a reason' })
   }
 })
 
@@ -208,6 +212,7 @@ export async function submitLeaveRequest(
     permission_hours:    formData.get('permission_hours') ? Number(formData.get('permission_hours')) : undefined,
     permission_time:     (formData.get('permission_time') as string) || undefined,
     permission_end_time: (formData.get('permission_end_time') as string) || undefined,
+    permission_reason_type: (formData.get('permission_reason_type') as string) || undefined,
     reason:              formData.get('reason') as string,
   }
 
@@ -325,6 +330,7 @@ export async function submitLeaveRequest(
     permission_hours:    parsed.data.permission_hours ?? null,
     permission_time:     parsed.data.permission_time ?? null,
     permission_end_time: parsed.data.permission_end_time ?? null,
+    permission_reason_type: parsed.data.permission_reason_type ?? null,
     half_day_period:     (parsed.data.half_day_period ?? null),
     half_day_from_time:  parsed.data.half_day_from_time ?? null,
     half_day_to_time:    parsed.data.half_day_to_time ?? null,
@@ -651,6 +657,7 @@ export async function updateLeaveRequest(
     permission_hours:    formData.get('permission_hours') ? Number(formData.get('permission_hours')) : undefined,
     permission_time:     (formData.get('permission_time') as string) || undefined,
     permission_end_time: (formData.get('permission_end_time') as string) || undefined,
+    permission_reason_type: (formData.get('permission_reason_type') as string) || undefined,
     reason:              formData.get('reason') as string,
   }
 
@@ -735,6 +742,7 @@ export async function updateLeaveRequest(
       permission_hours:    parsed.data.permission_hours ?? null,
       permission_time:     parsed.data.permission_time ?? null,
       permission_end_time: parsed.data.permission_end_time ?? null,
+      permission_reason_type: parsed.data.permission_reason_type ?? null,
       half_day_period:     parsed.data.half_day_period ?? null,
       half_day_from_time:  parsed.data.half_day_from_time ?? null,
       half_day_to_time:    parsed.data.half_day_to_time ?? null,
@@ -769,6 +777,7 @@ export async function adminUpdateLeaveRequest(input: {
   permissionTime?: string
   permissionEndTime?: string
   permissionHours?: number
+  permissionReasonType?: 'late_login' | 'early_logoff' | 'other'
   isExceptional?: boolean
 }): Promise<{ error: string } | { success: true }> {
   const supabase = await createServerClient()
@@ -793,6 +802,7 @@ export async function adminUpdateLeaveRequest(input: {
     permission_hours:    input.permissionHours,
     permission_time:     input.permissionTime || undefined,
     permission_end_time: input.permissionEndTime || undefined,
+    permission_reason_type: input.permissionReasonType || undefined,
     reason:              input.reason,
   }
   const parsed = leaveSchema.safeParse(raw)
@@ -850,6 +860,7 @@ export async function adminUpdateLeaveRequest(input: {
       permission_hours:    parsed.data.permission_hours ?? null,
       permission_time:     parsed.data.permission_time ?? null,
       permission_end_time: parsed.data.permission_end_time ?? null,
+      permission_reason_type: parsed.data.permission_reason_type ?? null,
       half_day_period:     parsed.data.half_day_period ?? null,
       half_day_from_time:  parsed.data.half_day_from_time ?? null,
       half_day_to_time:    parsed.data.half_day_to_time ?? null,
@@ -1284,6 +1295,7 @@ export async function adminApplyLeaveOnBehalf(input: {
   permissionTime?: string
   permissionEndTime?: string
   permissionHours?: number
+  permissionReasonType?: 'late_login' | 'early_logoff' | 'other'
 }): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -1303,6 +1315,7 @@ export async function adminApplyLeaveOnBehalf(input: {
     permission_hours:     input.permissionHours,
     permission_time:      input.permissionTime,
     permission_end_time:  input.permissionEndTime,
+    permission_reason_type: input.permissionReasonType,
     reason:               input.reason,
   })
   if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
@@ -1391,6 +1404,7 @@ export async function adminApplyLeaveOnBehalf(input: {
     permission_hours:     parsed.data.permission_hours ?? null,
     permission_time:      parsed.data.permission_time ?? null,
     permission_end_time:  parsed.data.permission_end_time ?? null,
+    permission_reason_type: parsed.data.permission_reason_type ?? null,
     half_day_period:      parsed.data.half_day_period ?? null,
     half_day_from_time:   parsed.data.half_day_from_time ?? null,
     half_day_to_time:     parsed.data.half_day_to_time ?? null,

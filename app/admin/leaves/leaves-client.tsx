@@ -24,6 +24,7 @@ interface Leave {
   half_day_period?: string | null
   half_day_from_time?: string | null
   half_day_to_time?: string | null
+  permission_reason_type?: "late_login" | "early_logoff" | "other" | null
   users: { id: string; name: string; employee_id: string; phone: string | null; gender?: string } | null
 }
 
@@ -375,6 +376,7 @@ export default function LeavesClient({
   const [applyHalfTo, setApplyHalfTo]           = useState("")
   const [applyPermFrom, setApplyPermFrom]       = useState("")
   const [applyPermTo, setApplyPermTo]           = useState("")
+  const [applyPermReasonType, setApplyPermReasonType] = useState<"late_login" | "early_logoff" | "other" | "">("")
   const [applyReason, setApplyReason]           = useState("")
   const [applyPending, setApplyPending]         = useState(false)
   const [applyError, setApplyError]             = useState<string | null>(null)
@@ -382,14 +384,16 @@ export default function LeavesClient({
   function resetApplyForm() {
     setApplyUserId(""); setApplyLeaveType("full_day"); setApplyFromDate(""); setApplyToDate("")
     setApplyHalfPeriod("morning"); setApplyHalfFrom(""); setApplyHalfTo("")
-    setApplyPermFrom(""); setApplyPermTo(""); setApplyReason(""); setApplyError(null)
+    setApplyPermFrom(""); setApplyPermTo(""); setApplyPermReasonType(""); setApplyReason(""); setApplyError(null)
   }
 
   async function submitApplyLeave() {
     setApplyError(null)
     if (!applyUserId) { setApplyError("Select an employee."); return }
     if (!applyFromDate) { setApplyError("Select a date."); return }
-    if (!applyReason.trim()) { setApplyError("Enter a reason."); return }
+    if (applyLeaveType === "permission" && !applyPermReasonType) { setApplyError("Select a reason."); return }
+    if (applyLeaveType === "permission" && applyPermReasonType === "other" && !applyReason.trim()) { setApplyError("Enter a reason."); return }
+    if (applyLeaveType !== "permission" && !applyReason.trim()) { setApplyError("Enter a reason."); return }
     const isSingleDay = applyLeaveType === "half_day" || applyLeaveType === "permission" || applyLeaveType === "shoot_day"
     const toDate = isSingleDay ? applyFromDate : (applyToDate || applyFromDate)
     if (applyLeaveType === "half_day" && (!applyHalfFrom || !applyHalfTo)) { setApplyError("Set half day From/To time."); return }
@@ -408,19 +412,21 @@ export default function LeavesClient({
       const diff = (th * 60 + tm) - (fh * 60 + fm)
       return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 1
     })() : 1
+    const permReason = applyPermReasonType === "late_login" ? "Late Login" : applyPermReasonType === "early_logoff" ? "Early Logoff" : applyReason.trim()
 
     const result = await adminApplyLeaveOnBehalf({
       userId: applyUserId,
       leaveType: applyLeaveType,
       fromDate: applyFromDate,
       toDate,
-      reason: applyReason.trim(),
+      reason: applyLeaveType === "permission" ? permReason : applyReason.trim(),
       halfDayPeriod: applyHalfPeriod,
       halfDayFromTime: applyHalfFrom,
       halfDayToTime: applyHalfTo,
       permissionTime: applyPermFrom,
       permissionEndTime: applyPermTo,
       permissionHours: permHours,
+      permissionReasonType: applyLeaveType === "permission" ? (applyPermReasonType || undefined) : undefined,
     })
     setApplyPending(false)
     if (!result.success) { setApplyError(result.error ?? "Failed to apply leave."); return }
@@ -444,6 +450,7 @@ export default function LeavesClient({
   const [editHalfTo, setEditHalfTo]             = useState("")
   const [editPermFrom, setEditPermFrom]         = useState("")
   const [editPermTo, setEditPermTo]             = useState("")
+  const [editPermReasonType, setEditPermReasonType] = useState<"late_login" | "early_logoff" | "other" | "">("")
   const [editReason, setEditReason]             = useState("")
   const [editOverrideLimit, setEditOverrideLimit] = useState(false)
   const [editPending, setEditPending]           = useState(false)
@@ -459,6 +466,7 @@ export default function LeavesClient({
     setEditHalfTo(leave.half_day_to_time ?? "")
     setEditPermFrom(leave.permission_time ?? "")
     setEditPermTo(leave.permission_end_time ?? "")
+    setEditPermReasonType(leave.leave_type === "permission" ? (leave.permission_reason_type ?? "other") : "")
     setEditReason(leave.reason ?? "")
     setEditOverrideLimit(false)
     setEditError(null)
@@ -472,7 +480,9 @@ export default function LeavesClient({
     if (!editLeaveFor) return
     setEditError(null)
     if (!editFromDate) { setEditError("Select a date."); return }
-    if (!editReason.trim()) { setEditError("Enter a reason."); return }
+    if (editLeaveType === "permission" && !editPermReasonType) { setEditError("Select a reason."); return }
+    if (editLeaveType === "permission" && editPermReasonType === "other" && !editReason.trim()) { setEditError("Enter a reason."); return }
+    if (editLeaveType !== "permission" && !editReason.trim()) { setEditError("Enter a reason."); return }
     const isSingleDay = editLeaveType === "half_day" || editLeaveType === "permission" || editLeaveType === "shoot_day"
     const toDate = isSingleDay ? editFromDate : (editToDate || editFromDate)
     if (editLeaveType === "half_day" && (!editHalfFrom || !editHalfTo)) { setEditError("Set half day From/To time."); return }
@@ -492,18 +502,21 @@ export default function LeavesClient({
       return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 1
     })() : 1
 
+    const editPermReason = editPermReasonType === "late_login" ? "Late Login" : editPermReasonType === "early_logoff" ? "Early Logoff" : editReason.trim()
+
     const result = await adminUpdateLeaveRequest({
       leaveId: editLeaveFor.id,
       leaveType: editLeaveType,
       fromDate: editFromDate,
       toDate,
-      reason: editReason.trim(),
+      reason: editLeaveType === "permission" ? editPermReason : editReason.trim(),
       halfDayPeriod: editHalfPeriod,
       halfDayFromTime: editHalfFrom,
       halfDayToTime: editHalfTo,
       permissionTime: editPermFrom,
       permissionEndTime: editPermTo,
       permissionHours: permHours,
+      permissionReasonType: editLeaveType === "permission" ? (editPermReasonType || undefined) : undefined,
       isExceptional: editOverrideLimit,
     })
     setEditPending(false)
@@ -1136,19 +1149,38 @@ export default function LeavesClient({
               )}
 
               {applyLeaveType === "permission" && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Leave From</label>
-                    <input type="time" value={applyPermFrom} onChange={e => setApplyPermFrom(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
-                  <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Return By</label>
-                    <input type="time" value={applyPermTo} onChange={e => setApplyPermTo(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
-                </div>
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Leave From</label>
+                      <input type="time" value={applyPermFrom} onChange={e => setApplyPermFrom(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
+                    <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Return By</label>
+                      <input type="time" value={applyPermTo} onChange={e => setApplyPermTo(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Select Reason *</label>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                      {([
+                        { key: "late_login" as const,   label: "Late Login",   emoji: "🌅" },
+                        { key: "early_logoff" as const, label: "Early Logoff", emoji: "🌇" },
+                        { key: "other" as const,        label: "Other",        emoji: "📝" },
+                      ]).map(({ key, label, emoji }) => (
+                        <button key={key} type="button" onClick={() => setApplyPermReasonType(key)}
+                          style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "10px 0", borderRadius: 12, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", ...(applyPermReasonType === key ? { background: "#DE1A1A", color: "#fff" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
+                          <span style={{ fontSize: 16 }}>{emoji}</span>{label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
 
-              <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Reason *</label>
-                <textarea value={applyReason} onChange={e => setApplyReason(e.target.value)} rows={2} placeholder="Explain the reason…"
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", resize: "none", boxSizing: "border-box" }} />
-              </div>
+              {(applyLeaveType !== "permission" || applyPermReasonType === "other" || !applyPermReasonType) && (
+                <div>
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Reason *</label>
+                  <textarea value={applyReason} onChange={e => setApplyReason(e.target.value)} rows={2} placeholder="Explain the reason…"
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", resize: "none", boxSizing: "border-box" }} />
+                </div>
+              )}
 
               {applyError && (
                 <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>⚠️ {applyError}</p>
@@ -1260,19 +1292,38 @@ export default function LeavesClient({
               )}
 
               {editLeaveType === "permission" && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Leave From</label>
-                    <input type="time" value={editPermFrom} onChange={e => setEditPermFrom(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
-                  <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Return By</label>
-                    <input type="time" value={editPermTo} onChange={e => setEditPermTo(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
-                </div>
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Leave From</label>
+                      <input type="time" value={editPermFrom} onChange={e => setEditPermFrom(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
+                    <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Return By</label>
+                      <input type="time" value={editPermTo} onChange={e => setEditPermTo(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Select Reason *</label>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                      {([
+                        { key: "late_login" as const,   label: "Late Login",   emoji: "🌅" },
+                        { key: "early_logoff" as const, label: "Early Logoff", emoji: "🌇" },
+                        { key: "other" as const,        label: "Other",        emoji: "📝" },
+                      ]).map(({ key, label, emoji }) => (
+                        <button key={key} type="button" onClick={() => setEditPermReasonType(key)}
+                          style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "10px 0", borderRadius: 12, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", ...(editPermReasonType === key ? { background: "#DE1A1A", color: "#fff" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
+                          <span style={{ fontSize: 16 }}>{emoji}</span>{label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
 
-              <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Reason *</label>
-                <textarea value={editReason} onChange={e => setEditReason(e.target.value)} rows={2} placeholder="Explain the reason…"
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", resize: "none", boxSizing: "border-box" }} />
-              </div>
+              {(editLeaveType !== "permission" || editPermReasonType === "other" || !editPermReasonType) && (
+                <div>
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Reason *</label>
+                  <textarea value={editReason} onChange={e => setEditReason(e.target.value)} rows={2} placeholder="Explain the reason…"
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", resize: "none", boxSizing: "border-box" }} />
+                </div>
+              )}
 
               {(editLeaveType === "full_day" || editLeaveType === "half_day") && (
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#6B7280", cursor: "pointer" }}>

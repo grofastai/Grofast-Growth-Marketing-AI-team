@@ -1,4 +1,4 @@
-export const revalidate = 30 // was force-fresh — safe to cache: every write to this page already calls revalidatePath() (2026-07-30)
+export const revalidate = 0
 
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"

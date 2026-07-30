@@ -57,7 +57,13 @@ const TYPE_ILLUSTRATION: Record<string, { emoji: string; bg: string }> = {
 // permissions stack up (e.g. Half Day around 10h45, Full Day around 15h, another Half
 // Day starting a third cycle). At the month boundary the leftover always resets to
 // zero — no carry-over into the next month.
-function buildPermissionDeductionEntries(leaves: Leave[]): Leave[] {
+//
+// overtimeByMonth (2026-07-30): same-month overtime is subtracted from the running
+// total before checking thresholds — mirrors sumLeaveDays' netting exactly, so this
+// banner can never disagree with the "Leave Taken This Month" stat card again (e.g.
+// someone whose overtime fully offsets their Permission hours that month sees no
+// auto-deduction banner at all, instead of one that no longer matches their totals).
+function buildPermissionDeductionEntries(leaves: Leave[], overtimeByMonth: Record<string, number> = {}): Leave[] {
   const byMonth = new Map<string, Leave[]>()
   for (const l of leaves) {
     if (l.leave_type !== "permission" || l.status !== "approved") continue
@@ -72,14 +78,16 @@ function buildPermissionDeductionEntries(leaves: Leave[]): Leave[] {
     const sorted = [...rows].sort((a, b) =>
       a.from_date.localeCompare(b.from_date) || (a.permission_time ?? "").localeCompare(b.permission_time ?? "")
     )
+    const overtimeThisMonth = overtimeByMonth[month] ?? 0
     let cumulative = 0
-    let segmentStart = 0    // cumulative value at which the CURRENT cycle began
+    let segmentStart = 0    // net-cumulative value at which the CURRENT cycle began
     let cycleIndex = 0
     let pendingHalf: Leave | null = null   // this cycle's Half Day banner, if not yet superseded
 
     for (const r of sorted) {
       cumulative += Number(r.permission_hours) || 0
-      let progress = cumulative - segmentStart
+      const netCumulative = Math.max(0, cumulative - overtimeThisMonth)
+      let progress = netCumulative - segmentStart
 
       while (progress >= WORKDAY_HOURS) {
         if (pendingHalf) {
@@ -90,17 +98,17 @@ function buildPermissionDeductionEntries(leaves: Leave[]): Leave[] {
         cycleIndex += 1
         entries.push({
           id: `perm-deduct-${month}-${cycleIndex}`, from_date: r.from_date, to_date: r.from_date,
-          reason: `Permission hours this month reached ${cumulative.toFixed(1)}h — Full Day Leave deducted`,
+          reason: `Permission hours this month reached ${netCumulative.toFixed(1)}h — Full Day Leave deducted`,
           status: "approved", created_at: r.from_date, leave_type: "full_day_auto",
         })
         segmentStart += WORKDAY_HOURS
-        progress = cumulative - segmentStart
+        progress = netCumulative - segmentStart
       }
       if (!pendingHalf && progress >= HALF_DAY_THRESHOLD_HOURS) {
         cycleIndex += 1
         pendingHalf = {
           id: `perm-deduct-${month}-${cycleIndex}`, from_date: r.from_date, to_date: r.from_date,
-          reason: `Permission hours this month reached ${cumulative.toFixed(1)}h — Half Day Leave deducted`,
+          reason: `Permission hours this month reached ${netCumulative.toFixed(1)}h — Half Day Leave deducted`,
           status: "approved", created_at: r.from_date, leave_type: "half_day_auto",
         }
         entries.push(pendingHalf)
@@ -323,7 +331,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   // top of allEntries. Kept separate from allEntries so the stat cards / WLB
   // score / monthly-limit math above never double-count a synthetic entry —
   // those already derive their numbers from the real `leaves` rows.
-  const permissionDeductionEntries = buildPermissionDeductionEntries(leaves)
+  const permissionDeductionEntries = buildPermissionDeductionEntries(leaves, overtimeByMonth)
   // Synthetic entries go FIRST in the pre-sort array: the auto-deduction only
   // exists because a same-date Permission was applied, so it's the logically
   // later event of the two — on a same-date tie, Array.sort's stability keeps

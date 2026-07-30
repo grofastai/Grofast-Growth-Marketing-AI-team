@@ -1225,18 +1225,21 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
       {/* ── Modal ────────────────────────────────────────────────────────────── */}
       {showForm && (
         <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(10,10,11,0.65)", backdropFilter: "blur(8px)" }}>
-          <div style={{ width: "100%", maxWidth: 420, background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.25)" }}>
-            {/* Header */}
-            <div style={{ padding: "20px 24px", background: "linear-gradient(135deg,#DE1A1A,#991B1B)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ width: "100%", maxWidth: 420, maxHeight: "90vh", background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.25)", display: "flex", flexDirection: "column" }}>
+            {/* Header — stays fixed so the close button is always reachable, even when the
+                content below is tall enough to need its own scroll (e.g. the Exceptional
+                Leave banner + full form together on a short screen). */}
+            <div style={{ padding: "20px 24px", background: "linear-gradient(135deg,#DE1A1A,#991B1B)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div>
                 <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: "0 0 2px" }}>{editingLeave ? "Edit Leave Request" : "Apply for Leave"}</p>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Fill in the details below</p>
               </div>
               <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setSplitMode(false); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
-                style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <X size={16} color="#fff" />
               </button>
             </div>
+            <div style={{ overflowY: "auto" }}>
 
             {/* ── Monthly limit block (only for full_day / half_day) ── */}
             {!editingLeave && monthlyLimitHit && !isExceptional && (leaveType === "full_day" || leaveType === "half_day") && (
@@ -1330,20 +1333,35 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Leave Type *</label>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                    {([
+                  {(() => {
+                    const allTypes = [
                       { key: "full_day",   label: "Full Day",   emoji: "☀️" },
                       { key: "half_day",   label: "Half Day",   emoji: "🌤️" },
                       { key: "permission", label: "Permission", emoji: "⏰" },
                       { key: "wfh",        label: "Work From Home", emoji: "🏠" },
                       ...(isMedia ? [{ key: "shoot_day", label: "Shoot Day", emoji: "📷" }] : []),
-                    ] as { key: LeaveType; label: string; emoji: string }[]).map(({ key, label, emoji }) => (
-                      <button key={key} type="button" onClick={() => { setLeaveType(key); setSplitMode(false) }}
-                        style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 0", borderRadius: 14, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", ...(leaveType === key ? { background: "#DE1A1A", color: "#fff", boxShadow: "0 4px 12px rgba(222,26,26,0.35)" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
-                        <span style={{ fontSize: 20 }}>{emoji}</span>{label}
-                      </button>
-                    ))}
-                  </div>
+                    ] as { key: LeaveType; label: string; emoji: string }[]
+                    // Once the monthly cap is hit, Full Day/Half Day aren't real options anymore —
+                    // showing them (only to bounce back to the limit screen if picked) was the bug.
+                    // The one exception: got here specifically via "Apply as Exceptional Leave" for
+                    // the cap itself, which only exists to let Full Day/Half Day through — so THAT
+                    // combination flips to showing only those two, not all 5.
+                    const visibleTypes = (!editingLeave && monthlyLimitHit)
+                      ? (isExceptional
+                          ? allTypes.filter(t => t.key === "full_day" || t.key === "half_day")
+                          : allTypes.filter(t => t.key !== "full_day" && t.key !== "half_day"))
+                      : allTypes
+                    return (
+                      <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(visibleTypes.length, 3)}, 1fr)`, gap: 8 }}>
+                        {visibleTypes.map(({ key, label, emoji }) => (
+                          <button key={key} type="button" onClick={() => { setLeaveType(key); setSplitMode(false) }}
+                            style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 0", borderRadius: 14, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", ...(leaveType === key ? { background: "#DE1A1A", color: "#fff", boxShadow: "0 4px 12px rgba(222,26,26,0.35)" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
+                            <span style={{ fontSize: 20 }}>{emoji}</span>{label}
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 {leaveType === "full_day" && (
@@ -1580,6 +1598,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                   </button>
                 </div>
               </form>
+            </div>
             </div>
           </div>
         </div>

@@ -362,7 +362,10 @@ export default function InsightsClient({
   // Attendance table footer aggregates — averages, not raw sums, for anything per-person
   const totalPresentDays   = memberUtilization.reduce((s, m) => s + m.workingDays, 0)
   const totalLoginHours    = memberUtilization.reduce((s, m) => s + m.loginHours, 0)
-  const totalWorkingHoursX = memberUtilization.reduce((s, m) => s + m.workingHoursExclLearning, 0)
+  // Attendance's "Working Hrs" now matches Team Utilization's "Worked" exactly —
+  // trackedHours (work_entries incl. Learning, plus confirmed collab hours) —
+  // instead of workingHoursExclLearning, so the two tables never disagree again.
+  const totalWorkingHoursX = memberUtilization.reduce((s, m) => s + m.trackedHours, 0)
   const totalBreakHours    = memberUtilization.reduce((s, m) => s + m.breakHours, 0)
   const avgLoginFooter     = totalPresentDays > 0 ? totalLoginHours / totalPresentDays : 0
   const avgWorkingFooter   = totalPresentDays > 0 ? totalWorkingHoursX / totalPresentDays : 0
@@ -539,8 +542,8 @@ export default function InsightsClient({
                   <td style={primaryTdStyle}>{m.workingDays}</td>
                   <td style={{ ...primaryTdStyle, color: ATT_COLORS.login }}>{fmtH(m.loginHours)}</td>
                   <td style={avgTdStyle}>{m.avgLoginHours > 0 ? fmtH(m.avgLoginHours) : '—'}</td>
-                  <td style={{ ...primaryTdStyle, color: ATT_COLORS.working }}>{fmtH(m.workingHoursExclLearning)}</td>
-                  <td style={avgTdStyle}>{m.avgWorkingHoursExclLearning > 0 ? fmtH(m.avgWorkingHoursExclLearning) : '—'}</td>
+                  <td style={{ ...primaryTdStyle, color: ATT_COLORS.working }}>{fmtH(m.trackedHours)}</td>
+                  <td style={avgTdStyle}>{m.workingDays > 0 ? fmtH(m.trackedHours / m.workingDays) : '—'}</td>
                   <td style={{ ...primaryTdStyle, color: ATT_COLORS.break }}>{fmtH(m.breakHours)}</td>
                   <td style={avgTdStyle}>{m.avgBreakHours > 0 ? fmtH(m.avgBreakHours) : '—'}</td>
                 </tr>

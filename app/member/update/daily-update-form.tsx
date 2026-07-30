@@ -15,6 +15,7 @@ import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
 import { useToast } from "@/components/ui/useToast"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
 import { todayIST } from "@/lib/utils/ist-date"
+import { breakCapError } from "@/lib/utils/work-hours"
 
 interface Project { id: string; business_name: string }
 interface TeamMember { id: string; name: string; employee_id: string; role: string; team?: string | null }
@@ -1503,6 +1504,8 @@ export default function DailyUpdateForm({
       const label = breaks.length > 1 ? `Break ${i + 1}: ` : ""
       if (!b.startTime || !b.endTime) { setError(`${label}Set start and end time.`); return }
       if (b.durationHours <= 0) { setError(`${label}End time must be after start time.`); return }
+      const capErr = breakCapError(b.label, b.durationHours)
+      if (capErr) { setError(`${label}${capErr}`); return }
     }
     const breakEntries = breaks.map(b => ({
       id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
@@ -3314,20 +3317,21 @@ export default function DailyUpdateForm({
                 </div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                  {mediaBreaks.map((b, i) => (
-                    <div key={b.id} style={{ background:"#FFFBEB", borderRadius:12, border:"1.5px solid rgba(245,158,11,0.3)", padding:"10px 14px", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                  {mediaBreaks.map((b, i) => {
+                    const capErr = breakCapError(b.label, b.durationHours)
+                    return (
+                    <div key={b.id} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                    <div style={{ background: capErr ? "#FEF2F2" : "#FFFBEB", borderRadius:12, border: capErr ? "1.5px solid rgba(239,68,68,0.4)" : "1.5px solid rgba(245,158,11,0.3)", padding:"10px 14px", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                       <span style={{ fontSize:11, fontWeight:800, color:"#D97706", flexShrink:0 }}>☕ #{i+1}</span>
                       <TimePicker value={b.startTime} onChange={v => patchMediaBreak(b.id, { startTime: v })} />
                       <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
                       <TimePicker value={b.endTime} onChange={v => patchMediaBreak(b.id, { endTime: v })} />
                       {b.durationHours > 0 && (
-                        <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>{fmtTravel(b.durationHours)}</span>
+                        <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background: capErr ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.12)", color: capErr ? "#EF4444" : "#D97706" }}>{fmtTravel(b.durationHours)}</span>
                       )}
                       <select value={b.label} onChange={e => patchMediaBreak(b.id, { label: e.target.value, customLabel: "" })}
                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
-                        <option value="Tea">☕ Tea</option>
                         <option value="Lunch Break">🍱 Lunch Break</option>
-                        <option value="Personal">🏠 Personal</option>
                         <option value="Short Break">🚶 Short Break</option>
                         <option value="Early Logoff">🌙 Early Logoff</option>
                         <option value="Late Login">⏰ Late Login</option>
@@ -3337,7 +3341,10 @@ export default function DailyUpdateForm({
                         <Trash2 size={13} style={{ color:"#EF4444" }} />
                       </button>
                     </div>
-                  ))}
+                    {capErr && <p style={{ fontSize:11, fontWeight:600, color:"#EF4444", margin:"0 0 0 4px" }}>⚠️ {capErr}</p>}
+                    </div>
+                    )
+                  })}
                 </div>
               ))}
 
@@ -3356,20 +3363,21 @@ export default function DailyUpdateForm({
                 </div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                  {nonMediaBreaks.map((b, i) => (
-                    <div key={b.id} style={{ background:"#FFFBEB", borderRadius:12, border:"1.5px solid rgba(245,158,11,0.3)", padding:"10px 14px", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                  {nonMediaBreaks.map((b, i) => {
+                    const capErr = breakCapError(b.label, b.durationHours)
+                    return (
+                    <div key={b.id} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                    <div style={{ background: capErr ? "#FEF2F2" : "#FFFBEB", borderRadius:12, border: capErr ? "1.5px solid rgba(239,68,68,0.4)" : "1.5px solid rgba(245,158,11,0.3)", padding:"10px 14px", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                       <span style={{ fontSize:11, fontWeight:800, color:"#D97706", flexShrink:0 }}>☕ #{i+1}</span>
                       <TimePicker value={b.startTime} onChange={v => patchNonMediaBreak(b.id, { startTime: v })} />
                       <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
                       <TimePicker value={b.endTime} onChange={v => patchNonMediaBreak(b.id, { endTime: v })} />
                       {b.durationHours > 0 && (
-                        <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>{fmtTravel(b.durationHours)}</span>
+                        <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background: capErr ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.12)", color: capErr ? "#EF4444" : "#D97706" }}>{fmtTravel(b.durationHours)}</span>
                       )}
                       <select value={b.label} onChange={e => patchNonMediaBreak(b.id, { label: e.target.value, customLabel: "" })}
                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
-                        <option value="Tea">☕ Tea</option>
                         <option value="Lunch Break">🍱 Lunch Break</option>
-                        <option value="Personal">🏠 Personal</option>
                         <option value="Short Break">🚶 Short Break</option>
                         <option value="Early Logoff">🌙 Early Logoff</option>
                         <option value="Late Login">⏰ Late Login</option>
@@ -3379,7 +3387,10 @@ export default function DailyUpdateForm({
                         <Trash2 size={13} style={{ color:"#EF4444" }} />
                       </button>
                     </div>
-                  ))}
+                    {capErr && <p style={{ fontSize:11, fontWeight:600, color:"#EF4444", margin:"0 0 0 4px" }}>⚠️ {capErr}</p>}
+                    </div>
+                    )
+                  })}
                 </div>
               ))}
             </div>

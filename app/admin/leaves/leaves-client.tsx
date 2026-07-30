@@ -8,6 +8,7 @@ import { updateLeaveStatus, adminApplyLeaveOnBehalf, adminUpdateLeaveRequest } f
 import { addCompanyLeave, updateCompanyLeave, deleteCompanyLeave } from "@/lib/actions/company-leaves"
 import { todayIST } from "@/lib/utils/ist-date"
 import { HALF_DAY_THRESHOLD_HOURS } from "@/lib/utils/attendance-stats"
+import AutoBadge from "@/components/ui/AutoBadge"
 
 interface Leave {
   id: string
@@ -150,7 +151,10 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject, onSel
   const isPerm       = leave.leave_type === "permission"
   const isHalfDay    = leave.leave_type === "half_day"
   const isExceptional = leave.reason?.startsWith("[EXCEPTIONAL]")
-  const displayReason = isExceptional ? leave.reason.replace(/^\[EXCEPTIONAL\]\s*/, "") : leave.reason
+  const isBackfilled  = leave.reason?.startsWith("[BACKFILL]")
+  const displayReason = isExceptional ? leave.reason.replace(/^\[EXCEPTIONAL\]\s*/, "")
+    : isBackfilled ? leave.reason.replace(/^\[BACKFILL\]\s*/, "")
+    : leave.reason
   // WFH / Shoot Day are work arrangements, not leave — they have no monthly cap
   // (sumLeaveDays skips them entirely), so the only way one of these becomes
   // Exceptional is via the date-collision bypass, never the 5-day limit.
@@ -242,9 +246,10 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject, onSel
         <Paperclip size={12} style={{ color: "#37474F", flexShrink: 0, marginTop: 2 }} />
         <p style={{
           fontSize: 12, color: "#37474F", margin: 0, lineHeight: 1.45,
-          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
-        } as React.CSSProperties}>
-          {displayReason}
+          display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+        }}>
+          <span style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{displayReason}</span>
+          {isBackfilled && <AutoBadge />}
         </p>
       </div>
 

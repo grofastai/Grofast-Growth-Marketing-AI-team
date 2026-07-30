@@ -107,3 +107,29 @@ export function findEntryOverlap(entries: OverlapCheckEntry[], thresholdMins = 3
   }
   return null
 }
+
+// The 5 break types kept after the Tea/Personal/Lunch/Personal Break cleanup (2026-07-29).
+// Lunch Break/Short Break can run up to 1h30m (real breaks that occasionally run long);
+// Late Login/Early Logoff are capped at a strict 1h since those mean "not working" — past
+// that it's a real absence and belongs in Permission, not a break entry. Team Outing has
+// no cap (company event, not a personal break).
+export const BREAK_TYPE_OPTIONS = ["Lunch Break", "Short Break", "Late Login", "Early Logoff", "Team Outing"] as const
+const BREAK_TYPE_CAP_HOURS: Record<string, number | null> = {
+  "Lunch Break": 1.5,
+  "Short Break": 1.5,
+  "Late Login": 1,
+  "Early Logoff": 1,
+  "Team Outing": null,
+}
+
+// Shared client+server guard so a break can never exceed its cap regardless of which
+// form/action wrote it — same pattern as findEntryOverlap above.
+export function breakCapError(title: string, durationHours: number): string | null {
+  const cap = BREAK_TYPE_CAP_HOURS[title]
+  if (cap == null || durationHours <= cap) return null
+  const capLabel = cap === 1 ? "1 hour" : "1h30m"
+  const guidance = (title === "Late Login" || title === "Early Logoff")
+    ? " Apply Permission for the rest instead."
+    : ""
+  return `${title} cannot exceed ${capLabel}.${guidance}`
+}

@@ -9,10 +9,12 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, MoreVertical, Palmtree, CalendarDays,
   Bell, Clock, SlidersHorizontal, Trash2, Pencil, AlertTriangle,
 } from "lucide-react"
-import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest, withdrawWfhForDate } from "@/lib/actions/leaves"
+import { submitLeaveRequest, submitSplitLeaveRequest, deleteLeaveRequest, updateLeaveRequest, withdrawWfhForDate } from "@/lib/actions/leaves"
 import { todayIST } from "@/lib/utils/ist-date"
-import { sumLeaveDays } from "@/lib/utils/leave-balance"
-import { HALF_DAY_THRESHOLD_HOURS } from "@/lib/utils/attendance-stats"
+import { sumLeaveDays, parseLeaveReason } from "@/lib/utils/leave-balance"
+import AutoBadge from "@/components/ui/AutoBadge"
+import ExceptionalBadge from "@/components/ui/ExceptionalBadge"
+import { FULL_DAY_HOURS as WORKDAY_HOURS, HALF_DAY_THRESHOLD_HOURS } from "@/lib/utils/attendance-stats"
 
 interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
@@ -34,12 +36,78 @@ const STATUS_CFG = {
 }
 
 const TYPE_ILLUSTRATION: Record<string, { emoji: string; bg: string }> = {
-  half_day:   { emoji: "🌤️", bg: "rgba(251,191,36,0.12)"   },
-  full_day:   { emoji: "🌴", bg: "rgba(16,185,129,0.12)"   },
-  permission: { emoji: "⏰", bg: "rgba(99,102,241,0.12)"   },
-  absent:     { emoji: "🏠", bg: "rgba(107,114,128,0.1)"   },
-  wfh:        { emoji: "🏠", bg: "rgba(99,102,241,0.12)"   },
-  shoot_day:  { emoji: "📷", bg: "rgba(245,158,11,0.12)"   },
+  half_day:      { emoji: "🌤️", bg: "rgba(251,191,36,0.12)"   },
+  full_day:      { emoji: "🌴", bg: "rgba(16,185,129,0.12)"   },
+  permission:    { emoji: "⏰", bg: "rgba(99,102,241,0.12)"   },
+  absent:        { emoji: "🏠", bg: "rgba(107,114,128,0.1)"   },
+  wfh:           { emoji: "🏠", bg: "rgba(99,102,241,0.12)"   },
+  shoot_day:     { emoji: "📷", bg: "rgba(245,158,11,0.12)"   },
+  half_day_auto: { emoji: "🔔", bg: "rgba(251,191,36,0.12)"   },
+  full_day_auto: { emoji: "🔔", bg: "rgba(16,185,129,0.12)"   },
+}
+
+// Auto-deduction banners: NOT real rows in `leaves` — computed fresh on every render
+// from that month's approved Permission hours. Deliberately virtual (see conversation
+// 2026-07-29) so they can never go stale. The running total is CONTINUOUS through the
+// month (never reset mid-month) and cycles repeatedly: every time it crosses a new
+// 4.75h mark, a Half Day banner appears at whichever permission crossed it; every time
+// it crosses a new 9.5h mark, that Half Day banner is superseded by a Full Day banner
+// (half + half-again = a full day, not a half sitting next to a full) and the next
+// cycle starts counting from there — so ONE month can carry multiple banners if enough
+// permissions stack up (e.g. Half Day around 10h45, Full Day around 15h, another Half
+// Day starting a third cycle). At the month boundary the leftover always resets to
+// zero — no carry-over into the next month.
+function buildPermissionDeductionEntries(leaves: Leave[]): Leave[] {
+  const byMonth = new Map<string, Leave[]>()
+  for (const l of leaves) {
+    if (l.leave_type !== "permission" || l.status !== "approved") continue
+    const month = l.from_date.slice(0, 7)
+    const bucket = byMonth.get(month) ?? []
+    bucket.push(l)
+    byMonth.set(month, bucket)
+  }
+
+  const entries: Leave[] = []
+  for (const [month, rows] of byMonth) {
+    const sorted = [...rows].sort((a, b) =>
+      a.from_date.localeCompare(b.from_date) || (a.permission_time ?? "").localeCompare(b.permission_time ?? "")
+    )
+    let cumulative = 0
+    let segmentStart = 0    // cumulative value at which the CURRENT cycle began
+    let cycleIndex = 0
+    let pendingHalf: Leave | null = null   // this cycle's Half Day banner, if not yet superseded
+
+    for (const r of sorted) {
+      cumulative += Number(r.permission_hours) || 0
+      let progress = cumulative - segmentStart
+
+      while (progress >= WORKDAY_HOURS) {
+        if (pendingHalf) {
+          const idx = entries.indexOf(pendingHalf)
+          if (idx !== -1) entries.splice(idx, 1)
+          pendingHalf = null
+        }
+        cycleIndex += 1
+        entries.push({
+          id: `perm-deduct-${month}-${cycleIndex}`, from_date: r.from_date, to_date: r.from_date,
+          reason: `Permission hours this month reached ${cumulative.toFixed(1)}h — Full Day Leave deducted`,
+          status: "approved", created_at: r.from_date, leave_type: "full_day_auto",
+        })
+        segmentStart += WORKDAY_HOURS
+        progress = cumulative - segmentStart
+      }
+      if (!pendingHalf && progress >= HALF_DAY_THRESHOLD_HOURS) {
+        cycleIndex += 1
+        pendingHalf = {
+          id: `perm-deduct-${month}-${cycleIndex}`, from_date: r.from_date, to_date: r.from_date,
+          reason: `Permission hours this month reached ${cumulative.toFixed(1)}h — Half Day Leave deducted`,
+          status: "approved", created_at: r.from_date, leave_type: "half_day_auto",
+        }
+        entries.push(pendingHalf)
+      }
+    }
+  }
+  return entries
 }
 
 function daysBetween(from: string, to: string) {
@@ -68,6 +136,33 @@ function timeRangesOverlap(a: [string, string], b: [string, string]): boolean {
   if (aEnd <= aStart) aEnd += 1440
   if (bEnd <= bStart) bEnd += 1440
   return Math.min(aEnd, bEnd) - Math.max(aStart, bStart) > 0
+}
+
+const PERMISSION_MIN_MINS = 60
+const PERMISSION_MAX_MINS = 240
+function minsToTime(mins: number) {
+  const h = Math.floor(mins / 60), m = mins % 60
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+}
+function timeToMins(t: string) {
+  const [h, m] = t.split(":").map(Number)
+  return h * 60 + m
+}
+// Splits a >4h45m Half Day range into a Permission for the EARLY portion + a fixed
+// 4h45m Half Day for the LATE portion (ending at the range's own end time) — always
+// this order, never the reverse (confirmed 2026-07-29). Same pattern used to fix
+// every historical bad half-day record this month. Returns null if the early
+// leftover wouldn't be a valid Permission (under 1h or over 4h).
+function computeSplit(fromTime: string, toTime: string, requiredHalfMins: number): { halfFrom: string; halfTo: string; permFrom: string; permTo: string } | null {
+  const toMins = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+  const fromMins = toMins(fromTime), endMins = toMins(toTime)
+  const totalMins = endMins - fromMins
+  if (totalMins <= requiredHalfMins) return null
+  const excessMins = totalMins - requiredHalfMins
+  if (excessMins < PERMISSION_MIN_MINS || excessMins > PERMISSION_MAX_MINS) return null
+
+  const halfFromMins = endMins - requiredHalfMins
+  return { halfFrom: minsToTime(halfFromMins), halfTo: minsToTime(endMins), permFrom: minsToTime(fromMins), permTo: minsToTime(halfFromMins) }
 }
 
 function canWithdraw(leave: Leave): boolean {
@@ -224,6 +319,17 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
       leave_type: "absent",
     }))
   const allEntries = [...leaves, ...absentEntries].sort((a, b) => b.from_date.localeCompare(a.from_date))
+  // Timeline-only view: adds the virtual Permission auto-deduction banners on
+  // top of allEntries. Kept separate from allEntries so the stat cards / WLB
+  // score / monthly-limit math above never double-count a synthetic entry —
+  // those already derive their numbers from the real `leaves` rows.
+  const permissionDeductionEntries = buildPermissionDeductionEntries(leaves)
+  // Synthetic entries go FIRST in the pre-sort array: the auto-deduction only
+  // exists because a same-date Permission was applied, so it's the logically
+  // later event of the two — on a same-date tie, Array.sort's stability keeps
+  // earlier-array-position entries earlier in the output, so this puts the
+  // auto-deduction banner above (more recent than) the Permission that triggered it.
+  const timelineEntries = [...permissionDeductionEntries, ...allEntries].sort((a, b) => b.from_date.localeCompare(a.from_date))
   const [showForm, setShowForm]         = useState(false)
   const [leaveType, setLeaveType]       = useState<LeaveType>("full_day")
   const [halfPeriod, setHalfPeriod]     = useState<"morning" | "afternoon">("morning")
@@ -256,6 +362,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [newFormError, setNewFormError] = useState<string | null>(null)
   const [dateError, setDateError]       = useState<string | null>(null)
   const [state, action, pending]    = useActionState(submitLeaveRequest, null)
+  const [splitMode, setSplitMode]   = useState(false)
+  const [splitHalfFrom, setSplitHalfFrom] = useState("")
+  const [splitHalfTo, setSplitHalfTo]     = useState("")
+  const [splitPermFrom, setSplitPermFrom] = useState("")
+  const [splitPermTo, setSplitPermTo]     = useState("")
+  const [splitState, splitAction, splitPending] = useActionState(submitSplitLeaveRequest, null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Close dropdown on outside click
@@ -286,6 +398,9 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
   if (state && "success" in state && state.success && showForm && !editingLeave) {
     setShowForm(false); setEditingLeave(null); setNewFormError(null); router.refresh()
+  }
+  if (splitState && "success" in splitState && splitState.success && showForm && !editingLeave) {
+    setShowForm(false); setSplitMode(false); setNewFormError(null); router.refresh()
   }
 
   function checkDuplicateDate(e: React.FormEvent<HTMLFormElement>) {
@@ -385,6 +500,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
   const MONTHLY_LIMIT = 5
   const currentMonth  = today.slice(0, 7) // "YYYY-MM" — the REAL current month, not whatever month is being browsed below
+  const currentYear   = today.slice(0, 4) // "YYYY" — "Total Leaves This Year" was never actually filtered by year (bug, fixed 2026-07-29)
   // Approved-only — matches Dashboard/Attendance/History's "Leave Taken" (confirmed
   // 2026-07-28). The actual 5-day submit-blocking cap (checkMonthlyLeaveLimit in
   // lib/actions/leaves.ts) still counts pending requests too, on purpose, so this
@@ -394,6 +510,27 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     const monthEntries = entries.filter(l => l.from_date.startsWith(month) && l.status === "approved")
     return sumLeaveDays(monthEntries, `${month}-01`, `${month}-31`)
   }
+  // Splits the same total into "real" (Full Day / Half Day, submitted as such) vs "auto"
+  // (day-equivalents converted from accumulated Permission hours crossing a threshold) —
+  // same two numbers the auto-deduction banners already represent, just totaled for the stat card.
+  function calcMonthlyDaysSplit(entries: Leave[], month: string) {
+    const monthEntries = entries.filter(l => l.from_date.startsWith(month) && l.status === "approved")
+    const nonPermission = monthEntries.filter(l => l.leave_type !== "permission")
+    const real = sumLeaveDays(nonPermission, `${month}-01`, `${month}-31`)
+    const total = calcMonthlyDays(entries, month)
+    return { real, auto: Math.max(0, total - real), total }
+  }
+  // Same real-vs-auto split as calcMonthlyDaysSplit, totaled across the whole
+  // year — feeds the "Total Leaves This Year" stat card's split bar. Same
+  // formula for every member regardless of team (Media/Non-Media), since this
+  // Leaves page and its stat cards are shared, not team-specific.
+  function calcYearlyDaysSplit(entries: Leave[], year: string) {
+    const yearEntries = entries.filter(l => l.from_date.startsWith(year) && l.status === "approved")
+    const nonPermission = yearEntries.filter(l => l.leave_type !== "permission")
+    const real = sumLeaveDays(nonPermission, `${year}-01-01`, `${year}-12-31`)
+    const total = sumLeaveDays(yearEntries, `${year}-01-01`, `${year}-12-31`)
+    return { real, auto: Math.max(0, total - real), total }
+  }
   // Always the real current month — gates whether a new Full/Half Day request is
   // allowed right now, so this must never follow the Leave Timeline's browsed month.
   const monthlyUsed     = calcMonthlyDays(leaves, currentMonth)
@@ -402,7 +539,9 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   // Month" stat cards, which should reflect whichever month the member is browsing,
   // not always today's real month.
   const filterMonthUsed    = calcMonthlyDays(leaves, filterMonth)
-  const filterMonthBalance = Math.max(0, MONTHLY_LIMIT - filterMonthUsed)
+  const filterMonthSplit   = calcMonthlyDaysSplit(leaves, filterMonth)
+  const yearSplit          = calcYearlyDaysSplit(leaves, currentYear)
+  const filterMonthBalance = MONTHLY_LIMIT - filterMonthUsed   // can go negative — shown as-is, not clamped, so an over-limit month is visible instead of hidden behind a floor of 0
   // "WFH Days" card counts both work-from-home and shoot days — both are logged
   // work, not leave (see the no-monthly-cap rule for wfh/shoot_day), so they share one tile.
   const wfhShootFilterMonth = allEntries.filter(l => (l.leave_type === "wfh" || l.leave_type === "shoot_day") && l.status === "approved" && l.from_date.startsWith(filterMonth)).length
@@ -439,7 +578,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   function matchesMode(l: { leave_type?: string; status: string }) {
     const t = l.leave_type ?? "full_day"
     if (filterMode === "all")        return true
-    if (filterMode === "leaves")     return t === "full_day" || t === "half_day" || t === "permission"
+    if (filterMode === "leaves")     return t === "full_day" || t === "half_day" || t === "permission" || t === "half_day_auto" || t === "full_day_auto"
     if (filterMode === "permission") return t === "wfh" || t === "shoot_day"
     if (filterMode === "approved")   return l.status === "approved"
     if (filterMode === "rejected")   return l.status === "rejected"
@@ -454,8 +593,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     if (rangeTo   && l.from_date > rangeTo)   return false
     return true
   }
-  // allEntries is already sorted recent-date-first (see above), so filtering preserves that order.
-  const filteredLeaves = allEntries.filter(l => matchesMode(l) && matchesDate(l))
+  // timelineEntries is already sorted recent-date-first (see above), so filtering preserves that order.
+  const filteredLeaves = timelineEntries.filter(l => matchesMode(l) && matchesDate(l))
   const visibleLeaves  = showMore ? filteredLeaves : filteredLeaves.slice(0, 5)
 
   const shiftMonth = (ym: string, delta: number) => {
@@ -540,22 +679,35 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
           {/* ── Stats Cards ──────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
             {[
-              { label: "Total Leaves\nThis Year",        val: allEntries.filter(l => (l.status === "approved" || l.status === "absent") && l.leave_type !== "wfh" && l.leave_type !== "shoot_day" && l.leave_type !== "permission").length, color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: null, sub: null, subColor: "" },
-              { label: `Leave Taken\n${monthTag}`,       val: filterMonthUsed,     color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "📅", trend: null, sub: `of ${MONTHLY_LIMIT} days allowed`, subColor: "#9CA3AF" },
-              { label: `WFH + Shoot\n${monthTag}`,       val: wfhShootFilterMonth, color: "#6366F1", bg: "rgba(99,102,241,0.1)",  icon: "🏠", trend: null, sub: wfhShootFilterMonth > 0 ? `${wfhShootFilterMonth} approved` : "None that month", subColor: "#6366F1" },
-              { label: `Leave Left\n${monthTag}`,        val: filterMonthBalance,  color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "🗓️", trend: null, sub: `${filterMonthUsed} of ${MONTHLY_LIMIT} used`, subColor: "#9CA3AF" },
-              { label: "Annual Leave\nRemaining",       val: Math.max(0, 60 - usedLeaveDays), color: "#0EA5E9", bg: "rgba(14,165,233,0.1)", icon: "🏖️", trend: null, sub: null, subColor: "" },
-              { label: "This Month's\nHolidays",        val: thisMonthHolidays.length, color: "#EC4899", bg: "rgba(236,72,153,0.1)", icon: "🎉", trend: null, sub: thisMonthHolidays.length > 0 ? thisMonthHolidays[0].name : "No holidays", subColor: "#EC4899" },
+              { label1: "Total Leaves",  label2: "This Year",  val: yearSplit.total,     color: "#DC2626", color2: "#7C3AED", bg: "rgba(220,38,38,0.12)",  icon: "📋", trend: null, sub: null, subColor: "" },
+              { label1: "Leave Taken",   label2: monthTag,     val: filterMonthUsed,     color: "#D97706", color2: "#7C3AED", bg: "rgba(217,119,6,0.12)",  icon: "📅", trend: null, sub: `of ${MONTHLY_LIMIT} days allowed`, subColor: "#9CA3AF" },
+              { label1: "WFH + Shoot",  label2: monthTag,     val: wfhShootFilterMonth, color: "#4F46E5", color2: "#4F46E5", bg: "rgba(79,70,229,0.12)",  icon: "🏠", trend: null, sub: wfhShootFilterMonth > 0 ? `${wfhShootFilterMonth} approved` : "None that month", subColor: "#4F46E5" },
+              { label1: "Leave Left",   label2: monthTag,     val: filterMonthBalance,  color: filterMonthBalance < 0 ? "#DC2626" : "#7C3AED", color2: filterMonthBalance < 0 ? "#7C2D12" : "#7C3AED", bg: filterMonthBalance < 0 ? "rgba(220,38,38,0.12)" : "rgba(124,58,237,0.12)", icon: filterMonthBalance < 0 ? "⚠️" : "🗓️", trend: null, sub: filterMonthBalance < 0 ? `${filterMonthUsed} used — ${Math.abs(filterMonthBalance)} over the ${MONTHLY_LIMIT}-day limit` : `${filterMonthUsed} of ${MONTHLY_LIMIT} used`, subColor: filterMonthBalance < 0 ? "#DC2626" : "#9CA3AF" },
+              { label1: "Annual Leave", label2: "Remaining",  val: Math.max(0, 60 - usedLeaveDays), color: "#0891B2", color2: "#0891B2", bg: "rgba(8,145,178,0.12)", icon: "🏖️", trend: null, sub: null, subColor: "" },
+              { label1: "This Month's", label2: "Holidays",   val: thisMonthHolidays.length, color: "#DB2777", color2: "#DB2777", bg: "rgba(219,39,119,0.12)", icon: "🎉", trend: null, sub: thisMonthHolidays.length > 0 ? thisMonthHolidays[0].name : "No holidays", subColor: "#DB2777" },
             ].map((s, i) => (
-              <div key={i} style={{ background: "#fff", borderRadius: 18, padding: "18px 16px 14px", border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", gap: 0, position: "relative", overflow: "hidden" }}>
+              <div key={i} style={{ background: "linear-gradient(180deg, #FFFFFF 0%, #FBFAF9 100%)", borderRadius: 22, padding: "20px 18px 16px", border: "1px solid rgba(20,15,10,0.07)", boxShadow: "0 1px 2px rgba(20,15,10,0.04), 0 12px 26px -12px rgba(20,15,10,0.16), inset 0 1px 0 rgba(255,255,255,0.7)", display: "flex", flexDirection: "column", gap: 0, position: "relative", overflow: "hidden" }}>
                 {/* Icon badge */}
-                <div style={{ width: 38, height: 38, borderRadius: 11, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 14, boxShadow: "inset 0 1px 1px rgba(255,255,255,0.6), 0 1px 3px rgba(0,0,0,0.06)" }}>
                   {s.icon}
                 </div>
-                {/* Number */}
-                <p style={{ fontSize: "clamp(22px,2vw,30px)", fontWeight: 900, color: s.color, lineHeight: 1, marginBottom: 4, fontFamily: "var(--font-jakarta)" }}>{s.val}</p>
-                {/* Label */}
-                <p style={{ fontSize: 10, fontWeight: 600, color: "#9CA3AF", lineHeight: 1.4, whiteSpace: "pre-line", marginBottom: 10 }}>{s.label}</p>
+                {/* Number — gradient fill for a bit of depth */}
+                <p style={{
+                  fontSize: "clamp(24px,2.2vw,32px)", fontWeight: 800, lineHeight: 1, marginBottom: 6,
+                  letterSpacing: "-0.02em", fontFamily: "var(--font-jakarta)", fontVariantNumeric: "tabular-nums",
+                  backgroundImage: `linear-gradient(180deg, ${s.color} 0%, ${s.color2} 130%)`,
+                  WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent",
+                  filter: "drop-shadow(0 1px 0 rgba(255,255,255,0.5)) drop-shadow(0 2px 3px rgba(20,15,10,0.08))",
+                  width: "fit-content",
+                }}>{s.val}</p>
+                {/* Label — accent tick + two-tier hierarchy */}
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 12 }}>
+                  <span style={{ width: 3, height: 20, borderRadius: 99, flexShrink: 0, marginTop: 1, background: `linear-gradient(180deg, ${s.color}, ${s.color}66)` }} />
+                  <span style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: 12, fontWeight: 750, color: "#231F1A", letterSpacing: "-0.01em", lineHeight: 1.3 }}>{s.label1}</span>
+                    <span style={{ fontSize: 9.5, fontWeight: 650, color: "#9C968D", textTransform: "uppercase", letterSpacing: "0.08em", lineHeight: 1.5 }}>{s.label2}</span>
+                  </span>
+                </div>
 
                 {/* Bottom: sparkline or progress */}
                 {s.trend ? (
@@ -563,13 +715,51 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     <p style={{ fontSize: 9, color: s.subColor, fontWeight: 600 }}>{s.sub}</p>
                     <Sparkline color={s.color} trend={s.trend} />
                   </div>
-                ) : s.label.includes("Annual Leave") ? (
+                ) : s.label1 === "Annual Leave" ? (
                   <div>
-                    <div style={{ height: 4, borderRadius: 99, background: "#EEF0F5", marginBottom: 8, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${Math.min(100, Math.round((usedLeaveDays / 60) * 100))}%`, background: "#0EA5E9", borderRadius: 99 }} />
+                    <div style={{ height: 6, borderRadius: 99, background: "#EEEBE5", marginBottom: 9, overflow: "hidden", boxShadow: "inset 0 1px 2px rgba(20,15,10,0.08)" }}>
+                      <div style={{ height: "100%", width: `${Math.min(100, Math.round((usedLeaveDays / 60) * 100))}%`, borderRadius: 99, background: `linear-gradient(90deg, ${s.color}, ${s.color}99)`, position: "relative" }}>
+                        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(255,255,255,0.4), transparent 60%)" }} />
+                      </div>
                     </div>
-                    <p style={{ fontSize: 10, color: "#0EA5E9", fontWeight: 700 }}>{usedLeaveDays} of 60 days used</p>
+                    <p style={{ fontSize: 10, color: s.color, fontWeight: 700 }}>{usedLeaveDays} of 60 days used</p>
                   </div>
+                ) : s.label1 === "Leave Taken" ? (
+                  <div>
+                    <div style={{ height: 6, borderRadius: 99, background: "#EEEBE5", marginBottom: 9, overflow: "hidden", display: "flex", boxShadow: "inset 0 1px 2px rgba(20,15,10,0.08)" }}>
+                      {filterMonthSplit.total > 0 && (
+                        <>
+                          <div style={{ height: "100%", width: `${Math.round((filterMonthSplit.real / filterMonthSplit.total) * 100)}%`, background: "linear-gradient(90deg, #D97706, #F0A93A)", boxShadow: "1px 0 0 #FBFAF9" }} />
+                          <div style={{ height: "100%", width: `${Math.round((filterMonthSplit.auto / filterMonthSplit.total) * 100)}%`, background: "linear-gradient(90deg, #7C3AED, #A78BFA)" }} />
+                        </>
+                      )}
+                    </div>
+                    <p style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#D97706", display: "inline-block", boxShadow: "0 0 0 3px rgba(217,119,6,0.18)" }} />{filterMonthSplit.real} applied</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#7C3AED", display: "inline-block", boxShadow: "0 0 0 3px rgba(124,58,237,0.18)" }} />{filterMonthSplit.auto} auto</span>
+                    </p>
+                  </div>
+                ) : s.label1 === "Total Leaves" ? (
+                  <div>
+                    <div style={{ height: 6, borderRadius: 99, background: "#EEEBE5", marginBottom: 9, overflow: "hidden", display: "flex", boxShadow: "inset 0 1px 2px rgba(20,15,10,0.08)" }}>
+                      {yearSplit.total > 0 && (
+                        <>
+                          <div style={{ height: "100%", width: `${Math.round((yearSplit.real / yearSplit.total) * 100)}%`, background: "linear-gradient(90deg, #DC2626, #F87171)", boxShadow: "1px 0 0 #FBFAF9" }} />
+                          <div style={{ height: "100%", width: `${Math.round((yearSplit.auto / yearSplit.total) * 100)}%`, background: "linear-gradient(90deg, #7C3AED, #A78BFA)" }} />
+                        </>
+                      )}
+                    </div>
+                    <p style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#DC2626", display: "inline-block", boxShadow: "0 0 0 3px rgba(220,38,38,0.18)" }} />{yearSplit.real} applied</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 6, height: 6, borderRadius: 99, background: "#7C3AED", display: "inline-block", boxShadow: "0 0 0 3px rgba(124,58,237,0.18)" }} />{yearSplit.auto} auto</span>
+                    </p>
+                  </div>
+                ) : s.label1 === "Leave Left" ? (
+                  filterMonthBalance < 0 ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10.5, fontWeight: 700, color: "#fff", background: "linear-gradient(135deg, #E13A30, #A31C15)", padding: "6px 10px", borderRadius: 9, boxShadow: "0 3px 10px -3px rgba(196,39,31,0.55)", width: "fit-content" }}>{s.sub}</span>
+                  ) : (
+                    <p style={{ fontSize: 9, color: s.subColor || "#9CA3AF", fontWeight: 600, marginTop: "auto" }}>{s.sub}</p>
+                  )
                 ) : s.sub ? (
                   <p style={{ fontSize: 9, color: s.subColor || "#9CA3AF", fontWeight: 600, marginTop: "auto" }}>{s.sub}</p>
                 ) : null}
@@ -659,6 +849,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     const illus = TYPE_ILLUSTRATION[type] ?? TYPE_ILLUSTRATION.full_day
                     const isPerm  = type === "permission"
                     const isHalf  = type === "half_day"
+                    const isAutoDeduct = type === "half_day_auto" || type === "full_day_auto"
                     const days    = (!isPerm && !isHalf) ? daysBetween(leave.from_date, leave.to_date) : null
                     const dateObj = new Date(leave.from_date)
                     const mon     = dateObj.toLocaleDateString("en-US", { month: "short" }).toUpperCase()
@@ -666,13 +857,13 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     const yr      = dateObj.getFullYear()
                     const wd      = dateObj.toLocaleDateString("en-US", { weekday: "short" })
                     const StatusIcon = sc.icon
-                    const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : type === "permission" ? "Permission" : type === "absent" ? "On Leave" : type === "wfh" ? "Work From Home" : type === "shoot_day" ? "Shoot Day" : "Full Day Leave"
+                    const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : type === "permission" ? "Permission" : type === "absent" ? "On Leave" : type === "wfh" ? "Work From Home" : type === "shoot_day" ? "Shoot Day" : type === "half_day_auto" ? "Half Day Leave (Auto-deducted)" : type === "full_day_auto" ? "Full Day Leave (Auto-deducted)" : "Full Day Leave"
                     const halfTimeRange = leave.half_day_from_time && leave.half_day_to_time ? `${fmtTimeStr(leave.half_day_from_time)}–${fmtTimeStr(leave.half_day_to_time)}` : null
                     const permTimeRange = leave.permission_time && leave.permission_end_time ? `${fmtTimeStr(leave.permission_time)}–${fmtTimeStr(leave.permission_end_time)}` : leave.permission_time ? fmtTimeStr(leave.permission_time) : null
-                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}${halfTimeRange ? ` · ${halfTimeRange}` : ""}` : type === "permission" ? `${leave.permission_hours ?? 1}h${permTimeRange ? ` · ${permTimeRange}` : ""}` : type === "absent" ? "Leave" : type === "wfh" ? "WFH" : type === "shoot_day" ? "Shoot Day" : "Full Day"
-                    const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : type === "absent" ? "rgba(107,114,128,0.12)" : type === "wfh" ? "rgba(99,102,241,0.12)" : type === "shoot_day" ? "rgba(245,158,11,0.12)" : "rgba(245,158,11,0.12)"
-                    const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : type === "absent" ? "#6B7280" : type === "wfh" ? "#6366F1" : type === "shoot_day" ? "#F59E0B" : "#F59E0B"
-                    const duration  = isPerm ? `${leave.permission_hours}h session` : isHalf ? "1 Session" : `${days} Day${days && days > 1 ? "s" : ""}`
+                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}${halfTimeRange ? ` · ${halfTimeRange}` : ""}` : type === "permission" ? `${leave.permission_hours ?? 1}h${permTimeRange ? ` · ${permTimeRange}` : ""}` : type === "absent" ? "Leave" : type === "wfh" ? "WFH" : type === "shoot_day" ? "Shoot Day" : type === "half_day_auto" ? "Permission → Half Day" : type === "full_day_auto" ? "Permission → Full Day" : "Full Day"
+                    const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : type === "absent" ? "rgba(107,114,128,0.12)" : type === "wfh" ? "rgba(99,102,241,0.12)" : type === "shoot_day" ? "rgba(245,158,11,0.12)" : type === "half_day_auto" ? "rgba(251,191,36,0.14)" : type === "full_day_auto" ? "rgba(16,185,129,0.12)" : "rgba(245,158,11,0.12)"
+                    const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : type === "absent" ? "#6B7280" : type === "wfh" ? "#6366F1" : type === "shoot_day" ? "#F59E0B" : type === "half_day_auto" ? "#B45309" : type === "full_day_auto" ? "#10B981" : "#F59E0B"
+                    const duration  = isPerm ? `${leave.permission_hours}h session` : isHalf ? "1 Session" : isAutoDeduct ? "Auto" : `${days} Day${days && days > 1 ? "s" : ""}`
 
                     return (
                       <div key={leave.id} style={{ display: "flex", alignItems: "stretch", gap: 12, position: "relative", zIndex: 1 }}>
@@ -686,7 +877,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                           <span style={{ fontSize: 8, fontWeight: 900, color: sc.color, letterSpacing: "0.1em" }}>{mon}</span>
                           <span style={{ fontSize: 26, fontWeight: 900, color: sc.color, lineHeight: 1 }}>{day}</span>
                           <span style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600 }}>{yr}</span>
-                          <span style={{ fontSize: 8, color: "#9CA3AF" }}>{wd} · {isHalf ? (leave.half_day_period ?? "Morning") : isPerm ? "Session" : type === "absent" ? "Leave" : "Full Day"}</span>
+                          <span style={{ fontSize: 8, color: "#9CA3AF" }}>{wd} · {isHalf ? (leave.half_day_period ?? "Morning") : isPerm ? "Session" : type === "absent" ? "Leave" : isAutoDeduct ? "Auto" : "Full Day"}</span>
                         </div>
 
                         {/* Card */}
@@ -698,11 +889,13 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                               <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 99, background: badgeBg, color: badgeCol }}>{badgeText}</span>
                             </div>
                             <p style={{ fontSize: 12, color: "#6B7280", margin: "0 0 5px", display: "flex", alignItems: "center", gap: 5 }}>
-                              <span style={{ fontSize: 13 }}>⭐</span> {leave.reason}
+                              <span style={{ fontSize: 13 }}>⭐</span> {parseLeaveReason(leave.reason).text}
+                              {parseLeaveReason(leave.reason).isAuto && <AutoBadge />}
+                              {parseLeaveReason(leave.reason).isExceptional && <ExceptionalBadge />}
                             </p>
                             <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
                               <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc.color, display: "inline-block", flexShrink: 0 }} />
-                              {isHalf || isPerm ? fmtFull(leave.from_date) : `${fmtShort(leave.from_date)} — ${fmtShort(leave.to_date)}`} · {duration}
+                              {isHalf || isPerm || isAutoDeduct ? fmtFull(leave.from_date) : `${fmtShort(leave.from_date)} — ${fmtShort(leave.to_date)}`} · {duration}
                             </p>
                             {leave.status === "rejected" && (
                               <p style={{ fontSize: 10, color: "#9CA3AF", margin: "4px 0 0", fontStyle: "italic" }}>Reviewed by HR Team</p>
@@ -1012,7 +1205,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: "0 0 2px" }}>{editingLeave ? "Edit Leave Request" : "Apply for Leave"}</p>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Fill in the details below</p>
               </div>
-              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
+              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setSplitMode(false); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
                 style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <X size={16} color="#fff" />
               </button>
@@ -1074,7 +1267,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 </div>
               )}
               <form
-                action={editingLeave ? undefined : action}
+                action={editingLeave ? undefined : (splitMode ? splitAction : action)}
                 onSubmit={editingLeave ? (e) => {
                   e.preventDefault()
                   const fd = new FormData(e.currentTarget)
@@ -1106,7 +1299,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 } : checkDuplicateDate}
                 style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <input type="hidden" name="leave_type" value={leaveType} />
-                {leaveType === "half_day" && <input type="hidden" name="half_day_period" value={halfPeriod} />}
+                {leaveType === "half_day" && !splitMode && <input type="hidden" name="half_day_period" value={halfPeriod} />}
 
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Leave Type *</label>
@@ -1118,7 +1311,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                       { key: "wfh",        label: "Work From Home", emoji: "🏠" },
                       ...(isMedia ? [{ key: "shoot_day", label: "Shoot Day", emoji: "📷" }] : []),
                     ] as { key: LeaveType; label: string; emoji: string }[]).map(({ key, label, emoji }) => (
-                      <button key={key} type="button" onClick={() => setLeaveType(key)}
+                      <button key={key} type="button" onClick={() => { setLeaveType(key); setSplitMode(false) }}
                         style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 0", borderRadius: 14, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", ...(leaveType === key ? { background: "#DE1A1A", color: "#fff", boxShadow: "0 4px 12px rgba(222,26,26,0.35)" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
                         <span style={{ fontSize: 20 }}>{emoji}</span>{label}
                       </button>
@@ -1135,7 +1328,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}
                   </div>
                 )}
-                {leaveType === "half_day" && (
+                {leaveType === "half_day" && !splitMode && (
                   <>
                     <input type="hidden" name="half_day_from_time" value={halfFrom} />
                     <input type="hidden" name="half_day_to_time" value={halfTo} />
@@ -1168,14 +1361,83 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                         if (diff <= 0) return <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0", fontWeight: 600 }}>To time must be after From time</p>
                         const hrs = Math.floor(diff / 60), mins = diff % 60
                         const requiredMins = HALF_DAY_THRESHOLD_HOURS * 60
-                        const isValid = diff === requiredMins
+                        if (diff === requiredMins) {
+                          return <p style={{ fontSize: 11, color: "#6366F1", margin: "6px 0 0", fontWeight: 600 }}>Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""}</p>
+                        }
+                        // Longer than 4h45m: offer the split IF the excess would make a valid
+                        // Permission (1h-4h). Otherwise explain why not, no split possible.
+                        const excess = diff - requiredMins
+                        // Split only offered for a brand-new request — editing an existing row only
+                        // ever updates that one row, so a split here would silently drop the
+                        // Permission portion instead of creating it.
+                        const split = (diff > requiredMins && !editingLeave) ? computeSplit(halfFrom, halfTo, requiredMins) : null
                         return (
-                          <p style={{ fontSize: 11, color: isValid ? "#6366F1" : "#EF4444", margin: "6px 0 0", fontWeight: 600 }}>
-                            Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""}
-                            {!isValid && ` — half day must be exactly ${HALF_DAY_THRESHOLD_HOURS}h`}
-                          </p>
+                          <div style={{ marginTop: 8, padding: 12, borderRadius: 12, background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.35)" }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: "#92400E", margin: "0 0 4px" }}>
+                              Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""} — Half Day cannot be more than {HALF_DAY_THRESHOLD_HOURS}h.
+                            </p>
+                            {diff < requiredMins ? (
+                              <p style={{ fontSize: 11.5, color: "#B45309", margin: 0, lineHeight: 1.5 }}>Extend the To time so this is exactly {HALF_DAY_THRESHOLD_HOURS}h.</p>
+                            ) : split ? (
+                              <>
+                                <p style={{ fontSize: 11.5, color: "#B45309", margin: "0 0 8px", lineHeight: 1.5 }}>Split this into a Half Day + Permission instead.</p>
+                                <button type="button" onClick={() => {
+                                  setSplitHalfFrom(split.halfFrom); setSplitHalfTo(split.halfTo)
+                                  setSplitPermFrom(split.permFrom); setSplitPermTo(split.permTo)
+                                  setSplitMode(true)
+                                }}
+                                  style={{ width: "100%", padding: "10px 0", borderRadius: 10, fontSize: 12.5, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer" }}>
+                                  Split &amp; Apply
+                                </button>
+                              </>
+                            ) : excess > PERMISSION_MAX_MINS ? (
+                              <p style={{ fontSize: 11.5, color: "#B45309", margin: 0, lineHeight: 1.5 }}>This is over {((requiredMins + PERMISSION_MAX_MINS) / 60).toFixed(2).replace(/\.?0+$/, "")}h total. Apply as Full Day Leave instead.</p>
+                            ) : (
+                              <p style={{ fontSize: 11.5, color: "#B45309", margin: 0, lineHeight: 1.5 }}>The extra {excess}m is too short to apply as Permission (minimum 1h). Extend to exactly {HALF_DAY_THRESHOLD_HOURS}h, or add more time to split it.</p>
+                            )}
+                          </div>
                         )
                       })()}
+                    </div>
+                  </>
+                )}
+                {leaveType === "half_day" && splitMode && (
+                  <>
+                    <input type="hidden" name="from_date" value={halfDaySelectedDate} />
+                    <input type="hidden" name="half_day_period" value={halfPeriod} />
+                    <input type="hidden" name="half_day_from_time" value={splitHalfFrom} />
+                    <input type="hidden" name="half_day_to_time" value={splitHalfTo} />
+                    <input type="hidden" name="permission_time" value={splitPermFrom} />
+                    <input type="hidden" name="permission_end_time" value={splitPermTo} />
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", margin: "0 0 8px" }}>
+                        {halfDaySelectedDate ? fmtFull(halfDaySelectedDate) : "Selected date"} — split automatically
+                      </p>
+                      <div style={{ borderRadius: 14, border: "1.5px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.08)", padding: 12, marginBottom: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: "#6366F1" }}>🌤️ Half Day</span>
+                          <span style={{ fontSize: 9.5, fontWeight: 800, padding: "2px 8px", borderRadius: 99, background: "#fff", color: "#6B7280" }}>{HALF_DAY_THRESHOLD_HOURS}h · fixed</span>
+                        </div>
+                        <p style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>{fmtTimeStr(splitHalfFrom)} → {fmtTimeStr(splitHalfTo)}</p>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "#9CA3AF", fontSize: 10, margin: "4px 0" }}>
+                        <span style={{ flex: 1, height: 1, background: "#EBEDF2" }} />
+                        immediately followed by
+                        <span style={{ flex: 1, height: 1, background: "#EBEDF2" }} />
+                      </div>
+                      <div style={{ borderRadius: 14, border: "1.5px solid rgba(16,185,129,0.3)", background: "rgba(16,185,129,0.08)", padding: 12, marginTop: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: "#10B981" }}>⏰ Permission</span>
+                          <span style={{ fontSize: 9.5, fontWeight: 800, padding: "2px 8px", borderRadius: 99, background: "#fff", color: "#6B7280" }}>
+                            {(() => { const m = timeToMins(splitPermTo) - timeToMins(splitPermFrom); return `${Math.floor(m/60)}h ${m%60 ? `${m%60}m` : ""}`.trim() })()}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>{fmtTimeStr(splitPermFrom)} → {fmtTimeStr(splitPermTo)}</p>
+                      </div>
+                      <button type="button" onClick={() => setSplitMode(false)}
+                        style={{ width: "100%", marginTop: 10, padding: "9px 0", borderRadius: 10, fontSize: 12, fontWeight: 700, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>
+                        ← Edit time instead
+                      </button>
                     </div>
                   </>
                 )}
@@ -1243,7 +1505,13 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                         const diff = (th * 60 + tm) - (fh * 60 + fm)
                         if (diff <= 0) return <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0", fontWeight: 600 }}>Return time must be after leave time</p>
                         const hrs = Math.floor(diff / 60), mins = diff % 60
-                        return <p style={{ fontSize: 11, color: "#6366F1", margin: "6px 0 0", fontWeight: 600 }}>Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""}</p>
+                        const tooShort = diff < PERMISSION_MIN_MINS
+                        return (
+                          <p style={{ fontSize: 11, color: tooShort ? "#EF4444" : "#6366F1", margin: "6px 0 0", fontWeight: 600 }}>
+                            Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""}
+                            {tooShort && " — permission must be at least 1 hour"}
+                          </p>
+                        )
                       })()}
                     </div>
                   </>
@@ -1256,6 +1524,9 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
                 {(state && "error" in state && state.error) && (
                   <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>{state.error}</p>
+                )}
+                {(splitState && "error" in splitState && splitState.error) && (
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>{splitState.error}</p>
                 )}
                 {newFormError && (
                   <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>⚠️ {newFormError}</p>
@@ -1274,11 +1545,11 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 )}
 
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
+                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setSplitMode(false); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
-                  <button type="submit" disabled={pending || editing}
-                    style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: (pending || editing) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>
-                    {(pending || editing) && <Loader2 size={13} className="animate-spin" />} {editingLeave ? "Update Request" : "Submit Request"}
+                  <button type="submit" disabled={pending || editing || splitPending}
+                    style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: (pending || editing || splitPending) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>
+                    {(pending || editing || splitPending) && <Loader2 size={13} className="animate-spin" />} {editingLeave ? "Update Request" : splitMode ? "Confirm & Submit Both" : "Submit Request"}
                   </button>
                 </div>
               </form>

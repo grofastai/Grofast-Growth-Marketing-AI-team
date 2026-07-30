@@ -155,7 +155,7 @@ async function checkMonthlyLeaveLimit(
 
   // Combined into ONE sumLeaveDays call, not summed separately then added — the
   // permission-hours conversion isn't linear (3h alone + 2h alone both round to
-  // 0 days, but 5h combined crosses the 4.5h threshold = 0.5 days), so existing
+  // 0 days, but 5h combined crosses the 4.75h threshold = 0.5 days), so existing
   // rows and this new request must accumulate together before the one conversion.
   const newRow = { leave_type: leaveType, from_date: fromDate, to_date: toDate, permission_hours: permissionHours ?? null }
   const combinedDays = sumLeaveDays([...((monthLeaves ?? []) as { leave_type: string | null; from_date: string; to_date: string; permission_hours: number | string | null }[]), newRow], monthStart, monthEnd)
@@ -163,16 +163,19 @@ async function checkMonthlyLeaveLimit(
   return null
 }
 
-// Permission over 4 hours needs the same Exceptional/admin-approval path as hitting
-// the monthly Full Day/Half Day cap — previously nothing enforced this server-side
-// (only a dismissible client popup existed, easily bypassed), so a long permission
-// could sail through fully auto-accepted with zero admin review.
+// Permission has a hard 1h–4h window (confirmed 2026-07-29): under 1h isn't worth a
+// separate absence record, and over 4h needs the same Exceptional/admin-approval path
+// as hitting the monthly Full Day/Half Day cap — previously nothing enforced either
+// bound server-side (only a dismissible >4h client popup existed, easily bypassed).
+const PERMISSION_MIN_MINS = 60
+const PERMISSION_MAX_MINS = 240
 function permissionHoursCapError(leaveType: string, permissionTime?: string, permissionEndTime?: string): string | null {
   if (leaveType !== 'permission' || !permissionTime || !permissionEndTime) return null
   const [fh, fm] = permissionTime.split(':').map(Number)
   const [th, tm] = permissionEndTime.split(':').map(Number)
   const diffMins = (th * 60 + tm) - (fh * 60 + fm)
-  if (diffMins > 240) return 'Permission cannot exceed 4 hours. Please apply as Half Day Leave instead.'
+  if (diffMins < PERMISSION_MIN_MINS) return 'Permission must be at least 1 hour.'
+  if (diffMins > PERMISSION_MAX_MINS) return 'Permission cannot exceed 4 hours. Please apply as Half Day Leave instead.'
   return null
 }
 
@@ -363,6 +366,168 @@ export async function submitLeaveRequest(
         type: 'leave_submitted',
         title: `${profile.name} ${requestNoun}`,
         body: leaveLabel,
+        link: '/admin/leaves',
+      })))
+    }
+  }
+
+  revalidatePath('/member/leaves')
+  revalidatePath('/member/dashboard')
+  revalidatePath('/admin/leaves')
+  return { success: true }
+}
+
+// Submits a Half Day (exactly HALF_DAY_THRESHOLD_HOURS) + Permission (1h-4h) as ONE
+// combined request that lands as two separate `leaves` rows — the guided version of
+// what used to require an employee to know the exact split themselves and submit it
+// as two unrelated requests (real gap: every historical case of this was entered
+// wrong — 3h to 6h "half days" instead of the fixed 4h45m — because nothing walked
+// anyone through it). The two portions must be back-to-back with no gap and no
+// overlap; the client computes that split, this just re-validates it never trusts
+// the client's arithmetic for the actual leave-balance-affecting write.
+export async function submitSplitLeaveRequest(
+  _prev: { error: string } | { success: true } | null,
+  formData: FormData
+): Promise<{ error: string } | { success: true }> {
+  const from_date           = formData.get('from_date') as string
+  const half_day_period     = (formData.get('half_day_period') as string) || 'morning'
+  const half_day_from_time  = formData.get('half_day_from_time') as string
+  const half_day_to_time    = formData.get('half_day_to_time') as string
+  const permission_time     = formData.get('permission_time') as string
+  const permission_end_time = formData.get('permission_end_time') as string
+  const reason              = formData.get('reason') as string
+  const isExceptional       = formData.get('is_exceptional') === 'true'
+
+  if (!from_date) return { error: 'Date required' }
+  if (!half_day_from_time || !half_day_to_time) return { error: 'Half day time is required' }
+  if (!permission_time || !permission_end_time) return { error: 'Permission time is required' }
+  if (!reason || reason.trim().length < 3) return { error: 'Please provide a reason' }
+
+  let halfMins = timeToMinutes(half_day_to_time) - timeToMinutes(half_day_from_time)
+  if (halfMins <= 0) halfMins += 1440
+  const requiredHalfMins = HALF_DAY_THRESHOLD_HOURS * 60
+  if (halfMins !== requiredHalfMins) {
+    return { error: `Half day portion must be exactly ${HALF_DAY_THRESHOLD_HOURS}h (this is ${(halfMins / 60).toFixed(1)}h)` }
+  }
+  const permCapError = permissionHoursCapError('permission', permission_time, permission_end_time)
+  if (permCapError) return { error: permCapError }
+  const permMins = timeToMinutes(permission_end_time) - timeToMinutes(permission_time)
+  const permHours = Math.round((permMins / 60) * 10) / 10
+
+  // The two portions must touch with zero gap and zero overlap — either order.
+  const touching = permission_end_time === half_day_from_time || half_day_to_time === permission_time
+  if (!touching) return { error: 'Half Day and Permission portions must be back-to-back with no gap.' }
+
+  const todayIST = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
+  if (from_date < todayIST) return { error: 'Cannot apply leave for past dates. You can apply for today or future dates only.' }
+
+  const supabase = await createServerClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { error: 'Not authenticated' }
+
+  const adminCl = createAdminClient()
+  let effectiveUserId = session.user.id
+  const { data: selfProfile } = await adminCl.from('users').select('role, company_id').eq('id', session.user.id).single()
+  if (selfProfile?.role === 'ADMIN') {
+    const impersonateId = (await cookies()).get('gf_impersonate')?.value
+    if (impersonateId && impersonateId !== session.user.id) {
+      const { data: target } = await adminCl.from('users').select('company_id').eq('id', impersonateId).single()
+      if (target?.company_id && target.company_id === selfProfile.company_id) effectiveUserId = impersonateId
+    }
+  }
+  let company_id = selfProfile?.role === 'ADMIN' && effectiveUserId !== session.user.id
+    ? (await adminCl.from('users').select('company_id').eq('id', effectiveUserId).single()).data?.company_id ?? null
+    : parseCompanyId(session.access_token)
+  if (!company_id) {
+    const { data: u } = await adminCl.from('users').select('company_id').eq('id', effectiveUserId).single()
+    company_id = u?.company_id ?? null
+  }
+  if (!company_id) return { error: 'Could not resolve company. Please sign out and sign in again.' }
+
+  const { data: profile } = await adminCl.from('users').select('name, employee_id').eq('id', effectiveUserId).single()
+
+  // Combined monthly-cap check — 0.5 day for the Half Day + the Permission hours
+  // converted via the same formula everything else uses, checked together (see
+  // checkMonthlyLeaveLimit's own note on why these can't be checked separately).
+  if (!isExceptional) {
+    const currentMonth = from_date.slice(0, 7)
+    const monthStart = `${currentMonth}-01`
+    const monthEnd = `${currentMonth}-31`
+    const { data: monthLeaves } = await adminCl
+      .from('leaves')
+      .select('from_date, to_date, leave_type, permission_hours')
+      .eq('user_id', effectiveUserId)
+      .gte('from_date', monthStart)
+      .lte('from_date', monthEnd)
+      .in('status', ['approved', 'pending'])
+    const combinedDays = sumLeaveDays([
+      ...((monthLeaves ?? []) as { leave_type: string | null; from_date: string; to_date: string; permission_hours: number | string | null }[]),
+      { leave_type: 'half_day', from_date, to_date: from_date, permission_hours: null },
+      { leave_type: 'permission', from_date, to_date: from_date, permission_hours: permHours },
+    ], monthStart, monthEnd)
+    if (combinedDays > 5) return { error: 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.' }
+  }
+
+  // Overlap check against OTHER existing leaves that date — not against each other
+  // (they're deliberately adjacent, which timeRangesOverlap already treats as non-
+  // overlapping at a shared boundary).
+  const { data: overlapping } = await adminCl
+    .from('leaves')
+    .select('id, leave_type, half_day_from_time, half_day_to_time, permission_time, permission_end_time')
+    .eq('user_id', effectiveUserId)
+    .lte('from_date', from_date)
+    .gte('to_date', from_date)
+    .not('status', 'eq', 'rejected')
+
+  if (overlapping && overlapping.length > 0 && !isExceptional) {
+    const windows: [string, string][] = [[half_day_from_time, half_day_to_time], [permission_time, permission_end_time]]
+    const blocking = overlapping.filter(l => {
+      const halfConflict = typesConflict('half_day', (l.leave_type ?? 'full_day') as LeaveKind)
+      const permConflict  = typesConflict('permission', (l.leave_type ?? 'full_day') as LeaveKind)
+      const existingWindow = getLeaveTimeWindow(l as LeaveTimeFields)
+      return windows.some((w, i) => {
+        const conflict = i === 0 ? halfConflict : permConflict
+        if (conflict === 'never') return false
+        if (conflict === 'always') return true
+        if (!existingWindow) return true
+        return timeRangesOverlap(w, existingWindow)
+      })
+    })
+    if (blocking.length > 0) {
+      if (blocking.every(l => l.leave_type === 'wfh')) {
+        return { error: 'That date is part of an approved WFH request. Withdraw WFH for that date on the Leaves page, then re-apply.' }
+      }
+      return { error: 'That time overlaps with an existing leave request on that date.' }
+    }
+  }
+
+  const finalReason = isExceptional ? `[EXCEPTIONAL] ${reason}` : reason
+  const { data: insertedHalf, error: halfError } = await (adminCl.from('leaves') as any).insert({
+    company_id, user_id: effectiveUserId, from_date, to_date: from_date, reason: finalReason,
+    leave_type: 'half_day', half_day_period, half_day_from_time, half_day_to_time,
+  }).select('id').single()
+  if (halfError) return { error: halfError.message }
+
+  const { error: permError } = await (adminCl.from('leaves') as any).insert({
+    company_id, user_id: effectiveUserId, from_date, to_date: from_date, reason: finalReason,
+    leave_type: 'permission', permission_time, permission_end_time, permission_hours: permHours,
+  })
+  if (permError) return { error: permError.message }
+
+  if (profile) {
+    const { data: adminUsers } = await adminCl.from('users').select('id, phone').eq('company_id', company_id).eq('role', 'ADMIN')
+    const adminWithPhone = adminUsers?.find(a => a.phone)
+    if (adminWithPhone?.phone) {
+      sendNotification({
+        event: 'leave.submitted', leave_id: insertedHalf?.id ?? '', employee_name: profile.name, employee_id: profile.employee_id,
+        from_date, to_date: from_date, reason, admin_phone: adminWithPhone.phone,
+      }).catch(console.error)
+    }
+    if (adminUsers?.length) {
+      await insertManyNotifications(adminUsers.map(a => ({
+        companyId: company_id!, userId: a.id, type: 'leave_submitted',
+        title: `${profile.name} applied for leave`,
+        body: `Half Day + Permission on ${from_date}`,
         link: '/admin/leaves',
       })))
     }

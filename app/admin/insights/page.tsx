@@ -38,6 +38,7 @@ type UpdateRow = {
     start_time?: string | null
     end_time?: string | null
     duration_hours?: number
+    is_rework?: boolean
   }[] | null
   working_hours: number | null
   learning_hours: number | null
@@ -62,6 +63,7 @@ export type MemberUtilization = {
   overworked: boolean         // efficiency > 105
   clients: string[]
   workBreakdown: Record<string, number> // key = task_type (shoot/edit/voiceover/poster/other/break/...) — open-ended so new types need no page change
+  workBreakdownCount: Record<string, number> // entry count per task_type, same keys as workBreakdown
   totalCost: number
   // ── Attendance table fields ──────────────────────────────────────────────
   loginHours: number              // sum(clock_out - clock_in), raw span, no break deducted
@@ -297,6 +299,7 @@ export default async function InsightsPage({
   type Acc = {
     trackedHours: number; learningHours: number; totalCost: number
     byType: Record<string, number> // every task_type found, incl. break/learning — future-proof for new types (e.g. scripting)
+    byTypeCount: Record<string, number> // entry count per task_type, same keys as byType
     clients: Set<string>
     workHoursExclLearning: number
   }
@@ -310,7 +313,7 @@ export default async function InsightsPage({
     if (!accMap[du.user_id]) {
       accMap[du.user_id] = {
         trackedHours: 0, learningHours: 0, totalCost: 0,
-        byType: {}, clients: new Set(), workHoursExclLearning: 0,
+        byType: {}, byTypeCount: {}, clients: new Set(), workHoursExclLearning: 0,
       }
     }
     const acc = accMap[du.user_id]
@@ -324,6 +327,10 @@ export default async function InsightsPage({
       const tt = (e.task_type ?? 'other').toLowerCase()
       if (tt !== 'break' && tt !== 'learning' && e.client_name) acc.clients.add(e.client_name)
       acc.byType[tt] = (acc.byType[tt] ?? 0) + hrs
+      // UNIQUE COUNT RULE (same as Dashboard/History/lib/clients-deliverables.ts):
+      // a rework entry is a revision of an already-counted deliverable, not a new
+      // one — its hours still count above, but it must not inflate the count.
+      if (!e.is_rework) acc.byTypeCount[tt] = (acc.byTypeCount[tt] ?? 0) + 1
     }
 
     const workEntries = Array.isArray(du.work_entries) ? du.work_entries : []
@@ -359,7 +366,7 @@ export default async function InsightsPage({
     if (ch <= 0) continue
     const hourly = hourlyForMember(c.collaborator_id, c.date)
     if (!accMap[c.collaborator_id]) {
-      accMap[c.collaborator_id] = { trackedHours: 0, learningHours: 0, totalCost: 0, byType: {}, clients: new Set(), workHoursExclLearning: 0 }
+      accMap[c.collaborator_id] = { trackedHours: 0, learningHours: 0, totalCost: 0, byType: {}, byTypeCount: {}, clients: new Set(), workHoursExclLearning: 0 }
     }
     accMap[c.collaborator_id].trackedHours += ch
     accMap[c.collaborator_id].totalCost    += ch * hourly
@@ -400,6 +407,7 @@ export default async function InsightsPage({
         clients: Array.from(acc?.clients ?? []),
         // 'learning' always comes from learningHours (has its own fallback for old records without work_entries)
         workBreakdown: { ...(acc?.byType ?? {}), learning: learningHours },
+        workBreakdownCount: acc?.byTypeCount ?? {},
         totalCost: acc?.totalCost ?? 0,
         loginHours, avgLoginHours,
         workingHoursExclLearning, avgWorkingHoursExclLearning,

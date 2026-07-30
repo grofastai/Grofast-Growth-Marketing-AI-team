@@ -43,10 +43,6 @@ const groupThStyle: React.CSSProperties = {
   color: '#FFFFFF', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
   textAlign: 'center', whiteSpace: 'nowrap', padding: '9px 13px', borderRight: '1px solid rgba(255,255,255,0.12)',
 }
-const subThStyle: React.CSSProperties = {
-  color: '#FFFFFF', fontSize: 9.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
-  textAlign: 'center', whiteSpace: 'nowrap', padding: '7px 13px', borderRight: '1px solid rgba(255,255,255,0.12)',
-}
 const primaryTdStyle: React.CSSProperties = {
   padding: '11px 16px', fontSize: 13, fontWeight: 600, color: INK, textAlign: 'right', fontVariantNumeric: 'tabular-nums',
 }
@@ -71,6 +67,10 @@ function monthLabel(m: string) {
 
 // Semantic colors reused from the shared .badge-* classes in globals.css
 const SEMANTIC = { success: '#16A34A', warning: '#D97706', danger: '#de1a1a', info: '#2563EB' }
+
+// One accent per Attendance metric — distinct from the semantic set above and
+// from TYPE_CFG's work-type colors, so Login/Working/Break read as their own thing.
+const ATT_COLORS = { login: '#2563EB', working: '#16A34A', break: '#F97316' }
 
 function effColor(eff: number, overworked: boolean) {
   if (overworked)  return SEMANTIC.info
@@ -107,6 +107,12 @@ function typeCfg(key: string) {
 function orderedTypeKeys(keys: string[]) {
   return [...TYPE_ORDER.filter(k => keys.includes(k)), ...keys.filter(k => !TYPE_ORDER.includes(k)).sort()]
 }
+
+// Only the creative/production types carry an entry count in the Work Type
+// tables — deliverable counts (shots, edits, voiceovers, posters, scripts)
+// are meaningful there; hours alone is what matters for Tech/Development/
+// Learning/Other/Break, so those columns skip the count.
+const COUNT_TYPE_COLS = new Set(['shoot', 'edit', 'voiceover', 'poster', 'scripting'])
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -194,6 +200,104 @@ function Avatar({ name }: { name: string }) {
   )
 }
 
+// Shared 3D pill badge — colored fill, white bold text, glossy inset
+// highlight — the one badge language used for every count/avg badge on this
+// page (Work Type count, Attendance avg).
+function Badge3D({ text, color }: { text: string; color: string }) {
+  return (
+    <span style={{
+      fontSize: 11, fontWeight: 800, color: '#FFFFFF', background: color,
+      borderRadius: 999, padding: '2.5px 8px', textAlign: 'center', lineHeight: 1.4, whiteSpace: 'nowrap',
+      boxShadow: `0 1px 3px ${color}66, inset 0 1px 0 rgba(255,255,255,0.35)`,
+    }}>{text}</span>
+  )
+}
+
+// Work-type table cell — hours (colored, bold, all-caps unit) + a 3D count
+// badge beside it, e.g. "62.4H" + a pill reading "18".
+function StatCell({ hrs, count, color }: { hrs: number; count: number; color: string }) {
+  if (!count || hrs <= 0) return <span style={{ fontSize: 14, color: DIM, fontWeight: 600 }}>—</span>
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, justifyContent: 'center' }}>
+      <span style={{ fontSize: 15, fontWeight: 800, color, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>{hrs.toFixed(1)}H</span>
+      <Badge3D text={String(count)} color={color} />
+    </span>
+  )
+}
+
+// Hours-only cell, no badge — same size/weight as StatCell so a row reads
+// consistently whether or not a given work type carries a count.
+function HoursOnlyCell({ hrs, color }: { hrs: number; color: string }) {
+  if (hrs <= 0) return <span style={{ fontSize: 14, color: DIM, fontWeight: 600 }}>—</span>
+  return (
+    <span style={{ fontSize: 15, fontWeight: 800, color, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>
+      {hrs.toFixed(1)}H
+    </span>
+  )
+}
+
+// Work-type table — shared by the Media / Non-Media cards below. `cols` picks
+// which task_type keys this team actually logs (see MEDIA_TYPE_COLS /
+// NON_MEDIA_TYPE_COLS), so each table only shows columns relevant to that team.
+function WorkTypeTable({ members, cols }: { members: MemberUtilization[]; cols: string[] }) {
+  const totals = cols.map(key => members.reduce((s, m) => s + (m.workBreakdown[key] ?? 0), 0))
+  return (
+    <div style={{ overflowX: 'auto', margin: '0 -22px', padding: '0 22px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 160 + cols.length * 130, fontFamily: TABLE_FONT }}>
+        <thead style={{ background: TABLE_HEAD_GRAD }}>
+          <tr>
+            <th style={{ ...groupThStyle, textAlign: 'left' }}>Member</th>
+            {cols.map(key => {
+              const cfg = typeCfg(key)
+              return (
+                <th key={key} style={groupThStyle}>
+                  <span style={{ marginRight: 5 }}>{cfg.emoji}</span>{cfg.label}
+                </th>
+              )
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {members.length === 0 ? (
+            <tr><td colSpan={cols.length + 1} style={{ textAlign: 'center', padding: '40px 0', color: MUTED, fontSize: 13 }}>No members on this team logged work this month</td></tr>
+          ) : members.map((m, i) => (
+            <tr key={m.id} style={{ background: i % 2 === 0 ? CARD : HEAD_BG }}>
+              <td style={{ padding: '11px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Avatar name={m.name} />
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: INK, margin: 0 }}>{m.name}</p>
+                    <p style={{ fontSize: 10, color: DIM, margin: 0 }}>{m.employeeId}</p>
+                  </div>
+                </div>
+              </td>
+              {cols.map(key => (
+                <td key={key} style={{ padding: '11px 14px', textAlign: 'center' }}>
+                  {COUNT_TYPE_COLS.has(key)
+                    ? <StatCell hrs={m.workBreakdown[key] ?? 0} count={m.workBreakdownCount[key] ?? 0} color={typeCfg(key).color} />
+                    : <HoursOnlyCell hrs={m.workBreakdown[key] ?? 0} color={typeCfg(key).color} />}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+        {members.length > 0 && (
+          <tfoot>
+            <tr style={{ borderTop: `2px solid ${RED}` }}>
+              <td style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: INK }}>Team Total</td>
+              {cols.map((key, idx) => (
+                <td key={key} style={{ ...footTdStyle, textAlign: 'center', color: totals[idx] > 0 ? typeCfg(key).color : MUTED }}>
+                  {totals[idx] > 0 ? fmtH(totals[idx]) : '—'}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
+        )}
+      </table>
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export type AllMember = {
@@ -246,6 +350,14 @@ export default function InsightsClient({
     .map(key => ({ key, ...typeCfg(key), hours: memberUtilization.reduce((s, m) => s + (m.workBreakdown[key] ?? 0), 0) }))
     .filter(w => w.hours > 0)
   const maxWorkHours = Math.max(...workTotals.map(w => w.hours), 1)
+
+  // Per-member work-type tables, split by team — each team only sees the task
+  // types it actually logs (gated the same way daily-update-form.tsx gates
+  // which tabs a member can submit against), plus Learning/Other/Break for everyone.
+  const mediaMembers    = memberUtilization.filter(m => m.isMedia)
+  const nonMediaMembers = memberUtilization.filter(m => !m.isMedia)
+  const MEDIA_TYPE_COLS    = ['shoot', 'edit', 'learning', 'other_activity', 'break']
+  const NON_MEDIA_TYPE_COLS = ['other', 'edit', 'voiceover', 'poster', 'scripting', 'development', 'learning', 'other_activity', 'break']
 
   // Attendance table footer aggregates — averages, not raw sums, for anything per-person
   const totalPresentDays   = memberUtilization.reduce((s, m) => s + m.workingDays, 0)
@@ -328,7 +440,7 @@ export default function InsightsClient({
         {spendByCategory.length > 0 && (() => {
           const totalCostAll = spendByCategory.reduce((s, c) => s + c.cost, 0)
           return (
-            <Card title="Spend by Client Category" meta="Where salary hours went, this month">
+            <Card title="Spend by Client Category">
               <div className="flex flex-col sm:flex-row" style={{ gap: 20, alignItems: 'center' }}>
                 <div style={{ position: 'relative', width: 168, height: 168, flexShrink: 0 }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -363,7 +475,7 @@ export default function InsightsClient({
         })()}
 
         {/* Efficiency ranking — horizontal bar chart, replaces a dense table */}
-        <Card title="Efficiency Ranking" meta="Tracked vs. expected hours, by member">
+        <Card title="Efficiency Ranking">
           {memberUtilization.length === 0 ? (
             <p style={{ textAlign: 'center', color: MUTED, fontSize: 12, padding: '32px 0' }}>No data</p>
           ) : (() => {
@@ -391,30 +503,28 @@ export default function InsightsClient({
         </Card>
       </div>
 
-      {/* ── Attendance — grouped two-tier header (Login/Working/Break each
-          span an Hrs+Avg pair), red→black gradient matching the Leave
-          Requests hero banner, semi-bold weights, no Team column. ── */}
-      <Card title="Attendance" meta="Login, working & break hours by member">
+      {/* ── Attendance — Member / Present / Login Hrs+Avg / Working Hrs+Avg /
+          Break Hrs+Avg as flat separate columns (no merged pill cells).
+          Learning lives in the Work Type tables below, so it's dropped here
+          to avoid showing it twice. ── */}
+      <Card title="Attendance">
         <div style={{ overflowX: 'auto', margin: '0 -22px', padding: '0 22px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720, fontFamily: TABLE_FONT }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780, fontFamily: TABLE_FONT }}>
             <thead style={{ background: TABLE_HEAD_GRAD }}>
               <tr>
-                <th rowSpan={2} style={{ ...groupThStyle, textAlign: 'left' }}>Member</th>
-                <th rowSpan={2} style={groupThStyle}>Present</th>
-                <th colSpan={2} style={groupThStyle}>Login</th>
-                <th colSpan={2} style={groupThStyle}>Working</th>
-                <th rowSpan={2} style={groupThStyle}>Learning</th>
-                <th colSpan={2} style={{ ...groupThStyle, borderRight: 'none' }}>Break</th>
-              </tr>
-              <tr>
-                <th style={subThStyle}>Hrs</th><th style={subThStyle}>Avg</th>
-                <th style={subThStyle}>Hrs</th><th style={subThStyle}>Avg</th>
-                <th style={{ ...subThStyle, borderRight: 'none' }}>Hrs</th><th style={{ ...subThStyle, borderRight: 'none' }}>Avg</th>
+                <th style={{ ...groupThStyle, textAlign: 'left' }}>Member</th>
+                <th style={groupThStyle}>Present</th>
+                <th style={groupThStyle}>Login Hrs</th>
+                <th style={groupThStyle}>Login Avg</th>
+                <th style={groupThStyle}>Working Hrs</th>
+                <th style={groupThStyle}>Working Avg</th>
+                <th style={groupThStyle}>Break Hrs</th>
+                <th style={{ ...groupThStyle, borderRight: 'none' }}>Break Avg</th>
               </tr>
             </thead>
             <tbody>
               {memberUtilization.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', padding: '40px 0', color: MUTED, fontSize: 13 }}>No attendance data for this month</td></tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '40px 0', color: MUTED, fontSize: 13 }}>No attendance data for this month</td></tr>
               ) : memberUtilization.map((m, i) => (
                 <tr key={m.id} style={{ background: i % 2 === 0 ? CARD : HEAD_BG }}>
                   <td style={{ padding: '11px 16px' }}>
@@ -427,12 +537,11 @@ export default function InsightsClient({
                     </div>
                   </td>
                   <td style={primaryTdStyle}>{m.workingDays}</td>
-                  <td style={primaryTdStyle}>{fmtH(m.loginHours)}</td>
+                  <td style={{ ...primaryTdStyle, color: ATT_COLORS.login }}>{fmtH(m.loginHours)}</td>
                   <td style={avgTdStyle}>{m.avgLoginHours > 0 ? fmtH(m.avgLoginHours) : '—'}</td>
-                  <td style={primaryTdStyle}>{fmtH(m.workingHoursExclLearning)}</td>
+                  <td style={{ ...primaryTdStyle, color: ATT_COLORS.working }}>{fmtH(m.workingHoursExclLearning)}</td>
                   <td style={avgTdStyle}>{m.avgWorkingHoursExclLearning > 0 ? fmtH(m.avgWorkingHoursExclLearning) : '—'}</td>
-                  <td style={{ ...primaryTdStyle, color: m.learningHours > 0 ? INK : DIM }}>{m.learningHours > 0 ? fmtH(m.learningHours) : '—'}</td>
-                  <td style={primaryTdStyle}>{fmtH(m.breakHours)}</td>
+                  <td style={{ ...primaryTdStyle, color: ATT_COLORS.break }}>{fmtH(m.breakHours)}</td>
                   <td style={avgTdStyle}>{m.avgBreakHours > 0 ? fmtH(m.avgBreakHours) : '—'}</td>
                 </tr>
               ))}
@@ -442,12 +551,11 @@ export default function InsightsClient({
                 <tr style={{ borderTop: `2px solid ${RED}` }}>
                   <td style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: INK }}>Total / Avg</td>
                   <td style={footTdStyle}>{memberUtilization.reduce((s, m) => s + m.workingDays, 0)}</td>
-                  <td style={footTdStyle}>{fmtH(totalLoginHours)}</td>
+                  <td style={{ ...footTdStyle, color: ATT_COLORS.login }}>{fmtH(totalLoginHours)}</td>
                   <td style={{ ...footTdStyle, color: MUTED }}>{fmtH(avgLoginFooter)}</td>
-                  <td style={footTdStyle}>{fmtH(totalWorkingHoursX)}</td>
+                  <td style={{ ...footTdStyle, color: ATT_COLORS.working }}>{fmtH(totalWorkingHoursX)}</td>
                   <td style={{ ...footTdStyle, color: MUTED }}>{fmtH(avgWorkingFooter)}</td>
-                  <td style={footTdStyle}>{fmtH(kpis.totalLearningHours)}</td>
-                  <td style={footTdStyle}>{fmtH(totalBreakHours)}</td>
+                  <td style={{ ...footTdStyle, color: ATT_COLORS.break }}>{fmtH(totalBreakHours)}</td>
                   <td style={{ ...footTdStyle, color: MUTED }}>{fmtH(avgBreakFooter)}</td>
                 </tr>
               </tfoot>
@@ -459,12 +567,12 @@ export default function InsightsClient({
       {/* ── Team Utilization — Days In / Expected / Overtime / Gap / Prod. Gap / Efficiency
           Same red→black gradient header + semi-bold as Attendance; red/green here stay
           because they're genuine status signals (overworked, gap, efficiency), not decoration. ── */}
-      <Card title="Team Utilization" meta="Productivity gap tracker">
+      <Card title="Team Utilization">
         <div style={{ overflowX: 'auto', margin: '0 -22px', padding: '0 22px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780, fontFamily: TABLE_FONT }}>
             <thead style={{ background: TABLE_HEAD_GRAD }}>
               <tr>
-                {['Member', 'Days In', 'Expected', 'Tracked', 'Avg/Day', 'Overtime', 'Gap Hrs', 'Prod. Gap', 'Efficiency'].map(h => (
+                {['Member', 'Days In', 'Expected', 'Worked', 'Avg/Day', 'Overtime', 'Gap Hrs', 'Prod. Gap', 'Efficiency'].map(h => (
                   <th key={h} style={h === 'Member' ? { ...groupThStyle, textAlign: 'left', borderRight: 'none' } : { ...groupThStyle, borderRight: h === 'Efficiency' ? 'none' : groupThStyle.borderRight }}>{h}</th>
                 ))}
               </tr>
@@ -565,7 +673,7 @@ export default function InsightsClient({
       </Card>
 
       {/* ── Work Type Breakdown ──────────────────────────────────────────── */}
-      <Card title="Work Type Breakdown" meta="Hours logged by task type, team-wide">
+      <Card title="Work Type Breakdown">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {workTotals.map(w => (
             <div key={w.key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -586,6 +694,16 @@ export default function InsightsClient({
             </div>
           ))}
         </div>
+      </Card>
+
+      {/* ── Work Type Breakdown, per member, split by team — each team only
+          shows the task types it actually logs (gated same as daily-update-form). ── */}
+      <Card title="Media Team Works">
+        <WorkTypeTable members={mediaMembers} cols={MEDIA_TYPE_COLS} />
+      </Card>
+
+      <Card title="Non Media Works">
+        <WorkTypeTable members={nonMediaMembers} cols={NON_MEDIA_TYPE_COLS} />
       </Card>
 
       {/* ── Client Hours, then Member Breakdown stacked below it ──────────── */}
@@ -716,7 +834,7 @@ export default function InsightsClient({
         </div>
 
         {/* Member Performance Cards */}
-        <Card title="Member Breakdown" meta="Tap to expand">
+        <Card title="Member Breakdown">
           {/* No internal scroll — only one member expands at a time (expandedMember
               is a single id, not a set), so the list never grows tall enough to need
               its own scrollbar, and a nested scrollbar was overlapping the right-aligned
@@ -916,7 +1034,7 @@ export default function InsightsClient({
       })()}
 
       {/* ── Per-Hour Rate Reference Table ───────────────────────────────── */}
-      <Card title="Employee Per-Hour Rate Reference" meta="Monthly salary ÷ 212.5 hrs (25 days × 8.5 hrs)">
+      <Card title="Employee Per-Hour Rate Reference">
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, fontFamily: TABLE_FONT }}>
             <thead style={{ background: TABLE_HEAD_GRAD }}>

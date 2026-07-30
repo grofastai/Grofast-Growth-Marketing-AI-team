@@ -110,15 +110,15 @@ composition. It is **not** a rewrite of the Overview's data model from scratch.
    Ready to Publish, Scheduled — "right now") with **all-time cumulative** totals
    (Posted, Used in Ads — "ever"). `computeOverview()` only exposes live/range-scoped
    counts today, not unconditional all-time totals. New: two extra all-time aggregates.
-5. **Flow flag — "N ad campaigns pending approval": no current status maps to this.**
+5. **Flow flag — "N ad campaigns pending approval": resolved as "N ads in testing."**
    `AdStatus` today is `active | testing | paused | stopped` — there is no approval
-   workflow. **Open question for planning** (not guessed at here): relabel to an existing
-   status (e.g. "testing"), drop the flag entirely, or add a real approval concept.
+   workflow, so this flag is relabeled to count ads with `status = 'testing'` (the closest
+   existing concept — pre-launch/being validated) instead of inventing a new status.
 6. **Flow flag — "N branding post overdue": has a precedent.** The original 2026-07-14
    Overview spec already defines "Overdue" for posting-log items past their
    `scheduled_post_date`. Reuse that exact definition, scoped to Branding-destined items.
 
-## Filter bar — scope is an open question
+## Filter bar — scope resolved
 
 The mockup shows a full bar: Search, Client, Team Member, Month, Date range, Content
 Type, Platform, Status. Today's real Overview only has a content-type toggle plus a
@@ -126,10 +126,10 @@ month/week/custom range selector on the KPI table. Wiring all eight controls to 
 filter every section at once (Needs Attention, Delivery table, Flow, Schedule, Content in
 Flight) is a meaningfully bigger feature than the rest of this redesign.
 
-**Recommendation for the implementation plan:** ship Phase 1 with the filter bar rendered
-in its new visual style but only the two controls that already function today wired up
-(content type + month/range); treat full-text Search, Team Member, Platform, and Status
-filtering as a fast-follow, rather than silently over- or under-building this now.
+**Resolved:** Phase 1 ships the filter bar in its new visual style with only the two
+controls that already function today wired up (content type + month/range). Full-text
+Search, Team Member, Platform, and Status filtering are out of scope for this phase — a
+fast-follow once this lands, not silently over- or under-built now.
 
 ## Component architecture
 

@@ -95,7 +95,13 @@ export default async function MemberLeavesPage() {
   // hours converted to day-equivalents, wfh/shoot_day = 0 (work arrangement, not absence), absent = 1
   const yearEnd = yearEndForQuery
   const leaveUsedDays = sumLeaveDays((usedResult.data ?? []) as { leave_type: string | null; from_date: string; to_date: string; permission_hours: number | string | null }[], yearStart, yearEnd, overtimeByMonth)
-  const usedDays = leaveUsedDays + absentDays.length
+  // Approving a Full Day leave also mirrors that date into attendance_logs as
+  // status='leave' (lib/actions/leaves.ts) — so every one of those dates is already
+  // inside leaveUsedDays above. Without this same dedup, "Annual Leave Remaining"
+  // counted each approved Full Day leave twice. Matches the dedup leaves-client.tsx
+  // already applies when merging absentDays into its own timeline.
+  const undupedAbsentDays = absentDays.filter(a => !leaves.some(l => a.date >= l.from_date && a.date <= l.to_date))
+  const usedDays = leaveUsedDays + undupedAbsentDays.length
 
   return (
     <MemberLeavesClient

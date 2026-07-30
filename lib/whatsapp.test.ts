@@ -23,13 +23,13 @@ describe('formatPhone', () => {
 describe('TEMPLATE_MAP', () => {
   it('has an entry for daily_update.missing', () => {
     expect(TEMPLATE_MAP['daily_update.missing']).toBeDefined()
-    expect(TEMPLATE_MAP['daily_update.missing']!.name).toBe('grofast_missed_update')
+    expect(TEMPLATE_MAP['daily_update.missing']!.name).toBe('grofast_missed_update_v2')
   })
 
   it('has an entry for leave.submitted with buttons', () => {
     const entry = TEMPLATE_MAP['leave.submitted']
     expect(entry).toBeDefined()
-    expect(entry!.name).toBe('grofast_leave_request')
+    expect(entry!.name).toBe('grofast_leave_request_v2')
     expect(entry!.buildButtons).toBeDefined()
     const payload: LeaveSubmittedPayload = {
       event: 'leave.submitted',

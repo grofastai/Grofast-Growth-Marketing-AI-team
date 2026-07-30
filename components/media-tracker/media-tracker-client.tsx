@@ -10,7 +10,7 @@ import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil, AtSign,
   Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw, LayoutDashboard,
-  MoreVertical, Users, Clock, XCircle, ExternalLink,
+  MoreVertical, Users, XCircle, ExternalLink,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
@@ -31,6 +31,7 @@ import { computeOverview, type AttentionItem } from "@/lib/media-tracker/overvie
 import { isValidDriveLink } from "@/lib/utils/drive-link"
 import type { ScheduleEntry } from "@/lib/media-tracker/schedule"
 import { ScheduleTab } from "./schedule/schedule-tab"
+import { OverviewDashboard } from "./overview/overview-dashboard"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 // "ads" is a real posting destination — an Ads Video can be scheduled/posted straight
@@ -4673,202 +4674,18 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       />
 
       {mode === "overview" && (
-        <div className="flex flex-col gap-4">
-          {/* Needs attention — actionable problems first, or an all-clear. */}
-          <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 16px", borderBottom: "1px solid #F3F4F6" }}>
-              <AlertTriangle size={13} style={{ color: overview.attention.length > 0 ? "#D97706" : "#16A34A" }} />
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Needs Attention
-              </span>
-            </div>
-            {overview.attention.length === 0 ? (
-              <p style={{ fontSize: 12, fontWeight: 600, color: "#16A34A", padding: "16px", margin: 0 }}>
-                All clear — nothing overdue or stalled.
-              </p>
-            ) : (
-              <div className="flex flex-col">
-                {overview.attention.map(a => (
-                  <button key={a.kind} onClick={() => goTo(a.target)}
-                    className="flex items-center justify-between text-left hover:bg-slate-50"
-                    style={{ padding: "10px 16px", borderBottom: "1px solid #F9FAFB", border: "none", background: "transparent", cursor: "pointer" }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{a.label}</span>
-                    <ArrowRight size={13} style={{ color: "#9CA3AF" }} />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Posting — items sitting in a Ready lane, waiting to actually go out. */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <OverviewStat label="Branding Waiting" value={overview.posting.brandingWaiting} gradient={OVERVIEW_TILE_GRADIENTS.brandingWaiting} icon={Clock}
-              onClick={() => goTo({ mode: "video", tab: "log" })} />
-            <OverviewStat label="Ads Waiting" value={overview.posting.adsWaiting} gradient={OVERVIEW_TILE_GRADIENTS.adsWaiting} icon={Megaphone}
-              onClick={() => goTo({ mode: "video", tab: "adlog" })} />
-          </div>
-
-          {/* Per-client Branding/Advertisement breakdown — lives here instead of on the
-              Branding/Advertisement tabs so it's visible without switching tabs. Scoped to one
-              content type at a time via the Video/Poster toggle rather than merging both. */}
-          <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #F3F4F6", flexWrap: "wrap", gap: 8 }}>
-              <div>
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>Per-Client KPIs</span>
-                {/* One item posted both ways (e.g. an Ads Video also posted to Branding)
-                    counts once, attributed to its origin — the tables below (primaryOnly)
-                    credit it to that same side only, so this line and the tables always agree. */}
-                <p style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, margin: "2px 0 0" }}>
-                  {overviewUniquePosted.total} unique {overviewKpiContentType}{overviewUniquePosted.total === 1 ? "" : "s"} posted — {overviewUniquePosted.ads} Ads · {overviewUniquePosted.branding} Branding
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <div style={{ display: "flex", background: "#F3F4F6", borderRadius: 8, padding: 2 }}>
-                  {(["video", "poster"] as const).map(ct => (
-                    <button key={ct} onClick={() => setOverviewKpiContentType(ct)}
-                      style={{
-                        padding: "4px 10px", borderRadius: 6, border: "none", cursor: "pointer",
-                        fontSize: 11, fontWeight: 700, textTransform: "capitalize",
-                        background: overviewKpiContentType === ct ? "#fff" : "transparent",
-                        color: overviewKpiContentType === ct ? "#111827" : "#6B7280",
-                        boxShadow: overviewKpiContentType === ct ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
-                      }}>
-                      {ct}
-                    </button>
-                  ))}
-                </div>
-                <select value={overviewKpiMonth} onChange={e => setOverviewKpiMonth(e.target.value)}
-                  style={{ ...FIELD, width: "auto", cursor: "pointer", padding: "5px 10px", fontSize: 11 }}>
-                  <option value="all">All Time</option>
-                  {allMonthOptions.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2">
-              {[
-                { label: "Branding", kind: "branding" as const, rows: overviewBrandingKPIs, postedLabel: "Posted" },
-                { label: "Advertisement", kind: "ads" as const, rows: overviewAdsKPIs, postedLabel: "Ads Posted" },
-              ].map((block, i) => (
-                <div key={block.label} className={i === 1 ? "md:border-l" : undefined} style={{ borderTop: "1px solid #F3F4F6", borderColor: "#F3F4F6" }}>
-                  <div style={{ padding: "10px 16px", background: "#F9FAFB" }}>
-                    <span style={{ fontSize: 11, fontWeight: 800, color: "#111827" }}>{block.label}</span>
-                  </div>
-                  {block.rows.length === 0 ? (
-                    <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, textAlign: "center", padding: "20px 0", margin: 0 }}>
-                      No activity {overviewKpiMonth === "all" ? "yet" : `in ${fmtMonth(overviewKpiMonth)}`}
-                    </p>
-                  ) : (
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                        <thead>
-                          <tr style={{ background: "#F9FAFB" }}>
-                            {["Client", block.postedLabel, overviewKpiMonth === "all" ? `Target (${fmtMonth(today.slice(0, 7))})` : "Target", "Unposted", "Unedited"].map(h => (
-                              <th key={h} style={{ textAlign: h === "Client" ? "left" : "center", padding: "8px 14px", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {block.rows.map(row => {
-                            // Target is a monthly figure — "All Time" has no single month to read
-                            // it from, so it falls back to the current month (the one that matters
-                            // for ongoing work) instead of showing a blank dash.
-                            const targetMonth = overviewKpiMonth === "all" ? today.slice(0, 7) : overviewKpiMonth
-                            const target = clientTargets.find(
-                              t => t.client_name === row.client && t.kind === block.kind && t.content_type === overviewKpiContentType && t.month === targetMonth
-                            )?.target ?? 0
-                            return (
-                              <tr key={row.client} style={{ borderTop: "1px solid #F3F4F6" }}>
-                                <td style={{ padding: "9px 14px", fontWeight: 700, color: "#111827" }}>{row.client}</td>
-                                <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.posted.accent }}>{row.posted}</td>
-                                <td style={{ padding: "9px 14px", textAlign: "center" }}>
-                                  {block.kind === "branding" ? (
-                                    // Editable here (moved from the standalone Media Target card on
-                                    // the Clients page) — Ads targets stay read-only, matching that
-                                    // card's original scope (it only ever set Branding targets).
-                                    <EditableTargetCell
-                                      value={target}
-                                      onSave={n => handleSetOverviewTarget(row.client, block.kind, overviewKpiContentType, targetMonth, n)}
-                                    />
-                                  ) : target > 0 ? (
-                                    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 999, fontWeight: 800, background: "rgba(124,58,237,0.12)", color: "#7C3AED" }}>
-                                      {target}
-                                    </span>
-                                  ) : (
-                                    <span style={{ fontWeight: 800, color: "#D1D5DB" }}>0</span>
-                                  )}
-                                </td>
-                                <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.on_review.accent }}>{row.unposted}</td>
-                                <td style={{ padding: "9px 14px", textAlign: "center", fontWeight: 800, color: STATUS_CFG.ready_to_edit.accent }}>{row.unedited}</td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Scopes only the four stage-count blocks below by creation date — Needs
-              Attention and the posting tiles above are always live. */}
-          <div className="flex items-center flex-wrap gap-2">
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Stage Counts
-            </span>
-            <div className="flex gap-1 flex-wrap">
-              {(["all", "week", "month", "custom"] as const).map(m => (
-                <button key={m} onClick={() => setOverviewRangeMode(m)}
-                  style={{ padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${overviewRangeMode === m ? "#0EA5E9" : "#E5E7EB"}`, background: overviewRangeMode === m ? "rgba(14,165,233,0.08)" : "#fff", color: overviewRangeMode === m ? "#0EA5E9" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {m === "all" ? "All Time" : m === "week" ? "This Week" : m === "month" ? "This Month" : "Custom"}
-                </button>
-              ))}
-            </div>
-            {overviewRangeMode === "month" && (
-              <MonthSelect value={overviewMonth} onChange={setOverviewMonth} options={overviewMonthOptions} />
-            )}
-            {overviewRangeMode === "custom" && (
-              <div className="flex items-center gap-2">
-                <input type="date" value={overviewCustomFrom} onChange={e => setOverviewCustomFrom(e.target.value)}
-                  style={{ ...FIELD, width: "auto" }} aria-label="From date" />
-                <span style={{ color: "#9CA3AF", fontSize: 11, fontWeight: 600 }}>to</span>
-                <input type="date" value={overviewCustomTo} onChange={e => setOverviewCustomTo(e.target.value)}
-                  style={{ ...FIELD, width: "auto" }} aria-label="To date" />
-              </div>
-            )}
-          </div>
-
-          {/* Videos and Posters — stage counts. items-start: Videos has 8 stages and
-              Posters only 6, so default grid stretch would pad Posters with dead
-              gradient space below its last row. */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-            <OverviewBlock title="Videos" gradient={OVERVIEW_TILE_GRADIENTS.video} icon={Video}
-              rows={[...ADS_VIDEO_ORDER, ...VIDEO_PIPELINE_ORDER, "posted" as ContentStatus].map(s => ({
-                key: s,
-                label: STATUS_CFG[s].label,
-                value: overview.videos[s],
-                onClick: () => goTo({ mode: "video", tab: s === "posted" ? "log" : (s === "scripting" || s === "voiceover") ? "adsvideo" : "pipeline" }),
-              }))} />
-            <OverviewBlock title="Posters" gradient={OVERVIEW_TILE_GRADIENTS.poster} icon={ImageIcon}
-              rows={[...POSTER_PIPELINE_ORDER, "posted" as ContentStatus].map(s => ({
-                key: s,
-                label: STATUS_CFG[s].label,
-                value: overview.posters[s],
-                onClick: () => goTo({ mode: "poster", tab: s === "posted" ? "log" : "pipeline" }),
-              }))} />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-            <OverviewBlock title="Shoots" gradient={OVERVIEW_TILE_GRADIENTS.shoots} icon={Camera}
-              rows={SHOOT_STATUS_ORDER.map(s => ({
-                key: s,
-                label: SHOOT_STATUS_CFG[s].label,
-                value: overview.shoots[s],
-                onClick: () => goTo({ mode: "video", tab: "shoots" }),
-              }))} />
-          </div>
-        </div>
+        <OverviewDashboard
+          overview={overview}
+          items={items}
+          shoots={shoots}
+          ads={ads}
+          clientTargets={clientTargets}
+          today={today}
+          monthFilter={overviewKpiMonth}
+          onMonthFilterChange={setOverviewKpiMonth}
+          monthOptions={allMonthOptions}
+          onAttentionClick={goTo}
+        />
       )}
 
       {(mode === "video" || mode === "poster") && tab === "pipeline" && (

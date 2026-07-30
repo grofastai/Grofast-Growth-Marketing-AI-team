@@ -754,9 +754,11 @@ export default function ActivitiesClient({
       }
     } else {
       // Non-media: Technical/Work is always the guaranteed first slot (even at
-      // 0h), then whichever other real skill types they have, per explicit spec.
+      // 0h), then whichever other real skill types they have — including
+      // edit/shoot, since a non-media person can still have those entries
+      // (e.g. Raghul does real editing work despite not being on Media Team).
       slots.push("other")
-      for (const tt of ["voiceover", "poster", "scripting", "development"]) {
+      for (const tt of ["edit", "shoot", "voiceover", "poster", "scripting", "development"]) {
         if (present.has(tt)) slots.push(tt)
         if (slots.length === 5) break
       }
@@ -813,7 +815,18 @@ export default function ActivitiesClient({
                   Activities
                 </button>
                 <button
-                  onClick={() => setViewMode("work-analysis")}
+                  onClick={() => {
+                    setViewMode("work-analysis")
+                    // A bare page load (no date in the URL) defaults from/to to
+                    // "today" only — a single day, not a month. Work Analysis
+                    // always needs a full month, so expand to it here instead of
+                    // silently showing an empty "today only" scope that looks
+                    // stuck/broken (2026-07-31 fix).
+                    if (from === to) {
+                      const [f, t] = ymRange(from.slice(0, 7))
+                      navigate(f, t)
+                    }
+                  }}
                   style={{
                     border: "none", cursor: "pointer", borderRadius: 8, padding: "7px 13px", fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap", textTransform: "uppercase",
                     background: viewMode === "work-analysis" ? "#fff" : "transparent",

@@ -74,14 +74,14 @@ export function OverviewDashboard({
 
         <main className="flex flex-col gap-[32px]">
           <section>
-            <p style={{ fontFamily: "var(--font-fraunces)", fontStyle: "italic", fontSize: 13, color: "#8A94A3", margin: "0 0 4px" }}>Where each account stands</p>
-            <h2 style={{ fontFamily: "var(--font-fraunces)", fontWeight: 700, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>Client delivery — Branding</h2>
+            <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>Where each account stands</p>
+            <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>Client delivery — Branding</h2>
             <DeliveryStatusTable rows={deliveryRows} />
           </section>
 
           <section>
-            <p style={{ fontFamily: "var(--font-fraunces)", fontStyle: "italic", fontSize: 13, color: "#8A94A3", margin: "0 0 4px" }}>From shoot to published</p>
-            <h2 style={{ fontFamily: "var(--font-fraunces)", fontWeight: 700, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>How work moves</h2>
+            <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>From shoot to published</p>
+            <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>How work moves</h2>
             <WorkFlow
               shoots={overview.shoots.scheduled}
               editing={overview.videos.ready_to_edit + overview.videos.edited + overview.posters.ready_to_edit + overview.posters.edited}

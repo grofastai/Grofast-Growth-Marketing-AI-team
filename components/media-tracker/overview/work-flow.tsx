@@ -33,7 +33,7 @@ export function WorkFlow({
               <div style={{ position: "absolute", top: 50, left: "50%", width: "100%", height: 2, background: "#DDE1E7", zIndex: 0 }} />
             )}
             <div style={{ height: 36, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-              <span style={{ fontFamily: "var(--font-fraunces)", fontSize: 26, fontWeight: 700, color: n.color, fontVariantNumeric: "tabular-nums" }}>{n.value}</span>
+              <span style={{ fontFamily: "var(--font-jakarta)", fontSize: 26, fontWeight: 800, color: n.color, fontVariantNumeric: "tabular-nums" }}>{n.value}</span>
             </div>
             <span style={{ width: 14, height: 14, borderRadius: 999, background: n.color, border: "3px solid #F4F5F7", boxShadow: "0 0 0 1px #DDE1E7", position: "relative", zIndex: 1 }} />
             <span style={{ fontSize: 11, fontWeight: 700, color: "#5B6472", textAlign: "center" }}>{n.label}</span>

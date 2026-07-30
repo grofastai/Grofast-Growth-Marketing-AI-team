@@ -33,7 +33,7 @@ export function DeliveryStatusTable({ rows }: { rows: ClientDeliveryRow[] }) {
               const s = STATUS_LABEL[row.status]
               return (
                 <tr key={row.client}>
-                  <td style={{ padding: "12px 18px", borderTop: "1px solid #EBEEF2", fontFamily: "var(--font-fraunces)", fontStyle: "italic", fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>{row.client}</td>
+                  <td style={{ padding: "12px 18px", borderTop: "1px solid #EBEEF2", fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#111827", whiteSpace: "nowrap" }}>{row.client}</td>
                   <td style={{ padding: "12px 18px", borderTop: "1px solid #EBEEF2", textAlign: "center", fontVariantNumeric: "tabular-nums", fontWeight: 650 }}>{row.target}</td>
                   <td style={{ padding: "12px 18px", borderTop: "1px solid #EBEEF2", textAlign: "center", fontVariantNumeric: "tabular-nums", fontWeight: 650 }}>{row.published}</td>
                   <td style={{ padding: "12px 18px", borderTop: "1px solid #EBEEF2", textAlign: "center", fontVariantNumeric: "tabular-nums", fontWeight: 650 }}>{row.editing}</td>

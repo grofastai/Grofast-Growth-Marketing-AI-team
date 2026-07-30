@@ -7,7 +7,7 @@ import { redirect } from "next/navigation"
 import MemberLeavesClient from "./leaves-client"
 import { blockFreelancerMedia } from "@/lib/utils/freelancer-guard"
 import { todayIST } from "@/lib/utils/ist-date"
-import { sumLeaveDays } from "@/lib/utils/leave-balance"
+import { sumLeaveDays, overtimeHoursByMonth } from "@/lib/utils/leave-balance"
 
 function adminSupabase() {
   return createClient(
@@ -42,7 +42,9 @@ export default async function MemberLeavesPage() {
 
   const companyId = profileData?.company_id ?? ""
 
-  const [leavesResult, usedResult, absentResult, companyLeavesResult] = await Promise.all([
+  const yearEndForQuery = `${todayIST().slice(0, 4)}-12-31`
+
+  const [leavesResult, usedResult, absentResult, companyLeavesResult, updatesResult] = await Promise.all([
     // Ordered by from_date (the actual leave date), not created_at — a bulk backfill
     // that inserts many rows at once all stamped with today's created_at could otherwise
     // crowd out older-but-still-relevant real submissions once past a row-count limit.
@@ -69,9 +71,20 @@ export default async function MemberLeavesPage() {
     companyId
       ? admin.from("company_leaves").select("id, date, name").eq("company_id", companyId).order("date")
       : Promise.resolve({ data: [] }),
+    // Same-month overtime (work before 09:30 / at-or-after 19:00) nets against
+    // Permission hours before they convert into leave days — see sumLeaveDays'
+    // overtimeByMonth param. Fetched for the whole year so both the monthly
+    // and yearly split-bar cards on this page can use it.
+    admin
+      .from("daily_updates")
+      .select("date, work_entries")
+      .eq("user_id", effectiveUserId)
+      .gte("date", yearStart)
+      .lte("date", yearEndForQuery),
   ])
 
   const leaves        = leavesResult.data ?? []
+  const overtimeByMonth = overtimeHoursByMonth((updatesResult.data ?? []) as { date: string; work_entries: { task_type?: string | null; start_time?: string | null; duration_hours?: number | string | null }[] | null }[])
   const name          = (profileData?.name ?? "").split(" ")[0] || "there"
   const paidLeaveDays = profileData?.paid_leave_days ?? 0
   const isMedia       = (profileData as { team?: string | null } | null)?.team === "Media Team" || (profileData as { team?: string | null } | null)?.team === "Media Production Team"
@@ -80,8 +93,8 @@ export default async function MemberLeavesPage() {
 
   // Calculate used days: full_day = exact days, half_day = 0.5, permission = cumulative
   // hours converted to day-equivalents, wfh/shoot_day = 0 (work arrangement, not absence), absent = 1
-  const yearEnd = `${todayIST().slice(0, 4)}-12-31`
-  const leaveUsedDays = sumLeaveDays((usedResult.data ?? []) as { leave_type: string | null; from_date: string; to_date: string; permission_hours: number | string | null }[], yearStart, yearEnd)
+  const yearEnd = yearEndForQuery
+  const leaveUsedDays = sumLeaveDays((usedResult.data ?? []) as { leave_type: string | null; from_date: string; to_date: string; permission_hours: number | string | null }[], yearStart, yearEnd, overtimeByMonth)
   const usedDays = leaveUsedDays + absentDays.length
 
   return (
@@ -93,6 +106,7 @@ export default async function MemberLeavesPage() {
       absentDays={absentDays}
       companyLeaves={companyLeaves}
       isMedia={isMedia}
+      overtimeByMonth={overtimeByMonth}
     />
   )
 }

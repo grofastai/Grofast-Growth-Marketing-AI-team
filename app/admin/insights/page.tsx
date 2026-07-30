@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import InsightsClient, { type AllMember } from './insights-client'
 import { calcNetWorkHours } from '@/lib/utils/work-hours'
 import { hourlyRateOnDate, type SalaryHistoryRow } from '@/lib/salary'
-import { sumLeaveDays, type LeaveForBalance } from '@/lib/utils/leave-balance'
+import { sumLeaveDays, overtimeHoursByMonth, type LeaveForBalance } from '@/lib/utils/leave-balance'
 import { dailyWorkHours, summarizeAttendanceDays } from '@/lib/utils/attendance-stats'
 
 function adminClient() {
@@ -432,9 +432,18 @@ export default async function InsightsPage({
     if (!leavesByMember.has(l.user_id)) leavesByMember.set(l.user_id, [])
     leavesByMember.get(l.user_id)!.push(l)
   }
+  // Same-month overtime (work before 09:30 / at-or-after 19:00) per member,
+  // netted against their Permission hours below — see sumLeaveDays'
+  // overtimeByMonth param. `updates` is already scoped to this month.
+  const updatesByMember = new Map<string, UpdateRow[]>()
+  for (const u of updates) {
+    if (!updatesByMember.has(u.user_id)) updatesByMember.set(u.user_id, [])
+    updatesByMember.get(u.user_id)!.push(u)
+  }
   const leaveBreakdown = members
     .map(m => {
       const rows = leavesByMember.get(m.id) ?? []
+      const memberOvertimeByMonth = overtimeHoursByMonth(updatesByMember.get(m.id) ?? [])
       let fullDays = 0, halfDays = 0, halfDayHours = 0, permissionHours = 0
       for (const l of rows) {
         const type = l.leave_type ?? 'full_day'
@@ -455,7 +464,7 @@ export default async function InsightsPage({
           permissionHours += Number(l.permission_hours) || 0
         }
       }
-      const daysUsed = sumLeaveDays(rows as LeaveForBalance[], dateFrom, dateTo)
+      const daysUsed = sumLeaveDays(rows as LeaveForBalance[], dateFrom, dateTo, memberOvertimeByMonth)
       return {
         id: m.id, name: m.name,
         fullDays, halfDays, halfDayHours: Math.round(halfDayHours * 10) / 10,

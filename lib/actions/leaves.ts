@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertNotification, insertManyNotifications } from './notifications'
 import { formatLeaveDetail } from '@/lib/leave-approval-effects'
-import { sumLeaveDays } from '@/lib/utils/leave-balance'
+import { sumLeaveDays, overtimeHoursByMonth } from '@/lib/utils/leave-balance'
 import { HALF_DAY_THRESHOLD_HOURS } from '@/lib/utils/attendance-stats'
 import { toISTTimeString } from '@/lib/utils/ist-date'
 import { z } from 'zod'
@@ -153,12 +153,25 @@ async function checkMonthlyLeaveLimit(
   if (excludeLeaveId) query = query.neq('id', excludeLeaveId)
   const { data: monthLeaves } = await query
 
+  // Same-month overtime (work logged before 09:30 or at/after 19:00) nets
+  // against Permission hours before they convert into day-equivalents — see
+  // sumLeaveDays' overtimeByMonth param. Someone who made up the time with
+  // real overtime that month shouldn't hit the cap the same as someone who
+  // didn't.
+  const { data: monthUpdates } = await adminCl
+    .from('daily_updates')
+    .select('date, work_entries')
+    .eq('user_id', userId)
+    .gte('date', monthStart)
+    .lte('date', monthEnd)
+  const overtimeByMonth = overtimeHoursByMonth((monthUpdates ?? []) as { date: string; work_entries: { task_type?: string | null; start_time?: string | null; duration_hours?: number | string | null }[] | null }[])
+
   // Combined into ONE sumLeaveDays call, not summed separately then added — the
   // permission-hours conversion isn't linear (3h alone + 2h alone both round to
   // 0 days, but 5h combined crosses the 4.75h threshold = 0.5 days), so existing
   // rows and this new request must accumulate together before the one conversion.
   const newRow = { leave_type: leaveType, from_date: fromDate, to_date: toDate, permission_hours: permissionHours ?? null }
-  const combinedDays = sumLeaveDays([...((monthLeaves ?? []) as { leave_type: string | null; from_date: string; to_date: string; permission_hours: number | string | null }[]), newRow], monthStart, monthEnd)
+  const combinedDays = sumLeaveDays([...((monthLeaves ?? []) as { leave_type: string | null; from_date: string; to_date: string; permission_hours: number | string | null }[]), newRow], monthStart, monthEnd, overtimeByMonth)
   if (combinedDays > 5) return 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.'
   return null
 }
@@ -460,11 +473,18 @@ export async function submitSplitLeaveRequest(
       .gte('from_date', monthStart)
       .lte('from_date', monthEnd)
       .in('status', ['approved', 'pending'])
+    const { data: monthUpdates } = await adminCl
+      .from('daily_updates')
+      .select('date, work_entries')
+      .eq('user_id', effectiveUserId)
+      .gte('date', monthStart)
+      .lte('date', monthEnd)
+    const overtimeByMonth = overtimeHoursByMonth((monthUpdates ?? []) as { date: string; work_entries: { task_type?: string | null; start_time?: string | null; duration_hours?: number | string | null }[] | null }[])
     const combinedDays = sumLeaveDays([
       ...((monthLeaves ?? []) as { leave_type: string | null; from_date: string; to_date: string; permission_hours: number | string | null }[]),
       { leave_type: 'half_day', from_date, to_date: from_date, permission_hours: null },
       { leave_type: 'permission', from_date, to_date: from_date, permission_hours: permHours },
-    ], monthStart, monthEnd)
+    ], monthStart, monthEnd, overtimeByMonth)
     if (combinedDays > 5) return { error: 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.' }
   }
 

@@ -6,7 +6,7 @@ import AttendanceClient from "./attendance-client"
 import { blockFreelancerMedia } from "@/lib/utils/freelancer-guard"
 import { findLastWorkingDayIssues } from "@/lib/actions/attendance"
 import { todayIST, nowISTShifted } from "@/lib/utils/ist-date"
-import { sumLeaveDays } from "@/lib/utils/leave-balance"
+import { sumLeaveDays, overtimeHoursByMonth } from "@/lib/utils/leave-balance"
 import { summarizeAttendanceDays, dailyWorkHours } from "@/lib/utils/attendance-stats"
 
 function adminSupabase() {
@@ -222,8 +222,11 @@ export default async function AttendancePage() {
   ) / 10
 
   // LEAVE-1 fix: cap leave dates to current month boundaries; half_day = 0.5,
-  // permission = cumulative hours converted to day-equivalents
-  const monthLeaveDays = sumLeaveDays(approvedLeaves, monthStart, leaveRangeEnd)
+  // permission = cumulative hours converted to day-equivalents, net of that
+  // same month's overtime (work before 09:30 / at-or-after 19:00) — see
+  // overtimeHoursByMonth in lib/utils/leave-balance.ts.
+  const monthOvertimeByMonth = overtimeHoursByMonth(monthUpdates)
+  const monthLeaveDays = sumLeaveDays(approvedLeaves, monthStart, leaveRangeEnd, monthOvertimeByMonth)
 
   // Present Days / Half Days / Absent Days — shared classifier
   // (lib/utils/attendance-stats.ts) so this matches Dashboard, History,

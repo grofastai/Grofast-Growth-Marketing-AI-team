@@ -10,7 +10,7 @@ import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
 import MonthFilterTabs from "@/components/member/MonthFilterTabs"
 import { todayIST, nowISTShifted } from "@/lib/utils/ist-date"
-import { sumLeaveDays } from "@/lib/utils/leave-balance"
+import { sumLeaveDays, overtimeHoursByMonth } from "@/lib/utils/leave-balance"
 import { summarizeAttendanceDays, dailyWorkHours } from "@/lib/utils/attendance-stats"
 
 function adminClient() {
@@ -243,8 +243,11 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   // the WHOLE month, including already-approved leave dated later this month (see
   // leaveRangeEnd above), not just up to today.
   // LEAVE-2: only count approved leave records (not absence logs, not pending)
-  // half_day counts as 0.5, permission = cumulative hours converted to day-equivalents
-  const leaveDays = sumLeaveDays(approvedLeaves, monthStart, leaveRangeEnd)
+  // half_day counts as 0.5, permission = cumulative hours converted to day-equivalents,
+  // net of that same month's overtime (work before 09:30 / at-or-after 19:00) —
+  // see overtimeHoursByMonth in lib/utils/leave-balance.ts.
+  const dashboardOvertimeByMonth = overtimeHoursByMonth(monthlyUpdates)
+  const leaveDays = sumLeaveDays(approvedLeaves, monthStart, leaveRangeEnd, dashboardOvertimeByMonth)
 
   // Login hours — raw clock_in → clock_out span, no break deduction
   const logsWithClockData = presentAttLogs.filter(l => l.clock_in && l.clock_out)

@@ -10,7 +10,7 @@ import ClientSelector from "@/components/ui/ClientSelector"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
 import { confirmCollaboration, editCollaborationTime, rejectCollaboration, deleteCollaborationsByEntry } from "@/lib/actions/collaboration"
 import { toISTDateString, todayIST } from "@/lib/utils/ist-date"
-import { sumLeaveDays, parseLeaveReason } from "@/lib/utils/leave-balance"
+import { sumLeaveDays, overtimeHoursByMonth, parseLeaveReason } from "@/lib/utils/leave-balance"
 import AutoBadge from "@/components/ui/AutoBadge"
 import ExceptionalBadge from "@/components/ui/ExceptionalBadge"
 import { summarizeAttendanceDays } from "@/lib/utils/attendance-stats"
@@ -810,6 +810,11 @@ export default function HistoryClient({
   // Latest day for hero (always from month, not search-filtered)
   const latest = monthFiltered[0] ?? null
 
+  // Same-month overtime (work before 09:30 / at-or-after 19:00), across every
+  // month in `updates` (not just the selected one) — nets against Permission
+  // hours before they convert into leave days, see sumLeaveDays' overtimeByMonth param.
+  const overtimeByMonthMap = useMemo(() => overtimeHoursByMonth(updates), [updates])
+
   // Stats always use the full month (not search-filtered)
   const stats = useMemo(() => {
     let totalHours = 0, totalTasks = 0, presentDays = 0, totalLearning = 0, totalBreak = 0
@@ -891,7 +896,7 @@ export default function HistoryClient({
     // hours converted to day-equivalents (see lib/utils/leave-balance.ts).
     const leaveRangeStart = monthPrefix ? `${monthPrefix}-01` : "0000-01-01"
     const leaveRangeEnd   = monthPrefix ? `${monthPrefix}-31` : "9999-12-31"
-    const leaveDays = sumLeaveDays(approvedLeaves, leaveRangeStart, leaveRangeEnd)
+    const leaveDays = sumLeaveDays(approvedLeaves, leaveRangeStart, leaveRangeEnd, overtimeByMonthMap)
 
     // Dates covered by an approved full-day/half-day leave — excluded (fully or
     // partially, see summarizeAttendanceDays) from present/absent classification
@@ -952,7 +957,7 @@ export default function HistoryClient({
     const avgDivisor = isFreelancerMedia ? daysSubmitted : presentDays
     const avgH = avgDivisor > 0 ? Math.round((workForAvg / avgDivisor) * 10) / 10 : 0
     return { totalHours, totalOT, totalTasks, presentDays, absentDays, leaveDays, holidayDays, totalLearning, totalBreak, travelH, shootH, editH, otherH, shootCount, editCount, worklogCount, voiceoverCount, voiceoverH, posterCount, posterH, scriptingH, scriptingCount, developmentH, developmentCount, otherActivityH, mediaWorkH, nonMediaWorkH, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity, daysSubmitted }
-  }, [filtered, attendanceDates, selectedMonth, monthFiltered, approvedLeaves, companyLeaves, collabConfirms])
+  }, [filtered, attendanceDates, selectedMonth, monthFiltered, approvedLeaves, companyLeaves, collabConfirms, overtimeByMonthMap])
 
   // Which work types this person has EVER logged (scoped to `updates`, i.e. this
   // calendar year — matches the page's own fetch window) — decides which summary

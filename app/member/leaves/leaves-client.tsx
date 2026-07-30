@@ -301,7 +301,7 @@ function BalanceRing({ pct }: { pct: number }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function MemberLeavesClient({ leaves: initialLeaves, userName, paidLeaveDays = 0, usedLeaveDays = 0, absentDays = [], companyLeaves = [], isMedia = false }: { leaves: Leave[]; userName: string; paidLeaveDays?: number; usedLeaveDays?: number; absentDays?: { id: string; date: string }[]; companyLeaves?: CompanyLeave[]; isMedia?: boolean }) {
+export default function MemberLeavesClient({ leaves: initialLeaves, userName, paidLeaveDays = 0, usedLeaveDays = 0, absentDays = [], companyLeaves = [], isMedia = false, overtimeByMonth = {} }: { leaves: Leave[]; userName: string; paidLeaveDays?: number; usedLeaveDays?: number; absentDays?: { id: string; date: string }[]; companyLeaves?: CompanyLeave[]; isMedia?: boolean; overtimeByMonth?: Record<string, number> }) {
   const router = useRouter()
   const [leaves, setLeaves]         = useState(initialLeaves)
   useEffect(() => { setLeaves(initialLeaves) }, [initialLeaves])
@@ -508,11 +508,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   // will actually be blocked against if a pending request is already in the queue.
   function calcMonthlyDays(entries: Leave[], month: string) {
     const monthEntries = entries.filter(l => l.from_date.startsWith(month) && l.status === "approved")
-    return sumLeaveDays(monthEntries, `${month}-01`, `${month}-31`)
+    return sumLeaveDays(monthEntries, `${month}-01`, `${month}-31`, overtimeByMonth)
   }
   // Splits the same total into "real" (Full Day / Half Day, submitted as such) vs "auto"
-  // (day-equivalents converted from accumulated Permission hours crossing a threshold) —
-  // same two numbers the auto-deduction banners already represent, just totaled for the stat card.
+  // (day-equivalents converted from accumulated Permission hours crossing a threshold,
+  // net of that same month's overtime — see overtimeByMonth) — same two numbers the
+  // auto-deduction banners already represent, just totaled for the stat card.
   function calcMonthlyDaysSplit(entries: Leave[], month: string) {
     const monthEntries = entries.filter(l => l.from_date.startsWith(month) && l.status === "approved")
     const nonPermission = monthEntries.filter(l => l.leave_type !== "permission")
@@ -528,7 +529,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     const yearEntries = entries.filter(l => l.from_date.startsWith(year) && l.status === "approved")
     const nonPermission = yearEntries.filter(l => l.leave_type !== "permission")
     const real = sumLeaveDays(nonPermission, `${year}-01-01`, `${year}-12-31`)
-    const total = sumLeaveDays(yearEntries, `${year}-01-01`, `${year}-12-31`)
+    const total = sumLeaveDays(yearEntries, `${year}-01-01`, `${year}-12-31`, overtimeByMonth)
     return { real, auto: Math.max(0, total - real), total }
   }
   // Always the real current month — gates whether a new Full/Half Day request is

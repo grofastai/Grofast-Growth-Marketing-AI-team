@@ -100,14 +100,16 @@ export function OverviewDashboard({
 
             <div className="flex flex-col" style={{ gap: 24 }}>
               <div>
-                <h3 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 14, color: "#111827", margin: "0 0 10px" }}>
-                  Branding · {contentTypeFilter === "video" ? "Video" : "Poster"}
+                <h3 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 14, margin: "0 0 10px" }}>
+                  <span style={{ color: "#7C3AED" }}>Branding</span>
+                  <span style={{ color: "#8A94A3" }}> · {contentTypeFilter === "video" ? "Video" : "Poster"}</span>
                 </h3>
                 <DeliveryStatusTable rows={brandingRows} onEditTarget={makeEditTarget("branding")} />
               </div>
               <div>
-                <h3 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 14, color: "#111827", margin: "0 0 10px" }}>
-                  Advertisement · {contentTypeFilter === "video" ? "Video" : "Poster"}
+                <h3 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 14, margin: "0 0 10px" }}>
+                  <span style={{ color: "#2563EB" }}>Advertisement</span>
+                  <span style={{ color: "#8A94A3" }}> · {contentTypeFilter === "video" ? "Video" : "Poster"}</span>
                 </h3>
                 <DeliveryStatusTable rows={adsRows} onEditTarget={makeEditTarget("ads")} />
               </div>

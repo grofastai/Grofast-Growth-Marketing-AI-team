@@ -24,7 +24,7 @@ export function WorkFlow({
   return (
     <div style={{
       background: "#fff", border: "1px solid #DDE1E7", borderRadius: 20, padding: "26px 22px",
-      boxShadow: "0 1px 2px rgba(16,24,40,0.05)",
+      boxShadow: "0 1px 2px rgba(16,24,40,0.05)", flex: 1, display: "flex", flexDirection: "column",
     }}>
       <div style={{ display: "flex", flexDirection: "column" }}>
         {nodes.map((n, i) => (

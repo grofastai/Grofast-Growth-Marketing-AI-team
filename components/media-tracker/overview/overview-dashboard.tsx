@@ -79,7 +79,7 @@ export function OverviewDashboard({
 
   return (
     <div className="flex flex-col gap-[22px]">
-      <div className="grid gap-6 items-start grid-cols-1 md:grid-cols-[296px_1fr]">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-[296px_1fr] items-stretch">
         <div className="flex flex-col" style={{ gap: 24 }}>
           <OverviewRail
             attention={overview.attention}
@@ -89,7 +89,7 @@ export function OverviewDashboard({
             monthLabel={fmtMonth(effectiveMonth)}
           />
 
-          <section>
+          <section className="flex flex-col" style={{ flex: 1 }}>
             <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>From shoot to published</p>
             <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>How work moves</h2>
             <WorkFlow

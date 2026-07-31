@@ -19,7 +19,7 @@ type ContentTypeFilter = "all" | "video" | "poster"
 export function OverviewDashboard({
   overview, items, shoots, ads, clientTargets, today,
   monthFilter, onMonthFilterChange, monthOptions,
-  onAttentionClick,
+  onAttentionClick, onSetTarget,
 }: {
   overview: Overview
   items: ContentItem[]
@@ -31,6 +31,7 @@ export function OverviewDashboard({
   onMonthFilterChange: (month: string) => void
   monthOptions: string[]
   onAttentionClick: (target: AttentionItem["target"]) => void
+  onSetTarget: (clientName: string, kind: "branding" | "ads", contentType: "video" | "poster", month: string, newTarget: number) => Promise<void>
 }) {
   const [contentTypeFilter, setContentTypeFilter] = useState<ContentTypeFilter>("all")
   const contentType = contentTypeFilter === "all" ? undefined : contentTypeFilter
@@ -55,6 +56,12 @@ export function OverviewDashboard({
         edited: overview.videos.edited + overview.posters.edited,
         branding_ready: overview.videos.branding_ready + overview.posters.branding_ready,
       }
+
+  // Target is only well-defined to edit when scoped to one content type — a combined
+  // "All Content Types" sum has no single target row to write back to.
+  const onEditTarget = contentType
+    ? (client: string, newTarget: number) => onSetTarget(client, "branding", contentType, effectiveMonth, newTarget)
+    : undefined
 
   return (
     <div className="flex flex-col gap-[22px]">
@@ -99,7 +106,12 @@ export function OverviewDashboard({
             <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>
               Client delivery — Branding{contentTypeFilter !== "all" ? ` · ${contentTypeFilter === "video" ? "Video" : "Poster"}` : ""}
             </h2>
-            <DeliveryStatusTable rows={deliveryRows} />
+            <DeliveryStatusTable rows={deliveryRows} onEditTarget={onEditTarget} />
+            {!onEditTarget && (
+              <p style={{ fontSize: 11, color: "#8A94A3", fontWeight: 600, margin: "8px 2px 0" }}>
+                Pick Video or Poster above to edit a client's target.
+              </p>
+            )}
           </section>
 
           <section>

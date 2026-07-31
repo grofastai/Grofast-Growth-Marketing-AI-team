@@ -1,4 +1,5 @@
 import type { ClientDeliveryRow, DeliveryStatus } from "@/lib/media-tracker/delivery-status"
+import { EditableTargetCell } from "./editable-target-cell"
 
 const STATUS_LABEL: Record<DeliveryStatus, { label: string; color: string; bg: string }> = {
   on_track: { label: "On Track", color: "#16A34A", bg: "rgba(22,163,74,0.09)" },
@@ -6,7 +7,13 @@ const STATUS_LABEL: Record<DeliveryStatus, { label: string; color: string; bg: s
   completed: { label: "Completed", color: "#2563EB", bg: "rgba(37,99,235,0.09)" },
 }
 
-export function DeliveryStatusTable({ rows }: { rows: ClientDeliveryRow[] }) {
+export function DeliveryStatusTable({ rows, onEditTarget }: {
+  rows: ClientDeliveryRow[]
+  // Target is only editable when the dashboard is scoped to a single content type
+  // (video or poster) — a combined "All Content Types" sum can't be written back to
+  // one target row. Omit this prop (or leave it undefined) to keep Target read-only.
+  onEditTarget?: (client: string, newTarget: number) => Promise<void>
+}) {
   if (rows.length === 0) {
     return (
       <div style={{ background: "#fff", border: "1px solid #DDE1E7", borderRadius: 14, padding: "24px 18px", textAlign: "center", fontSize: 12.5, fontWeight: 600, color: "#5B6472" }}>
@@ -44,7 +51,11 @@ export function DeliveryStatusTable({ rows }: { rows: ClientDeliveryRow[] }) {
               return (
                 <tr key={row.client}>
                   <td style={{ padding: "7px 6px", borderTop: "1px solid #EBEEF2", fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.client}</td>
-                  <td style={{ padding: "7px 6px", borderTop: "1px solid #EBEEF2", textAlign: "center", fontVariantNumeric: "tabular-nums", fontWeight: 650 }}>{row.target}</td>
+                  <td style={{ padding: "7px 6px", borderTop: "1px solid #EBEEF2", textAlign: "center", fontVariantNumeric: "tabular-nums", fontWeight: 650 }}>
+                    {onEditTarget
+                      ? <EditableTargetCell value={row.target} onSave={n => onEditTarget(row.client, n)} />
+                      : row.target}
+                  </td>
                   <td style={{ padding: "7px 6px", borderTop: "1px solid #EBEEF2", textAlign: "center", fontVariantNumeric: "tabular-nums", fontWeight: 650 }}>{row.published}</td>
                   <td style={{ padding: "7px 6px", borderTop: "1px solid #EBEEF2", textAlign: "center", fontVariantNumeric: "tabular-nums", fontWeight: 650 }}>{row.editing}</td>
                   <td style={{ padding: "7px 6px", borderTop: "1px solid #EBEEF2", textAlign: "center", fontVariantNumeric: "tabular-nums", fontWeight: 650 }}>{row.readyToPublish}</td>

@@ -83,6 +83,21 @@ describe('computeMonthlyBrandingRollup', () => {
   it('returns all zeros for empty input', () => {
     expect(computeMonthlyBrandingRollup([], [], '2026-07')).toEqual({ target: 0, completed: 0, remaining: 0, completionPct: 0 })
   })
+
+  it('scopes to a single content type when one is given', () => {
+    const r = computeMonthlyBrandingRollup(
+      [
+        item({ id: '1', client_name: 'Acme', content_type: 'video', posted_branding: true, posts: [{ posted_date: '2026-07-10', platform: 'instagram' }] }),
+        item({ id: '2', client_name: 'Acme', content_type: 'poster', posted_branding: true, posts: [{ posted_date: '2026-07-11', platform: 'facebook' }] }),
+      ],
+      [
+        target({ client_name: 'Acme', content_type: 'video', target: 10 }),
+        target({ client_name: 'Acme', content_type: 'poster', target: 5 }),
+      ],
+      '2026-07', 'video',
+    )
+    expect(r).toEqual({ target: 10, completed: 1, remaining: 9, completionPct: 10 })
+  })
 })
 
 describe('computeClientDeliveryStatus', () => {
@@ -123,5 +138,22 @@ describe('computeClientDeliveryStatus', () => {
   it('omits clients with neither a target nor any items', () => {
     const rows = computeClientDeliveryStatus([], [], '2026-07', '2026-07-16')
     expect(rows).toEqual([])
+  })
+
+  it('scopes to a single content type when one is given, including its target', () => {
+    const rows = computeClientDeliveryStatus(
+      [
+        item({ id: '1', client_name: 'Acme', content_type: 'video', status: 'branding_ready' }),
+        item({ id: '2', client_name: 'Acme', content_type: 'poster', status: 'branding_ready' }),
+      ],
+      [
+        target({ client_name: 'Acme', content_type: 'video', target: 4 }),
+        target({ client_name: 'Acme', content_type: 'poster', target: 2 }),
+      ],
+      '2026-07', '2026-07-16', 'poster',
+    )
+    expect(rows).toHaveLength(1)
+    expect(rows[0].target).toBe(2)
+    expect(rows[0].readyToPublish).toBe(1)
   })
 })

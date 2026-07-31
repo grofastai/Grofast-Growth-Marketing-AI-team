@@ -75,29 +75,38 @@ function publishedInMonth(item: DeliveryItem, month: string): boolean {
   return item.posts.some(p => p.posted_date.slice(0, 7) === month)
 }
 
+// contentType narrows to just 'video' or 'poster' (targets and items alike); omitted or
+// undefined combines both, matching the Client Delivery Status table's default view.
 export function computeMonthlyBrandingRollup(
   items: DeliveryItem[], clientTargets: DeliveryClientTarget[], month: string,
+  contentType?: 'video' | 'poster',
 ): MonthlyRollup {
-  const target = clientTargets
+  const scopedItems = contentType ? items.filter(i => i.content_type === contentType) : items
+  const scopedTargets = contentType ? clientTargets.filter(t => t.content_type === contentType) : clientTargets
+  const target = scopedTargets
     .filter(t => t.kind === 'branding' && t.month === month)
     .reduce((sum, t) => sum + t.target, 0)
-  const completed = items.filter(i => i.status !== 'cancelled' && publishedInMonth(i, month)).length
+  const completed = scopedItems.filter(i => i.status !== 'cancelled' && publishedInMonth(i, month)).length
   const remaining = Math.max(target - completed, 0)
   return { target, completed, remaining, completionPct: completionPctOf(completed, target) }
 }
 
 export function computeClientDeliveryStatus(
   items: DeliveryItem[], clientTargets: DeliveryClientTarget[], month: string, today: string,
+  contentType?: 'video' | 'poster',
 ): ClientDeliveryRow[] {
+  const scopedItems = contentType ? items.filter(i => i.content_type === contentType) : items
+  const scopedTargets = contentType ? clientTargets.filter(t => t.content_type === contentType) : clientTargets
+
   const clients = new Set<string>()
-  for (const i of items) if (i.status !== 'cancelled') clients.add(i.client_name)
-  for (const t of clientTargets) if (t.kind === 'branding' && t.month === month) clients.add(t.client_name)
+  for (const i of scopedItems) if (i.status !== 'cancelled') clients.add(i.client_name)
+  for (const t of scopedTargets) if (t.kind === 'branding' && t.month === month) clients.add(t.client_name)
 
   const elapsedPct = monthElapsedPct(today, month)
 
   return Array.from(clients).map(client => {
-    const clientItems = items.filter(i => i.client_name === client && i.status !== 'cancelled')
-    const target = clientTargets
+    const clientItems = scopedItems.filter(i => i.client_name === client && i.status !== 'cancelled')
+    const target = scopedTargets
       .filter(t => t.client_name === client && t.kind === 'branding' && t.month === month)
       .reduce((sum, t) => sum + t.target, 0)
     const published = clientItems.filter(i => publishedInMonth(i, month)).length

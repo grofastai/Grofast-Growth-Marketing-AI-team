@@ -130,14 +130,17 @@ export function OverviewDashboard({
               overdueBrandingCount={todayAndAllTime.overdueBrandingCount}
             />
           </section>
-
-          <section>
-            <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>Everything still in motion</p>
-            <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>Content pipeline</h2>
-            <ContentPipelineSection pipeline={contentPipeline} />
-          </section>
         </main>
       </div>
+
+      {/* Full width below the rail+main row, instead of confined to the narrower main
+          column — the rail is much shorter than the main column, so a third section
+          nested inside main would leave dead space beside it rather than using the page. */}
+      <section>
+        <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>Everything still in motion</p>
+        <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>Content pipeline</h2>
+        <ContentPipelineSection pipeline={contentPipeline} />
+      </section>
     </div>
   )
 }

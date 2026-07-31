@@ -1,8 +1,11 @@
-// Company-wide and per-client Branding roll-ups for the Overview Dashboard's Monthly
-// Progress ring and Client Delivery Status table. Kept out of lib/media-tracker/overview.ts
-// because these operate on the full ContentItem/ClientTarget shape (client_name, posts,
-// posted_branding) rather than that module's narrower, content-agnostic OverviewItem —
-// same reasoning that keeps pipeline-transitions.ts and schedule.ts as separate modules.
+// Company-wide and per-client roll-ups (Branding or Ads) for the Overview Dashboard's
+// Monthly Progress ring and Client Delivery Status table. Kept out of
+// lib/media-tracker/overview.ts because these operate on the full ContentItem/ClientTarget
+// shape (client_name, posts, posted_branding/posted_ads) rather than that module's
+// narrower, content-agnostic OverviewItem — same reasoning that keeps
+// pipeline-transitions.ts and schedule.ts as separate modules.
+
+export type DeliveryKind = 'branding' | 'ads'
 
 // Structural, minimal input types — the real ContentItem/ClientTarget (in
 // media-tracker-client.tsx) are supersets and assign to these without conversion,
@@ -14,11 +17,12 @@ export type DeliveryItem = {
   status: 'scripting' | 'voiceover' | 'design' | 'ready_to_edit' | 'edited'
     | 'on_review' | 'branding_ready' | 'ads_ready' | 'posted' | 'cancelled'
   posted_branding: boolean
+  posted_ads: boolean
   posts: { posted_date: string; platform: string }[]
 }
 export type DeliveryClientTarget = {
   client_name: string
-  kind: 'branding' | 'ads'
+  kind: DeliveryKind
   content_type: 'video' | 'poster'
   month: string // 'YYYY-MM'
   target: number
@@ -36,6 +40,11 @@ export type ClientDeliveryRow = {
   remaining: number
   completionPct: number
   status: DeliveryStatus
+}
+
+const READY_STATUS: Record<DeliveryKind, DeliveryItem['status']> = {
+  branding: 'branding_ready',
+  ads: 'ads_ready',
 }
 
 function daysInMonth(month: string): number {
@@ -69,49 +78,51 @@ function completionPctOf(published: number, target: number): number {
   return (published / target) * 100
 }
 
-// Was this branding item published (to any organic platform) within `month`?
-function publishedInMonth(item: DeliveryItem, month: string): boolean {
-  if (!item.posted_branding) return false
+// Was this item published (to Branding or Ads, per `kind`) within `month`?
+function publishedInMonth(item: DeliveryItem, kind: DeliveryKind, month: string): boolean {
+  const postedFlag = kind === 'ads' ? item.posted_ads : item.posted_branding
+  if (!postedFlag) return false
   return item.posts.some(p => p.posted_date.slice(0, 7) === month)
 }
 
 // contentType narrows to just 'video' or 'poster' (targets and items alike); omitted or
 // undefined combines both, matching the Client Delivery Status table's default view.
-export function computeMonthlyBrandingRollup(
-  items: DeliveryItem[], clientTargets: DeliveryClientTarget[], month: string,
+export function computeMonthlyRollup(
+  items: DeliveryItem[], clientTargets: DeliveryClientTarget[], month: string, kind: DeliveryKind,
   contentType?: 'video' | 'poster',
 ): MonthlyRollup {
   const scopedItems = contentType ? items.filter(i => i.content_type === contentType) : items
   const scopedTargets = contentType ? clientTargets.filter(t => t.content_type === contentType) : clientTargets
   const target = scopedTargets
-    .filter(t => t.kind === 'branding' && t.month === month)
+    .filter(t => t.kind === kind && t.month === month)
     .reduce((sum, t) => sum + t.target, 0)
-  const completed = scopedItems.filter(i => i.status !== 'cancelled' && publishedInMonth(i, month)).length
+  const completed = scopedItems.filter(i => i.status !== 'cancelled' && publishedInMonth(i, kind, month)).length
   const remaining = Math.max(target - completed, 0)
   return { target, completed, remaining, completionPct: completionPctOf(completed, target) }
 }
 
 export function computeClientDeliveryStatus(
-  items: DeliveryItem[], clientTargets: DeliveryClientTarget[], month: string, today: string,
+  items: DeliveryItem[], clientTargets: DeliveryClientTarget[], month: string, today: string, kind: DeliveryKind,
   contentType?: 'video' | 'poster',
 ): ClientDeliveryRow[] {
   const scopedItems = contentType ? items.filter(i => i.content_type === contentType) : items
   const scopedTargets = contentType ? clientTargets.filter(t => t.content_type === contentType) : clientTargets
+  const readyStatus = READY_STATUS[kind]
 
   const clients = new Set<string>()
   for (const i of scopedItems) if (i.status !== 'cancelled') clients.add(i.client_name)
-  for (const t of scopedTargets) if (t.kind === 'branding' && t.month === month) clients.add(t.client_name)
+  for (const t of scopedTargets) if (t.kind === kind && t.month === month) clients.add(t.client_name)
 
   const elapsedPct = monthElapsedPct(today, month)
 
   return Array.from(clients).map(client => {
     const clientItems = scopedItems.filter(i => i.client_name === client && i.status !== 'cancelled')
     const target = scopedTargets
-      .filter(t => t.client_name === client && t.kind === 'branding' && t.month === month)
+      .filter(t => t.client_name === client && t.kind === kind && t.month === month)
       .reduce((sum, t) => sum + t.target, 0)
-    const published = clientItems.filter(i => publishedInMonth(i, month)).length
+    const published = clientItems.filter(i => publishedInMonth(i, kind, month)).length
     const editing = clientItems.filter(i => i.status === 'ready_to_edit' || i.status === 'edited').length
-    const readyToPublish = clientItems.filter(i => i.status === 'branding_ready').length
+    const readyToPublish = clientItems.filter(i => i.status === readyStatus).length
     const remaining = Math.max(target - published, 0)
     const completionPct = completionPctOf(published, target)
     return {

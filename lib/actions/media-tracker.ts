@@ -250,10 +250,15 @@ export async function updateContentItemStatus(
 
   // A poster has no drive file to link — only videos are required to leave one behind.
   const isPoster = current.content_type === 'poster'
+  // Only the fresh Edited -> Completed Edit move is a real submission that needs a Drive
+  // link recorded. Branding/Ads Ready -> Completed Edit is an undo of an approval (see
+  // advance() in media-tracker-client.tsx) — the item already has a link on file from
+  // when it first reached On Review, so don't demand a new one just to revert.
+  const isFreshReview = status === 'on_review' && current.status === 'edited'
 
   // Enforced server-side too — the client can't be trusted to be the only gate on a
   // pipeline transition that's supposed to always leave a real Drive link behind.
-  if (status === 'on_review' && !isPoster && !isValidDriveLink(editedDriveLink ?? '')) {
+  if (isFreshReview && !isPoster && !isValidDriveLink(editedDriveLink ?? '')) {
     return { success: false, error: 'A valid Google Drive link is required' }
   }
   // Branding/Ads Ready is only ever reached from On Review (see TRANSITIONS), so this is
@@ -268,7 +273,7 @@ export async function updateContentItemStatus(
   // Entering Editing records who's taking it on — the assignment moment, before any
   // actual edit/design work exists (no date/drive link yet, those come at on_review).
   if (status === 'edited' && editorId) updates.edited_by = editorId
-  if (status === 'on_review') {
+  if (isFreshReview) {
     updates.edited_date = editedDate || todayIST()
     if (!isPoster) updates.edited_drive_link = editedDriveLink!.trim()
     // Reaching On Review (Completed Edit) is where the editor is recorded — the

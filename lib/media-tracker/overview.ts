@@ -23,8 +23,18 @@ export type OverviewItem = {
   posts: { posted_date: string; platform: string }[]
   posted_ads: boolean
   scheduled_post_date: string | null
+  // Added for computeContentPipeline (Overview Dashboard redesign, Phase 1 follow-up).
+  posted_branding: boolean
 }
-export type OverviewShoot = { id: string; status: OverviewShootStatus; start_time: string; created_at: string }
+export type OverviewShoot = {
+  id: string
+  status: OverviewShootStatus
+  start_time: string
+  created_at: string
+  // Added for computeContentPipeline — identifies a shoot spun off an Ads Video item,
+  // mirroring shootLinkedItemIds in media-tracker-client.tsx.
+  source_content_item_id: string | null
+}
 export type OverviewAd = {
   id: string
   status: OverviewAdStatus
@@ -251,5 +261,44 @@ export function computeTodayAndAllTime({ items, shoots, ads, today }: OverviewIn
   return {
     shootsToday, editingReviewsToday, brandingPostsToday, adsToday,
     postedAllTime, usedInAdsAllTime, overdueBrandingCount, adsInTestingCount,
+  }
+}
+
+// Mirrors VIDEO_PIPELINE_ORDER / POSTER_PIPELINE_ORDER in media-tracker-client.tsx, minus
+// 'cancelled' — every status a live (not yet posted, not cancelled) item can sit in.
+const VIDEO_WIP_STATUSES = new Set<OverviewStatus>(['ready_to_edit', 'edited', 'on_review', 'branding_ready', 'ads_ready'])
+const POSTER_WIP_STATUSES = new Set<OverviewStatus>(['design', 'edited', 'on_review', 'branding_ready', 'ads_ready'])
+
+export type ContentPipeline = {
+  video: { shoots: number; adsVideo: number; wip: number; brandingAllTime: number; adsAllTime: number }
+  poster: { wip: number; brandingAllTime: number; adsAllTime: number }
+}
+
+// Mirrors the Video/Poster tabs' own nav-section badge counts exactly (see navSections in
+// media-tracker-client.tsx), so the Overview Dashboard's "Content Pipeline" section always
+// agrees with the numbers on those tabs rather than showing a different, simplified total.
+export function computeContentPipeline({ items, shoots }: Pick<OverviewInput, 'items' | 'shoots'>): ContentPipeline {
+  const shootLinkedItemIds = new Set(
+    shoots.filter(s => s.source_content_item_id).map(s => s.source_content_item_id as string)
+  )
+
+  const adsVideo = items.filter(i =>
+    i.content_type === 'video' && i.source === 'ads_video'
+    && (i.status === 'voiceover' || (i.status === 'scripting' && !shootLinkedItemIds.has(i.id)))
+  ).length
+
+  return {
+    video: {
+      shoots: shoots.filter(s => s.status === 'scheduled').length,
+      adsVideo,
+      wip: items.filter(i => i.content_type === 'video' && VIDEO_WIP_STATUSES.has(i.status)).length,
+      brandingAllTime: items.filter(i => i.content_type === 'video' && i.posted_branding).length,
+      adsAllTime: items.filter(i => i.content_type === 'video' && i.posted_ads).length,
+    },
+    poster: {
+      wip: items.filter(i => i.content_type === 'poster' && POSTER_WIP_STATUSES.has(i.status)).length,
+      brandingAllTime: items.filter(i => i.content_type === 'poster' && i.posted_branding).length,
+      adsAllTime: items.filter(i => i.content_type === 'poster' && i.posted_ads).length,
+    },
   }
 }

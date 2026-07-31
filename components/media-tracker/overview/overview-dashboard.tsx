@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react"
 import { ChevronDown, Search as SearchIcon, Filter as FilterIcon } from "lucide-react"
-import { computeTodayAndAllTime, type AttentionItem, type Overview } from "@/lib/media-tracker/overview"
+import { computeTodayAndAllTime, computeContentPipeline, type AttentionItem, type Overview } from "@/lib/media-tracker/overview"
 import { computeMonthlyBrandingRollup, computeClientDeliveryStatus } from "@/lib/media-tracker/delivery-status"
 import { OverviewRail } from "./overview-rail"
 import { DeliveryStatusTable } from "./delivery-status-table"
 import { WorkFlow } from "./work-flow"
+import { ContentPipelineSection } from "./content-pipeline"
 import type { ContentItem, Shoot, Ad, ClientTarget } from "@/components/media-tracker/media-tracker-client"
 
 function fmtMonth(ym: string): string {
@@ -37,6 +38,7 @@ export function OverviewDashboard({
   const contentType = contentTypeFilter === "all" ? undefined : contentTypeFilter
 
   const todayAndAllTime = useMemo(() => computeTodayAndAllTime({ items, shoots, ads, today }), [items, shoots, ads, today])
+  const contentPipeline = useMemo(() => computeContentPipeline({ items, shoots }), [items, shoots])
   const effectiveMonth = monthFilter === "all" ? today.slice(0, 7) : monthFilter
   const monthlyRollup = useMemo(
     () => computeMonthlyBrandingRollup(items, clientTargets, effectiveMonth, contentType),
@@ -127,6 +129,14 @@ export function OverviewDashboard({
               adsInTestingCount={todayAndAllTime.adsInTestingCount}
               overdueBrandingCount={todayAndAllTime.overdueBrandingCount}
             />
+          </section>
+
+          <section>
+            <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>Everything still in motion</p>
+            <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>Content pipeline</h2>
+            <div style={{ background: "#fff", border: "1px solid #DDE1E7", borderRadius: 14, padding: "18px 20px", boxShadow: "0 1px 2px rgba(16,24,40,0.05)" }}>
+              <ContentPipelineSection pipeline={contentPipeline} />
+            </div>
           </section>
         </main>
       </div>

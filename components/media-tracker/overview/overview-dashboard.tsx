@@ -3,10 +3,12 @@
 import { useMemo, useState } from "react"
 import { computeTodayAndAllTime, computeContentPipeline, type AttentionItem, type Overview } from "@/lib/media-tracker/overview"
 import { computeMonthlyBrandingRollup, computeClientDeliveryStatus } from "@/lib/media-tracker/delivery-status"
+import { computeUpcomingSchedule } from "@/lib/media-tracker/schedule"
 import { OverviewRail } from "./overview-rail"
 import { DeliveryStatusTable } from "./delivery-status-table"
 import { WorkFlow } from "./work-flow"
 import { ContentPipelineSection } from "./content-pipeline"
+import { UpcomingSchedule } from "./upcoming-schedule"
 import type { ContentItem, Shoot, Ad, ClientTarget } from "@/components/media-tracker/media-tracker-client"
 
 function fmtMonth(ym: string): string {
@@ -33,6 +35,7 @@ export function OverviewDashboard({
 
   const todayAndAllTime = useMemo(() => computeTodayAndAllTime({ items, shoots, ads, today }), [items, shoots, ads, today])
   const contentPipeline = useMemo(() => computeContentPipeline({ items, shoots }), [items, shoots])
+  const upcomingSchedule = useMemo(() => computeUpcomingSchedule(items, today, 5), [items, today])
   const effectiveMonth = today.slice(0, 7)
   const monthlyRollup = useMemo(
     () => computeMonthlyBrandingRollup(items, clientTargets, effectiveMonth, contentTypeFilter),
@@ -99,6 +102,12 @@ export function OverviewDashboard({
               adsInTestingCount={todayAndAllTime.adsInTestingCount}
               overdueBrandingCount={todayAndAllTime.overdueBrandingCount}
             />
+          </section>
+
+          <section>
+            <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>What&apos;s queued next</p>
+            <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>Upcoming schedule</h2>
+            <UpcomingSchedule items={upcomingSchedule} onNavigate={onAttentionClick} />
           </section>
         </main>
       </div>

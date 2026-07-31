@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { groupSchedule, buildMonthGrid, type ScheduleEntry } from './schedule'
+import { groupSchedule, buildMonthGrid, computeUpcomingSchedule, type ScheduleEntry, type UpcomingScheduleInput } from './schedule'
+
+function scheduledItem(overrides: Partial<UpcomingScheduleInput> & Pick<UpcomingScheduleInput, 'id'>): UpcomingScheduleInput {
+  return {
+    client_name: 'Acme', title: 'Test item', content_type: 'video', status: 'branding_ready',
+    scheduled_post_date: '2026-07-28', scheduled_post_time: null, priority: null,
+    ...overrides,
+  }
+}
 
 function entry(overrides: Partial<ScheduleEntry> & Pick<ScheduleEntry, 'id' | 'date'>): ScheduleEntry {
   return {
@@ -76,5 +84,57 @@ describe('buildMonthGrid', () => {
     const grid = buildMonthGrid(2026, 7, entries, '2026-07-28')
     const day = grid.find(d => d.date === '2026-07-15')!
     expect(day.entries.map(e => e.id)).toEqual(['am', 'pm'])
+  })
+})
+
+describe('computeUpcomingSchedule', () => {
+  it('includes only branding_ready/ads_ready items with a scheduled_post_date set', () => {
+    const items = [
+      scheduledItem({ id: '1', status: 'branding_ready', scheduled_post_date: '2026-07-29' }),
+      scheduledItem({ id: '2', status: 'ads_ready', scheduled_post_date: '2026-07-30' }),
+      scheduledItem({ id: '3', status: 'ready_to_edit', scheduled_post_date: '2026-07-29' }),
+      scheduledItem({ id: '4', status: 'branding_ready', scheduled_post_date: null }),
+    ]
+    const result = computeUpcomingSchedule(items, '2026-07-28', 10)
+    expect(result.map(r => r.id)).toEqual(['1', '2'])
+  })
+
+  it('maps status to a destination and flags overdue entries', () => {
+    const items = [
+      scheduledItem({ id: 'b', status: 'branding_ready', scheduled_post_date: '2026-07-25' }),
+      scheduledItem({ id: 'a', status: 'ads_ready', scheduled_post_date: '2026-07-30' }),
+    ]
+    const result = computeUpcomingSchedule(items, '2026-07-28', 10)
+    const b = result.find(r => r.id === 'b')!
+    const a = result.find(r => r.id === 'a')!
+    expect(b.destination).toBe('branding')
+    expect(b.overdue).toBe(true)
+    expect(a.destination).toBe('ads')
+    expect(a.overdue).toBe(false)
+  })
+
+  it('sorts by date then time, untimed entries first on a shared date', () => {
+    const items = [
+      scheduledItem({ id: 'later', scheduled_post_date: '2026-08-01' }),
+      scheduledItem({ id: 'pm', scheduled_post_date: '2026-07-29', scheduled_post_time: '15:00' }),
+      scheduledItem({ id: 'untimed', scheduled_post_date: '2026-07-29', scheduled_post_time: null }),
+      scheduledItem({ id: 'am', scheduled_post_date: '2026-07-29', scheduled_post_time: '08:00' }),
+    ]
+    const result = computeUpcomingSchedule(items, '2026-07-28', 10)
+    expect(result.map(r => r.id)).toEqual(['untimed', 'am', 'pm', 'later'])
+  })
+
+  it('caps the result to the given limit, keeping the soonest entries', () => {
+    const items = [
+      scheduledItem({ id: '1', scheduled_post_date: '2026-07-29' }),
+      scheduledItem({ id: '2', scheduled_post_date: '2026-07-30' }),
+      scheduledItem({ id: '3', scheduled_post_date: '2026-07-31' }),
+    ]
+    const result = computeUpcomingSchedule(items, '2026-07-28', 2)
+    expect(result.map(r => r.id)).toEqual(['1', '2'])
+  })
+
+  it('returns an empty list when nothing is scheduled', () => {
+    expect(computeUpcomingSchedule([], '2026-07-28', 5)).toEqual([])
   })
 })

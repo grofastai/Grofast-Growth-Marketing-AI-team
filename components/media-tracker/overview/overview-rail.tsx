@@ -14,9 +14,10 @@ const ATTENTION_SHORT_LABEL: Record<AttentionKind, string> = {
   "shoots-today": "Shoots",
 }
 
-// Matches components/admin/PageHero.tsx's own gradient exactly, so the rail reads as
-// part of the same brand surface as the hero above it rather than a different palette.
-const RAIL_BG = "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)"
+// Reuses the "Freelance Videography" hero gradient exactly (see TEAM_CFG in
+// app/member/freelancers/freelancers-member-client.tsx) — an on-brand blue already
+// established elsewhere in the app, rather than a new one-off color.
+const RAIL_BG = "linear-gradient(135deg, #082F49 0%, #0369A1 45%, #041520 100%)"
 
 function RingProgress({ pct }: { pct: number }) {
   const r = 52
@@ -51,7 +52,7 @@ export function OverviewRail({
     <aside style={{
       position: "relative", overflow: "hidden", background: RAIL_BG, borderRadius: 20,
       padding: "26px 22px", color: "#fff", display: "flex", flexDirection: "column", gap: 24,
-      boxShadow: "0 14px 30px rgba(139,18,18,0.35)",
+      boxShadow: "0 14px 30px rgba(3,105,161,0.35)",
     }}>
 
       <div>

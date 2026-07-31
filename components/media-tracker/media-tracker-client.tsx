@@ -3272,63 +3272,15 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
   )
 }
 
-// ── Set / correct who went — usable at any point, including after the shoot is Done, so an
-// older shoot with no crew recorded can be backfilled. ─────────────────────────
-function EditCrewModal({ shoot, members, currentUserId, onClose, onSaved }: {
+// ── Edit shoot details — client/title/date/time/notes/tags/crew, all in one save.
+// Replaces the old separate "Edit shoot" + "Who went" modals for Scheduled shoots. ────────
+function EditShootModal({ shoot, members, currentUserId, clients, pastClients, onClose, onSaved }: {
   shoot: Shoot
   members: Member[]
   currentUserId: string
-  onClose: () => void
-  onSaved: (crew: Member[]) => void
-}) {
-  const [crew, setCrew] = useState<string[]>(shoot.goingByUsers.map(u => u.id))
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  function toggle(id: string) {
-    setCrew(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-  }
-
-  async function submit() {
-    setSaving(true); setError(null)
-    const res = await updateShootCrew(shoot.id, crew)
-    setSaving(false)
-    if (!res.success) { setError(res.error ?? "Failed to save"); return }
-    onSaved(members.filter(m => crew.includes(m.id)))
-  }
-
-  return (
-    <Modal title="Who Went" onClose={onClose}>
-      <div className="flex flex-col gap-3">
-        <div>
-          <label style={LABEL}>Crew</label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {members.map(m => {
-              const on = crew.includes(m.id)
-              return (
-                <button key={m.id} type="button" onClick={() => toggle(m.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                  {on && <Check size={11} />} {upper(m.name)}{m.id === currentUserId ? " (me)" : ""}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-        {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
-        <PrimaryButton onClick={submit} disabled={saving}>
-          {saving ? "Saving…" : `Save Crew${crew.length > 0 ? ` (${crew.length})` : ""}`}
-        </PrimaryButton>
-      </div>
-    </Modal>
-  )
-}
-
-// ── Edit shoot details ───────────────────────────────────────────────────────
-function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
-  shoot: Shoot
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   onClose: () => void
-  onSaved: (patch: { client: string; legacyTitle: string; start_time: string; notes: string | null }) => void
+  onSaved: (patch: { client: string; legacyTitle: string; start_time: string; notes: string | null; tags: ShootTag[]; crew: Member[] }) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
@@ -3346,8 +3298,17 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
     return t ? t.slice(0, 5) : ""
   })
   const [notes, setNotes] = useState(shoot.notes ?? "")
+  const [tags, setTags] = useState<ShootTag[]>(shoot.tags)
+  const [crew, setCrew] = useState<string[]>(shoot.goingByUsers.map(u => u.id))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function toggleTag(tag: ShootTag) {
+    setTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
+  }
+  function toggleCrew(id: string) {
+    setCrew(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
 
   async function submit() {
     if (!client) { setError("Client is required"); return }
@@ -3355,22 +3316,28 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
     if (!fromTime) { setError("From time is required"); return }
     if (!toTime) { setError("To time is required"); return }
     setSaving(true); setError(null)
-    const res = await updateTrackerShoot(shoot.id, {
-      client, title: title.trim(), shot_date: shotDate,
-      shot_time_from: fromTime, shot_time_to: toTime, notes: notes.trim() || undefined,
-    })
+    const [shootRes, crewRes] = await Promise.all([
+      updateTrackerShoot(shoot.id, {
+        client, title: title.trim(), shot_date: shotDate,
+        shot_time_from: fromTime, shot_time_to: toTime, notes: notes.trim() || undefined, tags,
+      }),
+      updateShootCrew(shoot.id, crew),
+    ])
     setSaving(false)
-    if (!res.success) { setError(res.error ?? "Failed to save"); return }
+    if (!shootRes.success) { setError(shootRes.error ?? "Failed to save"); return }
+    if (!crewRes.success) { setError(crewRes.error ?? "Failed to save crew"); return }
     onSaved({
       client,
       legacyTitle: title.trim(),
       start_time: `${shotDate}T${fromTime}:00`,
       notes: notes.trim() || null,
+      tags,
+      crew: members.filter(m => crew.includes(m.id)),
     })
   }
 
   return (
-    <Modal title="Edit Shoot" onClose={onClose}>
+    <Modal title="Edit Details" onClose={onClose}>
       <div className="flex flex-col gap-3">
         <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
         <div>
@@ -3378,7 +3345,7 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
         </div>
         <div>
-          <label style={LABEL}>Shot Date *</label>
+          <label style={LABEL}>Schedule Date *</label>
           <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -3395,9 +3362,37 @@ function EditShootModal({ shoot, clients, pastClients, onClose, onSaved }: {
           <label style={LABEL}>Notes</label>
           <textarea style={{ ...FIELD, minHeight: 50, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} />
         </div>
-        <p className="text-[10px]" style={{ color: "#9CA3AF", margin: 0 }}>
-          Crew and video titles are edited from their own actions — they aren&apos;t changed here.
-        </p>
+        <div>
+          <label style={LABEL}>Tags</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {(Object.keys(SHOOT_TAG_CFG) as ShootTag[]).map(tag => {
+              const cfg = SHOOT_TAG_CFG[tag]
+              const on = tags.includes(tag)
+              return (
+                <button key={tag} type="button" onClick={() => toggleTag(tag)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {on && <Check size={11} />} {cfg.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {members.length > 0 && (
+          <div>
+            <label style={LABEL}>Crew <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {members.map(m => {
+                const on = crew.includes(m.id)
+                return (
+                  <button key={m.id} type="button" onClick={() => toggleCrew(m.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    {on && <Check size={11} />} {upper(m.name)}{m.id === currentUserId ? " (me)" : ""}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</PrimaryButton>
       </div>
@@ -3763,7 +3758,6 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   // dragging any card straight into the Cancelled column) — same "who caused it" prompt as
   // the On Review Move modal's Cancelled branch, just reached from a shorter path.
   const [cancelReasonFor, setCancelReasonFor] = useState<ContentItem | null>(null)
-  const [editCrewFor, setEditCrewFor] = useState<Shoot | null>(null)
   const [editShootFor, setEditShootFor] = useState<Shoot | null>(null)
   const [editCompletedShootFor, setEditCompletedShootFor] = useState<Shoot | null>(null)
   // Scheduled -> Edit Shoot (basic details), Completed -> Edit Completed Shoot (the video
@@ -4472,12 +4466,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       : prev)
   }
 
-  function handleCrewSaved(shootId: string, crew: Member[]) {
-    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, goingByUsers: crew } : s))
-    setEditCrewFor(null)
-  }
-
-  // Same as handleCrewSaved, but from Edit Completed Shoot — that modal stays open (its
+  // Same as handleShootSaved's crew update, but from Edit Completed Shoot — that modal stays open (its
   // own state already reflects the pick), so it doesn't close editCrewFor.
   function handleCompletedShootCrewSaved(shootId: string, crew: Member[]) {
     setShoots(prev => prev.map(s => s.id === shootId ? { ...s, goingByUsers: crew } : s))
@@ -4533,8 +4522,12 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     })
   }
 
-  function handleShootSaved(shootId: string, patch: { client: string; legacyTitle: string; start_time: string; notes: string | null }) {
-    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, ...patch } : s))
+  function handleShootSaved(shootId: string, patch: { client: string; legacyTitle: string; start_time: string; notes: string | null; tags: ShootTag[]; crew: Member[] }) {
+    setShoots(prev => prev.map(s => s.id === shootId ? {
+      ...s,
+      client: patch.client, legacyTitle: patch.legacyTitle, start_time: patch.start_time,
+      notes: patch.notes, tags: patch.tags, goingByUsers: patch.crew,
+    } : s))
     // A shoot spun off an Ads Video item shares its client — keep the linked item's card
     // in sync instead of leaving it stuck on the shoot's old client.
     const shoot = shoots.find(s => s.id === shootId)
@@ -5300,13 +5293,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         <DeleteShootModal shoot={deleteShootFor} onClose={() => setDeleteShootFor(null)}
           onConfirm={handleConfirmDeleteShoot} />
       )}
-      {editCrewFor && (
-        <EditCrewModal shoot={editCrewFor} members={shootingMembers} currentUserId={currentUserId}
-          onClose={() => setEditCrewFor(null)}
-          onSaved={crew => handleCrewSaved(editCrewFor.id, crew)} />
-      )}
       {editShootFor && (
-        <EditShootModal shoot={editShootFor} clients={clients} pastClients={pastClients}
+        <EditShootModal shoot={editShootFor} members={shootingMembers} currentUserId={currentUserId} clients={clients} pastClients={pastClients}
           onClose={() => setEditShootFor(null)}
           onSaved={patch => handleShootSaved(editShootFor.id, patch)} />
       )}

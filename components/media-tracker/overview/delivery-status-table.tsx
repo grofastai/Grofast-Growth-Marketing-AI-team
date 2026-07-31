@@ -79,9 +79,6 @@ export function DeliveryStatusTable({ rows, onEditTarget }: {
           </tbody>
         </table>
       </div>
-      <div style={{ padding: "10px 18px", fontSize: 11, color: "#8A94A3", fontWeight: 600, borderTop: "1px solid #EBEEF2" }}>
-        Status is pace-based: On Track keeps up with the % of the month elapsed; Behind trails it; Completed once Published ≥ Target.
-      </div>
     </div>
   )
 }

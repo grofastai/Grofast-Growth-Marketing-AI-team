@@ -58,7 +58,7 @@ export function OverviewRail({
         <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.1em", margin: "0 0 6px" }}>Live status</p>
         <h3 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 18, color: "#fff", margin: "0 0 12px" }}>Needs attention</h3>
         {attention.length === 0 ? (
-          <p style={{ fontSize: 12, fontWeight: 600, color: "#6EE7A5", margin: 0 }}>All clear — nothing overdue or stalled.</p>
+          <p style={{ fontSize: 12, fontWeight: 600, color: "#6EE7A5", margin: 0 }}>All clear. Nothing overdue or stalled.</p>
         ) : (
           attention.map((a, i) => (
             <button key={a.kind} onClick={() => onAttentionClick(a.target)} title={a.label}

@@ -27,24 +27,19 @@ function PipelineCard({ title, accent, rows }: {
 // always agree with what those tabs show instead of a different, simplified total.
 export function ContentPipelineSection({ pipeline }: { pipeline: ContentPipeline }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <PipelineCard title="Video" accent="#DE1A1A" rows={[
-          { label: "Shoots", value: pipeline.video.shoots },
-          { label: "Ads Video", value: pipeline.video.adsVideo },
-          { label: "Ready to Edit", value: pipeline.video.wip, color: "#0D9488" },
-          { label: "Branding", value: pipeline.video.brandingAllTime, color: "#7C3AED" },
-          { label: "Advertisement", value: pipeline.video.adsAllTime, color: "#2563EB" },
-        ]} />
-        <PipelineCard title="Poster" accent="#7C3AED" rows={[
-          { label: "Ready to Edit", value: pipeline.poster.wip, color: "#0D9488" },
-          { label: "Branding", value: pipeline.poster.brandingAllTime, color: "#7C3AED" },
-          { label: "Advertisement", value: pipeline.poster.adsAllTime, color: "#2563EB" },
-        ]} />
-      </div>
-      <p style={{ fontSize: 11, color: "#8A94A3", fontWeight: 600, margin: 0 }}>
-        Ready to Edit = everything still live in the pipeline. Branding/Advertisement = all-time posted count, not scoped to a month.
-      </p>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <PipelineCard title="Video" accent="#DE1A1A" rows={[
+        { label: "Shoots", value: pipeline.video.shoots },
+        { label: "Ads Video", value: pipeline.video.adsVideo },
+        { label: "Ready to Edit", value: pipeline.video.wip, color: "#0D9488" },
+        { label: "Branding", value: pipeline.video.brandingAllTime, color: "#7C3AED" },
+        { label: "Advertisement", value: pipeline.video.adsAllTime, color: "#2563EB" },
+      ]} />
+      <PipelineCard title="Poster" accent="#7C3AED" rows={[
+        { label: "Ready to Edit", value: pipeline.poster.wip, color: "#0D9488" },
+        { label: "Branding", value: pipeline.poster.brandingAllTime, color: "#7C3AED" },
+        { label: "Advertisement", value: pipeline.poster.adsAllTime, color: "#2563EB" },
+      ]} />
     </div>
   )
 }

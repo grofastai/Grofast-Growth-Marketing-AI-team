@@ -106,14 +106,9 @@ export function OverviewDashboard({
           <section>
             <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>Where each account stands</p>
             <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>
-              Client delivery — Branding{contentTypeFilter !== "all" ? ` · ${contentTypeFilter === "video" ? "Video" : "Poster"}` : ""}
+              Client Delivery: Branding{contentTypeFilter !== "all" ? ` · ${contentTypeFilter === "video" ? "Video" : "Poster"}` : ""}
             </h2>
             <DeliveryStatusTable rows={deliveryRows} onEditTarget={onEditTarget} />
-            {!onEditTarget && (
-              <p style={{ fontSize: 11, color: "#8A94A3", fontWeight: 600, margin: "8px 2px 0" }}>
-                Pick Video or Poster above to edit a client's target.
-              </p>
-            )}
           </section>
 
           <section>

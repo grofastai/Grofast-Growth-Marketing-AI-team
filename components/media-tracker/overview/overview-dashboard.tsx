@@ -72,7 +72,7 @@ export function OverviewDashboard({
           monthLabel={monthFilter === "all" ? "This month" : fmtMonth(effectiveMonth)}
         />
 
-        <main className="flex flex-col gap-[32px]">
+        <main className="flex flex-col gap-[32px] min-w-0">
           <section>
             <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>Where each account stands</p>
             <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>Client delivery — Branding</h2>

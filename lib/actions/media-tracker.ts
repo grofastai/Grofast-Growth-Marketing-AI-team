@@ -87,7 +87,7 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
   if (isBackfillPosted) {
     const postedDate = parsed.data.posted_date || today
     const rows = parsed.data.posted_platforms!.map(platform => ({
-      content_item_id: data.id, company_id: ctx.companyId, platform, posted_date: postedDate, posted_by: ctx.id,
+      content_item_id: data.id, company_id: ctx.companyId, platform, posted_date: postedDate, posted_by: parsed.data.posted_by || ctx.id,
       other_platform_label: platform === 'other' ? (parsed.data.other_platform_label || null) : null,
     }))
     const { error: postsError } = await ctx.admin.from('content_item_posts').insert(rows)
@@ -117,7 +117,9 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
     scheduled_post_time: parsed.data.scheduled_post_time || null,
     updated_at:   new Date().toISOString(),
   }
-  if (parsed.data.shot_by) updates.shot_by = parsed.data.shot_by
+  // !== undefined, not truthy — an empty array (clearing Shot By) is truthy in JS and
+  // would otherwise be silently dropped.
+  if (parsed.data.shot_by !== undefined) updates.shot_by = parsed.data.shot_by
   if (parsed.data.edited_by) updates.edited_by = parsed.data.edited_by
   if (parsed.data.edited_date) updates.edited_date = parsed.data.edited_date
   if (parsed.data.edited_drive_link) {

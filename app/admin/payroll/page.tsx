@@ -4,11 +4,10 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import PayrollClient from "./payroll-client"
-import { calcNetWorkHours } from "@/lib/utils/work-hours"
 import { getPayrollSettings } from "@/lib/actions/payroll-settings"
-import { classifyAttendanceDay } from "@/lib/utils/attendance-stats"
 import { listTeams } from "@/lib/actions/teams"
 import { todayIST } from "@/lib/utils/ist-date"
+import { computeEmployeeMonth, type EmployeeMonthData } from "@/lib/payroll/compute-month"
 
 export default async function PayrollPage({
   searchParams,
@@ -169,24 +168,6 @@ export default async function PayrollPage({
     collabHoursByMember[c.collaborator_id] = (collabHoursByMember[c.collaborator_id] ?? 0) + (c.confirmed_hours ?? 0)
   }
 
-  // Build approved leave date-maps per member (full_day -> "full", half_day -> "half")
-  function getMemberLeaveDates(userId: string): Map<string, "full" | "half"> {
-    const s = new Map<string, "full" | "half">()
-    for (const l of approvedLeaves) {
-      if (l.user_id !== userId) continue
-      if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") continue
-      const weight = l.leave_type === "half_day" ? "half" : "full"
-      const cur = new Date(l.from_date + "T12:00:00")
-      const end = new Date(l.to_date   + "T12:00:00")
-      while (cur <= end) {
-        const d = cur.toISOString().split("T")[0]
-        if (d >= monthStart && d <= monthEnd) s.set(d, weight)
-        cur.setDate(cur.getDate() + 1)
-      }
-    }
-    return s
-  }
-
   // All calendar days in this month
   const allMonthDays: string[] = []
   const daysInMonth = new Date(year, mon, 0).getDate()
@@ -194,157 +175,39 @@ export default async function PayrollPage({
     allMonthDays.push(`${month}-${String(d).padStart(2, "0")}`)
   }
 
-  // Configurable via Payroll Settings — falls back to the same defaults this
-  // page always used if a company has no settings row yet.
-  const OT_THRESHOLD = payrollSettings.ot_threshold_hrs
-  const HALF_DAY_THRESHOLD = payrollSettings.half_day_threshold_hrs  // hours below this = half day
-  const SALARY_BASIS = payrollSettings.salary_basis_days
-
   const rows = members.map(m => {
     const myLogs    = logs.filter(l => l.user_id === m.id)
     const myUpdates = updates.filter(u => u.user_id === m.id)
-
-    // Date-keyed lookups — use work_entries when available (stored working_hours may be stale)
-    const updateByDate: Record<string, number> = {}
-    for (const u of myUpdates) {
-      const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      updateByDate[u.date] = entries.length > 0
-        ? calcNetWorkHours(entries as Parameters<typeof calcNetWorkHours>[0])
-        : (u.working_hours ?? 0) + (u.learning_hours ?? 0)
-    }
-    const clockedInDates = new Set(myLogs.filter(l => l.clock_in !== null || l.status === "present").map(l => l.date))
-    const leaveDatesForMember = getMemberLeaveDates(m.id)
-
-    // Classify each day
-    let presentDays = 0, halfDays = 0, absentDays = 0, leaveDays = 0, missingUpdates = 0
-    let totalHours = 0
-    const missingUpdateDates: string[] = []
-
-    for (const date of allMonthDays) {
-      const isHoliday  = holidayDates.has(date)
-      const hasClockIn = clockedInDates.has(date)
-      const workH      = updateByDate[date] ?? 0
-
-      if (isHoliday) continue  // holiday: not counted in working days
-
-      // Shared with Dashboard/Attendance/History/Payslip (lib/utils/attendance-stats.ts)
-      // so this company's Payroll threshold setting is the one source of truth for
-      // every half-day/full-day/absent classification, everywhere it's shown.
-      const leaveType = leaveDatesForMember.get(date)
-      const dayClass  = classifyAttendanceDay({ hasClockIn, workHours: workH, leaveType }, HALF_DAY_THRESHOLD)
-
-      if (dayClass === "leave" || dayClass === "half_leave") {
-        // Approved leave: no deduction either way. A half-day leave where she also
-        // worked the other half earns 0.5 present credit (still never deductible);
-        // one with no sign of work at all collapses to a full leave day.
-        leaveDays += dayClass === "half_leave" ? 0.5 : 1
-        if (dayClass === "half_leave") presentDays += 0.5
-        totalHours += workH
-        continue
-      }
-
-      totalHours += workH
-
-      // Clocked in but no work hours = missing update (still counted as a half day below).
-      // Skip today — the day isn't finished yet, so no update yet isn't a real gap.
-      if (hasClockIn && workH === 0 && date !== today) { missingUpdates++; missingUpdateDates.push(date) }
-
-      if (dayClass === "full") presentDays++
-      else if (dayClass === "half") halfDays++
-      else if (dayClass === "absent") absentDays++
-    }
-
-    // Deductible: absent=1.0, half_day=0.5
-    const deductibleDays = absentDays + (halfDays * 0.5)
-
-    // ── Hours-based formula (preview only, not yet used for actual pay) ──────
-    // 25 days x 8.5 hrs = 212.5 target hours for the month. Subtract approved
-    // Permission hours, approved Half Day leave hours, and Leave days x 8.5 —
-    // what's left is the hours they were actually required to work. Compare
-    // against hours actually logged (totalHours, before the collab-hours add-on
-    // below) to get a shortfall, then value that shortfall at the same
-    // 212.5-hour hourly rate. Kept completely separate from netPay/finalNetPay
-    // — does not affect what Mark Paid actually pays out.
-    const HOURS_TARGET = 25 * 8.5
-    let permissionHoursB = 0, halfDayHoursB = 0
-    for (const l of approvedLeaves.filter(l => l.user_id === m.id)) {
-      const start = l.from_date > monthStart ? l.from_date : monthStart
-      const end   = l.to_date   < monthEnd   ? l.to_date   : monthEnd
-      if (start > end) continue
-      if (l.leave_type === "permission") {
-        permissionHoursB += Number(l.permission_hours) || 0
-      } else if (l.leave_type === "half_day" && l.half_day_from_time && l.half_day_to_time) {
-        const [fh, fm] = l.half_day_from_time.split(":").map(Number)
-        const [th, tm] = l.half_day_to_time.split(":").map(Number)
-        const mins = (th * 60 + tm) - (fh * 60 + fm)
-        if (mins > 0) halfDayHoursB += mins / 60
-      }
-    }
-    const leaveHoursB    = leaveDays * 8.5
-    const requiredHoursB = Math.max(0, HOURS_TARGET - permissionHoursB - halfDayHoursB - leaveHoursB)
-    const actualHoursB   = totalHours
-    const shortfallHoursB = Math.max(0, requiredHoursB - actualHoursB)
-
-    // Add confirmed collab hours (count toward total, not OT separately)
-    const collabH = collabHoursByMember[m.id] ?? 0
-    totalHours = Math.round((totalHours + collabH) * 10) / 10
-
-    // Overtime is cumulative for the whole month, not per-day (confirmed 2026-07-28):
-    // someone present many days but still short of the 212.5h monthly target has zero
-    // OT, no matter how long any single day ran — only hours beyond the target count,
-    // and only once the target is actually crossed.
-    const otHours = Math.round(Math.max(0, totalHours - HOURS_TARGET) * 10) / 10
-
-    let basePay = 0, deduction = 0, otPay = 0, netPay = 0
-
-    // Use snapshotted salary for this month — falls back to current if no snapshot (shouldn't happen after above)
-    const effectiveSalary = snapshotMap.get(m.id) ?? m.monthly_salary
-    if ((m.employment_type ?? "regular") === "regular" && effectiveSalary) {
-      const dailyRate = effectiveSalary / SALARY_BASIS
-      basePay   = effectiveSalary
-      deduction = Math.round(deductibleDays * dailyRate * 100) / 100
-      otPay     = Math.round(otHours * (dailyRate / OT_THRESHOLD) * 100) / 100
-      netPay    = Math.round((basePay - deduction + otPay) * 100) / 100
-    } else if (m.hourly_rate) {
-      basePay = Math.round(totalHours * m.hourly_rate * 100) / 100
-      netPay  = basePay
-    }
-
+    const myLeaves  = approvedLeaves.filter(l => l.user_id === m.id)
     const run = runsMap.get(m.id)
-    const bonus     = run?.bonus     ?? 0
-    const advance   = run?.advance   ?? 0
-    const incentive = run?.incentive ?? 0
-    const finalNetPay = Math.round((netPay + bonus + incentive - advance) * 100) / 100
 
-    // Hours-based preview net pay — same base salary, deduction just computed the
-    // other way (shortfall hours x hourly rate instead of absent/half days x daily rate).
-    const hourlyRateB = effectiveSalary ? effectiveSalary / HOURS_TARGET : 0
-    const deductionB  = Math.round(shortfallHoursB * hourlyRateB * 100) / 100
-    const netPayB     = (m.employment_type ?? "regular") === "regular" && effectiveSalary
-      ? Math.round((effectiveSalary - deductionB) * 100) / 100
-      : null
+    const data: EmployeeMonthData = {
+      month,
+      member: {
+        employment_type: m.employment_type,
+        monthly_salary: m.monthly_salary,
+        hourly_rate: m.hourly_rate,
+      },
+      updates: myUpdates.map(u => ({
+        date: u.date, working_hours: u.working_hours, learning_hours: u.learning_hours,
+        work_entries: u.work_entries,
+      })),
+      logs: myLogs.map(l => ({ date: l.date, clock_in: l.clock_in, status: l.status })),
+      approvedLeaves: myLeaves,
+      holidayDates,
+      collabHours: collabHoursByMember[m.id] ?? 0,
+      snapshotSalary: snapshotMap.get(m.id) ?? null,
+      run: run ?? null,
+    }
 
-    // Working days for this month (excluding holidays)
-    const effectiveWorkDays = allMonthDays.filter(d => !holidayDates.has(d)).length
+    const breakdown = computeEmployeeMonth(data, payrollSettings)
 
     return {
       id: m.id, name: m.name, employee_id: m.employee_id, team: m.team,
-      employment_type: m.employment_type ?? "regular",
-      presentDays, halfDays, absentDays, leaveDays, missingUpdates, missingUpdateDates,
-      deductibleDays,
-      totalHours, otHours, collabHours: collabH,
-      basePay, deduction, otPay, netPay,
-      bonus, advance, incentive, finalNetPay,
-      hoursPreview: {
-        targetHours: HOURS_TARGET, permissionHours: Math.round(permissionHoursB * 10) / 10,
-        halfDayHours: Math.round(halfDayHoursB * 10) / 10, leaveHours: Math.round(leaveHoursB * 10) / 10,
-        requiredHours: Math.round(requiredHoursB * 10) / 10, actualHours: Math.round(actualHoursB * 10) / 10,
-        shortfallHours: Math.round(shortfallHoursB * 10) / 10, deduction: deductionB, netPay: netPayB,
-      },
+      ...breakdown,
       isPaid: run?.is_paid ?? false,
       paidAt: run?.paid_at ?? null,
       monthly_salary: snapshotMap.get(m.id) ?? m.monthly_salary, hourly_rate: m.hourly_rate,
-      effectiveWorkDays,
     }
   })
 

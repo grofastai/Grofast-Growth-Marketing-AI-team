@@ -1670,6 +1670,7 @@ function NewContentModal({ clients, pastClients, members, defaultContentType = "
   const [otherPlatformLabel, setOtherPlatformLabel] = useState("")
   const [postedDate, setPostedDate] = useState(todayIST())
   const [editedBy, setEditedBy] = useState("")
+  const [postedBy, setPostedBy] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -1686,6 +1687,7 @@ function NewContentModal({ clients, pastClients, members, defaultContentType = "
       posted_platforms: alreadyPosted ? postedPlatforms : undefined,
       posted_date: alreadyPosted ? postedDate : undefined,
       edited_by: alreadyPosted ? (editedBy || undefined) : undefined,
+      posted_by: alreadyPosted ? (postedBy || undefined) : undefined,
       other_platform_label: alreadyPosted && postedPlatforms.includes("other") ? (otherPlatformLabel.trim() || undefined) : undefined,
     })
     setSaving(false)
@@ -1705,6 +1707,7 @@ function NewContentModal({ clients, pastClients, members, defaultContentType = "
       posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({
         id: `${res.id}-${i}`, content_item_id: res.id!, platform, posted_date: postedDate, post_link: null, ad_run_date: null,
         other_platform_label: platform === "other" ? (otherPlatformLabel.trim() || null) : null,
+        postedByUser: postedBy ? (members.find(m => m.id === postedBy) ?? null) : null,
       })) : [],
     })
   }
@@ -1766,6 +1769,13 @@ function NewContentModal({ clients, pastClients, members, defaultContentType = "
                   {members.map(m => <option key={m.id} value={m.id}>{upper(m.name)}</option>)}
                 </select>
               </div>
+            </div>
+            <div>
+              <label style={LABEL}>Posted By</label>
+              <select style={{ ...FIELD, cursor: "pointer" }} value={postedBy} onChange={e => setPostedBy(e.target.value)}>
+                <option value="">— Not set —</option>
+                {members.map(m => <option key={m.id} value={m.id}>{upper(m.name)}</option>)}
+              </select>
             </div>
           </div>
         )}

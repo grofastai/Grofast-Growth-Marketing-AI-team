@@ -109,7 +109,7 @@ export function OverviewDashboard({
       <section>
         <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>Everything still in motion</p>
         <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>Content pipeline</h2>
-        <ContentPipelineSection pipeline={contentPipeline} />
+        <ContentPipelineSection pipeline={contentPipeline} onNavigate={onAttentionClick} />
       </section>
     </div>
   )

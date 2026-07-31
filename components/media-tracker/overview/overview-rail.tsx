@@ -38,14 +38,9 @@ export function OverviewRail({
   return (
     <aside style={{
       position: "relative", overflow: "hidden", background: RAIL_BG, borderRadius: 20,
-      padding: "26px 22px 26px 34px", color: "#fff", display: "flex", flexDirection: "column", gap: 24,
+      padding: "26px 22px", color: "#fff", display: "flex", flexDirection: "column", gap: 24,
       boxShadow: "0 14px 30px rgba(139,18,18,0.35)",
     }}>
-      <div style={{
-        position: "absolute", left: 0, top: 0, bottom: 0, width: 14,
-        backgroundImage: "radial-gradient(circle at 7px 11px, rgba(255,255,255,0.22) 3px, transparent 3.6px)",
-        backgroundSize: "14px 24px", backgroundRepeat: "repeat-y",
-      }} />
 
       <div>
         <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.1em", margin: "0 0 6px" }}>Live status</p>

@@ -46,6 +46,7 @@ type ContentStatus =
 type TargetingType = "broad" | "interest" | "lookalike" | "retargeting"
 type AdStatus = "active" | "paused" | "testing" | "stopped"
 type ShootType = "ads_shoot" | "branding_shoot"
+type ShootTag = "branding" | "advertisement" | "promotion"
 type CancelledBy = "client" | "us"
 
 type Person = { id: string; name: string } | null
@@ -101,7 +102,7 @@ export type ContentItem = {
   edited_drive_link: string | null
   // Ticked independently at Mark as Posted/Ads — one-way, never unset by the app.
   is_promotion: boolean
-  shotByUser?: Person
+  shotByUsers?: Person[]
   editedByUser?: Person
   scriptedByUser?: Person
   reviewedByUser?: Person
@@ -148,6 +149,7 @@ export type Shoot = {
   notes: string | null
   status: ShootStatus
   shoot_type: ShootType | null
+  tags: ShootTag[]
   // Set when this shoot was spun off an Ads Video item via "Move to Shoot" — completing
   // it advances that linked item straight to Ready to Edit instead of creating new titles.
   source_content_item_id: string | null
@@ -260,6 +262,12 @@ const PLATFORM_CFG: Record<Platform, { label: string; color: string; icon: typeo
 const SHOOT_TYPE_CFG: Record<ShootType, { label: string; color: string }> = {
   ads_shoot:      { label: "Ads Shoot",      color: "#D97706" },
   branding_shoot: { label: "Branding Shoot", color: "#0D9488" },
+}
+
+const SHOOT_TAG_CFG: Record<ShootTag, { label: string; color: string }> = {
+  branding:      { label: "Branding",      color: "#3B82F6" },
+  advertisement: { label: "Advertisement", color: "#D97706" },
+  promotion:     { label: "Promotion",     color: "#8B5CF6" },
 }
 
 const USE_FOR_CFG: Record<UseFor, { label: string; color: string; icon: typeof Camera }> = PLATFORM_CFG

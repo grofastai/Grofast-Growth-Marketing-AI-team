@@ -1,6 +1,18 @@
 import { Video, Megaphone, Camera, Pencil } from "lucide-react"
-import type { AttentionItem, TodayAndAllTime } from "@/lib/media-tracker/overview"
+import type { AttentionItem, AttentionKind, TodayAndAllTime } from "@/lib/media-tracker/overview"
 import type { MonthlyRollup } from "@/lib/media-tracker/delivery-status"
+
+// Short single-word labels for the rail's compact rows — the full sentence
+// (computeOverview's own a.label) stays available as the row's title/tooltip.
+const ATTENTION_SHORT_LABEL: Record<AttentionKind, string> = {
+  "branding-waiting": "Branding",
+  "ads-waiting": "Ads",
+  "awaiting-review": "Review",
+  "stuck-editing": "Stale",
+  "repeat-corrections": "Bounced",
+  "in-scripting": "Scripting",
+  "shoots-today": "Shoots",
+}
 
 // Matches components/admin/PageHero.tsx's own gradient exactly, so the rail reads as
 // part of the same brand surface as the hero above it rather than a different palette.
@@ -49,13 +61,13 @@ export function OverviewRail({
           <p style={{ fontSize: 12, fontWeight: 600, color: "#6EE7A5", margin: 0 }}>All clear — nothing overdue or stalled.</p>
         ) : (
           attention.map((a, i) => (
-            <button key={a.kind} onClick={() => onAttentionClick(a.target)}
+            <button key={a.kind} onClick={() => onAttentionClick(a.target)} title={a.label}
               className="flex items-center justify-between text-left"
               style={{
                 width: "100%", gap: 8, padding: "8px 0", border: "none", background: "transparent", cursor: "pointer",
                 borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.14)",
               }}>
-              <span style={{ fontSize: 12, fontWeight: 650, color: "rgba(255,255,255,0.9)" }}>{a.label}</span>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{ATTENTION_SHORT_LABEL[a.kind]}</span>
               <span style={{ fontSize: 10.5, fontWeight: 800, padding: "2px 8px", borderRadius: 999, background: "rgba(255,255,255,0.18)", color: "#fff", flexShrink: 0 }}>{a.count}</span>
             </button>
           ))

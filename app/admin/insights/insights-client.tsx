@@ -610,13 +610,7 @@ export default function InsightsClient({
               if (clientSort === 'cost') return b.cost - a.cost
               return b.hours - a.hours
             })
-            // Emphasis, not a rank rainbow: the current leader (by whichever metric is
-            // sorted) carries the brand accent, everyone else shares one neutral tone.
-            // Coloring every bar by its rank position (old: top-3 red, rest indigo) meant
-            // colors repainted on every sort toggle and reused "red" — this app's danger
-            // color — to mean "good." One stable accent + one neutral reads calmer and
-            // doesn't relabel clients as the sort changes.
-            const chartData = sorted.map((c, i) => ({ name: c.name, hours: c.hours, cost: c.cost, color: i === 0 ? RED : MUTED }))
+            const chartData = sorted.map((c, i) => ({ name: c.name, hours: c.hours, cost: c.cost, color: i < 3 ? '#EF4444' : '#4F46E5' }))
             const totalHours = chartData.reduce((s, c) => s + c.hours, 0)
             const totalCost  = chartData.reduce((s, c) => s + c.cost, 0)
             const deltaPct = prevMonthClientHours > 0 ? ((totalHours - prevMonthClientHours) / prevMonthClientHours) * 100 : null
@@ -655,31 +649,18 @@ export default function InsightsClient({
                     <div style={{ position: 'relative', width: 'clamp(180px,55vw,220px)', height: 'clamp(180px,55vw,220px)' }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                          {/* Percentage radii (not fixed px) so the ring always fits its
-                              container — a fixed 106px outer radius inside a container that
-                              shrinks to ~180px on small screens overflowed past the hole and
-                              collided with the hero number below. */}
-                          <Pie data={chartData} dataKey={metricKey} nameKey="name" cx="50%" cy="50%" innerRadius="62%" outerRadius="94%" strokeWidth={2} stroke={CARD}>
+                          <Pie data={chartData} dataKey={metricKey} nameKey="name" cx="50%" cy="50%" innerRadius={70} outerRadius={106} strokeWidth={2} stroke={CARD}>
                             {chartData.map((d, i) => <Cell key={i} fill={d.color} />)}
                           </Pie>
                           <Tooltip formatter={(v) => isCostSort ? fmtRupee(Number(v)) : fmtH(Number(v))} labelFormatter={(_l, p) => p?.[0]?.payload?.name ?? ''} />
                         </PieChart>
                       </ResponsiveContainer>
-                      <div style={{
-                        position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                        justifyContent: 'center', pointerEvents: 'none',
-                        // Hole is 62% of the ring's diameter — cap the label block a step
-                        // inside that so digits never reach the colored arc.
-                        margin: '0 auto', width: '54%', textAlign: 'center',
-                      }}>
-                        <span style={{
-                          fontFamily: JAKARTA, fontSize: isCostSort ? 'clamp(17px,5.2vw,28px)' : 'clamp(19px,6vw,34px)',
-                          fontWeight: 800, color: '#0F172A', lineHeight: 1, letterSpacing: '-0.02em',
-                        }}>
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                        <span style={{ fontFamily: JAKARTA, fontSize: isCostSort ? 32 : 42, fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>
                           {isCostSort ? fmtRupee(totalCost) : totalHours.toFixed(1)}
                         </span>
-                        {!isCostSort && <span style={{ fontSize: 'clamp(11px,3vw,15px)', fontWeight: 600, color: '#334155', marginTop: 2 }}>Hours</span>}
-                        <span style={{ fontSize: 'clamp(10px,2.6vw,13px)', color: '#94A3B8', marginTop: 2 }}>{isCostSort ? 'Total Spend' : 'Total Logged'}</span>
+                        {!isCostSort && <span style={{ fontSize: 16, fontWeight: 600, color: '#334155', marginTop: 2 }}>Hours</span>}
+                        <span style={{ fontSize: 14, color: '#94A3B8', marginTop: 2 }}>{isCostSort ? 'Total Spend' : 'Total Logged'}</span>
                       </div>
                     </div>
                     {deltaPct !== null && (

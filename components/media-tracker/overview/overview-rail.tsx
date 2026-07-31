@@ -16,9 +16,8 @@ const ATTENTION_SHORT_LABEL: Record<AttentionKind, string> = {
 
 // Reuses the "Freelance Videography" hero gradient exactly (see TEAM_CFG in
 // app/member/freelancers/freelancers-member-client.tsx) — an on-brand blue already
-// established elsewhere in the app, rather than a new one-off color. Exported so
-// the WorkFlow card (stacked directly below this rail) can share the same look.
-export const RAIL_BG = "linear-gradient(135deg, #082F49 0%, #0369A1 45%, #041520 100%)"
+// established elsewhere in the app, rather than a new one-off color.
+const RAIL_BG = "linear-gradient(135deg, #082F49 0%, #0369A1 45%, #041520 100%)"
 
 function RingProgress({ pct }: { pct: number }) {
   const r = 52

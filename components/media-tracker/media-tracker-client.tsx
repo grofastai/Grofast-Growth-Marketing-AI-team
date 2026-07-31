@@ -2630,8 +2630,9 @@ function AdPerformanceModal({ ad, onClose, onAdded }: { ad: Ad; onClose: () => v
 }
 
 // ── New Shoot modal ──────────────────────────────────────────────────────────
-function NewShootModal({ clients, pastClients, onClose, onCreated }: {
+function NewShootModal({ clients, pastClients, shootingMembers, currentUserId, onClose, onCreated }: {
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
+  shootingMembers: Member[]; currentUserId: string
   onClose: () => void; onCreated: (shoot: Shoot) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
@@ -2644,8 +2645,17 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
   const [fromTime, setFromTime] = useState("")
   const [toTime, setToTime] = useState("")
   const [notes, setNotes] = useState("")
+  const [tags, setTags] = useState<ShootTag[]>([])
+  const [crew, setCrew] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function toggleTag(tag: ShootTag) {
+    setTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
+  }
+  function toggleCrew(id: string) {
+    setCrew(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
 
   async function submit() {
     if (!client) { setError("Client is required"); return }
@@ -2656,6 +2666,7 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
     const res = await createTrackerShoot({
       client, title: title.trim(), shot_date: shotDate,
       shot_time_from: fromTime, shot_time_to: toTime, notes: notes.trim() || undefined,
+      going_by: crew.length > 0 ? crew : undefined, tags: tags.length > 0 ? tags : undefined,
     })
     setSaving(false)
     if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
@@ -2669,9 +2680,10 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
       notes: notes.trim() || null,
       status: "scheduled",
       shoot_type: null,
+      tags,
       source_content_item_id: null,
       drive_link: null,
-      goingByUsers: [],
+      goingByUsers: shootingMembers.filter(m => crew.includes(m.id)),
       titles: [],
     })
   }
@@ -2686,7 +2698,7 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
             placeholder="e.g. SKB Silks Diwali Shoot" />
         </div>
         <div>
-          <label style={LABEL}>Shot Date *</label>
+          <label style={LABEL}>Schedule Date *</label>
           <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -2703,6 +2715,37 @@ function NewShootModal({ clients, pastClients, onClose, onCreated }: {
           <label style={LABEL}>Notes</label>
           <textarea style={{ ...FIELD, minHeight: 50, resize: "vertical" }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
         </div>
+        <div>
+          <label style={LABEL}>Tags <span style={{ fontWeight: 600, textTransform: "none" }}>(optional)</span></label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {(Object.keys(SHOOT_TAG_CFG) as ShootTag[]).map(tag => {
+              const cfg = SHOOT_TAG_CFG[tag]
+              const on = tags.includes(tag)
+              return (
+                <button key={tag} type="button" onClick={() => toggleTag(tag)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? cfg.color : "#E5E7EB"}`, background: on ? `${cfg.color}14` : "#fff", color: on ? cfg.color : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  {on && <Check size={11} />} {cfg.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {shootingMembers.length > 0 && (
+          <div>
+            <label style={LABEL}>Crew <span style={{ fontWeight: 600, textTransform: "none" }}>(optional — pick one or more)</span></label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {shootingMembers.map(m => {
+                const on = crew.includes(m.id)
+                return (
+                  <button key={m.id} type="button" onClick={() => toggleCrew(m.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    {on && <Check size={11} />} {upper(m.name)}{m.id === currentUserId ? " (me)" : ""}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>{saving ? "Saving…" : "Schedule Shoot"}</PrimaryButton>
       </div>
@@ -3071,6 +3114,7 @@ function MoveToShootModal({ item, onClose, onMoved }: {
       notes: notes.trim() || null,
       status: "scheduled",
       shoot_type: null,
+      tags: [],
       source_content_item_id: item.id,
       drive_link: null,
       goingByUsers: [],
@@ -5244,7 +5288,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           }} />
       )}
       {showNewShoot && (
-        <NewShootModal clients={clients} pastClients={pastClients} onClose={() => setShowNewShoot(false)}
+        <NewShootModal clients={clients} pastClients={pastClients} shootingMembers={shootingMembers} currentUserId={currentUserId} onClose={() => setShowNewShoot(false)}
           onCreated={shoot => { setShoots(prev => [shoot, ...prev]); setShowNewShoot(false) }} />
       )}
       {completeShootFor && (

@@ -10,7 +10,7 @@ import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil, AtSign,
   Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw, LayoutDashboard,
-  MoreVertical, Users, XCircle, ExternalLink,
+  MoreVertical, XCircle, ExternalLink,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
@@ -1389,16 +1389,14 @@ function ShootTitleList({ titles, accent }: { titles: ShootTitleRef[]; accent: s
 }
 
 // ── Shoot kanban card ────────────────────────────────────────────────────────
-function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDelete }: {
+function ShootCardInner({ shoot, isDragging, onStatus, onEdit, onDelete }: {
   shoot: Shoot; isDragging?: boolean
   onStatus: (id: string, status: ShootStatus) => void
-  onEditCrew?: (shoot: Shoot) => void
   onEdit?: (shoot: Shoot) => void
   onDelete?: (shoot: Shoot) => void
 }) {
   const menu: CardMenuItem[] = []
-  if (onEdit) menu.push({ label: "Edit shoot", icon: Pencil, onClick: () => onEdit(shoot) })
-  if (onEditCrew) menu.push({ label: "Who went", icon: Users, onClick: () => onEditCrew(shoot) })
+  if (onEdit) menu.push({ label: shoot.status === "completed" ? "Edit shoot" : "Edit Details", icon: Pencil, onClick: () => onEdit(shoot) })
   if (onDelete) menu.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(shoot), danger: true })
 
   // Every colored element on this card is a shade of the shoot's own status color —
@@ -1420,6 +1418,16 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
           <p className="text-[12px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>
             {shoot.client} · {fmtDate(shoot.start_time.split("T")[0])}
           </p>
+          {shoot.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1" style={{ marginTop: 4 }}>
+              {shoot.tags.map(tag => (
+                <span key={tag} className="text-[10px] font-black px-2 py-0.5 rounded-full uppercase"
+                  style={{ background: `${SHOOT_TAG_CFG[tag].color}18`, color: SHOOT_TAG_CFG[tag].color }}>
+                  {SHOOT_TAG_CFG[tag].label}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         {menu.length > 0 && <CardMenu items={menu} />}
       </div>
@@ -1439,11 +1447,11 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
 
       {/* Who covered the shoot. Always shown — an empty crew is itself worth seeing, and it's
           editable at any point so older shoots with nobody recorded can be filled in. */}
-      {onEditCrew && (
+      {onEdit && (
         <div style={{ marginTop: 8 }}>
           <span className="text-[11px] font-bold uppercase tracking-[0.06em]" style={{ color: "#9CA3AF" }}>Who went</span>
           {shoot.goingByUsers.length === 0 ? (
-            <button onPointerDown={e => e.stopPropagation()} onClick={() => onEditCrew(shoot)}
+            <button onPointerDown={e => e.stopPropagation()} onClick={() => onEdit(shoot)}
               className="block text-[12px] font-bold"
               style={{ marginTop: 3, background: "none", border: "none", padding: 0, cursor: "pointer", color: accentDark }}>
               + Add crew
@@ -1473,7 +1481,7 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEditCrew, onEdit, onDel
           <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "completed")}
             className="text-[11px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
             style={{ border: "none", background: "#15803D", color: "#fff", cursor: "pointer" }}>
-            Mark Done
+            Shoot Done
           </button>
           <button onPointerDown={e => e.stopPropagation()} onClick={() => onStatus(shoot.id, "cancelled")}
             className="text-[11px] font-bold px-2.5 py-1 rounded-lg hover:opacity-90"
@@ -3265,7 +3273,7 @@ function CompleteShootModal({ shoot, members, currentUserId, onClose, onComplete
 
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving}>
-          {saving ? "Saving…" : `Mark Done${titles.length > 0 ? ` (${titles.length} video${titles.length > 1 ? "s" : ""})` : ""}`}
+          {saving ? "Saving…" : `Shoot Done${titles.length > 0 ? ` (${titles.length} video${titles.length > 1 ? "s" : ""})` : ""}`}
         </PrimaryButton>
       </div>
     </Modal>
@@ -4173,7 +4181,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         accent: SHOOT_STATUS_CFG.scheduled.color,
         overdue: date < today,
         actions: [
-          { label: "Mark Done", onClick: () => handleShootStatus(s.id, "completed") },
+          { label: "Shoot Done", onClick: () => handleShootStatus(s.id, "completed") },
           { label: "Cancel", onClick: () => handleShootStatus(s.id, "cancelled"), danger: true },
         ],
       }
@@ -5182,7 +5190,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
             {filteredShoots.filter(s => s.status === activeShootCol).length === 0 ? (
               <KanbanEmptyCell isOver={false} />
             ) : filteredShoots.filter(s => s.status === activeShootCol).map(shoot => (
-              <ShootCardInner key={shoot.id} shoot={shoot} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={handleEditShoot} onDelete={handleDeleteShoot} />
+              <ShootCardInner key={shoot.id} shoot={shoot} onStatus={handleShootStatus} onEdit={handleEditShoot} onDelete={handleDeleteShoot} />
             ))}
           </div>
 
@@ -5204,7 +5212,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                           <KanbanEmptyCell isOver={shootOverCol === status} />
                         ) : list.map(shoot => (
                           <KanbanCard key={shoot.id} id={shoot.id}>
-                            <ShootCardInner shoot={shoot} isDragging={shootDragId === shoot.id} onStatus={handleShootStatus} onEditCrew={setEditCrewFor} onEdit={handleEditShoot} onDelete={handleDeleteShoot} />
+                            <ShootCardInner shoot={shoot} isDragging={shootDragId === shoot.id} onStatus={handleShootStatus} onEdit={handleEditShoot} onDelete={handleDeleteShoot} />
                           </KanbanCard>
                         ))}
                       </div>

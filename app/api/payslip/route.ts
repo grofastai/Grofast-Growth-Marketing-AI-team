@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       .select('id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, created_at, position')
       .eq('id', userId).eq('company_id', requester.company_id).single(),
     admin.from('companies').select('name, slug').eq('id', requester.company_id).single(),
-    admin.from('member_kyc').select('bank_account, bank_name, bank_ifsc')
+    admin.from('member_kyc').select('bank_account')
       .eq('user_id', userId).maybeSingle(),
   ])
 
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
   }
   const member  = memberRaw as MemberRow
   const company = companyRaw as { name: string; slug: string } | null
-  const kyc     = kycRaw as { bank_account: string | null; bank_name: string | null; bank_ifsc: string | null } | null
+  const kyc     = kycRaw as { bank_account: string | null } | null
 
   const memberForCalc: EmployeeMonthMember = {
     employment_type: member.employment_type,
@@ -129,16 +129,18 @@ export async function GET(request: NextRequest) {
     basePay: sumYtd('basePay'), finalNetPay: sumYtd('finalNetPay'),
   }
 
+  // Compulsory attendance days for this specific month — total calendar days minus
+  // the fixed 5-day monthly leave allowance, so a 31-day month reads 26 and a 30-day
+  // month reads 25 (all days are working days at GroFast, including weekends).
+  const daysInMonth = new Date(year, mon, 0).getDate()
+  const compulsoryAttendanceDays = daysInMonth - 5
+
   const monthName   = new Date(year, mon - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
   const generatedTs = new Date().toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })
   const payslipId   = `GSPL/${year}/${String(mon).padStart(2,'0')}/${member.employee_id}`
 
   const fmt = (n: number) => `₹ ${Math.round(n).toLocaleString('en-IN')}`
   const companyName = company?.name ?? 'GroFast'
-
-  const joiningDateFmt = member.created_at
-    ? new Date(member.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
-    : '—'
 
   const isRegular = current.employment_type === 'regular' && !!member.monthly_salary
 
@@ -147,16 +149,14 @@ export async function GET(request: NextRequest) {
     <tr><td>HRA</td><td>${Math.round(current.hra).toLocaleString('en-IN')}</td><td>${Math.round(ytd.hra).toLocaleString('en-IN')}</td></tr>
     <tr><td>Travel Allowance</td><td>${Math.round(current.travelAllowance).toLocaleString('en-IN')}</td><td>${Math.round(ytd.travelAllowance).toLocaleString('en-IN')}</td></tr>
     <tr><td>Medical Allowance</td><td>${Math.round(current.medicalAllowance).toLocaleString('en-IN')}</td><td>${Math.round(ytd.medicalAllowance).toLocaleString('en-IN')}</td></tr>
+    <tr><td>Overtime Allowance</td><td>${Math.round(current.otPay).toLocaleString('en-IN')}</td><td>${Math.round(ytd.otPay).toLocaleString('en-IN')}</td></tr>
     ${current.otherAllowance > 0 ? `<tr><td>Other Allowance</td><td>${Math.round(current.otherAllowance).toLocaleString('en-IN')}</td><td>${Math.round(ytd.otherAllowance).toLocaleString('en-IN')}</td></tr>` : ''}
-    ${current.otPay > 0 ? `<tr><td>Overtime Pay</td><td>${Math.round(current.otPay).toLocaleString('en-IN')}</td><td>${Math.round(ytd.otPay).toLocaleString('en-IN')}</td></tr>` : ''}
     ${current.bonus > 0 ? `<tr><td>Bonus</td><td>${Math.round(current.bonus).toLocaleString('en-IN')}</td><td>${Math.round(ytd.bonus).toLocaleString('en-IN')}</td></tr>` : ''}
     ${current.incentive > 0 ? `<tr><td>Incentive</td><td>${Math.round(current.incentive).toLocaleString('en-IN')}</td><td>${Math.round(ytd.incentive).toLocaleString('en-IN')}</td></tr>` : ''}
   ` : `<tr><td>Hours Worked (${current.totalHours}h)</td><td>${Math.round(current.basePay).toLocaleString('en-IN')}</td><td>${Math.round(ytd.basePay).toLocaleString('en-IN')}</td></tr>`
 
   const totalEarningsCurrent = current.basePay + current.otPay + current.bonus + current.incentive
   const totalEarningsYtd     = ytd.basePay + ytd.otPay + ytd.bonus + ytd.incentive
-  const totalDeductionsCurrent = current.deduction + current.advance
-  const totalDeductionsYtd     = ytd.deduction + ytd.advance
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -164,47 +164,50 @@ export async function GET(request: NextRequest) {
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${payslipId} — ${member.name} — ${monthName}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:12.5px}
+body{font-family:'Poppins',Arial,Helvetica,sans-serif;background:#F3F4F6;color:#111827;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:12.5px}
 .topbar{background:#111;padding:10px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
 .topbar-dot{width:7px;height:7px;border-radius:50%;background:#DC2626;flex-shrink:0}
 .topbar-text{font-size:12px;color:#9CA3AF;font-weight:500;flex:1}
 .topbar-id{font-size:11px;color:#6B7280;background:#1F2937;padding:3px 10px;border-radius:6px;font-weight:600}
 .dl-btn{background:#DC2626;color:#fff;border:none;padding:7px 18px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px}
 .page{max-width:800px;margin:20px auto 40px;background:#fff;border:1px solid #D1D5DB}
-.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:20px 24px;border-bottom:2px solid #111}
-.co-name{font-size:19px;font-weight:800;color:#111;letter-spacing:0.01em}
-.co-sub{font-size:10px;font-weight:700;color:#DC2626;text-transform:uppercase;letter-spacing:0.06em;margin-top:2px}
-.co-addr{font-size:10.5px;color:#6B7280;margin-top:6px;line-height:1.6}
-.slip-title{font-size:15px;font-weight:800;color:#111;text-align:right}
-.slip-sub{font-size:10.5px;color:#6B7280;text-align:right;margin-top:2px}
-.info-grid{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #D1D5DB}
-.info-box{padding:14px 24px}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:22px 24px;background:linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)}
+.co-brand-row{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.co-logo-img{width:46px;height:46px;border-radius:50%;object-fit:cover;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+.co-name{font-family:'Poppins',Arial,sans-serif;font-size:19px;font-weight:600;color:#fff;letter-spacing:0.01em}
+.co-sub{font-size:10px;font-weight:500;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px}
+.co-addr{font-size:10.5px;color:rgba(255,255,255,0.65);margin-top:6px;line-height:1.6}
+.slip-title{font-size:15px;font-weight:600;color:#fff;text-align:right}
+.slip-sub{font-size:10.5px;color:rgba(255,255,255,0.7);text-align:right;margin-top:2px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #D1D5DB;background:#EFF3F8}
+.info-box{padding:12px 24px;display:flex;flex-direction:column;gap:6px}
 .info-box+.info-box{border-left:1px solid #D1D5DB}
-.info-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0}
-.info-lbl{color:#6B7280}
-.info-val{font-weight:700;color:#111}
-.wd-row{display:flex;border-bottom:1px solid #D1D5DB;background:#F9FAFB}
+.info-row{padding:0}
+.info-lbl{display:block;font-size:9.5px;color:#6B7280;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px}
+.info-val{display:block;font-size:12.5px;font-weight:700;color:#111;line-height:1.4}
+.wd-row{display:flex;border-bottom:1px solid #D1D5DB;background:#EFF3F8}
 .wd-cell{flex:1;padding:10px 24px;text-align:center;border-left:1px solid #D1D5DB}
 .wd-cell:first-child{border-left:none;text-align:left}
 .wd-lbl{font-size:9.5px;color:#6B7280;text-transform:uppercase;letter-spacing:0.04em}
 .wd-val{font-size:15px;font-weight:800;color:#111;margin-top:2px}
 .amt-note{padding:8px 24px;font-size:10.5px;color:#6B7280;font-style:italic;border-bottom:1px solid #D1D5DB}
-.ed-grid{display:grid;grid-template-columns:1fr 1fr}
-.ed-col+.ed-col{border-left:1px solid #D1D5DB}
 table.ed-table{width:100%;border-collapse:collapse}
 .ed-table th{font-size:9.5px;text-transform:uppercase;letter-spacing:0.03em;color:#374151;background:#F3F4F6;padding:6px 10px;text-align:left;border-bottom:1px solid #D1D5DB}
 .ed-table th:not(:first-child){text-align:right}
 .ed-table td{font-size:12px;padding:6px 10px;border-bottom:1px solid #F3F4F6}
 .ed-table td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
 .ed-table tr.total td{font-weight:800;border-top:2px solid #111;border-bottom:none;background:#F9FAFB}
-.net-bar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;border-top:2px solid #111;background:#FEF2F2}
-.net-lbl{font-size:11px;font-weight:800;color:#111;text-transform:uppercase;letter-spacing:0.06em}
-.net-words{font-size:10.5px;color:#6B7280;margin-top:2px}
+.net-bar{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;background:linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)}
+.net-lbl{font-size:11px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:0.06em}
+.net-words{font-size:10.5px;color:rgba(255,255,255,0.7);margin-top:2px}
 .net-amounts{display:flex;gap:24px;text-align:right}
-.net-amt-col .net-amt-lbl{font-size:9.5px;color:#6B7280;text-transform:uppercase}
-.net-amt-col .net-amt-val{font-size:17px;font-weight:900;color:#111}
+.net-amt-col .net-amt-lbl{font-size:9.5px;color:rgba(255,255,255,0.65);text-transform:uppercase}
+.net-amt-col .net-amt-val{font-size:18px;font-weight:600;color:#fff}
 .footer{padding:12px 24px;font-size:10px;color:#9CA3AF;text-align:center;border-top:1px solid #D1D5DB}
 @media print{body{background:#fff}.topbar{display:none}.page{margin:0;max-width:100%;border:none}}
 </style>
@@ -223,8 +226,13 @@ table.ed-table{width:100%;border-collapse:collapse}
 
   <div class="hdr">
     <div>
-      <div class="co-name">${companyName}</div>
-      <div class="co-sub">Group Of Companies</div>
+      <div class="co-brand-row">
+        <img src="/brand/logo.jpg" alt="${companyName}" class="co-logo-img"/>
+        <div>
+          <div class="co-name">${companyName}</div>
+          <div class="co-sub">Group Of Companies</div>
+        </div>
+      </div>
       <div class="co-addr">4-188D, Poomalai Nagar, Kaveripattinam,<br/>Chowttahalli, Tamil Nadu 635112</div>
     </div>
     <div>
@@ -237,47 +245,27 @@ table.ed-table{width:100%;border-collapse:collapse}
     <div class="info-box">
       <div class="info-row"><span class="info-lbl">Name</span><span class="info-val">${member.name}</span></div>
       <div class="info-row"><span class="info-lbl">Designation</span><span class="info-val">${member.position || member.team || 'Team Member'}</span></div>
-      <div class="info-row"><span class="info-lbl">Employee No</span><span class="info-val">${member.employee_id}</span></div>
-      <div class="info-row"><span class="info-lbl">Team</span><span class="info-val">${member.team ?? '—'}</span></div>
     </div>
     <div class="info-box">
-      <div class="info-row"><span class="info-lbl">Joining Date</span><span class="info-val">${joiningDateFmt}</span></div>
-      <div class="info-row"><span class="info-lbl">Bank Name</span><span class="info-val">${kyc?.bank_name ?? '—'}</span></div>
+      <div class="info-row"><span class="info-lbl">Employee No</span><span class="info-val">${member.employee_id}</span></div>
       <div class="info-row"><span class="info-lbl">Bank A/C No</span><span class="info-val">${kyc?.bank_account ? `XXXX XXXX ${kyc.bank_account.slice(-4)}` : '—'}</span></div>
-      <div class="info-row"><span class="info-lbl">IFSC</span><span class="info-val">${kyc?.bank_ifsc ?? '—'}</span></div>
     </div>
   </div>
 
   <div class="wd-row">
-    <div class="wd-cell"><div class="wd-lbl">Total Working Days</div><div class="wd-val">${current.effectiveWorkDays}</div></div>
+    <div class="wd-cell"><div class="wd-lbl">Total Working Days</div><div class="wd-val">${compulsoryAttendanceDays}</div></div>
     <div class="wd-cell"><div class="wd-lbl">LOP Days</div><div class="wd-val">${current.deductibleDays}</div></div>
   </div>
 
   <div class="amt-note">(Amount in ₹)</div>
 
-  <div class="ed-grid">
-    <div class="ed-col">
-      <table class="ed-table">
-        <thead><tr><th>Earnings</th><th>Current Period</th><th>Year to Date</th></tr></thead>
-        <tbody>
-          ${earningsRows}
-          <tr class="total"><td>Total Earnings</td><td>${Math.round(totalEarningsCurrent).toLocaleString('en-IN')}</td><td>${Math.round(totalEarningsYtd).toLocaleString('en-IN')}</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="ed-col">
-      <table class="ed-table">
-        <thead><tr><th>Deductions</th><th>Current Period</th><th>Year to Date</th></tr></thead>
-        <tbody>
-          ${current.deduction > 0
-            ? `<tr><td>Attendance Deduction (${current.deductibleDays} day${current.deductibleDays !== 1 ? 's' : ''})</td><td>${Math.round(current.deduction).toLocaleString('en-IN')}</td><td>${Math.round(ytd.deduction).toLocaleString('en-IN')}</td></tr>`
-            : `<tr><td style="color:#9CA3AF">No deductions this month</td><td style="color:#9CA3AF">—</td><td>${Math.round(ytd.deduction).toLocaleString('en-IN')}</td></tr>`}
-          ${current.advance > 0 ? `<tr><td>Advance Recovery</td><td>${Math.round(current.advance).toLocaleString('en-IN')}</td><td>${Math.round(ytd.advance).toLocaleString('en-IN')}</td></tr>` : ''}
-          <tr class="total"><td>Total Deductions</td><td>${Math.round(totalDeductionsCurrent).toLocaleString('en-IN')}</td><td>${Math.round(totalDeductionsYtd).toLocaleString('en-IN')}</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  <table class="ed-table">
+    <thead><tr><th>Earnings</th><th>Current Period</th><th>Year to Date</th></tr></thead>
+    <tbody>
+      ${earningsRows}
+      <tr class="total"><td>Total Earnings</td><td>${Math.round(totalEarningsCurrent).toLocaleString('en-IN')}</td><td>${Math.round(totalEarningsYtd).toLocaleString('en-IN')}</td></tr>
+    </tbody>
+  </table>
 
   <div class="net-bar">
     <div>

@@ -52,7 +52,7 @@ export default async function PayrollPage({
   ] = await Promise.all([
     admin
       .from("users")
-      .select("id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, paid_leave_days")
+      .select("id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, paid_leave_days, passport_photo_url")
       .eq("company_id", cid)
       .eq("role", "MEMBER")
       .eq("status", "active")
@@ -134,7 +134,7 @@ export default async function PayrollPage({
   type MemberRow = {
     id: string; name: string; employee_id: string; team: string | null
     employment_type: string | null; monthly_salary: number | null; hourly_rate: number | null
-    paid_leave_days: number | null
+    paid_leave_days: number | null; passport_photo_url: string | null
   }
 
   const members       = (membersRaw          ?? []) as MemberRow[]
@@ -204,6 +204,7 @@ export default async function PayrollPage({
 
     return {
       id: m.id, name: m.name, employee_id: m.employee_id, team: m.team,
+      passport_photo_url: m.passport_photo_url,
       ...breakdown,
       isPaid: run?.is_paid ?? false,
       paidAt: run?.paid_at ?? null,

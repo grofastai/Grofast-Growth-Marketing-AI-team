@@ -19,6 +19,7 @@ import { hexToRgba } from "@/lib/utils/team-colors"
 
 type PayrollRow = {
   id: string; name: string; employee_id: string; team: string | null
+  passport_photo_url: string | null
   employment_type: string
   presentDays: number; halfDays: number; absentDays: number; leaveDays: number
   missingUpdates: number; missingUpdateDates: string[]; deductibleDays: number
@@ -751,6 +752,9 @@ export default function PayrollClient({
   // Builds a printable summary report entirely client-side from the rows
   // already computed and on screen — no new API route, no re-running any
   // salary calculation, so it can't drift from what's actually displayed.
+  // One card per employee (profile photo, attendance, hours, pay), not a
+  // flat table — reuses the same figures already shown when an admin
+  // expands that employee's row on this page.
   function handleGenerateReport() {
     if (rows.length === 0) {
       showToast("No payroll rows to report for this month.", "error")
@@ -761,48 +765,117 @@ export default function PayrollClient({
       showToast("Pop-up blocked — allow pop-ups to view the report.", "error")
       return
     }
-    const tableRows = rows.map(r => `
-      <tr>
-        <td>${r.name}</td>
-        <td>#${r.employee_id}</td>
-        <td style="text-align:right">${fmt(r.basePay)}</td>
-        <td style="text-align:right">${fmt(r.deduction)}</td>
-        <td style="text-align:right">${fmt(r.otPay)}</td>
-        <td style="text-align:right">${fmt(r.bonus)}</td>
-        <td style="text-align:right">${fmt(r.advance)}</td>
-        <td style="text-align:right;font-weight:700">${fmt(r.finalNetPay)}</td>
-        <td>${r.isPaid ? "Paid" : "Pending"}</td>
-      </tr>`).join("")
+
+    function statRow(label: string, value: string, colorClass = "") {
+      return `<div class="stat"><span class="stat-lbl">${label}</span><span class="stat-val ${colorClass}">${value}</span></div>`
+    }
+
+    const employeeCards = rows.map(r => {
+      const photo = r.passport_photo_url
+        ? `<img src="${r.passport_photo_url}" alt="${r.name}"/>`
+        : `<span>${getInitials(r.name)}</span>`
+      const meta = r.team ? `#${r.employee_id} · ${r.team}` : `#${r.employee_id}`
+      return `
+      <div class="emp-card">
+        <div class="emp-hdr">
+          <div class="emp-photo">${photo}</div>
+          <div class="emp-id">
+            <div class="emp-name">${r.name}</div>
+            <div class="emp-meta">${meta}</div>
+          </div>
+          <span class="status-pill ${r.isPaid ? "paid" : "pending"}">${r.isPaid ? "Paid" : "Pending"}</span>
+        </div>
+        <div class="stat-groups">
+          <div class="stat-group">
+            <div class="stat-group-title">Attendance</div>
+            <div class="stat-grid">
+              ${statRow("Present Days", String(r.presentDays), "green")}
+              ${statRow("Half Days", String(r.halfDays), "amber")}
+              ${statRow("Absent Days", String(r.absentDays), "red")}
+              ${statRow("Leave Days", String(r.leaveDays), "blue")}
+              ${statRow("Working Days", String(r.effectiveWorkDays))}
+            </div>
+          </div>
+          <div class="stat-group">
+            <div class="stat-group-title">Hours</div>
+            <div class="stat-grid">
+              ${statRow("Total Hours", `${r.totalHours}h`)}
+              ${statRow("OT Hours", `${r.otHours}h`, "amber")}
+              ${statRow("Permission", `${r.hoursPreview.permissionHours}h`)}
+              ${statRow("Required", `${r.hoursPreview.requiredHours}h`)}
+              ${statRow("Actual", `${r.hoursPreview.actualHours}h`)}
+              ${statRow("Shortfall", `${r.hoursPreview.shortfallHours}h`, r.hoursPreview.shortfallHours > 0 ? "red" : "")}
+            </div>
+          </div>
+          <div class="stat-group">
+            <div class="stat-group-title">Pay</div>
+            <div class="stat-grid">
+              ${statRow("Base Pay", fmt(r.basePay))}
+              ${statRow("Deduction", r.deduction > 0 ? `-${fmt(r.deduction)}` : "—", r.deduction > 0 ? "red" : "")}
+              ${statRow("OT Pay", r.otPay > 0 ? fmt(r.otPay) : "—", r.otPay > 0 ? "green" : "")}
+              ${statRow("Bonus", r.bonus > 0 ? fmt(r.bonus) : "—", r.bonus > 0 ? "green" : "")}
+              ${statRow("Advance", r.advance > 0 ? `-${fmt(r.advance)}` : "—", r.advance > 0 ? "red" : "")}
+            </div>
+            <div class="stat net">
+              <span class="stat-lbl">Net Pay</span><span class="stat-val bold">${fmt(r.finalNetPay)}</span>
+            </div>
+          </div>
+        </div>
+      </div>`
+    }).join("")
+
     win.document.write(`<!DOCTYPE html><html><head><title>Payroll Report — ${monthName}</title>
       <style>
-        body{font-family:Arial,sans-serif;padding:32px;color:#111}
+        *{box-sizing:border-box}
+        body{font-family:Arial,sans-serif;padding:24px;color:#111;background:#F3F4F6;margin:0}
         h1{font-size:20px;margin:0 0 4px}
-        p.sub{color: #000000;margin:0 0 20px;font-size:13px}
-        .table-wrap{overflow-x:auto}
-        table{width:100%;border-collapse:collapse;font-size:12px;min-width:640px}
-        th,td{padding:8px 10px;border-bottom:1px solid #E5E7EB;text-align:left}
-        th{background:#F9FAFB;font-weight:700;color: #000000}
-        .totals{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:20px}
-        .totals div{background:#F9FAFB;border-radius:10px;padding:10px 16px;flex:1 1 140px}
-        .totals strong{display:block;font-size:16px}
-        @media print{ body{padding:0} }
-        @media (max-width:640px){ body{padding:16px} }
+        p.sub{color:#374151;margin:0 0 20px;font-size:13px}
+        .totals{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:24px}
+        .totals div{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:12px 16px;flex:1 1 160px}
+        .totals span.lbl{display:block;font-size:11px;color:#6B7280;margin-bottom:4px}
+        .totals strong{display:block;font-size:18px}
+        .cards{display:flex;flex-direction:column;gap:14px}
+        .emp-card{background:#fff;border:1px solid #E5E7EB;border-radius:14px;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
+        .emp-hdr{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid #F3F4F6}
+        .emp-photo{width:44px;height:44px;border-radius:50%;overflow:hidden;flex-shrink:0;background:#DE1A1A;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px}
+        .emp-photo img{width:100%;height:100%;object-fit:cover}
+        .emp-id{flex:1;min-width:0}
+        .emp-name{font-size:14px;font-weight:800;color:#111}
+        .emp-meta{font-size:11px;color:#6B7280;margin-top:1px}
+        .status-pill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;flex-shrink:0}
+        .status-pill.paid{background:#F0FDF4;color:#16A34A}
+        .status-pill.pending{background:#FFF7ED;color:#EA580C}
+        .stat-groups{display:grid;grid-template-columns:1fr 1fr 1fr}
+        .stat-group{padding:12px 18px;border-left:1px solid #F3F4F6}
+        .stat-group:first-child{border-left:none}
+        .stat-group-title{font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px}
+        .stat-grid{display:flex;flex-direction:column;gap:5px}
+        .stat{display:flex;justify-content:space-between;font-size:12px}
+        .stat-lbl{color:#374151}
+        .stat-val{font-weight:700;color:#111}
+        .stat-val.green{color:#16A34A}
+        .stat-val.amber{color:#D97706}
+        .stat-val.red{color:#DC2626}
+        .stat-val.blue{color:#2563EB}
+        .stat.net{border-top:1px solid #F3F4F6;margin:6px 18px 0;padding-top:6px}
+        .stat-val.bold{font-size:14px}
+        @media print{ body{padding:0;background:#fff} }
+        @media (max-width:900px){
+          .stat-groups{grid-template-columns:1fr}
+          .stat-group{border-left:none;border-top:1px solid #F3F4F6}
+          .stat-group:first-child{border-top:none}
+        }
       </style></head>
       <body>
         <h1>Payroll Report — ${monthName}</h1>
         <p class="sub">${rows.length} employees · ${paidCount} paid · Generated ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
         <div class="totals">
-          <div>Total Base Pay<strong>${fmt(totalBase)}</strong></div>
-          <div>Total OT Pay<strong>${fmt(totalOT)}</strong></div>
-          <div>Total Deductions<strong>${fmt(totalDed)}</strong></div>
-          <div>Total Net Payroll<strong>${fmt(totalFinal)}</strong></div>
+          <div><span class="lbl">Total Base Pay</span><strong>${fmt(totalBase)}</strong></div>
+          <div><span class="lbl">Total OT Pay</span><strong>${fmt(totalOT)}</strong></div>
+          <div><span class="lbl">Total Deductions</span><strong>${fmt(totalDed)}</strong></div>
+          <div><span class="lbl">Total Net Payroll</span><strong>${fmt(totalFinal)}</strong></div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Name</th><th>ID</th><th>Base</th><th>Deduction</th><th>OT Pay</th><th>Bonus</th><th>Advance</th><th>Net Pay</th><th>Status</th></tr></thead>
-            <tbody>${tableRows}</tbody>
-          </table>
-        </div>
+        <div class="cards">${employeeCards}</div>
       </body></html>`)
     win.document.close()
   }

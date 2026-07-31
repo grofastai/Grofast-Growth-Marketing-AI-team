@@ -4622,9 +4622,6 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           ads={ads}
           clientTargets={clientTargets}
           today={today}
-          monthFilter={overviewKpiMonth}
-          onMonthFilterChange={setOverviewKpiMonth}
-          monthOptions={allMonthOptions}
           onAttentionClick={goTo}
           onSetTarget={handleSetOverviewTarget}
         />

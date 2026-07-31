@@ -102,7 +102,7 @@ export type ContentItem = {
   edited_drive_link: string | null
   // Ticked independently at Mark as Posted/Ads — one-way, never unset by the app.
   is_promotion: boolean
-  shotByUsers?: Person[]
+  shotByUsers?: Member[]
   editedByUser?: Person
   scriptedByUser?: Person
   reviewedByUser?: Person
@@ -777,11 +777,14 @@ function ContentCardInner({
       )}
 
       <div className="flex items-center gap-2 mb-2">
-        {item.shotByUser && (
-          <div className="flex items-center gap-1" title={`Shot by ${item.shotByUser.name}`}>
-            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0" style={{ background: typeAccentDark, color: "#fff" }}>
-              {initials(item.shotByUser.name)}
-            </div>
+        {item.shotByUsers && item.shotByUsers.length > 0 && (
+          <div className="flex items-center -space-x-1.5">
+            {item.shotByUsers.map(u => (
+              <div key={u.id} className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0" title={`Shot by ${u.name}`}
+                style={{ background: typeAccentDark, color: "#fff", border: "1.5px solid #fff" }}>
+                {initials(u.name)}
+              </div>
+            ))}
           </div>
         )}
         {item.voiceoverBy && (item.status === "voiceover" || item.status === "ready_to_edit" || item.status === "edited") && (
@@ -1986,7 +1989,7 @@ function EditContentModal({ item, clients, pastClients, members, shootingMembers
   onSaved: (updates: {
     client_name: string; title: string; content_type: "video" | "poster"; shot_date: string; notes: string
     ready_platforms: Platform[]; scheduled_post_date: string; scheduled_post_time: string
-    editedByUser?: Person; edited_date?: string; edited_drive_link?: string; shotByUser?: Person; cancelled_by?: CancelledBy
+    editedByUser?: Person; edited_date?: string; edited_drive_link?: string; shotByUsers?: Member[]; cancelled_by?: CancelledBy
   }) => void
   onAdvance: (item: ContentItem, next: ContentStatus) => void
   onAddPlatform: (item: ContentItem, kind: "branding" | "ads") => void
@@ -2005,7 +2008,10 @@ function EditContentModal({ item, clients, pastClients, members, shootingMembers
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
     [clients, pastClients]
   )
-  const showEditor = item.status === "on_review" || item.status === "branding_ready" || item.status === "ads_ready" || item.status === "posted"
+  const showEditor = item.status === "edited" || item.status === "on_review" || item.status === "branding_ready" || item.status === "ads_ready" || item.status === "posted"
+  // Shot By only makes sense before editing starts — once the item is Editing or later,
+  // Editor is the field that matters (see showEditor above).
+  const showShotBy = item.status === "ready_to_edit"
   // Scheduling only matters pre-post — once posted, the real record is the per-platform
   // post log below, not an intent that's already happened.
   const showSchedule = item.status === "branding_ready" || item.status === "ads_ready"
@@ -2018,7 +2024,7 @@ function EditContentModal({ item, clients, pastClients, members, shootingMembers
   // other tab and make it look like it disappeared.
   const contentType = item.content_type
   const [shotDate, setShotDate] = useState(item.shot_date || todayIST())
-  const [shotBy, setShotBy] = useState(item.shotByUser?.id ?? "")
+  const [shotBy, setShotBy] = useState<string[]>(item.shotByUsers?.map(u => u.id) ?? [])
   const [editedBy, setEditedBy] = useState(item.editedByUser?.id ?? "")
   const [editedDate, setEditedDate] = useState(item.edited_date || todayIST())
   const [driveLink, setDriveLink] = useState(item.edited_drive_link ?? "")
@@ -2042,6 +2048,9 @@ function EditContentModal({ item, clients, pastClients, members, shootingMembers
   function togglePlatform(p: Platform) {
     setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
   }
+  function toggleShotBy(id: string) {
+    setShotBy(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
 
   async function submit() {
     if (!client || !title.trim()) { setError("Client and title are required"); return }
@@ -2049,7 +2058,7 @@ function EditContentModal({ item, clients, pastClients, members, shootingMembers
     setSaving(true); setError(null)
     const res = await updateContentItem(item.id, {
       client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() || undefined,
-      shot_by: shotBy || undefined,
+      shot_by: showShotBy ? shotBy : undefined,
       edited_by: showEditor ? (editedBy || undefined) : undefined,
       edited_date: showEditor ? (editedDate || undefined) : undefined,
       edited_drive_link: showEditor ? (driveLink.trim() || undefined) : undefined,
@@ -2066,7 +2075,7 @@ function EditContentModal({ item, clients, pastClients, members, shootingMembers
       editedByUser: showEditor ? (members.find(m => m.id === editedBy) ?? null) : undefined,
       edited_date: showEditor ? editedDate : undefined,
       edited_drive_link: showEditor ? driveLink.trim() : undefined,
-      shotByUser: shootingMembers.find(m => m.id === shotBy) ?? null,
+      shotByUsers: showShotBy ? shootingMembers.filter(m => shotBy.includes(m.id)) : undefined,
       cancelled_by: showCancelled ? cancelledBy : undefined,
     })
   }
@@ -2089,19 +2098,26 @@ function EditContentModal({ item, clients, pastClients, members, shootingMembers
           <label style={LABEL}>Title *</label>
           <input style={FIELD} value={title} onChange={e => setTitle(e.target.value)} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <div>
-            <label style={LABEL}>{contentType === "poster" ? "Created Date" : "Shot Date"}</label>
-            <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
-          </div>
-          <div>
-            <label style={LABEL}>{contentType === "poster" ? "Designed By" : "Shot By"}</label>
-            <select style={{ ...FIELD, cursor: "pointer" }} value={shotBy} onChange={e => setShotBy(e.target.value)}>
-              <option value="">— Not set —</option>
-              {shootingMembers.map(m => <option key={m.id} value={m.id}>{upper(m.name)}</option>)}
-            </select>
-          </div>
+        <div>
+          <label style={LABEL}>{contentType === "poster" ? "Created Date" : "Shot Date"}</label>
+          <input type="date" style={FIELD} value={shotDate} onChange={e => setShotDate(e.target.value)} />
         </div>
+        {showShotBy && (
+          <div>
+            <label style={LABEL}>Shot By <span style={{ fontWeight: 600, textTransform: "none" }}>(pick one or more)</span></label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {shootingMembers.map(m => {
+                const on = shotBy.includes(m.id)
+                return (
+                  <button key={m.id} type="button" onClick={() => toggleShotBy(m.id)}
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 10, border: `1.5px solid ${on ? "#3B82F6" : "#E5E7EB"}`, background: on ? "rgba(59,130,246,0.08)" : "#fff", color: on ? "#3B82F6" : "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                    {on && <Check size={11} />} {upper(m.name)}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
         {showEditor && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div>
@@ -4409,6 +4425,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
       posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, is_promotion: false,
+      shotByUsers: crew.length > 0 ? crew : undefined,
       created_at: new Date().toISOString(), posts: [],
     }))
     setItems(prev => {
@@ -5259,7 +5276,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               editedByUser: updates.editedByUser !== undefined ? updates.editedByUser : i.editedByUser,
               edited_date: updates.edited_date !== undefined ? updates.edited_date : i.edited_date,
               edited_drive_link: updates.edited_drive_link !== undefined ? updates.edited_drive_link : i.edited_drive_link,
-              shotByUser: updates.shotByUser !== undefined ? updates.shotByUser : i.shotByUser,
+              shotByUsers: updates.shotByUsers !== undefined ? updates.shotByUsers : i.shotByUsers,
               cancelled_by: updates.cancelled_by !== undefined ? updates.cancelled_by : i.cancelled_by,
             } : i))
             if (updates.title !== editingItem.title) syncShootTitleFromContentItem(editingItem.id, updates.title)

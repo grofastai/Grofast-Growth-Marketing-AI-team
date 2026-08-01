@@ -98,7 +98,7 @@ export default async function ActivitiesPage({
       .not("clock_in", "is", null),
     admin
       .from("collaboration_confirmations")
-      .select("collaborator_id, date, confirmed_hours, status")
+      .select("collaborator_id, date, confirmed_hours, status, entry_id")
       .eq("company_id", companyId)
       .in("status", ["confirmed", "edited_confirmed"])
       .gte("date", from)
@@ -142,6 +142,17 @@ export default async function ActivitiesPage({
     collabHoursMap[key] = (collabHoursMap[key] ?? 0) + (c.confirmed_hours ?? 0)
   }
 
+  // entry_ids that are genuinely confirmed (not just tagged) — the drawer uses this to pull
+  // the actual collaborated entry (someone else's shoot/edit/etc a person was confirmed on)
+  // into that person's own day view, the same way Member > History already does. Without
+  // this the header total correctly includes the collab hours (via collabHoursMap above) but
+  // the entry itself — what was actually worked on — never shows up in the list.
+  const confirmedEntryIds = Array.from(new Set(
+    ((collabConfirmsRaw ?? []) as { entry_id: string | null }[])
+      .map(c => c.entry_id)
+      .filter((id): id is string => !!id)
+  ))
+
   const onLeaveIds = new Set((approvedLeaves ?? []).map((l: { user_id: string }) => l.user_id))
 
   const leaveDaySet = new Set<string>()
@@ -171,6 +182,7 @@ export default async function ActivitiesPage({
       leaveDays={leaveDaySet}
       clockInDays={clockInDaySet}
       collabHoursMap={collabHoursMap}
+      confirmedEntryIds={confirmedEntryIds}
       pendingLeaves={pendingLeavesRaw ?? []}
       pendingCollabs={pendingCollabsRaw ?? []}
       teams={teams}

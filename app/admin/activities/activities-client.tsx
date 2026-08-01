@@ -264,7 +264,7 @@ function avatarColor(name: string) {
 }
 
 // ── Person Detail Drawer ──────────────────────────────────────────────────────
-function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, members, teams = [] }: { updates: Update[]; onClose: () => void; collabHoursMap?: Record<string, number>; members: Member[]; teams?: TeamRow[] }) {
+function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, collabEntries = [], members, teams = [] }: { updates: Update[]; onClose: () => void; collabHoursMap?: Record<string, number>; collabEntries?: { date: string; entry: WorkEntry; submitterName: string }[]; members: Member[]; teams?: TeamRow[] }) {
   const firstUpdate = updates[0]
   const user = Array.isArray(firstUpdate?.users) ? firstUpdate.users[0] : firstUpdate?.users
   if (!user) return null
@@ -283,6 +283,15 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, members, te
       const d = u.date ?? u.created_at?.split("T")[0] ?? "Unknown"
       byDate.set(d, [...(byDate.get(d) ?? []), ...work])
     }
+  }
+  // Confirmed collaborations on someone ELSE's entry — without this, this person's own
+  // total hours (above) correctly includes collabHoursMap, but the actual work item they
+  // collaborated on (e.g. a teammate's shoot they were tagged and confirmed on) never
+  // appears in the list itself, same gap Member > History already closed for this person's
+  // own view of the same day.
+  for (const ce of collabEntries) {
+    const tagged: WorkEntry = { ...ce.entry, _collabSubmitterName: ce.submitterName }
+    byDate.set(ce.date, [...(byDate.get(ce.date) ?? []), tagged])
   }
   // Within each day, order entries by actual clock time (not DB/edit insertion order)
   for (const entries of byDate.values()) {
@@ -350,16 +359,22 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, members, te
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <p style={{ fontSize: 13, fontWeight: 800, color: "#111111", margin: 0, whiteSpace: "nowrap" }}>{dateLabel}</p>
-                        <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>{entries.length} {entries.length === 1 ? "entry" : "entries"}</p>
+                        <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>
+                          {(() => { const n = entries.filter(e => !e._collabSubmitterName).length; return `${n} ${n === 1 ? "entry" : "entries"}` })()}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Day stats — same figures as History's header, wrapped to its own row */}
+                    {/* Day stats — same figures as History's header, wrapped to its own row.
+                        Own entries only for workH/travelH/learnH/breakH — a merged-in collab
+                        entry's hours are already in collabH (from collabHoursMap) below, so
+                        including it here too would double-count it into displayH. */}
                     {(() => {
-                      const workH   = calcNetWorkHours(entries as Parameters<typeof calcNetWorkHours>[0])
-                      const travelH = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + ((e._travel_hours as number | undefined) ?? 0), 0)
-                      const learnH  = entries.filter(e => e.task_type === "learning").reduce((s, e) => s + ((e.duration_hours as number | undefined) ?? 0), 0)
-                      const breakH  = entries.filter(e => e.task_type === "break").reduce((s, e) => s + ((e.duration_hours as number | undefined) ?? 0), 0)
+                      const ownEntries = entries.filter(e => !e._collabSubmitterName)
+                      const workH   = calcNetWorkHours(ownEntries as Parameters<typeof calcNetWorkHours>[0])
+                      const travelH = ownEntries.filter(e => e.task_type === "shoot").reduce((s, e) => s + ((e._travel_hours as number | undefined) ?? 0), 0)
+                      const learnH  = ownEntries.filter(e => e.task_type === "learning").reduce((s, e) => s + ((e.duration_hours as number | undefined) ?? 0), 0)
+                      const breakH  = ownEntries.filter(e => e.task_type === "break").reduce((s, e) => s + ((e.duration_hours as number | undefined) ?? 0), 0)
                       const collabH = collabHoursMap[`${user.id}:${date}`] ?? 0
                       const displayH = workH + collabH
                       if (displayH <= 0 && travelH <= 0 && learnH <= 0 && breakH <= 0) return null
@@ -413,6 +428,7 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, members, te
                         const durationH = calcDurationFromTimes(startTime, endTime) ?? ((e.duration_hours || e.working_hours || 0) as number)
                         const videoLink = e.video_link as string | undefined
                         const participantIds = (e.participant_ids ?? []) as string[]
+                        const collabSubmitterName = e._collabSubmitterName as string | undefined
                         const isRework = !!e.is_rework
                         const travelH = (e._travel_hours as number | undefined) ?? 0
                         const location = (e._location as string | undefined) ?? ""
@@ -433,6 +449,7 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, members, te
                                   <span style={{ fontSize: 13, fontWeight: 800, color: "#111111" }}>{title || cfg.label}</span>
                                   <span style={{ fontSize: 10, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: "2px 8px", borderRadius: 99 }}>{cfg.label}</span>
                                   {isRework && <span style={{ fontSize: 10, fontWeight: 700, color: "#92400E", background: "rgba(245,158,11,0.12)", padding: "2px 8px", borderRadius: 99, border: "1px solid rgba(245,158,11,0.3)" }}>Revision</span>}
+                                  {collabSubmitterName && <span style={{ fontSize: 10, fontWeight: 700, color: "#059669", background: "rgba(5,150,105,0.1)", padding: "2px 8px", borderRadius: 99 }}>✓ Confirmed</span>}
                                 </div>
                                 {isRework && e.linked_to_title != null && (
                                   <p style={{ fontSize: 10, color: "#B45309", margin: "0 0 3px", fontWeight: 600 }}>↩ of: {String(e.linked_to_client ?? "")} – {String(e.linked_to_title)}</p>
@@ -458,7 +475,9 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, members, te
                                       🔗 Drive Link
                                     </a>
                                   )}
-                                  {participantIds.length > 0 && (
+                                  {collabSubmitterName ? (
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: "#6366F1" }}>👥 {collabSubmitterName}</span>
+                                  ) : participantIds.length > 0 && (
                                     <span style={{ fontSize: 10, fontWeight: 700, color: "#6366F1" }}>
                                       👥 {participantIds.map(pid => members.find(m => m.id === pid)?.name ?? "Teammate").join(", ")}
                                     </span>
@@ -505,6 +524,7 @@ export default function ActivitiesClient({
   leaveDays,
   clockInDays,
   collabHoursMap = {},
+  confirmedEntryIds = [],
   pendingLeaves = [],
   pendingCollabs = [],
   teams = [],
@@ -518,6 +538,7 @@ export default function ActivitiesClient({
   leaveDays?: Set<string>
   clockInDays?: Set<string>
   collabHoursMap?: Record<string, number>
+  confirmedEntryIds?: string[]
   pendingLeaves?: PendingLeave[]
   pendingCollabs?: PendingCollab[]
   teams?: TeamRow[]
@@ -677,6 +698,29 @@ export default function ActivitiesClient({
 
   // Selected person's updates
   const selectedUserUpdates = selectedUserId ? groupedByUser.get(selectedUserId) ?? null : null
+
+  // Confirmed collaborations where the selected person is the tagged collaborator on
+  // someone ELSE's entry — scans every member's updates in the loaded range (not just
+  // the selected person's own), same cross-reference Member > History does for "am I
+  // tagged in someone else's day". Only entries with an id in confirmedEntryIds count —
+  // a merely-tagged-but-not-yet-confirmed entry must not show up here or in the hours.
+  const selectedUserCollabEntries = useMemo(() => {
+    if (!selectedUserId) return []
+    const confirmedSet = new Set(confirmedEntryIds)
+    const out: { date: string; entry: WorkEntry; submitterName: string }[] = []
+    for (const u of updates) {
+      const submitterUser = Array.isArray(u.users) ? u.users[0] : u.users
+      if (!submitterUser || submitterUser.id === selectedUserId) continue
+      const entries = Array.isArray(u.work_entries) ? (u.work_entries as WorkEntry[]) : []
+      for (const e of entries) {
+        const pids = (e.participant_ids ?? []) as string[]
+        if (!Array.isArray(pids) || !pids.includes(selectedUserId)) continue
+        if (!e.id || !confirmedSet.has(e.id as string)) continue
+        out.push({ date: u.date, entry: e, submitterName: submitterUser.name ?? "Teammate" })
+      }
+    }
+    return out
+  }, [updates, selectedUserId, confirmedEntryIds])
 
   // ── Work Analysis: selected employee's entries, grouped by work type ──────
   const activeWaId = waEmployeeId ?? filteredPeople[0]?.userId ?? null
@@ -1285,6 +1329,7 @@ export default function ActivitiesClient({
           updates={selectedUserUpdates}
           onClose={() => setSelectedUserId(null)}
           collabHoursMap={collabHoursMap}
+          collabEntries={selectedUserCollabEntries}
           members={members}
           teams={teams}
         />

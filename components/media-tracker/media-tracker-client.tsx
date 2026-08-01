@@ -3438,7 +3438,7 @@ function EditShootModal({ shoot, members, currentUserId, clients, pastClients, o
 // client (kept in sync with the linked Ads Video item, if any), video titles (rename keeps
 // the linked content_item's title in sync, add one that was missed), the actual shoot time,
 // and who went. ──────────────────────────────────────
-function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastClients, onClose, onRenamed, onAdded, onTimeSaved, onCrewSaved, onClientSaved, onDriveLinkSaved }: {
+function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastClients, onClose, onRenamed, onAdded, onTimeSaved, onCrewSaved, onClientSaved, onDriveLinkSaved, onTitleSaved }: {
   shoot: Shoot
   members: Member[]
   currentUserId: string
@@ -3450,6 +3450,7 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
   onCrewSaved: (crew: Member[]) => void
   onClientSaved: (client: string) => void
   onDriveLinkSaved: (driveLink: string) => void
+  onTitleSaved: (title: string) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
@@ -3457,6 +3458,7 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
   )
   const confirm = useConfirm()
   const [client, setClient] = useState(shoot.client)
+  const [shootTitle, setShootTitle] = useState(shoot.legacyTitle)
   const [titleEdits, setTitleEdits] = useState<Record<string, string>>(
     () => Object.fromEntries(shoot.titles.map(t => [t.id, t.title]))
   )
@@ -3476,6 +3478,7 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
   // times with no single confirmation that it all went through.
   async function handleUpdateAll() {
     if (!client) { setError("Client is required"); return }
+    if (!shootTitle.trim()) { setError("Shoot title is required"); return }
     if (!fromTime || !toTime) { setError("Both times are required"); return }
     if (!isValidDriveLink(driveLink)) { setError("A valid Google Drive link is required"); return }
     setSaving(true); setError(null)
@@ -3483,7 +3486,7 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
     const renamed = titles.filter(t => (titleEdits[t.id] ?? t.title).trim() && titleEdits[t.id] !== t.title)
     const results = await Promise.all([
       updateTrackerShoot(shoot.id, {
-        client, title: shoot.legacyTitle, shot_date: shoot.start_time.split("T")[0],
+        client, title: shootTitle.trim(), shot_date: shoot.start_time.split("T")[0],
         shot_time_from: toISTTimeString(shoot.start_time) || "00:00",
         shot_time_to: toISTTimeString(shoot.end_time) || "00:00",
         notes: shoot.notes ?? undefined,
@@ -3499,6 +3502,7 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
     if (failed) { setError(failed.error ?? "Failed to save"); return }
 
     onClientSaved(client)
+    onTitleSaved(shootTitle.trim())
     onTimeSaved(fromTime, toTime)
     onCrewSaved(members.filter(m => crew.includes(m.id)))
     onDriveLinkSaved(driveLink.trim())
@@ -3538,6 +3542,10 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
     <>
       <Modal title="Edit Completed Shoot" onClose={onClose}>
         <div className="flex flex-col gap-3">
+          <div>
+            <label style={LABEL}>Shoot Title *</label>
+            <input style={FIELD} value={shootTitle} onChange={e => setShootTitle(e.target.value)} />
+          </div>
           <div>
             <label style={LABEL}>Client</label>
             <ClientSelector clientOptions={activeClientOptions} pastClientOptions={pastClientOptions} value={client} onValueChange={setClient} required />
@@ -4518,6 +4526,14 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     }
   }
 
+  // Same as handleShootCompletedClientSaved, but for the shoot's own title — a typo made at
+  // Mark Done had no fix short of this modal, since the video-titles list here edits each
+  // video's own title, not the shoot's (real incident, 2026-08-01).
+  function handleShootCompletedTitleSaved(shootId: string, title: string) {
+    setShoots(prev => prev.map(s => s.id === shootId ? { ...s, legacyTitle: title } : s))
+    setEditCompletedShootFor(prev => prev && prev.id === shootId ? { ...prev, legacyTitle: title } : prev)
+  }
+
   function handleShootActualTimeSaved(shootId: string, fromTime: string, toTime: string) {
     const shoot = shoots.find(s => s.id === shootId)
     if (!shoot) return
@@ -5342,7 +5358,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           onTimeSaved={(fromTime, toTime) => handleShootActualTimeSaved(editCompletedShootFor.id, fromTime, toTime)}
           onCrewSaved={crew => handleCompletedShootCrewSaved(editCompletedShootFor.id, crew)}
           onDriveLinkSaved={driveLink => handleShootDriveLinkSaved(editCompletedShootFor.id, driveLink)}
-          onClientSaved={client => handleShootCompletedClientSaved(editCompletedShootFor.id, client)} />
+          onClientSaved={client => handleShootCompletedClientSaved(editCompletedShootFor.id, client)}
+          onTitleSaved={title => handleShootCompletedTitleSaved(editCompletedShootFor.id, title)} />
       )}
       {editAdFor && (
         <EditAdModal ad={editAdFor} clients={clients} pastClients={pastClients}

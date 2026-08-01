@@ -75,7 +75,7 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
     content_type: parsed.data.content_type,
     source,
     status:       isBackfillPosted ? 'posted' : entryStatus,
-    shot_by:      ctx.id,
+    shot_by:      [ctx.id],
     shot_date:    shotDate,
     edited_by:    isBackfillPosted ? (parsed.data.edited_by || ctx.id) : null,
     edited_date:  isBackfillPosted ? (parsed.data.posted_date || today) : null,
@@ -87,7 +87,7 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
   if (isBackfillPosted) {
     const postedDate = parsed.data.posted_date || today
     const rows = parsed.data.posted_platforms!.map(platform => ({
-      content_item_id: data.id, company_id: ctx.companyId, platform, posted_date: postedDate, posted_by: ctx.id,
+      content_item_id: data.id, company_id: ctx.companyId, platform, posted_date: postedDate, posted_by: parsed.data.posted_by || ctx.id,
       other_platform_label: platform === 'other' ? (parsed.data.other_platform_label || null) : null,
     }))
     const { error: postsError } = await ctx.admin.from('content_item_posts').insert(rows)
@@ -117,7 +117,9 @@ export async function updateContentItem(id: string, input: UpdateContentItemInpu
     scheduled_post_time: parsed.data.scheduled_post_time || null,
     updated_at:   new Date().toISOString(),
   }
-  if (parsed.data.shot_by) updates.shot_by = parsed.data.shot_by
+  // !== undefined, not truthy — an empty array (clearing Shot By) is truthy in JS and
+  // would otherwise be silently dropped.
+  if (parsed.data.shot_by !== undefined) updates.shot_by = parsed.data.shot_by
   if (parsed.data.edited_by) updates.edited_by = parsed.data.edited_by
   if (parsed.data.edited_date) updates.edited_date = parsed.data.edited_date
   if (parsed.data.edited_drive_link) {
@@ -250,10 +252,15 @@ export async function updateContentItemStatus(
 
   // A poster has no drive file to link — only videos are required to leave one behind.
   const isPoster = current.content_type === 'poster'
+  // Only the fresh Edited -> Completed Edit move is a real submission that needs a Drive
+  // link recorded. Branding/Ads Ready -> Completed Edit is an undo of an approval (see
+  // advance() in media-tracker-client.tsx) — the item already has a link on file from
+  // when it first reached On Review, so don't demand a new one just to revert.
+  const isFreshReview = status === 'on_review' && current.status === 'edited'
 
   // Enforced server-side too — the client can't be trusted to be the only gate on a
   // pipeline transition that's supposed to always leave a real Drive link behind.
-  if (status === 'on_review' && !isPoster && !isValidDriveLink(editedDriveLink ?? '')) {
+  if (isFreshReview && !isPoster && !isValidDriveLink(editedDriveLink ?? '')) {
     return { success: false, error: 'A valid Google Drive link is required' }
   }
   // Branding/Ads Ready is only ever reached from On Review (see TRANSITIONS), so this is
@@ -268,7 +275,7 @@ export async function updateContentItemStatus(
   // Entering Editing records who's taking it on — the assignment moment, before any
   // actual edit/design work exists (no date/drive link yet, those come at on_review).
   if (status === 'edited' && editorId) updates.edited_by = editorId
-  if (status === 'on_review') {
+  if (isFreshReview) {
     updates.edited_date = editedDate || todayIST()
     if (!isPoster) updates.edited_drive_link = editedDriveLink!.trim()
     // Reaching On Review (Completed Edit) is where the editor is recorded — the

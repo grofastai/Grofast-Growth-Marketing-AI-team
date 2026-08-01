@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeOverview, computeTodayAndAllTime, type OverviewItem, type OverviewShoot, type OverviewAd } from './overview'
+import { computeOverview, computeTodayAndAllTime, computeContentPipeline, type OverviewItem, type OverviewShoot, type OverviewAd } from './overview'
 
 const TODAY = '2026-07-14'
 
@@ -16,11 +16,12 @@ function item(overrides: Partial<OverviewItem> = {}): OverviewItem {
     posts: [],
     posted_ads: false,
     scheduled_post_date: null,
+    posted_branding: false,
     ...overrides,
   }
 }
 function shoot(overrides: Partial<OverviewShoot> = {}): OverviewShoot {
-  return { id: 's1', status: 'scheduled', start_time: `${TODAY}T09:00:00`, created_at: `${TODAY}T09:00:00Z`, ...overrides }
+  return { id: 's1', status: 'scheduled', start_time: `${TODAY}T09:00:00`, created_at: `${TODAY}T09:00:00Z`, source_content_item_id: null, ...overrides }
 }
 function ad(overrides: Partial<OverviewAd> = {}): OverviewAd {
   return { id: 'a1', status: 'active', created_at: `${TODAY}T09:00:00Z`, launch_date: null, ...overrides }
@@ -390,6 +391,75 @@ describe('computeTodayAndAllTime', () => {
     expect(r).toEqual({
       shootsToday: 0, editingReviewsToday: 0, brandingPostsToday: 0, adsToday: 0,
       postedAllTime: 0, usedInAdsAllTime: 0, overdueBrandingCount: 0, adsInTestingCount: 0,
+    })
+  })
+})
+
+describe('computeContentPipeline', () => {
+  it('counts scheduled shoots (video only)', () => {
+    const r = computeContentPipeline({
+      items: [],
+      shoots: [shoot({ id: 's1', status: 'scheduled' }), shoot({ id: 's2', status: 'completed' })],
+    })
+    expect(r.video.shoots).toBe(1)
+  })
+
+  it('counts active ads-video scripts in voiceover, or in scripting when not yet sent to a shoot', () => {
+    const r = computeContentPipeline({
+      items: [
+        item({ id: '1', content_type: 'video', source: 'ads_video', status: 'voiceover' }),
+        item({ id: '2', content_type: 'video', source: 'ads_video', status: 'scripting' }),
+        item({ id: '3', content_type: 'video', source: 'ads_video', status: 'scripting' }),
+        item({ id: '4', content_type: 'video', source: 'shoot', status: 'voiceover' }),
+      ],
+      shoots: [shoot({ id: 's1', source_content_item_id: '3' })],
+    })
+    // item 3 is excluded: already sent to shoot s1. item 4 is excluded: not an ads_video.
+    expect(r.video.adsVideo).toBe(2)
+  })
+
+  it('counts WIP as everything between shooting/scripting and posted, per content type', () => {
+    const r = computeContentPipeline({
+      items: [
+        item({ id: '1', content_type: 'video', status: 'ready_to_edit' }),
+        item({ id: '2', content_type: 'video', status: 'edited' }),
+        item({ id: '3', content_type: 'video', status: 'on_review' }),
+        item({ id: '4', content_type: 'video', status: 'branding_ready' }),
+        item({ id: '5', content_type: 'video', status: 'ads_ready' }),
+        item({ id: '6', content_type: 'video', status: 'posted' }),
+        item({ id: '7', content_type: 'video', status: 'cancelled' }),
+        item({ id: '8', content_type: 'poster', status: 'design' }),
+        item({ id: '9', content_type: 'poster', status: 'ready_to_edit' }),
+      ],
+      shoots: [],
+    })
+    expect(r.video.wip).toBe(5)
+    // poster item 9 (ready_to_edit) isn't a poster status, so it's excluded — posters use
+    // 'design' where video uses 'ready_to_edit'.
+    expect(r.poster.wip).toBe(1)
+  })
+
+  it('counts all-time posted-to-branding and posted-to-ads per content type', () => {
+    const r = computeContentPipeline({
+      items: [
+        item({ id: '1', content_type: 'video', posted_branding: true }),
+        item({ id: '2', content_type: 'video', posted_ads: true }),
+        item({ id: '3', content_type: 'poster', posted_branding: true }),
+        item({ id: '4', content_type: 'video', posted_branding: false, posted_ads: false }),
+      ],
+      shoots: [],
+    })
+    expect(r.video.brandingAllTime).toBe(1)
+    expect(r.video.adsAllTime).toBe(1)
+    expect(r.poster.brandingAllTime).toBe(1)
+    expect(r.poster.adsAllTime).toBe(0)
+  })
+
+  it('returns all zeros for empty input', () => {
+    const r = computeContentPipeline({ items: [], shoots: [] })
+    expect(r).toEqual({
+      video: { shoots: 0, adsVideo: 0, wip: 0, brandingAllTime: 0, adsAllTime: 0 },
+      poster: { wip: 0, brandingAllTime: 0, adsAllTime: 0 },
     })
   })
 })

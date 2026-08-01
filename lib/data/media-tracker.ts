@@ -35,7 +35,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     admin.from('ads_tracker').select('*').eq('company_id', companyId).order('created_at', { ascending: false }),
     admin.from('ad_revisions').select('*').eq('company_id', companyId).order('revision_date', { ascending: false }),
     admin.from('ad_performance_entries').select('*').eq('company_id', companyId).order('entry_date', { ascending: false }),
-    admin.from('shoots').select('id, title, client, start_time, end_time, notes, status, shoot_type, source_content_item_id, going_by, drive_link, created_at').eq('company_id', companyId).order('start_time', { ascending: false }),
+    admin.from('shoots').select('id, title, client, start_time, end_time, notes, status, shoot_type, source_content_item_id, going_by, tags, drive_link, created_at').eq('company_id', companyId).order('start_time', { ascending: false }),
     admin.from('shoot_titles').select('id, shoot_id, title, content_item_id').eq('company_id', companyId),
     admin.from('content_corrections').select('*').eq('company_id', companyId).order('correction_date', { ascending: false }),
     admin.from('freelancers').select('id, name, team, status').eq('company_id', companyId),
@@ -46,7 +46,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     id: string; client_name: string; title: string; content_type: 'video' | 'poster'
     status: 'scripting' | 'voiceover' | 'design' | 'ready_to_edit' | 'on_review' | 'branding_ready' | 'ads_ready' | 'posted' | 'cancelled'
     source: 'shoot' | 'ads_video' | 'poster'
-    shot_by: string | null; shot_date: string | null; edited_by: string | null; edited_date: string | null
+    shot_by: string[] | null; shot_date: string | null; edited_by: string | null; edited_date: string | null
     notes: string | null; created_at: string
     ready_platforms: string[] | null; scheduled_post_date: string | null; scheduled_post_time: string | null
     hook_count: number | null; use_for: string[] | null; priority: string | null
@@ -67,7 +67,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     id: string; title: string; client: string; start_time: string; end_time: string | null
     notes: string | null; status: 'scheduled' | 'completed' | 'cancelled'
     shoot_type: 'ads_shoot' | 'branding_shoot' | null; source_content_item_id: string | null
-    going_by: string[] | null; drive_link: string | null; created_at: string
+    going_by: string[] | null; tags: string[] | null; drive_link: string | null; created_at: string
   }
   type ShootTitleRow = { id: string; shoot_id: string; title: string; content_item_id: string | null }
   type CorrectionRow = { id: string; content_item_id: string; correction_date: string; notes: string; requested_by: string | null; assigned_to: string | null }
@@ -152,7 +152,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     cancelled_by: row.cancelled_by,
     edited_drive_link: row.edited_drive_link,
     is_promotion: row.is_promotion,
-    shotByUser: row.shot_by ? (userMap.get(row.shot_by) ?? null) : null,
+    shotByUsers: (row.shot_by ?? []).map(uid => userMap.get(uid)).filter((u): u is UserRow => !!u),
     editedByUser: row.edited_by ? (userMap.get(row.edited_by) ?? null) : null,
     scriptedByUser: row.scripted_by ? (userMap.get(row.scripted_by) ?? null) : null,
     reviewedByUser: row.reviewed_by ? (userMap.get(row.reviewed_by) ?? null) : null,
@@ -206,6 +206,7 @@ export async function getMediaTrackerData(companyId: string): Promise<{
     notes: row.notes,
     status: row.status,
     shoot_type: row.shoot_type,
+    tags: (row.tags ?? []) as Shoot['tags'],
     source_content_item_id: row.source_content_item_id,
     drive_link: row.drive_link,
     goingByUsers: (row.going_by ?? [])

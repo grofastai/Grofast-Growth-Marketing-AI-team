@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import {
-  monthElapsedPct, paceStatus, computeMonthlyBrandingRollup, computeClientDeliveryStatus,
+  monthElapsedPct, paceStatus, computeMonthlyRollup, computeClientDeliveryStatus,
   type DeliveryItem, type DeliveryClientTarget,
 } from './delivery-status'
 
 function item(overrides: Partial<DeliveryItem> = {}): DeliveryItem {
   return {
     id: 'i1', client_name: 'Acme', content_type: 'video', status: 'ready_to_edit',
-    posted_branding: false, posts: [],
+    posted_branding: false, posted_ads: false, posts: [],
     ...overrides,
   }
 }
@@ -46,9 +46,9 @@ describe('paceStatus', () => {
   })
 })
 
-describe('computeMonthlyBrandingRollup', () => {
+describe('computeMonthlyRollup — branding', () => {
   it('sums target and published across all clients and both content types', () => {
-    const r = computeMonthlyBrandingRollup(
+    const r = computeMonthlyRollup(
       [
         item({ id: '1', client_name: 'Acme', content_type: 'video', posted_branding: true, posts: [{ posted_date: '2026-07-10', platform: 'instagram' }] }),
         item({ id: '2', client_name: 'Beta', content_type: 'poster', posted_branding: true, posts: [{ posted_date: '2026-07-11', platform: 'facebook' }] }),
@@ -59,7 +59,7 @@ describe('computeMonthlyBrandingRollup', () => {
         target({ client_name: 'Acme', content_type: 'poster', target: 5 }),
         target({ client_name: 'Beta', content_type: 'poster', target: 8 }),
       ],
-      '2026-07',
+      '2026-07', 'branding',
     )
     expect(r.target).toBe(23)
     expect(r.completed).toBe(2)
@@ -68,24 +68,56 @@ describe('computeMonthlyBrandingRollup', () => {
   })
 
   it('ignores ads-kind and other-month targets', () => {
-    const r = computeMonthlyBrandingRollup(
+    const r = computeMonthlyRollup(
       [],
       [
         target({ kind: 'ads', target: 50 }),
         target({ month: '2026-06', target: 50 }),
         target({ target: 10 }),
       ],
-      '2026-07',
+      '2026-07', 'branding',
     )
     expect(r.target).toBe(10)
   })
 
   it('returns all zeros for empty input', () => {
-    expect(computeMonthlyBrandingRollup([], [], '2026-07')).toEqual({ target: 0, completed: 0, remaining: 0, completionPct: 0 })
+    expect(computeMonthlyRollup([], [], '2026-07', 'branding')).toEqual({ target: 0, completed: 0, remaining: 0, completionPct: 0 })
+  })
+
+  it('scopes to a single content type when one is given', () => {
+    const r = computeMonthlyRollup(
+      [
+        item({ id: '1', client_name: 'Acme', content_type: 'video', posted_branding: true, posts: [{ posted_date: '2026-07-10', platform: 'instagram' }] }),
+        item({ id: '2', client_name: 'Acme', content_type: 'poster', posted_branding: true, posts: [{ posted_date: '2026-07-11', platform: 'facebook' }] }),
+      ],
+      [
+        target({ client_name: 'Acme', content_type: 'video', target: 10 }),
+        target({ client_name: 'Acme', content_type: 'poster', target: 5 }),
+      ],
+      '2026-07', 'branding', 'video',
+    )
+    expect(r).toEqual({ target: 10, completed: 1, remaining: 9, completionPct: 10 })
   })
 })
 
-describe('computeClientDeliveryStatus', () => {
+describe('computeMonthlyRollup — ads', () => {
+  it('uses posted_ads and kind=ads targets instead of branding', () => {
+    const r = computeMonthlyRollup(
+      [
+        item({ id: '1', client_name: 'Acme', posted_branding: true, posted_ads: false, posts: [{ posted_date: '2026-07-10', platform: 'instagram' }] }),
+        item({ id: '2', client_name: 'Acme', posted_branding: false, posted_ads: true, posts: [{ posted_date: '2026-07-11', platform: 'meta_ads' }] }),
+      ],
+      [
+        target({ client_name: 'Acme', kind: 'branding', target: 10 }),
+        target({ client_name: 'Acme', kind: 'ads', target: 6 }),
+      ],
+      '2026-07', 'ads',
+    )
+    expect(r).toEqual({ target: 6, completed: 1, remaining: 5, completionPct: expect.closeTo(1 / 6 * 100, 5) })
+  })
+})
+
+describe('computeClientDeliveryStatus — branding', () => {
   it('builds one row per client with target/published/editing/readyToPublish/remaining/status', () => {
     const rows = computeClientDeliveryStatus(
       [
@@ -98,7 +130,7 @@ describe('computeClientDeliveryStatus', () => {
         target({ client_name: 'Acme', content_type: 'video', target: 4 }),
         target({ client_name: 'Acme', content_type: 'poster', target: 2 }),
       ],
-      '2026-07', '2026-07-16',
+      '2026-07', '2026-07-16', 'branding',
     )
     expect(rows).toHaveLength(1)
     expect(rows[0].client).toBe('Acme')
@@ -115,13 +147,48 @@ describe('computeClientDeliveryStatus', () => {
     const rows = computeClientDeliveryStatus(
       [item({ id: '1', client_name: 'Acme', status: 'cancelled' })],
       [target({ client_name: 'Acme', target: 5 })],
-      '2026-07', '2026-07-16',
+      '2026-07', '2026-07-16', 'branding',
     )
     expect(rows[0]).toMatchObject({ published: 0, editing: 0, readyToPublish: 0 })
   })
 
   it('omits clients with neither a target nor any items', () => {
-    const rows = computeClientDeliveryStatus([], [], '2026-07', '2026-07-16')
+    const rows = computeClientDeliveryStatus([], [], '2026-07', '2026-07-16', 'branding')
     expect(rows).toEqual([])
+  })
+
+  it('scopes to a single content type when one is given, including its target', () => {
+    const rows = computeClientDeliveryStatus(
+      [
+        item({ id: '1', client_name: 'Acme', content_type: 'video', status: 'branding_ready' }),
+        item({ id: '2', client_name: 'Acme', content_type: 'poster', status: 'branding_ready' }),
+      ],
+      [
+        target({ client_name: 'Acme', content_type: 'video', target: 4 }),
+        target({ client_name: 'Acme', content_type: 'poster', target: 2 }),
+      ],
+      '2026-07', '2026-07-16', 'branding', 'poster',
+    )
+    expect(rows).toHaveLength(1)
+    expect(rows[0].target).toBe(2)
+    expect(rows[0].readyToPublish).toBe(1)
+  })
+})
+
+describe('computeClientDeliveryStatus — ads', () => {
+  it('uses posted_ads, kind=ads targets, and the ads_ready status for readyToPublish', () => {
+    const rows = computeClientDeliveryStatus(
+      [
+        item({ id: '1', client_name: 'Acme', status: 'posted', posted_ads: true, posts: [{ posted_date: '2026-07-05', platform: 'meta_ads' }] }),
+        item({ id: '2', client_name: 'Acme', status: 'ads_ready' }),
+        item({ id: '3', client_name: 'Acme', status: 'branding_ready' }), // should NOT count as ads readyToPublish
+      ],
+      [target({ client_name: 'Acme', kind: 'ads', target: 4 })],
+      '2026-07', '2026-07-16', 'ads',
+    )
+    expect(rows).toHaveLength(1)
+    expect(rows[0].target).toBe(4)
+    expect(rows[0].published).toBe(1)
+    expect(rows[0].readyToPublish).toBe(1)
   })
 })

@@ -6,6 +6,32 @@
 // treats YYYY-MM-DD strings (see `daysAgo`/`fmtDate` in media-tracker-client.tsx) — so a
 // browser in any timezone doesn't shift dates by a day via UTC conversion.
 
+// Structural, minimal input for computeUpcomingSchedule below — the real ContentItem
+// (in media-tracker-client.tsx) is a superset and assigns to this without conversion,
+// mirroring the pattern lib/media-tracker/overview.ts's OverviewItem already uses.
+export type UpcomingScheduleInput = {
+  id: string
+  client_name: string
+  title: string
+  content_type: 'video' | 'poster'
+  status: 'scripting' | 'voiceover' | 'design' | 'ready_to_edit' | 'edited'
+    | 'on_review' | 'branding_ready' | 'ads_ready' | 'posted' | 'cancelled'
+  scheduled_post_date: string | null
+  scheduled_post_time: string | null
+  priority: 'low' | 'medium' | 'high' | 'urgent' | null
+}
+export type UpcomingScheduleItem = {
+  id: string
+  date: string
+  time: string | null
+  title: string
+  client: string
+  contentType: 'video' | 'poster'
+  destination: 'branding' | 'ads'
+  priority: 'low' | 'medium' | 'high' | 'urgent' | null
+  overdue: boolean
+}
+
 export type ScheduleEntry = {
   id: string
   date: string // YYYY-MM-DD
@@ -104,4 +130,35 @@ export function buildMonthGrid(year: number, month: number, entries: ScheduleEnt
     })
   }
   return days
+}
+
+// A compact, read-only preview of what's coming up — same "branding_ready/ads_ready with
+// a scheduled_post_date" criteria the Schedule tab itself uses (see scheduledContentItems
+// in media-tracker-client.tsx), for the Overview Dashboard's Upcoming Schedule section.
+// Unlike ScheduleEntry, this carries no actions (Mark Posted/Reschedule) — the Overview
+// links out to the Schedule tab for those instead of duplicating them inline.
+export function computeUpcomingSchedule(items: UpcomingScheduleInput[], today: string, limit: number): UpcomingScheduleItem[] {
+  return items
+    .filter((i): i is UpcomingScheduleInput & { scheduled_post_date: string } =>
+      (i.status === 'branding_ready' || i.status === 'ads_ready') && !!i.scheduled_post_date
+    )
+    .map(i => ({
+      id: i.id,
+      date: i.scheduled_post_date,
+      time: i.scheduled_post_time,
+      title: i.title,
+      client: i.client_name,
+      contentType: i.content_type,
+      destination: (i.status === 'ads_ready' ? 'ads' : 'branding') as 'ads' | 'branding',
+      priority: i.priority,
+      overdue: i.scheduled_post_date < today,
+    }))
+    .sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1
+      if (a.time === b.time) return 0
+      if (a.time === null) return -1
+      if (b.time === null) return 1
+      return a.time < b.time ? -1 : 1
+    })
+    .slice(0, limit)
 }

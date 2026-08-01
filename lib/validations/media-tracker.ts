@@ -29,6 +29,9 @@ export const createContentItemSchema = z.object({
   // Who edited/designed it — asked at backfill time same as the normal Edited -> On
   // Review move, instead of silently defaulting to whoever's filling out the form.
   edited_by:            z.string().uuid().optional(),
+  // Who actually posted it — same reasoning as edited_by, asked instead of silently
+  // crediting whoever's filling out the backfill form.
+  posted_by:            z.string().uuid().optional(),
   // Only meaningful when posted_platforms includes 'other'.
   other_platform_label: z.string().optional(),
 })
@@ -40,8 +43,9 @@ export const updateContentItemSchema = z.object({
   content_type: z.enum(CONTENT_TYPES),
   shot_date:    z.string().optional(),
   notes:        z.string().optional(),
-  // Who shot/designed it — editable after the fact (wrong person tagged at creation).
-  shot_by:      z.string().uuid().optional(),
+  // Who shot it — editable after the fact, and now multi-person (a shoot's crew is
+  // rarely just one person). Empty array clears it; undefined means "not sent this time".
+  shot_by:      z.array(z.string().uuid()).optional(),
   // Reassigning who/when edited it — only meaningful once the item has reached On Review or
   // later (that's when it was first asked, at the Ready to Edit -> On Review move).
   edited_by:    z.string().uuid().optional(),

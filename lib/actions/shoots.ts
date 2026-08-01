@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { isValidShootTransition, type ShootStatus } from '@/lib/shoots/status-transitions'
 import { moveScriptToShootSchema, type MoveScriptToShootInput } from '@/lib/validations/media-tracker'
 import { isValidDriveLink } from '@/lib/utils/drive-link'
+import { resolveShotBy } from '@/lib/shoots/shot-by'
 
 function adminSupabase() {
   return createClient(
@@ -89,7 +90,7 @@ export async function updateShootStatus(
   const admin = adminSupabase()
   const { data: shoot } = await admin
     .from('shoots')
-    .select('id, status, client, start_time, notes, company_id, source_content_item_id')
+    .select('id, status, client, start_time, notes, company_id, source_content_item_id, going_by')
     .eq('id', id)
     .single()
   if (!shoot) return { success: false, error: 'Shoot not found' }
@@ -109,7 +110,7 @@ export async function updateShootStatus(
   if (status === 'completed' && shoot.source_content_item_id) {
     const shotDate = shoot.start_time.split('T')[0]
     await admin.from('content_items').update({
-      status: 'ready_to_edit', shot_by: user.id, shot_date: shotDate, updated_at: new Date().toISOString(),
+      status: 'ready_to_edit', shot_by: resolveShotBy(shoot.going_by, user.id), shot_date: shotDate, updated_at: new Date().toISOString(),
     }).eq('id', shoot.source_content_item_id)
 
     revalidatePath('/admin/shoots')
@@ -135,7 +136,7 @@ export async function updateShootStatus(
         content_type: 'video',
         source: 'shoot',
         status: 'ready_to_edit',
-        shot_by: user.id,
+        shot_by: resolveShotBy(shoot.going_by, user.id),
         shot_date: shotDate,
         notes: shoot.notes,
         created_by: user.id,
@@ -180,6 +181,8 @@ type CreateTrackerShootInput = {
   shot_time_from: string
   shot_time_to: string
   notes?: string
+  going_by?: string[]
+  tags?: ('branding' | 'advertisement' | 'promotion')[]
 }
 
 // Scheduling only records the SHOOT (e.g. "SKB Silks Diwali Shoot"). The individual
@@ -216,6 +219,8 @@ export async function createTrackerShoot(
     notes: input.notes?.trim() || null,
     created_by: user.id,
     status: 'scheduled',
+    going_by: input.going_by ?? [],
+    tags: input.tags ?? [],
   }).select('id').single()
   if (error) return { success: false, error: error.message }
 
@@ -289,7 +294,7 @@ export async function completeShootWithTitles(
         content_type: 'video',
         source: 'shoot',
         status: 'ready_to_edit',
-        shot_by: user.id,
+        shot_by: resolveShotBy(goingBy, user.id),
         shot_date: shotDate,
         notes: shoot.notes,
         created_by: user.id,
@@ -316,7 +321,7 @@ export async function completeShootWithTitles(
 
   if (isLinked) {
     const { error: itemError } = await admin.from('content_items').update({
-      status: 'ready_to_edit', shot_by: user.id, shot_date: shotDate, updated_at: new Date().toISOString(),
+      status: 'ready_to_edit', shot_by: resolveShotBy(goingBy, user.id), shot_date: shotDate, updated_at: new Date().toISOString(),
     }).eq('id', shoot.source_content_item_id as string)
     if (itemError) return { success: false, error: itemError.message }
   }
@@ -382,14 +387,14 @@ export async function addShootTitle(
 
   const admin = adminSupabase()
   const { data: shoot } = await admin.from('shoots')
-    .select('id, status, client, start_time, notes, company_id').eq('id', shootId).single()
+    .select('id, status, client, start_time, notes, company_id, going_by').eq('id', shootId).single()
   if (!shoot) return { success: false, error: 'Shoot not found' }
   if (shoot.status !== 'completed') return { success: false, error: 'Only a Completed shoot can have videos added here' }
 
   const shotDate = shoot.start_time.split('T')[0]
   const { data: item, error: itemError } = await admin.from('content_items').insert({
     company_id: shoot.company_id, client_name: shoot.client, title: cleanTitle, content_type: 'video',
-    source: 'shoot', status: 'ready_to_edit', shot_by: user.id, shot_date: shotDate, notes: shoot.notes, created_by: user.id,
+    source: 'shoot', status: 'ready_to_edit', shot_by: resolveShotBy(shoot.going_by, user.id), shot_date: shotDate, notes: shoot.notes, created_by: user.id,
   }).select('id').single()
   if (itemError || !item) return { success: false, error: itemError?.message ?? 'Failed to create video' }
 
@@ -474,7 +479,7 @@ export async function updateShootActualTime(
 // "edit details" action silently undo a completion.
 export async function updateTrackerShoot(
   shootId: string,
-  input: { client: string; title: string; shoot_type?: 'ads_shoot' | 'branding_shoot'; shot_date: string; shot_time_from: string; shot_time_to: string; notes?: string }
+  input: { client: string; title: string; shoot_type?: 'ads_shoot' | 'branding_shoot'; shot_date: string; shot_time_from: string; shot_time_to: string; notes?: string; tags?: ('branding' | 'advertisement' | 'promotion')[] }
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -502,6 +507,7 @@ export async function updateTrackerShoot(
     start_time,
     end_time,
     ...(input.shoot_type ? { shoot_type: input.shoot_type } : {}),
+    ...(input.tags ? { tags: input.tags } : {}),
     notes: input.notes?.trim() || null,
   }).eq('id', shootId)
   if (error) return { success: false, error: error.message }

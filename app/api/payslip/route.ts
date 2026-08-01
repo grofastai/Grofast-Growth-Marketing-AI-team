@@ -2,8 +2,10 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayrollSettings } from '@/lib/actions/payroll-settings'
-import { classifyAttendanceDay } from '@/lib/utils/attendance-stats'
-import { calcNetWorkHours } from '@/lib/utils/work-hours'
+import {
+  computeEmployeeMonth, fetchEmployeeMonthData,
+  type EmployeeMonthMember, type EmployeeMonthBreakdown,
+} from '@/lib/payroll/compute-month'
 
 function adminSupabase() {
   return createClient(
@@ -11,18 +13,6 @@ function adminSupabase() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
-}
-
-// All calendar days in the month, minus company holidays — weekends ARE working
-// days for this business (see project leave policy), so this must not skip them.
-function calendarWorkDays(year: number, month: number, holidayDates: Set<string>) {
-  const days = new Date(year, month, 0).getDate()
-  const out: string[] = []
-  for (let d = 1; d <= days; d++) {
-    const date = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    if (!holidayDates.has(date)) out.push(date)
-  }
-  return out
 }
 
 function inWords(n: number): string {
@@ -37,6 +27,35 @@ function inWords(n: number): string {
   if (n < 10000000) return inWords(Math.floor(n/100000))+' Lakh'+(n%100000 ? ' '+inWords(n%100000) : '')
   return inWords(Math.floor(n/10000000))+' Crore'+(n%10000000 ? ' '+inWords(n%10000000) : '')
 }
+
+// Every "YYYY-MM" from the financial year's start (April) through targetMonth
+// inclusive — clamped to the employee's joining month if they joined after
+// the financial year started, so Year to Date never counts months before
+// they were employed.
+function fyMonthsUpTo(targetMonth: string, joinedAt: string | null): string[] {
+  const [ty, tm] = targetMonth.split('-').map(Number)
+  const fyStartYear = tm >= 4 ? ty : ty - 1
+  let startYear = fyStartYear, startMon = 4
+  if (joinedAt) {
+    const joinMonth = joinedAt.slice(0, 7)
+    const fyStartStr = `${fyStartYear}-04`
+    if (joinMonth > fyStartStr) {
+      const [jy, jm] = joinMonth.split('-').map(Number)
+      startYear = jy; startMon = jm
+    }
+  }
+  const months: string[] = []
+  let y = startYear, m = startMon
+  while (y < ty || (y === ty && m <= tm)) {
+    months.push(`${y}-${String(m).padStart(2, '0')}`)
+    m++
+    if (m > 12) { m = 1; y++ }
+  }
+  return months
+}
+
+type YtdField = 'basic' | 'hra' | 'travelAllowance' | 'medicalAllowance' | 'otherAllowance'
+  | 'otPay' | 'bonus' | 'incentive' | 'deduction' | 'advance' | 'basePay' | 'finalNetPay'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
@@ -57,225 +76,87 @@ export async function GET(request: NextRequest) {
   if (requester.role !== 'ADMIN' && userId !== user.id) return new NextResponse('Forbidden', { status: 403 })
 
   const [year, mon] = month.split('-').map(Number)
-  const monthStart  = `${month}-01`
-  const monthEnd    = `${month}-${new Date(year, mon, 0).getDate()}`
   const settings    = await getPayrollSettings(requester.company_id)
 
-  const [
-    { data: memberRaw }, { data: updatesRaw }, { data: logsRaw }, { data: companyRaw },
-    { data: runRaw }, { data: kycRaw }, { data: collabRaw },
-    { data: approvedLeavesRaw }, { data: holidaysRaw },
-  ] = await Promise.all([
+  const [{ data: memberRaw }, { data: companyRaw }, { data: kycRaw }] = await Promise.all([
     admin.from('users')
-      .select('id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, created_at, phone, passport_photo_url')
+      .select('id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, created_at, position')
       .eq('id', userId).eq('company_id', requester.company_id).single(),
-    admin.from('daily_updates').select('date, working_hours, learning_hours, work_entries')
-      .eq('user_id', userId).gte('date', monthStart).lte('date', monthEnd),
-    admin.from('attendance_logs').select('date, clock_in, clock_out, status')
-      .eq('user_id', userId).gte('date', monthStart).lte('date', monthEnd),
     admin.from('companies').select('name, slug').eq('id', requester.company_id).single(),
-    admin.from('payroll_runs').select('bonus, advance, incentive, is_paid, paid_at')
-      .eq('user_id', userId).eq('month', month).maybeSingle(),
-    admin.from('member_kyc').select('bank_account, bank_name, bank_ifsc')
+    admin.from('member_kyc').select('bank_account')
       .eq('user_id', userId).maybeSingle(),
-    admin.from('collaboration_confirmations').select('date, confirmed_hours')
-      .eq('collaborator_id', userId)
-      .in('status', ['confirmed', 'edited_confirmed'])
-      .gte('date', monthStart).lte('date', monthEnd),
-    // Approved leaves — may span the month boundary
-    admin.from('leaves').select('from_date, to_date, leave_type')
-      .eq('user_id', userId).eq('status', 'approved')
-      .lte('from_date', monthEnd).gte('to_date', monthStart),
-    // Company holidays this month
-    admin.from('company_leaves').select('date')
-      .eq('company_id', requester.company_id)
-      .gte('date', monthStart).lte('date', monthEnd),
   ])
 
   if (!memberRaw) return new NextResponse('Member not found', { status: 404 })
 
-  type UpdateRow = { date: string; working_hours: number | null; learning_hours: number | null; work_entries: { task_type?: string; duration_hours?: number | null; start_time?: string | null; end_time?: string | null }[] | null }
-  type LogRow    = { date: string; clock_in: string | null; clock_out: string | null; status: string | null }
-  type LeaveRow  = { from_date: string; to_date: string; leave_type: string }
-
-  const updates        = (updatesRaw ?? []) as UpdateRow[]
-  const logs           = (logsRaw ?? []) as LogRow[]
-  const approvedLeaves = (approvedLeavesRaw ?? []) as LeaveRow[]
-  const holidayDates   = new Set(((holidaysRaw ?? []) as { date: string }[]).map(h => h.date))
-
-  const collabByDate: Record<string, number> = {}
-  for (const c of (collabRaw ?? []) as { date: string; confirmed_hours: number | null }[]) {
-    collabByDate[c.date] = (collabByDate[c.date] ?? 0) + (c.confirmed_hours ?? 0)
-  }
-  const updateByDate: Record<string, number> = {}
-  for (const u of updates) {
-    const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-    updateByDate[u.date] = entries.length > 0
-      ? calcNetWorkHours(entries as Parameters<typeof calcNetWorkHours>[0])
-      : (u.working_hours ?? 0) + (u.learning_hours ?? 0)
-  }
-  const clockedInDates = new Set(logs.filter(l => l.clock_in !== null || l.status === 'present').map(l => l.date))
-
-  // Approved leave dates (excluding permission/wfh/shoot_day, which aren't absences)
-  const leaveDateMap = new Map<string, "full" | "half">()
-  for (const l of approvedLeaves) {
-    if (l.leave_type === 'permission' || l.leave_type === 'wfh' || l.leave_type === 'shoot_day') continue
-    const weight = l.leave_type === 'half_day' ? 'half' : 'full'
-    const cur = new Date(l.from_date + 'T12:00:00')
-    const end = new Date(l.to_date   + 'T12:00:00')
-    while (cur <= end) {
-      const d = cur.toISOString().split('T')[0]
-      if (d >= monthStart && d <= monthEnd) leaveDateMap.set(d, weight)
-      cur.setDate(cur.getDate() + 1)
-    }
-  }
-
-  // Same per-day classification as the Admin Payroll run (lib/utils/attendance-stats.ts)
-  // — approved leave is never deducted and a half-day only deducts 0.5 — so this PDF's
-  // numbers always match what the member actually gets paid via Payroll, not an
-  // independently-recomputed guess.
-  const workDayDates = calendarWorkDays(year, mon, holidayDates)
-  let presentDays = 0, halfDays = 0, absentDays = 0, leaveDays = 0
-  let totalHours = 0
-  for (const date of workDayDates) {
-    const hasClockIn = clockedInDates.has(date)
-    const workH      = (updateByDate[date] ?? 0) + (collabByDate[date] ?? 0)
-    const leaveType  = leaveDateMap.get(date)
-    const dayClass   = classifyAttendanceDay({ hasClockIn, workHours: workH, leaveType }, settings.half_day_threshold_hrs)
-
-    if (dayClass === 'leave' || dayClass === 'half_leave') {
-      leaveDays += dayClass === 'half_leave' ? 0.5 : 1
-      if (dayClass === 'half_leave') presentDays += 0.5
-      totalHours += workH
-      continue
-    }
-
-    totalHours += workH
-
-    if (dayClass === 'full') presentDays++
-    else if (dayClass === 'half') halfDays++
-    else if (dayClass === 'absent') absentDays++
-  }
-  totalHours = Math.round(totalHours * 10) / 10
-  // Overtime is cumulative for the whole month, not per-day (matches Admin Payroll,
-  // confirmed 2026-07-28): only hours beyond the fixed 212.5h monthly target count,
-  // regardless of how many days it took to get there.
-  const HOURS_TARGET = 25 * 8.5
-  const otHours = Math.round(Math.max(0, totalHours - HOURS_TARGET) * 10) / 10
-  const deductibleDays  = absentDays + halfDays * 0.5
-  const presentDaysShow = presentDays + halfDays * 0.5
-  const workDays        = workDayDates.length
-
   type MemberRow = {
     id: string; name: string; employee_id: string; team: string | null
     employment_type: string | null; monthly_salary: number | null; hourly_rate: number | null
-    created_at: string | null; phone: string | null; passport_photo_url: string | null
+    created_at: string | null; position: string | null
   }
   const member  = memberRaw as MemberRow
   const company = companyRaw as { name: string; slug: string } | null
-  const kyc     = kycRaw as { bank_account: string | null; bank_name: string | null; bank_ifsc: string | null } | null
+  const kyc     = kycRaw as { bank_account: string | null } | null
 
-  const bonus     = (runRaw as any)?.bonus     ?? 0
-  const advance   = (runRaw as any)?.advance   ?? 0
-  const incentive = (runRaw as any)?.incentive ?? 0
-
-  const empType = member.employment_type ?? 'regular'
-  let basic = 0, hra = 0, travelAllowance = 0, medicalAllowance = 0, otherAllowance = 0
-  let deduction = 0, otPay = 0
-
-  if (empType === 'regular' && member.monthly_salary) {
-    const gross     = member.monthly_salary
-    const dailyRate = gross / settings.salary_basis_days
-    basic             = Math.round(gross * (settings.basic_pct / 100))
-    hra               = Math.round(basic * (settings.hra_pct / 100))        // hra_pct is "of basic"
-    travelAllowance   = Math.round(gross * (settings.travel_pct / 100))
-    medicalAllowance  = Math.round(gross * (settings.medical_pct / 100))
-    otherAllowance    = Math.max(0, gross - basic - hra - travelAllowance - medicalAllowance)
-    deduction = Math.round(deductibleDays * dailyRate * 100) / 100
-    otPay     = Math.round(otHours * (dailyRate / settings.ot_threshold_hrs) * 100) / 100
-  } else if (member.hourly_rate) {
-    basic = Math.round(totalHours * member.hourly_rate * 100) / 100
+  const memberForCalc: EmployeeMonthMember = {
+    employment_type: member.employment_type,
+    monthly_salary: member.monthly_salary,
+    hourly_rate: member.hourly_rate,
   }
 
-  const totalEarnings   = Math.round((basic + hra + travelAllowance + medicalAllowance + otherAllowance + otPay + bonus + incentive) * 100) / 100
-  const totalDeductions = Math.round((deduction + advance) * 100) / 100
-  const finalNetPay     = Math.round((totalEarnings - totalDeductions) * 100) / 100
-  const attendPct       = workDays > 0 ? Math.round((presentDaysShow / workDays) * 100) : 0
+  const currentRaw = await fetchEmployeeMonthData(admin, { userId, companyId: requester.company_id, month })
+  const current = computeEmployeeMonth({ ...currentRaw, member: memberForCalc }, settings)
 
-  const payDate     = new Date(year, mon, 5)
-  const payDateStr  = payDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+  // Year to Date: same calculation, looped over every month from the financial
+  // year's start (or this employee's joining month, if later) through the
+  // target month — summed per line item below.
+  const ytdMonths = fyMonthsUpTo(month, member.created_at)
+  const monthBreakdowns: EmployeeMonthBreakdown[] = await Promise.all(
+    ytdMonths.map(async m => {
+      if (m === month) return current
+      const raw = await fetchEmployeeMonthData(admin, { userId, companyId: requester.company_id, month: m })
+      return computeEmployeeMonth({ ...raw, member: memberForCalc }, settings)
+    })
+  )
+  function sumYtd(field: YtdField): number {
+    return Math.round(monthBreakdowns.reduce((s, b) => s + b[field], 0) * 100) / 100
+  }
+  const ytd = {
+    basic: sumYtd('basic'), hra: sumYtd('hra'), travelAllowance: sumYtd('travelAllowance'),
+    medicalAllowance: sumYtd('medicalAllowance'), otherAllowance: sumYtd('otherAllowance'),
+    otPay: sumYtd('otPay'), bonus: sumYtd('bonus'), incentive: sumYtd('incentive'),
+    deduction: sumYtd('deduction'), advance: sumYtd('advance'),
+    basePay: sumYtd('basePay'), finalNetPay: sumYtd('finalNetPay'),
+  }
+
+  // Compulsory attendance days for this specific month — total calendar days minus
+  // the fixed 5-day monthly leave allowance, so a 31-day month reads 26 and a 30-day
+  // month reads 25 (all days are working days at GroFast, including weekends).
+  const daysInMonth = new Date(year, mon, 0).getDate()
+  const compulsoryAttendanceDays = daysInMonth - 5
+
   const monthName   = new Date(year, mon - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
-  const generatedOn = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+  const generatedTs = new Date().toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })
   const payslipId   = `GSPL/${year}/${String(mon).padStart(2,'0')}/${member.employee_id}`
 
   const fmt = (n: number) => `₹ ${Math.round(n).toLocaleString('en-IN')}`
-  const initials = member.name.split(' ').map((n: string) => n[0] ?? '').join('').slice(0, 2).toUpperCase()
   const companyName = company?.name ?? 'GroFast'
 
-  // ── Donut chart ──────────────────────────────────────────────────────────────
-  const grossBase = basic + hra + travelAllowance + medicalAllowance + otherAllowance
-  const pieColors = ['#22C55E','#F43F5E','#3B82F6','#F97316','#A855F7']
-  const pieItems = [
-    { label:'Basic Salary',      val: basic },
-    { label:'HRA',               val: hra },
-    { label:'Travel Allowance',  val: travelAllowance },
-    { label:'Medical Allowance', val: medicalAllowance },
-    { label:'Other Allowance',   val: otherAllowance },
-  ].filter(it => it.val > 0)
-  const pieR = 54, pieCx = 70, pieCy = 70, pieCirc = 2 * Math.PI * pieR
-  let pieAcc = 0
-  const donutSegs = grossBase > 0 ? pieItems.map((it, idx) => {
-    const pct = it.val / grossBase
-    const dash = pct * pieCirc
-    const off = -(pieAcc * pieCirc)
-    pieAcc += pct
-    return `<circle cx="${pieCx}" cy="${pieCy}" r="${pieR}" fill="none" stroke="${pieColors[idx]}" stroke-width="20" stroke-dasharray="${dash.toFixed(1)} ${(pieCirc-dash).toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" style="transform:rotate(-90deg);transform-origin:${pieCx}px ${pieCy}px"/>`
-  }).join('') : ''
-  const donutSvg = `<svg viewBox="0 0 140 140" width="140" height="140"><circle cx="${pieCx}" cy="${pieCy}" r="${pieR}" fill="none" stroke="#F3F4F6" stroke-width="20"/>${donutSegs}<text x="${pieCx}" y="${pieCy-6}" text-anchor="middle" font-size="10" font-weight="800" fill="#111" font-family="Inter,sans-serif">${fmt(grossBase)}</text><text x="${pieCx}" y="${pieCy+8}" text-anchor="middle" font-size="8" fill="#9CA3AF" font-family="Inter,sans-serif">Gross Salary</text></svg>`
+  const isRegular = current.employment_type === 'regular' && !!member.monthly_salary
 
-  // ── Timestamp ────────────────────────────────────────────────────────────────
-  const generatedTs = new Date().toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })
+  const earningsRows = isRegular ? `
+    <tr><td>Basic Salary</td><td>${Math.round(current.basic).toLocaleString('en-IN')}</td><td>${Math.round(ytd.basic).toLocaleString('en-IN')}</td></tr>
+    <tr><td>HRA</td><td>${Math.round(current.hra).toLocaleString('en-IN')}</td><td>${Math.round(ytd.hra).toLocaleString('en-IN')}</td></tr>
+    <tr><td>Travel Allowance</td><td>${Math.round(current.travelAllowance).toLocaleString('en-IN')}</td><td>${Math.round(ytd.travelAllowance).toLocaleString('en-IN')}</td></tr>
+    <tr><td>Medical Allowance</td><td>${Math.round(current.medicalAllowance).toLocaleString('en-IN')}</td><td>${Math.round(ytd.medicalAllowance).toLocaleString('en-IN')}</td></tr>
+    <tr><td>Overtime Allowance</td><td>${Math.round(current.otPay).toLocaleString('en-IN')}</td><td>${Math.round(ytd.otPay).toLocaleString('en-IN')}</td></tr>
+    ${current.otherAllowance > 0 ? `<tr><td>Other Allowance</td><td>${Math.round(current.otherAllowance).toLocaleString('en-IN')}</td><td>${Math.round(ytd.otherAllowance).toLocaleString('en-IN')}</td></tr>` : ''}
+    ${current.bonus > 0 ? `<tr><td>Bonus</td><td>${Math.round(current.bonus).toLocaleString('en-IN')}</td><td>${Math.round(ytd.bonus).toLocaleString('en-IN')}</td></tr>` : ''}
+    ${current.incentive > 0 ? `<tr><td>Incentive</td><td>${Math.round(current.incentive).toLocaleString('en-IN')}</td><td>${Math.round(ytd.incentive).toLocaleString('en-IN')}</td></tr>` : ''}
+  ` : `<tr><td>Hours Worked (${current.totalHours}h)</td><td>${Math.round(current.basePay).toLocaleString('en-IN')}</td><td>${Math.round(ytd.basePay).toLocaleString('en-IN')}</td></tr>`
 
-  // ── SVG Icons ────────────────────────────────────────────────────────────────
-  const ic = (color: string) => ({
-    person:   `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>`,
-    building: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18M2 22h20M10 6h.01M14 6h.01M10 10h.01M14 10h.01M10 14h.01M14 14h.01"/></svg>`,
-    calendar: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
-    card:     `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
-    bank:     `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="22" x2="21" y2="22"/><path d="M12 2L3 8h18L12 2z"/><line x1="5" y1="8" x2="5" y2="22"/><line x1="10" y1="8" x2="10" y2="22"/><line x1="14" y1="8" x2="14" y2="22"/><line x1="19" y1="8" x2="19" y2="22"/></svg>`,
-    hash:     `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>`,
-    wallet:   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>`,
-    calX:     `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="14" x2="14" y2="18"/><line x1="14" y1="14" x2="10" y2="18"/></svg>`,
-    clock:    `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-    check:    `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`,
-    absent:   `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>`,
-    transfer: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg>`,
-    id:       `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="12" y2="16"/></svg>`,
-    money:    `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M14.5 9.5a2.5 2.5 0 0 0-5 0c0 1.4 1 2.1 2.5 2.5s2.5 1.1 2.5 2.5a2.5 2.5 0 0 1-5 0"/><line x1="12" y1="7" x2="12" y2="17"/></svg>`,
-    phone:    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6.09 6.09l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg>`,
-    mail:     `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,4 12,13 2,4"/></svg>`,
-    globe:    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
-    earn:     `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
-    deduct:   `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
-  })
-  const R = ic('#DC2626')
-  const G = ic('#16A34A')
-  const B = ic('#2563EB')
-
-  // Sparkline paths
-  const spGreen  = `<svg viewBox="0 0 80 24" width="80" height="24"><path d="M0,20 C15,17 30,12 45,9 S65,5 80,3" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round"/></svg>`
-  const spRed    = `<svg viewBox="0 0 80 24" width="80" height="24"><path d="M0,4 C15,6 30,11 45,14 S65,19 80,21" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/></svg>`
-  const spBlue   = `<svg viewBox="0 0 80 24" width="80" height="24"><path d="M0,14 C15,12 30,11 45,10 S65,9 80,8" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/></svg>`
-
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(payslipId)}&bgcolor=FFFFFF&color=111827`
-
-  const joiningDateFmt = member.created_at
-    ? new Date(member.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
-    : '—'
-
-  const spDotRed    = `<svg viewBox="0 0 120 28" width="120" height="28"><path d="M0,22 Q10,20 20,18 T40,14 T60,12 T80,10 T100,8 T120,6" fill="none" stroke="#FCA5A5" stroke-width="1.5" stroke-dasharray="3 3" stroke-linecap="round"/></svg>`
-  const spDotGreen  = `<svg viewBox="0 0 120 28" width="120" height="28"><path d="M0,22 Q10,20 20,18 T40,14 T60,10 T80,8 T100,6 T120,4" fill="none" stroke="#86EFAC" stroke-width="1.5" stroke-dasharray="3 3" stroke-linecap="round"/></svg>`
-  const spDotOrange = `<svg viewBox="0 0 120 28" width="120" height="28"><path d="M0,14 Q10,13 20,14 T40,12 T60,11 T80,12 T100,10 T120,9" fill="none" stroke="#FED7AA" stroke-width="1.5" stroke-dasharray="3 3" stroke-linecap="round"/></svg>`
+  const totalEarningsCurrent = current.basePay + current.otPay + current.bonus + current.incentive
+  const totalEarningsYtd     = ytd.basePay + ytd.otPay + ytd.bonus + ytd.incentive
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -284,112 +165,51 @@ export async function GET(request: NextRequest) {
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${payslipId} — ${member.name} — ${monthName}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:13px}
+body{font-family:'Poppins',Arial,Helvetica,sans-serif;background:#F3F4F6;color:#111827;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:12.5px}
 .topbar{background:#111;padding:10px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
 .topbar-dot{width:7px;height:7px;border-radius:50%;background:#DC2626;flex-shrink:0}
 .topbar-text{font-size:12px;color:#9CA3AF;font-weight:500;flex:1}
 .topbar-id{font-size:11px;color:#6B7280;background:#1F2937;padding:3px 10px;border-radius:6px;font-weight:600}
-.dl-btn{background:#DC2626;color:#fff;border:none;padding:7px 18px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 3px 10px rgba(220,38,38,0.4)}
-.page{max-width:860px;margin:20px auto 40px;background:#fff;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden}
-.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:24px 28px 20px;gap:16px}
-.co-logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#DC2626,#991B1B);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff;flex-shrink:0;box-shadow:0 4px 12px rgba(220,38,38,0.3)}
-.co-name{font-size:20px;font-weight:900;color:#111;letter-spacing:0.01em;line-height:1.1}
-.co-sub{font-size:11px;font-weight:700;color:#DC2626;text-transform:uppercase;letter-spacing:0.06em;margin-top:2px}
-.co-addr{font-size:10.5px;color:#9CA3AF;margin-top:6px;line-height:1.7;display:flex;align-items:flex-start;gap:5px}
-.contact-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px}
-.contact-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;font-weight:500}
-.slip-badge{background:linear-gradient(135deg,#DC2626,#991B1B);border-radius:14px;padding:16px 22px;min-width:190px;box-shadow:0 4px 16px rgba(220,38,38,0.35);position:relative;overflow:hidden;flex-shrink:0}
-.slip-badge::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.08)}
-.slip-month{font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px}
-.slip-title{font-size:28px;font-weight:900;color:#fff;letter-spacing:0.1em;line-height:1}
-.slip-doc{position:absolute;right:16px;top:50%;transform:translateY(-50%);opacity:0.25}
-.slip-id-row{margin-top:8px;padding:0 28px}
-.hdivider{height:1px;background:#F3F4F6;margin:0 28px}
-.emp-card{margin:20px 28px;background:#F8F9FC;border:1.5px solid #E5E7EB;border-radius:14px;padding:22px 24px;display:flex;gap:22px;align-items:flex-start;position:relative;overflow:hidden}
-.emp-watermark{position:absolute;right:-10px;bottom:-20px;font-size:120px;font-weight:900;color:rgba(0,0,0,0.04);letter-spacing:-0.06em;line-height:1;pointer-events:none}
-.emp-photo{width:90px;height:90px;border-radius:50%;overflow:hidden;flex-shrink:0;border:3px solid #E5E7EB;background:#F3F4F6;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,0.1)}
-.emp-photo img{width:100%;height:100%;object-fit:cover;object-position:top center}
-.emp-photo-init{width:100%;height:100%;background:linear-gradient(135deg,#DC2626,#991B1B);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;color:#fff}
-.emp-info{flex:1;display:flex;gap:32px}
-.emp-left{flex:1}
-.emp-name{font-size:20px;font-weight:800;color:#111;margin-bottom:6px}
-.emp-badge{display:inline-block;background:#DCFCE7;color:#15803D;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:0.04em;margin-bottom:14px}
-.emp-field{margin-bottom:10px}
-.emp-lbl{display:flex;align-items:center;gap:5px;font-size:10px;color:#9CA3AF;font-weight:500;margin-bottom:2px}
-.emp-val{font-size:13px;font-weight:700;color:#111}
-.emp-right{min-width:200px}
-.net-banner{margin:0 28px 20px;background:#F0FDF4;border:1.5px solid #DCFCE7;border-radius:14px;padding:20px 26px;display:flex;align-items:center}
-.net-left{flex:1}
-.net-label{font-size:10px;font-weight:800;color:#16A34A;text-transform:uppercase;letter-spacing:0.14em;display:flex;align-items:center;gap:6px;margin-bottom:6px}
-.net-label::before{content:'';width:7px;height:7px;border-radius:50%;background:#16A34A;flex-shrink:0}
-.net-amount{font-size:38px;font-weight:900;color:#111;letter-spacing:-0.03em;line-height:1;margin-bottom:6px}
-.net-words{font-size:11.5px;color:#6B7280;line-height:1.5;max-width:260px}
-.net-divider{width:1px;background:#D1FAE5;align-self:stretch;margin:0 24px;flex-shrink:0}
-.net-right{display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0}
-.net-cal-icon{width:44px;height:44px;border-radius:50%;background:#DCFCE7;border:2px solid #A7F3D0;display:flex;align-items:center;justify-content:center}
-.net-paid-lbl{font-size:10px;color:#6B7280;font-weight:500;text-align:center}
-.net-paid-date{font-size:14px;font-weight:800;color:#111;text-align:center}
-.net-method{display:inline-flex;align-items:center;gap:5px;background:#DCFCE7;color:#15803D;font-size:11px;font-weight:700;padding:4px 12px;border-radius:99px;border:1px solid #A7F3D0}
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 28px 20px}
-.kpi-card{border:1.5px solid #E5E7EB;border-radius:12px;padding:14px 16px 10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.04);overflow:hidden}
-.kpi-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.kpi-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.kpi-lbl{font-size:9.5px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.08em;line-height:1.3}
-.kpi-val{font-size:19px;font-weight:900;margin-bottom:8px;letter-spacing:-0.02em}
-.kpi-red{color:#DC2626}.kpi-green{color:#16A34A}.kpi-dark{color:#111}.kpi-orange{color:#F97316}
-.kpi-ico-red{background:#FEF2F2}.kpi-ico-green{background:#F0FDF4}.kpi-ico-orange{background:#FFF7ED}
-.tri-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:0 28px 20px}
-.ed-card{border:1.5px solid #E5E7EB;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.04);display:flex;flex-direction:column}
-.ed-hdr{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid #E5E7EB}
-.ed-hdr-green{background:#F0FDF4}.ed-hdr-red{background:#FFF5F5}
-.ed-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center}
-.ed-ico-green{background:#DCFCE7}.ed-ico-red{background:#FEE2E2}
-.ed-title{font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase}
-.ed-title-green{color:#15803D}.ed-title-red{color:#991B1B}
-.ed-row{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid #F9FAFB;font-size:12px}
-.ed-row:last-of-type{border-bottom:none}
-.ed-row-name{color:#374151}.ed-row-amt{font-weight:600;color:#111}
-.ed-total{display:flex;justify-content:space-between;padding:10px 14px;font-size:12px;font-weight:800;border-top:2px solid #E5E7EB;margin-top:auto}
-.ed-total-green{background:#F0FDF4;color:#15803D}.ed-total-red{background:#FFF5F5;color:#991B1B}
-.breakdown-card{border:1.5px solid #E5E7EB;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
-.breakdown-hdr{padding:11px 14px;border-bottom:1px solid #E5E7EB;font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#374151;background:#FAFAFA}
-.breakdown-body{padding:14px;display:flex;flex-direction:column;align-items:center;gap:10px}
-.pie-legend{width:100%;display:flex;flex-direction:column;gap:5px}
-.pie-row{display:flex;align-items:center;justify-content:space-between;gap:6px}
-.pie-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
-.pie-name{font-size:10.5px;color:#374151;flex:1}
-.pie-pct{font-size:10.5px;font-weight:700;color:#111}
-.bot-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:0 28px 20px}
-.bot-card{border:1.5px solid #E5E7EB;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
-.bot-hdr{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid #E5E7EB;background:#EFF6FF}
-.bot-hdr-ico{width:24px;height:24px;border-radius:7px;background:#DBEAFE;display:flex;align-items:center;justify-content:center}
-.bot-hdr-title{font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#1D4ED8}
-.bot-row{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid #F9FAFB}
-.bot-row:last-child{border-bottom:none}
-.bot-lbl-wrap{display:flex;align-items:center;gap:8px}
-.bot-ico{width:22px;height:22px;border-radius:6px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.bot-lbl{font-size:11.5px;color:#374151}
-.bot-val{font-size:11.5px;font-weight:700;color:#111}
-.secure-card{border:1.5px solid #E5E7EB;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.04);display:flex;flex-direction:column;align-items:center;gap:12px;background:#fff}
-.secure-icon{width:42px;height:42px;border-radius:50%;background:#EFF6FF;display:flex;align-items:center;justify-content:center}
-.secure-title{font-size:12px;font-weight:800;color:#111;text-align:center}
-.secure-desc{font-size:10.5px;color:#6B7280;text-align:center;line-height:1.6}
-.qr-wrap{display:flex;flex-direction:column;align-items:center;gap:5px}
-.qr-label{font-size:10px;color:#9CA3AF;text-align:center;line-height:1.5}
-.footer{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:20px;padding:18px 28px;border-top:1px solid #F3F4F6;align-items:center}
-.footer-disc{display:flex;align-items:flex-start;gap:10px}
-.footer-shield{width:32px;height:32px;border-radius:50%;background:#FEF2F2;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.footer-disc-text{font-size:10px;color:#9CA3AF;line-height:1.8}
-.sig{text-align:center}
-.sig-name{font-family:'Dancing Script',cursive;font-size:22px;color:#374151;margin-bottom:5px;line-height:1}
-.sig-line{height:1px;background:#D1D5DB;margin-bottom:6px}
-.sig-role{font-size:11px;font-weight:700;color:#374151}
-.sig-co{font-size:10px;color:#9CA3AF;margin-top:2px}
-.sig-check{display:inline-flex;align-items:center;gap:4px;margin-top:5px;background:#F0FDF4;color:#16A34A;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;border:1px solid #DCFCE7}
-@media print{body{background:#fff}.topbar{display:none}.page{margin:0;max-width:100%;box-shadow:none;border-radius:0;border:none}}
+.dl-btn{background:#DC2626;color:#fff;border:none;padding:7px 18px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px}
+.page{max-width:800px;margin:20px auto 40px;background:#fff;border:1px solid #D1D5DB}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:22px 24px;background:linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)}
+.co-brand-row{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.co-logo-img{width:46px;height:46px;border-radius:50%;object-fit:cover;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+.co-name{font-family:'Poppins',Arial,sans-serif;font-size:19px;font-weight:600;color:#fff;letter-spacing:0.01em}
+.co-sub{font-size:10px;font-weight:500;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px}
+.co-addr{font-size:10.5px;color:rgba(255,255,255,0.65);margin-top:6px;line-height:1.6}
+.slip-title{font-size:15px;font-weight:600;color:#fff;text-align:right}
+.slip-sub{font-size:10.5px;color:rgba(255,255,255,0.7);text-align:right;margin-top:2px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #D1D5DB;background:#EFF3F8}
+.info-box{padding:12px 24px;display:flex;flex-direction:column;gap:6px}
+.info-box+.info-box{border-left:1px solid #D1D5DB}
+.info-row{padding:0}
+.info-lbl{display:block;font-size:9.5px;color:#6B7280;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px}
+.info-val{display:block;font-size:12.5px;font-weight:700;color:#111;line-height:1.4}
+.wd-row{display:flex;border-bottom:1px solid #D1D5DB;background:#EFF3F8}
+.wd-cell{flex:1;padding:10px 24px;text-align:center;border-left:1px solid #D1D5DB}
+.wd-cell:first-child{border-left:none;text-align:left}
+.wd-lbl{font-size:9.5px;color:#6B7280;text-transform:uppercase;letter-spacing:0.04em}
+.wd-val{font-size:15px;font-weight:800;color:#111;margin-top:2px}
+.amt-note{padding:8px 24px;font-size:10.5px;color:#6B7280;font-style:italic;border-bottom:1px solid #D1D5DB}
+table.ed-table{width:100%;border-collapse:collapse}
+.ed-table th{font-size:9.5px;text-transform:uppercase;letter-spacing:0.03em;color:#374151;background:#F3F4F6;padding:6px 10px;text-align:left;border-bottom:1px solid #D1D5DB}
+.ed-table th:not(:first-child){text-align:right}
+.ed-table td{font-size:12px;padding:6px 10px;border-bottom:1px solid #F3F4F6}
+.ed-table td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+.ed-table tr.total td{font-weight:800;border-top:2px solid #111;border-bottom:none;background:#F9FAFB}
+.net-bar{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;background:linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)}
+.net-lbl{font-size:11px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:0.06em}
+.net-words{font-size:10.5px;color:rgba(255,255,255,0.7);margin-top:2px}
+.net-amounts{display:flex;gap:24px;text-align:right}
+.net-amt-col .net-amt-lbl{font-size:9.5px;color:rgba(255,255,255,0.65);text-transform:uppercase}
+.net-amt-col .net-amt-val{font-size:18px;font-weight:600;color:#fff}
+.footer{padding:12px 24px;font-size:10px;color:#9CA3AF;text-align:center;border-top:1px solid #D1D5DB}
+@media print{body{background:#fff}.topbar{display:none}.page{margin:0;max-width:100%;border:none}}
 </style>
 </head>
 <body>
@@ -404,182 +224,61 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
 </div>
 <div class="page">
 
-  <!-- HEADER -->
   <div class="hdr">
     <div>
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-        <div class="co-logo">GF</div>
+      <div class="co-brand-row">
+        <img src="/brand/logo.jpg" alt="${companyName}" class="co-logo-img"/>
         <div>
-          <div class="co-name">GROFAST</div>
+          <div class="co-name">${companyName}</div>
           <div class="co-sub">Group Of Companies</div>
         </div>
       </div>
-      <div class="co-addr">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" style="margin-top:1px;flex-shrink:0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        <span>4-188D, Poomalai Nagar, Kaveripattinam,<br/>Chowttahalli, Tamil Nadu 635112</span>
-      </div>
-      <div class="contact-row">
-        <span class="contact-item">${R.phone} 9159124541 | 6382905922</span>
-        <span class="contact-item">${R.mail} grofastdigital@gmail.com</span>
-        <span class="contact-item">${R.globe} www.grofastdigital.com</span>
-      </div>
+      <div class="co-addr">4-188D, Poomalai Nagar, Kaveripattinam,<br/>Chowttahalli, Tamil Nadu 635112</div>
     </div>
     <div>
-      <div class="slip-badge">
-        <div class="slip-month">${monthName}</div>
-        <div class="slip-title">PAYSLIP</div>
-        <div class="slip-doc"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-      </div>
-      <div class="slip-id-row"><span style="font-size:11px;color:#6B7280">Payslip ID: </span><span style="font-size:11px;font-weight:700;color:#374151">${payslipId}</span></div>
+      <div class="slip-title">Salary Slip for the month of ${monthName}</div>
+      <div class="slip-sub">Payslip ID: ${payslipId}</div>
     </div>
   </div>
 
-  <div class="hdivider"></div>
-
-  <!-- EMPLOYEE CARD -->
-  <div class="emp-card">
-    <div class="emp-watermark">GF</div>
-    <div class="emp-photo">
-      ${member.passport_photo_url
-        ? `<img src="${member.passport_photo_url}" alt="${member.name}"/>`
-        : `<div class="emp-photo-init">${initials}</div>`}
+  <div class="info-grid">
+    <div class="info-box">
+      <div class="info-row"><span class="info-lbl">Name</span><span class="info-val">${member.name}</span></div>
+      <div class="info-row"><span class="info-lbl">Designation</span><span class="info-val">${member.position || member.team || 'Team Member'}</span></div>
     </div>
-    <div class="emp-info">
-      <div class="emp-left">
-        <div class="emp-name">${member.name}</div>
-        <div class="emp-badge">Team Member</div>
-        <div class="emp-field"><div class="emp-lbl">${R.person} Employee ID</div><div class="emp-val">${member.employee_id}</div></div>
-        <div class="emp-field"><div class="emp-lbl">${R.building} Department</div><div class="emp-val">${member.team ?? '—'}</div></div>
-        <div class="emp-field"><div class="emp-lbl">${R.person} Designation</div><div class="emp-val">${member.team ? 'Team Member' : 'Employee'}</div></div>
-      </div>
-      <div class="emp-right">
-        <div class="emp-field"><div class="emp-lbl">${R.calendar} Joining Date</div><div class="emp-val">${joiningDateFmt}</div></div>
-        <div class="emp-field"><div class="emp-lbl">${R.bank} Bank Name</div><div class="emp-val">${kyc?.bank_name ?? '—'}</div></div>
-        <div class="emp-field"><div class="emp-lbl">${R.card} Account Number</div><div class="emp-val">${kyc?.bank_account ? `XXXX XXXX ${kyc.bank_account.slice(-4)}` : '—'}</div></div>
-        <div class="emp-field"><div class="emp-lbl">${R.hash} IFSC Code</div><div class="emp-val">${kyc?.bank_ifsc ?? '—'}</div></div>
-      </div>
+    <div class="info-box">
+      <div class="info-row"><span class="info-lbl">Employee No</span><span class="info-val">${member.employee_id}</span></div>
+      <div class="info-row"><span class="info-lbl">Bank A/C No</span><span class="info-val">${kyc?.bank_account ? `XXXX XXXX ${kyc.bank_account.slice(-4)}` : '—'}</span></div>
     </div>
   </div>
 
-  <!-- NET SALARY -->
-  <div class="net-banner">
-    <div class="net-left">
-      <div class="net-label">Net Salary</div>
-      <div class="net-amount">${fmt(finalNetPay)}</div>
-      <div class="net-words">Rupees ${inWords(Math.round(finalNetPay))} Only</div>
+  <div class="wd-row">
+    <div class="wd-cell"><div class="wd-lbl">Total Working Days</div><div class="wd-val">${compulsoryAttendanceDays}</div></div>
+    <div class="wd-cell"><div class="wd-lbl">LOP Days</div><div class="wd-val">${current.deductibleDays}</div></div>
+  </div>
+
+  <div class="amt-note">(Amount in ₹)</div>
+
+  <table class="ed-table">
+    <thead><tr><th>Earnings</th><th>Current Period</th><th>Year to Date</th></tr></thead>
+    <tbody>
+      ${earningsRows}
+      <tr class="total"><td>Total Earnings</td><td>${Math.round(totalEarningsCurrent).toLocaleString('en-IN')}</td><td>${Math.round(totalEarningsYtd).toLocaleString('en-IN')}</td></tr>
+    </tbody>
+  </table>
+
+  <div class="net-bar">
+    <div>
+      <div class="net-lbl">Net Pay for the month</div>
+      <div class="net-words">Rupees ${inWords(Math.round(current.finalNetPay))} Only</div>
     </div>
-    <div class="net-divider"></div>
-    <div class="net-right">
-      <div class="net-cal-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-      <div class="net-paid-lbl">Salary Paid On</div>
-      <div class="net-paid-date">${payDateStr}</div>
-      <div class="net-method"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> via Bank Transfer</div>
+    <div class="net-amounts">
+      <div class="net-amt-col"><div class="net-amt-lbl">Current Period</div><div class="net-amt-val">${fmt(current.finalNetPay)}</div></div>
+      <div class="net-amt-col"><div class="net-amt-lbl">Year to Date</div><div class="net-amt-val">${fmt(ytd.finalNetPay)}</div></div>
     </div>
   </div>
 
-  <!-- KPI CARDS -->
-  <div class="kpi-row">
-    <div class="kpi-card">
-      <div class="kpi-top"><div class="kpi-icon kpi-ico-red"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg></div><div class="kpi-lbl">Gross Salary</div></div>
-      <div class="kpi-val kpi-red">${fmt(totalEarnings)}</div>${spDotRed}
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-top"><div class="kpi-icon kpi-ico-red"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 16 16 12"/><line x1="12" y1="8" x2="12" y2="16"/></svg></div><div class="kpi-lbl">Attendance Deduction</div></div>
-      <div class="kpi-val kpi-red">${deduction > 0 ? fmt(deduction) : '₹ 0'}</div>${spDotRed}
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-top"><div class="kpi-icon kpi-ico-green"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 15 11 17 15 13"/></svg></div><div class="kpi-lbl">Paid Days</div></div>
-      <div class="kpi-val kpi-dark">${presentDaysShow} / ${workDays}</div>${spDotGreen}
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-top"><div class="kpi-icon kpi-ico-orange"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="kpi-lbl">Overtime Hours</div></div>
-      <div class="kpi-val kpi-orange">${otHours} hrs</div>${spDotOrange}
-    </div>
-  </div>
-
-  <!-- EARNINGS / DEDUCTIONS / BREAKDOWN -->
-  <div class="tri-grid">
-    <div class="ed-card">
-      <div class="ed-hdr ed-hdr-green"><div class="ed-ico ed-ico-green"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><span class="ed-title ed-title-green">Earnings</span><span style="margin-left:auto;font-size:9px;color:#9CA3AF;font-weight:600">Amount (₹)</span></div>
-      ${empType === 'regular' && member.monthly_salary ? `
-      <div class="ed-row"><span class="ed-row-name">Basic Salary</span><span class="ed-row-amt">${Math.round(basic).toLocaleString('en-IN')}</span></div>
-      <div class="ed-row"><span class="ed-row-name">HRA</span><span class="ed-row-amt">${Math.round(hra).toLocaleString('en-IN')}</span></div>
-      <div class="ed-row"><span class="ed-row-name">Travel Allowance</span><span class="ed-row-amt">${Math.round(travelAllowance).toLocaleString('en-IN')}</span></div>
-      <div class="ed-row"><span class="ed-row-name">Medical Allowance</span><span class="ed-row-amt">${Math.round(medicalAllowance).toLocaleString('en-IN')}</span></div>
-      ${otherAllowance > 0 ? `<div class="ed-row"><span class="ed-row-name">Other Allowance</span><span class="ed-row-amt">${Math.round(otherAllowance).toLocaleString('en-IN')}</span></div>` : ''}
-      ${otPay > 0 ? `<div class="ed-row"><span class="ed-row-name">Overtime Pay (${otHours}h)</span><span class="ed-row-amt">${Math.round(otPay).toLocaleString('en-IN')}</span></div>` : ''}
-      ${bonus > 0 ? `<div class="ed-row"><span class="ed-row-name">Bonus</span><span class="ed-row-amt">${Math.round(bonus).toLocaleString('en-IN')}</span></div>` : ''}
-      ${incentive > 0 ? `<div class="ed-row"><span class="ed-row-name">Incentive</span><span class="ed-row-amt">${Math.round(incentive).toLocaleString('en-IN')}</span></div>` : ''}
-      ` : `<div class="ed-row"><span class="ed-row-name">Hours Worked (${totalHours}h)</span><span class="ed-row-amt">${Math.round(basic).toLocaleString('en-IN')}</span></div>`}
-      <div class="ed-total ed-total-green"><span>Total Earnings</span><span>${fmt(totalEarnings)}</span></div>
-    </div>
-    <div class="ed-card">
-      <div class="ed-hdr ed-hdr-red"><div class="ed-ico ed-ico-red"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#991B1B" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div><span class="ed-title ed-title-red">Deductions</span><span style="margin-left:auto;font-size:9px;color:#9CA3AF;font-weight:600">Amount (₹)</span></div>
-      ${deduction > 0 ? `<div class="ed-row"><span class="ed-row-name">Attendance Deduction (${deductibleDays} day${deductibleDays !== 1 ? 's' : ''})</span><span class="ed-row-amt">${Math.round(deduction).toLocaleString('en-IN')}</span></div>` : `<div class="ed-row"><span class="ed-row-name" style="color:#9CA3AF">No deductions this month</span><span class="ed-row-amt" style="color:#9CA3AF">—</span></div>`}
-      ${advance > 0 ? `<div class="ed-row"><span class="ed-row-name">Advance Recovery</span><span class="ed-row-amt">${Math.round(advance).toLocaleString('en-IN')}</span></div>` : ''}
-      <div class="ed-total ed-total-red"><span>Total Deductions</span><span>${fmt(totalDeductions)}</span></div>
-    </div>
-    <div class="breakdown-card">
-      <div class="breakdown-hdr">Salary Breakdown</div>
-      <div class="breakdown-body">
-        ${donutSvg}
-        <div class="pie-legend">
-          ${pieItems.map((it, idx) => `<div class="pie-row"><div class="pie-dot" style="background:${pieColors[idx]}"></div><span class="pie-name">${it.label}</span><span class="pie-pct">${grossBase > 0 ? ((it.val/grossBase)*100).toFixed(1) : '0'}%</span></div>`).join('')}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ATTENDANCE / PAYMENT / SECURE -->
-  <div class="bot-grid">
-    <div class="bot-card">
-      <div class="bot-hdr"><div class="bot-hdr-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><span class="bot-hdr-title">Attendance Summary</span></div>
-      <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><span class="bot-lbl">Total Working Days</span></div><span class="bot-val">${workDays}</span></div>
-      <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div><span class="bot-lbl">Present Days</span></div><span class="bot-val">${presentDaysShow}</span></div>
-      <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><span class="bot-lbl">Leave Days</span></div><span class="bot-val">${leaveDays}</span></div>
-      <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg></div><span class="bot-lbl">Absent Days</span></div><span class="bot-val">${absentDays}</span></div>
-      <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><span class="bot-lbl">Overtime Hours</span></div><span class="bot-val">${otHours} hrs</span></div>
-    </div>
-    <div class="bot-card">
-      <div class="bot-hdr"><div class="bot-hdr-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2"><line x1="3" y1="22" x2="21" y2="22"/><path d="M12 2L3 8h18L12 2z"/><line x1="5" y1="8" x2="5" y2="22"/><line x1="10" y1="8" x2="10" y2="22"/><line x1="14" y1="8" x2="14" y2="22"/><line x1="19" y1="8" x2="19" y2="22"/></svg></div><span class="bot-hdr-title">Payment Details</span></div>
-      <div class="bot-row"><div class="bot-lbl-wrap"><span class="bot-lbl">Payment Date</span></div><span class="bot-val">${payDateStr}</span></div>
-      <div class="bot-row"><div class="bot-lbl-wrap"><span class="bot-lbl">Payment Method</span></div><span class="bot-val" style="color:#16A34A">Bank Transfer</span></div>
-      <div class="bot-row"><div class="bot-lbl-wrap"><span class="bot-lbl">Bank Name</span></div><span class="bot-val">${kyc?.bank_name ?? '—'}</span></div>
-      <div class="bot-row"><div class="bot-lbl-wrap"><span class="bot-lbl">Account Number</span></div><span class="bot-val">${kyc?.bank_account ? `XXXX XXXX ${kyc.bank_account.slice(-4)}` : '—'}</span></div>
-      <div class="bot-row"><div class="bot-lbl-wrap"><span class="bot-lbl">Transaction ID</span></div><span class="bot-val" style="font-size:10px">${payslipId.replace(/\//g,'')}TXN</span></div>
-    </div>
-    <div class="secure-card">
-      <div class="secure-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-      <div class="secure-title">100% Secure Payslip</div>
-      <div class="secure-desc">This payslip is system generated and digitally verified.</div>
-      <div class="qr-wrap">
-        <img src="${qrUrl}" width="90" height="90" style="border-radius:8px;border:1px solid #E5E7EB" alt="QR"/>
-        <div class="qr-label">Scan to verify<br/>this payslip</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- FOOTER -->
-  <div class="footer">
-    <div class="footer-disc">
-      <div class="footer-shield"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-      <div class="footer-disc-text">This is a computer-generated payslip.<br/>No physical signature is required.<br/><span style="color:#D1D5DB">Generated on ${generatedTs}</span></div>
-    </div>
-    <div class="sig">
-      <div class="sig-name">GroFast</div>
-      <div class="sig-line"></div>
-      <div class="sig-role">Authorised Signatory</div>
-      <div class="sig-co">Grofast Group Of Companies</div>
-      <div class="sig-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Verified</div>
-    </div>
-    <div class="sig">
-      <div class="sig-name">${member.name.split(' ')[0]}</div>
-      <div class="sig-line"></div>
-      <div class="sig-role">Employee Signature</div>
-      <div class="sig-co">${member.employee_id}</div>
-      <div class="sig-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> ${member.name}</div>
-    </div>
-  </div>
+  <div class="footer">This is a computer-generated payslip. No signature is required. &nbsp;·&nbsp; Generated on ${generatedTs}</div>
 
 </div>
 <script>

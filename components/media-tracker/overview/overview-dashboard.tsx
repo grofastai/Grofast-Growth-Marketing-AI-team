@@ -1,12 +1,14 @@
 "use client"
 
-import { useMemo } from "react"
-import { ChevronDown, Search as SearchIcon, Filter as FilterIcon } from "lucide-react"
-import { computeTodayAndAllTime, type AttentionItem, type Overview } from "@/lib/media-tracker/overview"
-import { computeMonthlyBrandingRollup, computeClientDeliveryStatus } from "@/lib/media-tracker/delivery-status"
+import { useMemo, useState } from "react"
+import { computeTodayAndAllTime, computeContentPipeline, type AttentionItem, type Overview } from "@/lib/media-tracker/overview"
+import { computeMonthlyRollup, computeClientDeliveryStatus, type DeliveryKind } from "@/lib/media-tracker/delivery-status"
+import { computeUpcomingSchedule } from "@/lib/media-tracker/schedule"
 import { OverviewRail } from "./overview-rail"
 import { DeliveryStatusTable } from "./delivery-status-table"
 import { WorkFlow } from "./work-flow"
+import { ContentPipelineSection } from "./content-pipeline"
+import { UpcomingSchedule } from "./upcoming-schedule"
 import type { ContentItem, Shoot, Ad, ClientTarget } from "@/components/media-tracker/media-tracker-client"
 
 function fmtMonth(ym: string): string {
@@ -14,10 +16,31 @@ function fmtMonth(ym: string): string {
   return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })
 }
 
+type ContentTypeFilter = "video" | "poster"
+
+function ContentTypeToggle({ value, onChange }: { value: ContentTypeFilter; onChange: (ct: ContentTypeFilter) => void }) {
+  return (
+    <div style={{ display: "inline-flex", background: "#F3F4F6", borderRadius: 10, padding: 3, flexShrink: 0 }}>
+      {(["video", "poster"] as const).map(ct => (
+        <button key={ct} onClick={() => onChange(ct)}
+          style={{
+            padding: "7px 18px", borderRadius: 8, border: "none", cursor: "pointer",
+            fontFamily: "var(--font-jakarta)", fontSize: 12.5, fontWeight: 800, textTransform: "capitalize",
+            background: value === ct ? "#fff" : "transparent",
+            color: value === ct ? "#111827" : "#8A94A3",
+            boxShadow: value === ct ? "0 1px 3px rgba(16,24,40,0.12)" : "none",
+            transition: "all 0.15s",
+          }}>
+          {ct}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function OverviewDashboard({
   overview, items, shoots, ads, clientTargets, today,
-  monthFilter, onMonthFilterChange, monthOptions,
-  onAttentionClick,
+  onAttentionClick, onSetTarget,
 }: {
   overview: Overview
   items: ContentItem[]
@@ -25,67 +48,54 @@ export function OverviewDashboard({
   ads: Ad[]
   clientTargets: ClientTarget[]
   today: string
-  monthFilter: string // 'all' or 'YYYY-MM'
-  onMonthFilterChange: (month: string) => void
-  monthOptions: string[]
   onAttentionClick: (target: AttentionItem["target"]) => void
+  onSetTarget: (clientName: string, kind: "branding" | "ads", contentType: "video" | "poster", month: string, newTarget: number) => Promise<void>
 }) {
+  const [contentTypeFilter, setContentTypeFilter] = useState<ContentTypeFilter>("video")
+
   const todayAndAllTime = useMemo(() => computeTodayAndAllTime({ items, shoots, ads, today }), [items, shoots, ads, today])
-  const effectiveMonth = monthFilter === "all" ? today.slice(0, 7) : monthFilter
+  const contentPipeline = useMemo(() => computeContentPipeline({ items, shoots }), [items, shoots])
+  const upcomingSchedule = useMemo(() => computeUpcomingSchedule(items, today, 5), [items, today])
+  const effectiveMonth = today.slice(0, 7)
   const monthlyRollup = useMemo(
-    () => computeMonthlyBrandingRollup(items, clientTargets, effectiveMonth),
-    [items, clientTargets, effectiveMonth]
+    () => computeMonthlyRollup(items, clientTargets, effectiveMonth, "branding", contentTypeFilter),
+    [items, clientTargets, effectiveMonth, contentTypeFilter]
   )
-  const deliveryRows = useMemo(
-    () => computeClientDeliveryStatus(items, clientTargets, effectiveMonth, today),
-    [items, clientTargets, effectiveMonth, today]
+  const brandingRows = useMemo(
+    () => computeClientDeliveryStatus(items, clientTargets, effectiveMonth, today, "branding", contentTypeFilter),
+    [items, clientTargets, effectiveMonth, today, contentTypeFilter]
   )
+  const adsRows = useMemo(
+    () => computeClientDeliveryStatus(items, clientTargets, effectiveMonth, today, "ads", contentTypeFilter),
+    [items, clientTargets, effectiveMonth, today, contentTypeFilter]
+  )
+  // How Work Moves reads the stage counts already split by content type on `overview`
+  // (overview.videos / overview.posters) — each already combines that content type's
+  // Branding and Advertisement activity, so switching the toggle shows both together.
+  const flowStages = contentTypeFilter === "video" ? overview.videos : overview.posters
+
+  const makeEditTarget = (kind: DeliveryKind) => (client: string, newTarget: number) =>
+    onSetTarget(client, kind, contentTypeFilter, effectiveMonth, newTarget)
 
   return (
     <div className="flex flex-col gap-[22px]">
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", background: "#fff", border: "1px solid #DDE1E7", borderRadius: 12, padding: 10 }}>
-        <div style={{ flex: "1 1 200px", display: "flex", alignItems: "center", gap: 8, background: "#F4F5F7", border: "1px solid #DDE1E7", borderRadius: 8, padding: "9px 12px", color: "#8A94A3", fontSize: 12.5, fontWeight: 600 }}>
-          <SearchIcon size={14} />
-          Search clients, content, platform… (coming soon)
-        </div>
-        <select value={monthFilter} onChange={e => onMonthFilterChange(e.target.value)}
-          style={{ display: "flex", alignItems: "center", gap: 6, background: "#F4F5F7", border: "1px solid #DDE1E7", borderRadius: 8, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, color: "#111827", cursor: "pointer" }}>
-          <option value="all">All Time</option>
-          {monthOptions.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
-        </select>
-        {["All Team Members", "All Platforms", "All Status"].map(label => (
-          <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F4F5F7", border: "1px solid #DDE1E7", borderRadius: 8, padding: "9px 12px", fontSize: 12.5, fontWeight: 700, color: "#8A94A3", cursor: "not-allowed" }}>
-            {label} <ChevronDown size={12} />
-          </div>
-        ))}
-        <div style={{ marginLeft: "auto", display: "grid", placeItems: "center", width: 36, height: 36, borderRadius: 8, background: "#F4F5F7", border: "1px solid #DDE1E7", color: "#5B6472" }}>
-          <FilterIcon size={15} />
-        </div>
-      </div>
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-[296px_1fr] items-stretch">
+        <div className="flex flex-col" style={{ gap: 24 }}>
+          <OverviewRail
+            attention={overview.attention}
+            today={todayAndAllTime}
+            monthlyRollup={monthlyRollup}
+            onAttentionClick={onAttentionClick}
+            monthLabel={fmtMonth(effectiveMonth)}
+          />
 
-      <div className="grid gap-6 items-start grid-cols-1 md:grid-cols-[296px_1fr]">
-        <OverviewRail
-          attention={overview.attention}
-          today={todayAndAllTime}
-          monthlyRollup={monthlyRollup}
-          onAttentionClick={onAttentionClick}
-          monthLabel={monthFilter === "all" ? "This month" : fmtMonth(effectiveMonth)}
-        />
-
-        <main className="flex flex-col gap-[32px]">
-          <section>
-            <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>Where each account stands</p>
-            <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>Client delivery — Branding</h2>
-            <DeliveryStatusTable rows={deliveryRows} />
-          </section>
-
-          <section>
+          <section className="flex flex-col" style={{ flex: 1 }}>
             <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>From shoot to published</p>
             <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>How work moves</h2>
             <WorkFlow
               shoots={overview.shoots.scheduled}
-              editing={overview.videos.ready_to_edit + overview.videos.edited + overview.posters.ready_to_edit + overview.posters.edited}
-              readyToPublish={overview.videos.branding_ready + overview.posters.branding_ready}
+              editing={flowStages.ready_to_edit + flowStages.edited}
+              readyToPublish={flowStages.branding_ready}
               scheduled={overview.posting.brandingWaiting + overview.posting.adsWaiting}
               postedAllTime={todayAndAllTime.postedAllTime}
               usedInAdsAllTime={todayAndAllTime.usedInAdsAllTime}
@@ -93,8 +103,48 @@ export function OverviewDashboard({
               overdueBrandingCount={todayAndAllTime.overdueBrandingCount}
             />
           </section>
+        </div>
+
+        <main className="flex flex-col gap-[32px] min-w-0">
+          <section>
+            <div className="flex items-baseline justify-end flex-wrap gap-3" style={{ margin: "0 0 16px" }}>
+              <ContentTypeToggle value={contentTypeFilter} onChange={setContentTypeFilter} />
+            </div>
+
+            <div className="flex flex-col" style={{ gap: 24 }}>
+              <div>
+                <h3 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 14, margin: "0 0 10px" }}>
+                  <span style={{ color: "#7C3AED" }}>Branding</span>
+                  <span style={{ color: "#8A94A3" }}> · {contentTypeFilter === "video" ? "Video" : "Poster"}</span>
+                </h3>
+                <DeliveryStatusTable rows={brandingRows} onEditTarget={makeEditTarget("branding")} />
+              </div>
+              <div>
+                <h3 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 14, margin: "0 0 10px" }}>
+                  <span style={{ color: "#2563EB" }}>Advertisement</span>
+                  <span style={{ color: "#8A94A3" }}> · {contentTypeFilter === "video" ? "Video" : "Poster"}</span>
+                </h3>
+                <DeliveryStatusTable rows={adsRows} onEditTarget={makeEditTarget("ads")} />
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>What&apos;s queued next</p>
+            <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>Upcoming schedule</h2>
+            <UpcomingSchedule items={upcomingSchedule} onNavigate={onAttentionClick} />
+          </section>
         </main>
       </div>
+
+      {/* Full width below the rail+main row, instead of confined to the narrower main
+          column — the rail is much shorter than the main column, so a third section
+          nested inside main would leave dead space beside it rather than using the page. */}
+      <section>
+        <p style={{ fontFamily: "var(--font-jakarta)", fontSize: 11, fontWeight: 700, color: "#8A94A3", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px" }}>Everything still in motion</p>
+        <h2 style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: 19, color: "#111827", margin: "0 0 16px" }}>Content pipeline</h2>
+        <ContentPipelineSection pipeline={contentPipeline} onNavigate={onAttentionClick} />
+      </section>
     </div>
   )
 }

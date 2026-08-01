@@ -48,7 +48,7 @@ function fmtK(n: number) {
   return `₹${n}`
 }
 function getInitials(name: string) {
-  return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+  return (name || "").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
 }
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
@@ -766,10 +766,25 @@ export default function PayrollClient({
       return
     }
 
+    // Everything below runs after the tab is already open — if it throws, the tab
+    // would otherwise sit there permanently blank with zero indication anything
+    // went wrong. Catch it, write the real error into that same tab, and toast on
+    // this page too, so a bad row's data shows up as a visible message instead of
+    // a silent dead end.
+    try {
+      buildAndWriteReport(win)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      win.document.write(`<pre style="padding:24px;color:#DC2626;font-family:monospace;white-space:pre-wrap">Report failed to generate:\n\n${message}</pre>`)
+      win.document.close()
+      showToast(`Report failed to generate: ${message}`, "error")
+    }
+
     function statRow(label: string, value: string, colorClass = "") {
       return `<div class="stat"><span class="stat-lbl">${label}</span><span class="stat-val ${colorClass}">${value}</span></div>`
     }
 
+    function buildAndWriteReport(win: Window) {
     const employeeCards = rows.map(r => {
       const photo = r.passport_photo_url
         ? `<img src="${r.passport_photo_url}" alt="${r.name}"/>`
@@ -877,7 +892,8 @@ export default function PayrollClient({
         </div>
         <div class="cards">${employeeCards}</div>
       </body></html>`)
-    win.document.close()
+      win.document.close()
+    }
   }
 
   const SUMMARY = [

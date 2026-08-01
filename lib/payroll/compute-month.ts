@@ -43,7 +43,7 @@ export type EmployeeMonthData = {
   holidayDates: Set<string>
   collabHours: number // this employee's confirmed collaboration hours this month, pre-summed
   snapshotSalary: number | null // monthly_salary_records amount for this month, or null
-  run: { bonus: number; advance: number; incentive: number } | null // payroll_runs row for this month
+  run: { bonus: number; advance: number; incentive: number; ot_amount: number } | null // payroll_runs row for this month
 }
 
 export type EmployeeMonthBreakdown = {
@@ -170,7 +170,7 @@ export function computeEmployeeMonth(data: EmployeeMonthData, settings: PayrollS
   const employmentType = member.employment_type ?? 'regular'
 
   let basic = 0, hra = 0, travelAllowance = 0, medicalAllowance = 0, otherAllowance = 0
-  let deduction = 0, otPay = 0, basePay = 0, netPay = 0
+  let deduction = 0, basePay = 0, netPay = 0
 
   if (employmentType === 'regular' && effectiveSalary) {
     const dailyRate = effectiveSalary / settings.salary_basis_days
@@ -181,17 +181,19 @@ export function computeEmployeeMonth(data: EmployeeMonthData, settings: PayrollS
     otherAllowance   = Math.max(0, effectiveSalary - basic - hra - travelAllowance - medicalAllowance)
     basePay   = basic + hra + travelAllowance + medicalAllowance + otherAllowance
     deduction = Math.round(deductibleDays * dailyRate * 100) / 100
-    otPay     = Math.round(otHours * (dailyRate / settings.ot_threshold_hrs) * 100) / 100
-    netPay    = Math.round((basePay - deduction + otPay) * 100) / 100
+    netPay    = Math.round((basePay - deduction) * 100) / 100
   } else if (member.hourly_rate) {
     basePay = Math.round(combinedTotalHours * member.hourly_rate * 100) / 100
     netPay  = basePay
   }
 
+  // OT is admin-entered (payroll_runs.ot_amount), never derived from hours worked —
+  // otHours above stays purely informational (shown on the payslip/report).
+  const otPay     = run?.ot_amount ?? 0
   const bonus     = run?.bonus     ?? 0
   const advance   = run?.advance   ?? 0
   const incentive = run?.incentive ?? 0
-  const finalNetPay = Math.round((netPay + bonus + incentive - advance) * 100) / 100
+  const finalNetPay = Math.round((netPay + otPay + bonus + incentive - advance) * 100) / 100
 
   const hourlyRateB = effectiveSalary ? effectiveSalary / HOURS_TARGET : 0
   const deductionB  = Math.round(shortfallHoursB * hourlyRateB * 100) / 100
@@ -251,7 +253,7 @@ export async function fetchEmployeeMonthData(
       .gte('date', monthStart).lte('date', monthEnd),
     admin.from('monthly_salary_records').select('amount')
       .eq('user_id', userId).eq('month', month).maybeSingle(),
-    admin.from('payroll_runs').select('bonus, advance, incentive')
+    admin.from('payroll_runs').select('bonus, advance, incentive, ot_amount')
       .eq('user_id', userId).eq('month', month).maybeSingle(),
   ])
 
@@ -263,6 +265,6 @@ export async function fetchEmployeeMonthData(
     holidayDates: new Set(((holidaysRaw ?? []) as { date: string }[]).map(h => h.date)),
     collabHours: ((collabRaw ?? []) as { confirmed_hours: number | null }[]).reduce((s, c) => s + (c.confirmed_hours ?? 0), 0),
     snapshotSalary: (snapshotRaw as { amount: number } | null)?.amount ?? null,
-    run: (runRaw ?? null) as { bonus: number; advance: number; incentive: number } | null,
+    run: (runRaw ?? null) as { bonus: number; advance: number; incentive: number; ot_amount: number } | null,
   }
 }

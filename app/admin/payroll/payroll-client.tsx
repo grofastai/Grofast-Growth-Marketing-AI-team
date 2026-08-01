@@ -50,10 +50,6 @@ function fmtK(n: number) {
 function getInitials(name: string) {
   return (name || "").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
 }
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
-}
-
 // ── Attendance Ring SVG ─────────────────────────────────────────────────────
 function AttendanceRing({ pct, size = 60 }: { pct: number; size?: number }) {
   const r = size * 0.38, cx = size / 2, cy = size / 2
@@ -124,84 +120,6 @@ function MiniSparkline({ color, idx }: { color: string; idx: number }) {
   )
 }
 
-// ── Mini Attendance Calendar ────────────────────────────────────────────────
-function MiniCalendar({
-  year, mon, presentDays, halfDays, absentDays, leaveDays,
-}: { year: number; mon: number; presentDays: number; halfDays: number; absentDays: number; leaveDays: number }) {
-  const daysInMonth = new Date(year, mon, 0).getDate()
-  const firstDayOfWeek = new Date(year, mon - 1, 1).getDay()
-  const startOffset = (firstDayOfWeek + 6) % 7
-
-  let workCount = 0
-  const dayList: { num: number; status: "present" | "half" | "absent" | "leave" | "weekend" }[] = []
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dow = new Date(year, mon - 1, d).getDay()
-    const isWknd = dow === 0 || dow === 6
-    if (isWknd) {
-      dayList.push({ num: d, status: "weekend" })
-    } else {
-      workCount++
-      if (workCount <= presentDays) dayList.push({ num: d, status: "present" })
-      else if (workCount <= presentDays + halfDays) dayList.push({ num: d, status: "half" })
-      else if (workCount <= presentDays + halfDays + leaveDays) dayList.push({ num: d, status: "leave" })
-      else dayList.push({ num: d, status: "absent" })
-    }
-  }
-
-  const cells: ({ num: number; status: "present" | "half" | "absent" | "leave" | "weekend" } | null)[] = [
-    ...Array(startOffset).fill(null),
-    ...dayList,
-  ]
-  while (cells.length % 7 !== 0) cells.push(null)
-  const weeks: typeof cells[] = []
-  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
-
-  const DAYS = ["M", "T", "W", "T", "F", "S", "S"]
-  const clr = {
-    present: { bg: "#DCFCE7", color: "#15803D" },
-    half:    { bg: "#FEF9C3", color: "#CA8A04" },
-    absent:  { bg: "#FEE2E2", color: "#DC2626" },
-    leave:   { bg: "#E0F2FE", color: "#0369A1" },
-    weekend: { bg: "#F3F4F6", color: "#9CA3AF" },
-  }
-
-  return (
-    <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
-        {DAYS.map((d, i) => (
-          <div key={i} style={{ textAlign: "center", fontSize: 9, fontWeight: 700, color: "#1E3A5F" }}>{d}</div>
-        ))}
-      </div>
-      {weeks.map((week, wi) => (
-        <div key={wi} style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 2 }}>
-          {week.map((cell, di) => {
-            if (!cell) return <div key={di} />
-            const c = clr[cell.status]
-            return (
-              <div key={di} style={{ borderRadius: 5, padding: "3px 0", textAlign: "center", background: c.bg, fontSize: 9, fontWeight: 700, color: c.color }}>
-                {cell.num}
-              </div>
-            )
-          })}
-        </div>
-      ))}
-      <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-        {[
-          { color: "#15803D", label: `Full ${presentDays}d` },
-          { color: "#CA8A04", label: `Half ${halfDays}d` },
-          { color: "#DC2626", label: `Absent ${absentDays}d` },
-          { color: "#0369A1", label: `Leave ${leaveDays}d` },
-        ].map((item) => (
-          <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: item.color, display: "inline-block" }} />
-            <span style={{ fontSize: 9, color: "#1E3A5F" }}>{item.label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 // ── Team badge colours ──────────────────────────────────────────────────────
 const TEAM_CLR: Record<string, { bg: string; color: string }> = {
   "Media Production Team":             { bg: "#FFF1F2", color: "#EC4899" },
@@ -236,21 +154,24 @@ function resolveTeamClr(team: string | null, teams: TeamRow[]): { bg: string; co
 
 // ── Expandable Employee Card ────────────────────────────────────────────────
 function EmployeeCard({
-  r, month, year, mon, workDays, isExpanded, onToggle,
+  r, month, workDays, isExpanded, onToggle,
   selectMode = false, selected = false, onToggleSelect, teams = [],
 }: {
-  r: PayrollRow; month: string; year: number; mon: number; workDays: number
+  r: PayrollRow; month: string; workDays: number
   isExpanded: boolean; onToggle: () => void
   selectMode?: boolean; selected?: boolean; onToggleSelect?: () => void
   teams?: TeamRow[]
 }) {
   const [isPending, startTransition] = useTransition()
   const [savingBonus, setSavingBonus] = useState(false)
-  const [bonus, setBonus]         = useState(r.bonus)
-  const [advance, setAdvance]     = useState(r.advance)
+  // Bonus/Advance are no longer editable here — carried through unchanged on save so
+  // a historical value (set before this panel was simplified) is never wiped out.
+  const [bonus]     = useState(r.bonus)
+  const [advance]   = useState(r.advance)
   const [incentive, setIncentive] = useState(r.incentive)
+  const [otAmount, setOtAmount]   = useState(r.otPay)
 
-  const localFinalNetPay = Math.round((r.netPay + bonus + incentive - advance) * 100) / 100
+  const localFinalNetPay = Math.round((r.netPay + otAmount + bonus + incentive - advance) * 100) / 100
   const effectiveDays = r.effectiveWorkDays > 0 ? r.effectiveWorkDays : workDays
   const attendPct = effectiveDays > 0
     ? Math.round(((r.presentDays + r.halfDays * 0.5 + r.leaveDays) / effectiveDays) * 100)
@@ -270,7 +191,7 @@ function EmployeeCard({
   async function handleSaveBonus() {
     setSavingBonus(true)
     try {
-      await saveBonusAdvance(r.id, month, bonus, advance, incentive)
+      await saveBonusAdvance(r.id, month, bonus, advance, incentive, otAmount)
     } finally {
       setSavingBonus(false)
     }
@@ -330,22 +251,6 @@ function EmployeeCard({
                 {r.team}
               </span>
             )}
-            {/* Paid status badge */}
-            {r.isPaid ? (
-              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "#F0FDF4", color: "#16A34A", display: "flex", alignItems: "center", gap: 3 }}>
-                <CheckCircle2 size={9} /> Paid {r.paidAt ? fmtDate(r.paidAt) : ""}
-              </span>
-            ) : (
-              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "#FFF7ED", color: "#EA580C", display: "flex", alignItems: "center", gap: 3 }}>
-                <Clock size={9} /> Pending
-              </span>
-            )}
-            {/* Missing work update warning */}
-            {r.missingUpdates > 0 && (
-              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "#FEF9C3", color: "#92400E", display: "flex", alignItems: "center", gap: 3 }}>
-                ⚠ {r.missingUpdates} Missing Update{r.missingUpdates > 1 ? "s" : ""}
-              </span>
-            )}
           </div>
         </div>
 
@@ -360,12 +265,6 @@ function EmployeeCard({
           {[
             { label: "Base Salary",    value: r.basePay > 0 ? fmt(r.basePay) : "—",                  color: "#111" },
             { label: "Deductions",     value: r.deduction > 0 ? `-${fmt(r.deduction)}` : "—",         color: "#DC2626" },
-            { label: "Half Days",      value: r.halfDays > 0 ? `${r.halfDays}d` : "—",                color: "#CA8A04" },
-            { label: "OT Pay",         value: r.otPay > 0 ? fmt(r.otPay) : "—",                       color: "#F97316" },
-            // Always show the real figure, including zero/negative — a negative Net Pay
-            // (deductions exceeding base pay) is exactly the case an admin most needs to
-            // see, not one to hide behind a blank dash.
-            { label: "Net Pay",        value: r.basePay > 0 ? fmt(localFinalNetPay) : "—",             color: localFinalNetPay < 0 ? "#DC2626" : "#16A34A" },
           ].map((chip) => (
             <div key={chip.label} style={{
               textAlign: "center", padding: "8px 14px", borderRadius: 12,
@@ -416,7 +315,7 @@ function EmployeeCard({
 
       {/* ── Expanded panel ── */}
       {isExpanded && (
-        <div className="grid grid-cols-1 md:grid-cols-3" style={{ borderTop: "1.5px solid #F5F5F5" }}>
+        <div className="grid grid-cols-1 md:grid-cols-2" style={{ borderTop: "1.5px solid #F5F5F5" }}>
 
           {/* LEFT: Payroll Breakdown bars */}
           <div style={{ padding: "22px 24px", borderRight: "1px solid #F5F5F5" }}>
@@ -424,10 +323,8 @@ function EmployeeCard({
               Payroll Breakdown
             </div>
             {[
-              { label: "Base Salary",    amount: r.basePay,    pct: 100,  color: "#16A34A" },
-              { label: "OT Earnings",    amount: r.otPay,      pct: r.basePay > 0 ? Math.min((r.otPay / r.basePay) * 100, 100) : 0, color: "#F97316" },
-              { label: "Bonus",          amount: bonus,         pct: r.basePay > 0 ? Math.min((bonus / r.basePay) * 100, 100) : 0, color: "#A855F7" },
-              { label: "Advance",        amount: -advance,      pct: r.basePay > 0 ? Math.min((advance / r.basePay) * 100, 100) : 0, color: "#F43F5E" },
+              { label: "OT Earnings",    amount: otAmount,      pct: r.basePay > 0 ? Math.min((otAmount / r.basePay) * 100, 100) : 0, color: "#F97316" },
+              { label: "Incentive",      amount: incentive,     pct: r.basePay > 0 ? Math.min((incentive / r.basePay) * 100, 100) : 0, color: "#16A34A" },
               { label: `Absent Deduction (${r.absentDays}d full + ${r.halfDays}d half)`, amount: -r.deduction, pct: r.basePay > 0 ? Math.min((r.deduction / r.basePay) * 100, 100) : 0, color: "#DC2626" },
             ].map((item) => (
               <div key={item.label} style={{ marginBottom: 14 }}>
@@ -448,46 +345,32 @@ function EmployeeCard({
             </div>
           </div>
 
-          {/* CENTER: Attendance Calendar */}
-          <div style={{ padding: "22px 24px", borderRight: "1px solid #F5F5F5" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 18 }}>
-              {new Date(year, mon - 1).toLocaleString("en-IN", { month: "long", year: "numeric" })} Attendance
-            </div>
-            <MiniCalendar
-              year={year} mon={mon}
-              presentDays={r.presentDays}
-              halfDays={r.halfDays}
-              absentDays={r.absentDays}
-              leaveDays={r.leaveDays}
-            />
-          </div>
-
-          {/* RIGHT: Bonus & Adjustments */}
+          {/* RIGHT: OT & Incentive */}
           <div style={{ padding: "22px 24px", background: "#FAFAFA" }}>
             <div style={{ fontSize: 10, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 18 }}>
-              Bonus &amp; Adjustments
+              OT &amp; Incentive
             </div>
 
-            {/* Bonus input */}
+            {/* OT input — admin decides the amount, never auto-calculated from hours */}
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#1E3A5F", display: "block", marginBottom: 6 }}>
-                Bonus (₹)
+                OT (₹)
               </label>
               <input
                 type="number"
                 min={0}
-                value={bonus}
-                onChange={e => setBonus(Math.max(0, Number(e.target.value)))}
+                value={otAmount}
+                onChange={e => setOtAmount(Math.max(0, Number(e.target.value)))}
                 style={{
                   width: "100%", padding: "9px 12px", borderRadius: 10, border: "1.5px solid #E5E7EB",
-                  fontSize: 14, fontWeight: 700, color: "#A855F7", background: "#fff", outline: "none",
+                  fontSize: 14, fontWeight: 700, color: "#F97316", background: "#fff", outline: "none",
                 }}
                 placeholder="0"
               />
             </div>
 
             {/* Incentive input */}
-            <div style={{ marginBottom: 14 }}>
+            <div style={{ marginBottom: 18 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#1E3A5F", display: "block", marginBottom: 6 }}>
                 Incentive (₹)
               </label>
@@ -504,24 +387,6 @@ function EmployeeCard({
               />
             </div>
 
-            {/* Advance / Recovery input */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#1E3A5F", display: "block", marginBottom: 6 }}>
-                Advance Recovery (₹)
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={advance}
-                onChange={e => setAdvance(Math.max(0, Number(e.target.value)))}
-                style={{
-                  width: "100%", padding: "9px 12px", borderRadius: 10, border: "1.5px solid #E5E7EB",
-                  fontSize: 14, fontWeight: 700, color: "#DC2626", background: "#fff", outline: "none",
-                }}
-                placeholder="0"
-              />
-            </div>
-
             {/* Adjusted net pay preview */}
             <div style={{
               padding: "12px 14px", borderRadius: 12,
@@ -532,12 +397,11 @@ function EmployeeCard({
               <div style={{ fontSize: 22, fontWeight: 900, color: localFinalNetPay < 0 ? "#DC2626" : "#16A34A", fontFamily: "var(--font-jakarta)" }}>
                 {fmt(localFinalNetPay)}
               </div>
-              {(bonus > 0 || incentive > 0 || advance > 0) && (
+              {(otAmount > 0 || incentive > 0) && (
                 <div style={{ fontSize: 10, color: "#1E3A5F", marginTop: 4 }}>
                   {fmt(r.netPay)}
-                  {bonus > 0     ? ` + ${fmt(bonus)} bonus`     : ""}
+                  {otAmount > 0  ? ` + ${fmt(otAmount)} OT`     : ""}
                   {incentive > 0 ? ` + ${fmt(incentive)} incentive` : ""}
-                  {advance > 0   ? ` − ${fmt(advance)} advance`  : ""}
                 </div>
               )}
             </div>
@@ -1041,7 +905,6 @@ export default function PayrollClient({
             <p style={{ fontSize: 11, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Attendance Rules</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
               {([
-                ["ot_threshold_hrs", "OT Threshold (hrs/day)"],
                 ["half_day_threshold_hrs", "Half-Day Threshold (hrs)"],
                 ["salary_basis_days", "Salary Basis (days/month)"],
               ] as const).map(([key, label]) => (
@@ -1276,8 +1139,6 @@ export default function PayrollClient({
                     key={r.id}
                     r={r}
                     month={month}
-                    year={year}
-                    mon={mon}
                     workDays={workDays}
                     isExpanded={expandedId === r.id}
                     onToggle={() => setExpandedId(expandedId === r.id ? null : r.id)}

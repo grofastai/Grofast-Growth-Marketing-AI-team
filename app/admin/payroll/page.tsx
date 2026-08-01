@@ -73,7 +73,7 @@ export default async function PayrollPage({
       .lte("date", monthEnd),
     admin
       .from("payroll_runs")
-      .select("user_id, bonus, advance, incentive, is_paid, paid_at")
+      .select("user_id, bonus, advance, incentive, ot_amount, is_paid, paid_at")
       .eq("company_id", cid)
       .eq("month", month),
     // Approved leaves — may span month boundary
@@ -125,7 +125,7 @@ export default async function PayrollPage({
 
   type UpdateRow = { user_id: string; date: string; working_hours: number | null; learning_hours: number | null; work_entries: { task_type?: string; duration_hours?: number | null; start_time?: string | null; end_time?: string | null }[] | null }
   type LogRow    = { user_id: string; date: string; clock_in: string | null; clock_out: string | null; status: string | null }
-  type RunRow    = { user_id: string; bonus: number; advance: number; incentive: number; is_paid: boolean; paid_at: string | null }
+  type RunRow    = { user_id: string; bonus: number; advance: number; incentive: number; ot_amount: number; is_paid: boolean; paid_at: string | null }
   type LeaveRow  = {
     user_id: string; from_date: string; to_date: string; leave_type: string
     permission_hours: number | string | null

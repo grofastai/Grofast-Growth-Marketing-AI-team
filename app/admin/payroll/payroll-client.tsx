@@ -760,7 +760,11 @@ export default function PayrollClient({
       showToast("No payroll rows to report for this month.", "error")
       return
     }
-    const win = window.open("", "_blank", "noopener,noreferrer")
+    // No "noopener" here — unlike the payslip's window.open (which just navigates
+    // to a URL), this one needs script access to `win` to document.write the
+    // report into it. "noopener" makes window.open() return null even though the
+    // tab still opens, which is exactly the silent-blank-tab bug this fixes.
+    const win = window.open("", "_blank")
     if (!win) {
       showToast("Pop-up blocked — allow pop-ups to view the report.", "error")
       return

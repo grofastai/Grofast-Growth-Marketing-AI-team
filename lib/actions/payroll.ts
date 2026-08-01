@@ -176,6 +176,7 @@ export async function saveBonusAdvance(
   bonus: number,
   advance: number,
   incentive: number,
+  otAmount: number,
 ) {
   const { companyId } = await getAdminContext()
   const admin = adminSupabase()
@@ -189,6 +190,7 @@ export async function saveBonusAdvance(
       bonus,
       advance,
       incentive,
+      ot_amount:  otAmount,
       updated_at: new Date().toISOString(),
     }, { onConflict: "user_id,month" })
 

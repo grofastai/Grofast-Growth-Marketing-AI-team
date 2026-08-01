@@ -144,6 +144,13 @@ async function checkMonthlyLeaveLimit(
   excludeLeaveId?: string,
   permissionHours?: number
 ): Promise<string | null> {
+  // Permission is a record of something that already happened (a late login or
+  // early logoff), not a discretionary day-off request like Full Day/Half Day/WFH
+  // — blocking it doesn't stop the absence, it just stops it from being logged
+  // accurately. Its hours still convert to day-equivalents and deduct from the
+  // displayed leave balance elsewhere (sumLeaveDays callers in leaves pages);
+  // only the submission-blocking cap is skipped here (2026-07-31 fix).
+  if (leaveType === 'permission') return null
   const currentMonth = fromDate.slice(0, 7)
   const monthStart = `${currentMonth}-01`
   const monthEnd = `${currentMonth}-31`
@@ -465,9 +472,12 @@ export async function submitSplitLeaveRequest(
 
   const { data: profile } = await adminCl.from('users').select('name, employee_id').eq('id', effectiveUserId).single()
 
-  // Combined monthly-cap check — 0.5 day for the Half Day + the Permission hours
-  // converted via the same formula everything else uses, checked together (see
-  // checkMonthlyLeaveLimit's own note on why these can't be checked separately).
+  // Monthly-cap check — only the Half Day's 0.5 day counts toward the block;
+  // the Permission portion never blocks submission (same rule as everywhere
+  // else — see checkMonthlyLeaveLimit, 2026-07-31 fix). Prior real Permission
+  // hours already logged this month still count via monthLeaves below, since
+  // those already-accumulated hours genuinely consumed leave balance — only
+  // THIS request's own permission portion is exempt from tipping it over.
   if (!isExceptional) {
     const currentMonth = from_date.slice(0, 7)
     const monthStart = `${currentMonth}-01`
@@ -489,7 +499,6 @@ export async function submitSplitLeaveRequest(
     const combinedDays = sumLeaveDays([
       ...((monthLeaves ?? []) as { leave_type: string | null; from_date: string; to_date: string; permission_hours: number | string | null }[]),
       { leave_type: 'half_day', from_date, to_date: from_date, permission_hours: null },
-      { leave_type: 'permission', from_date, to_date: from_date, permission_hours: permHours },
     ], monthStart, monthEnd, overtimeByMonth)
     if (combinedDays > 5) return { error: 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.' }
   }

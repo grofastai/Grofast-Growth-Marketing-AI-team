@@ -75,7 +75,7 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
     content_type: parsed.data.content_type,
     source,
     status:       isBackfillPosted ? 'posted' : entryStatus,
-    shot_by:      ctx.id,
+    shot_by:      [ctx.id],
     shot_date:    shotDate,
     edited_by:    isBackfillPosted ? (parsed.data.edited_by || ctx.id) : null,
     edited_date:  isBackfillPosted ? (parsed.data.posted_date || today) : null,

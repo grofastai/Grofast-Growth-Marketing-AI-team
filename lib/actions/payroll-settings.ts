@@ -20,7 +20,7 @@ export async function getPayrollSettings(companyId: string): Promise<PayrollSett
   const admin = adminSupabase()
   const { data } = await admin
     .from("payroll_settings")
-    .select("ot_threshold_hrs, half_day_threshold_hrs, salary_basis_days, basic_pct, hra_pct, travel_pct, medical_pct")
+    .select("ot_threshold_hrs, half_day_threshold_hrs, salary_basis_days, basic_pct, hra_pct, travel_pct, medical_pct, authorised_signature_url")
     .eq("company_id", companyId)
     .maybeSingle()
 
@@ -32,6 +32,7 @@ export async function getPayrollSettings(companyId: string): Promise<PayrollSett
     hra_pct:                 data?.hra_pct                 ?? PAYROLL_SETTINGS_DEFAULTS.hra_pct,
     travel_pct:              data?.travel_pct              ?? PAYROLL_SETTINGS_DEFAULTS.travel_pct,
     medical_pct:             data?.medical_pct             ?? PAYROLL_SETTINGS_DEFAULTS.medical_pct,
+    authorised_signature_url: data?.authorised_signature_url ?? PAYROLL_SETTINGS_DEFAULTS.authorised_signature_url,
   }
 }
 

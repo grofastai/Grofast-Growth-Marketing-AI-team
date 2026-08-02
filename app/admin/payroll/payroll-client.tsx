@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
-import { ChevronDown, ChevronUp, FileText, CheckCircle2, Clock, Zap } from "lucide-react"
+import { ChevronDown, ChevronUp, FileText, BarChart3, CheckCircle2, Clock, Zap } from "lucide-react"
 import {
   markEmployeePaid,
   markEmployeeUnpaid,
@@ -136,11 +136,11 @@ function resolveTeamClr(team: string | null, teams: TeamRow[]): { bg: string; co
 
 // ── Expandable Employee Card ────────────────────────────────────────────────
 function EmployeeCard({
-  r, month, workDays, isExpanded, onToggle,
+  r, month, workDays, isExpanded, onToggle, onDownloadReport,
   selectMode = false, selected = false, onToggleSelect, teams = [],
 }: {
   r: PayrollRow; month: string; workDays: number
-  isExpanded: boolean; onToggle: () => void
+  isExpanded: boolean; onToggle: () => void; onDownloadReport: () => void
   selectMode?: boolean; selected?: boolean; onToggleSelect?: () => void
   teams?: TeamRow[]
 }) {
@@ -291,6 +291,14 @@ function EmployeeCard({
           >
             <FileText size={13} style={{ color: "#E53935" }} />
           </a>
+          <button
+            type="button"
+            onClick={onDownloadReport}
+            style={{ width: 34, height: 34, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(79,70,229,0.07)", border: "1.5px solid rgba(79,70,229,0.15)", cursor: "pointer" }}
+            title="Download Report"
+          >
+            <BarChart3 size={13} style={{ color: "#4F46E5" }} />
+          </button>
         </div>
       </div>
 
@@ -580,8 +588,8 @@ export default function PayrollClient({
   // One card per employee (profile photo, attendance, hours, pay), not a
   // flat table — reuses the same figures already shown when an admin
   // expands that employee's row on this page.
-  function handleGenerateReport() {
-    if (rows.length === 0) {
+  function handleGenerateReport(scopeRows: PayrollRow[] = rows) {
+    if (scopeRows.length === 0) {
       showToast("No payroll rows to report for this month.", "error")
       return
     }
@@ -614,7 +622,15 @@ export default function PayrollClient({
     }
 
     function buildAndWriteReport(win: Window) {
-    const employeeCards = rows.map(r => {
+    const scopedPaidCount = scopeRows.filter(r => r.isPaid).length
+    const scopedTotalBase  = scopeRows.reduce((s, r) => s + r.basePay,     0)
+    const scopedTotalOT    = scopeRows.reduce((s, r) => s + r.otPay,       0)
+    const scopedTotalDed   = scopeRows.reduce((s, r) => s + r.deduction,   0)
+    const scopedTotalFinal = scopeRows.reduce((s, r) => s + r.finalNetPay, 0)
+    const reportTitle = scopeRows.length === 1
+      ? `Payroll Report — ${scopeRows[0].name} — ${monthName}`
+      : `Payroll Report — ${monthName}`
+    const employeeCards = scopeRows.map(r => {
       const photo = r.passport_photo_url
         ? `<img src="${r.passport_photo_url}" alt="${r.name}"/>`
         : `<span>${getInitials(r.name)}</span>`
@@ -668,7 +684,7 @@ export default function PayrollClient({
       </div>`
     }).join("")
 
-    win.document.write(`<!DOCTYPE html><html><head><title>Payroll Report — ${monthName}</title>
+    win.document.write(`<!DOCTYPE html><html><head><title>${reportTitle}</title>
       <style>
         *{box-sizing:border-box}
         body{font-family:Arial,sans-serif;padding:24px;color:#111;background:#F3F4F6;margin:0}
@@ -711,13 +727,13 @@ export default function PayrollClient({
         }
       </style></head>
       <body>
-        <h1>Payroll Report — ${monthName}</h1>
-        <p class="sub">${rows.length} employees · ${paidCount} paid · Generated ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+        <h1>${reportTitle}</h1>
+        <p class="sub">${scopeRows.length} employee${scopeRows.length !== 1 ? "s" : ""} · ${scopedPaidCount} paid · Generated ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
         <div class="totals">
-          <div><span class="lbl">Total Base Pay</span><strong>${fmt(totalBase)}</strong></div>
-          <div><span class="lbl">Total OT Pay</span><strong>${fmt(totalOT)}</strong></div>
-          <div><span class="lbl">Total Deductions</span><strong>${fmt(totalDed)}</strong></div>
-          <div><span class="lbl">Total Net Payroll</span><strong>${fmt(totalFinal)}</strong></div>
+          <div><span class="lbl">Total Base Pay</span><strong>${fmt(scopedTotalBase)}</strong></div>
+          <div><span class="lbl">Total OT Pay</span><strong>${fmt(scopedTotalOT)}</strong></div>
+          <div><span class="lbl">Total Deductions</span><strong>${fmt(scopedTotalDed)}</strong></div>
+          <div><span class="lbl">Total Net Payroll</span><strong>${fmt(scopedTotalFinal)}</strong></div>
         </div>
         <div class="cards">${employeeCards}</div>
       </body></html>`)
@@ -1103,6 +1119,7 @@ export default function PayrollClient({
                     workDays={workDays}
                     isExpanded={expandedId === r.id}
                     onToggle={() => setExpandedId(expandedId === r.id ? null : r.id)}
+                    onDownloadReport={() => handleGenerateReport([r])}
                     selectMode={selectMode}
                     selected={selectedIds.has(r.id)}
                     onToggleSelect={() => toggleSelectId(r.id)}
@@ -1167,7 +1184,7 @@ export default function PayrollClient({
                 { emoji: "📄", label: "Generate Payslip", action: handleBulkPayslip, active: false },
                 { emoji: "📋", label: selectMode ? "Cancel Select" : "Bulk Update", action: handleToggleSelectMode, active: selectMode },
                 { emoji: "⚙️", label: "Payroll Settings", action: handleOpenSettings, active: false },
-                { emoji: "📊", label: "Reports", action: handleGenerateReport, active: false },
+                { emoji: "📊", label: "Reports", action: () => handleGenerateReport(), active: false },
               ].map((action) => (
                 <button key={action.label} onClick={action.action} style={{
                   padding: "12px 8px", borderRadius: 14,

@@ -370,7 +370,7 @@ function buildReportEmployeeCard(r: PayrollRow, opts: { year: number; mon: numbe
       </div>
       <div class="sig">
         ${authorisedSignatureUrl
-          ? `<img class="sig-img" src="${authorisedSignatureUrl}" alt="Authorised signature"/>`
+          ? `<img class="sig-img-stamp" src="${authorisedSignatureUrl}" alt="Authorised signature"/>`
           : `<div class="sig-stamp"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> Digitally Signed</div>`}
         <div class="sig-line"></div>
         <div class="sig-role">Authorised Signatory</div>
@@ -1004,6 +1004,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
 .sig{text-align:center}
 .sig-name{font-family:'Dancing Script',cursive;font-size:22px;color:#374151;margin-bottom:5px;line-height:1}
 .sig-img{height:34px;max-width:150px;object-fit:contain;margin-bottom:5px}
+.sig-img-stamp{height:70px;width:70px;object-fit:contain;margin-bottom:5px}
 .sig-stamp{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:10px;border:1.5px dashed #DC2626;color:#DC2626;font-size:11px;font-weight:800;margin-bottom:5px;letter-spacing:0.02em}
 .sig-line{height:1px;background:#D1D5DB;margin-bottom:6px}
 .sig-role{font-size:11px;font-weight:700;color:#374151}

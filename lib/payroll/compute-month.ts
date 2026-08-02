@@ -111,11 +111,20 @@ export function computeEmployeeMonth(data: EmployeeMonthData, settings: PayrollS
   const daysInMonth = new Date(year, mon, 0).getDate()
   for (let d = 1; d <= daysInMonth; d++) allMonthDays.push(`${month}-${String(d).padStart(2, '0')}`)
 
+  // Days after today haven't happened yet — score nothing for them (not present,
+  // not absent). Without this cutoff, an in-progress month's remaining days were
+  // all silently counted as absent, wiping out most of the salary from day one.
+  // `cutoff` clamps to monthEnd for a fully-elapsed past month (no effect there),
+  // and lands before monthStart entirely for a future month (nothing counted yet).
+  const cutoff = today < monthEnd ? today : monthEnd
+
   let presentDays = 0, halfDays = 0, absentDays = 0, leaveDays = 0, missingUpdates = 0
   let totalHours = 0
   const missingUpdateDates: string[] = []
 
   for (const date of allMonthDays) {
+    if (date > cutoff) continue
+
     const isHoliday  = holidayDates.has(date)
     const hasClockIn = clockedInDates.has(date)
     const workH      = updateByDate[date] ?? 0
@@ -143,11 +152,20 @@ export function computeEmployeeMonth(data: EmployeeMonthData, settings: PayrollS
 
   const deductibleDays = absentDays + halfDays * 0.5
 
-  const HOURS_TARGET = 25 * 8.5
+  // Must-work days that have actually happened so far (holidays excluded) — the
+  // basis for "hours expected by now", not the whole month's.
+  const elapsedMustWorkDays = allMonthDays.filter(d => d <= cutoff && !holidayDates.has(d)).length
+  const elapsedTargetHours  = elapsedMustWorkDays * 8.5
+  // Full month's target hours — kept separate and NOT prorated, so the ₹/hour
+  // deduction rate stays stable all month instead of spiking early when the
+  // elapsed window (and its hourly rate) is still tiny.
+  const FULL_MONTH_TARGET_HOURS = 25 * 8.5
+
   let permissionHoursB = 0, halfDayHoursB = 0
   for (const l of approvedLeaves) {
     const start = l.from_date > monthStart ? l.from_date : monthStart
-    const end   = l.to_date   < monthEnd   ? l.to_date   : monthEnd
+    let end     = l.to_date   < monthEnd   ? l.to_date   : monthEnd
+    if (end > cutoff) end = cutoff
     if (start > end) continue
     if (l.leave_type === 'permission') {
       permissionHoursB += Number(l.permission_hours) || 0
@@ -159,12 +177,12 @@ export function computeEmployeeMonth(data: EmployeeMonthData, settings: PayrollS
     }
   }
   const leaveHoursB    = leaveDays * 8.5
-  const requiredHoursB = Math.max(0, HOURS_TARGET - permissionHoursB - halfDayHoursB - leaveHoursB)
+  const requiredHoursB = Math.max(0, elapsedTargetHours - permissionHoursB - halfDayHoursB - leaveHoursB)
   const actualHoursB   = totalHours
 
   const combinedTotalHours = Math.round((totalHours + collabHours) * 10) / 10
   const shortfallHoursB = Math.max(0, requiredHoursB - actualHoursB)
-  const otHours = Math.round(Math.max(0, combinedTotalHours - HOURS_TARGET) * 10) / 10
+  const otHours = Math.round(Math.max(0, combinedTotalHours - elapsedTargetHours) * 10) / 10
 
   const effectiveSalary = snapshotSalary ?? member.monthly_salary
   const employmentType = member.employment_type ?? 'regular'
@@ -195,7 +213,7 @@ export function computeEmployeeMonth(data: EmployeeMonthData, settings: PayrollS
   const incentive = run?.incentive ?? 0
   const finalNetPay = Math.round((netPay + otPay + bonus + incentive - advance) * 100) / 100
 
-  const hourlyRateB = effectiveSalary ? effectiveSalary / HOURS_TARGET : 0
+  const hourlyRateB = effectiveSalary ? effectiveSalary / FULL_MONTH_TARGET_HOURS : 0
   const deductionB  = Math.round(shortfallHoursB * hourlyRateB * 100) / 100
   const netPayB     = employmentType === 'regular' && effectiveSalary
     ? Math.round((effectiveSalary - deductionB) * 100) / 100
@@ -214,7 +232,7 @@ export function computeEmployeeMonth(data: EmployeeMonthData, settings: PayrollS
     bonus, advance, incentive,
     netPay, finalNetPay,
     hoursPreview: {
-      targetHours: HOURS_TARGET, permissionHours: Math.round(permissionHoursB * 10) / 10,
+      targetHours: Math.round(elapsedTargetHours * 10) / 10, permissionHours: Math.round(permissionHoursB * 10) / 10,
       halfDayHours: Math.round(halfDayHoursB * 10) / 10, leaveHours: Math.round(leaveHoursB * 10) / 10,
       requiredHours: Math.round(requiredHoursB * 10) / 10, actualHours: Math.round(actualHoursB * 10) / 10,
       shortfallHours: Math.round(shortfallHoursB * 10) / 10, deduction: deductionB, netPay: netPayB,

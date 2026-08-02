@@ -50,24 +50,6 @@ function fmtK(n: number) {
 function getInitials(name: string) {
   return (name || "").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
 }
-// ── Attendance Ring SVG ─────────────────────────────────────────────────────
-function AttendanceRing({ pct, size = 60 }: { pct: number; size?: number }) {
-  const r = size * 0.38, cx = size / 2, cy = size / 2
-  const circ = 2 * Math.PI * r
-  const filled = (Math.min(pct, 100) / 100) * circ
-  const color = pct >= 80 ? "#16A34A" : pct >= 60 ? "#F59E0B" : "#E53935"
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F0F0F0" strokeWidth={size * 0.11} />
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={size * 0.11}
-        strokeDasharray={`${filled} ${circ - filled}`} strokeLinecap="round"
-        transform={`rotate(-90 ${cx} ${cy})`} />
-      <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.21} fontWeight="900" fill="#111">{pct}%</text>
-    </svg>
-  )
-}
-
 // ── Salary Health Donut ─────────────────────────────────────────────────────
 function SalaryHealthDonut({ pct }: { pct: number }) {
   const r = 54, cx = 72, cy = 72
@@ -254,12 +236,6 @@ function EmployeeCard({
           </div>
         </div>
 
-        {/* Attendance donut */}
-        <div style={{ flexShrink: 0, textAlign: "center" }}>
-          <AttendanceRing pct={attendPct} size={54} />
-          <div style={{ fontSize: 9, color: "#1E3A5F", marginTop: 2, fontWeight: 600 }}>Attendance</div>
-        </div>
-
         {/* Salary chips */}
         <div style={{ flex: 1, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
           {[
@@ -313,46 +289,44 @@ function EmployeeCard({
         </div>
       </div>
 
-      {/* ── Expanded panel ── */}
+      {/* ── Expanded panel — "The Math" (read-only, live) connected to "Admin Sets" (editable) ── */}
       {isExpanded && (
-        <div className="grid grid-cols-1 md:grid-cols-2" style={{ borderTop: "1.5px solid #F5F5F5" }}>
+        <div className="flex flex-col md:flex-row" style={{ borderTop: "1.5px solid #F5F5F5", padding: "22px 24px", alignItems: "stretch", gap: 14 }}>
 
-          {/* LEFT: Payroll Breakdown bars */}
-          <div style={{ padding: "22px 24px", borderRight: "1px solid #F5F5F5" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 18 }}>
-              Payroll Breakdown
+          <div style={{ flex: "1.3 1 260px", background: "#fff", border: "1.5px solid #F0F0F0", borderRadius: 16, padding: "18px 20px" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 14 }}>
+              The Math
             </div>
             {[
-              { label: "OT Earnings",    amount: otAmount,      pct: r.basePay > 0 ? Math.min((otAmount / r.basePay) * 100, 100) : 0, color: "#F97316" },
-              { label: "Incentive",      amount: incentive,     pct: r.basePay > 0 ? Math.min((incentive / r.basePay) * 100, 100) : 0, color: "#16A34A" },
-              { label: `Absent Deduction (${r.absentDays}d full + ${r.halfDays}d half)`, amount: -r.deduction, pct: r.basePay > 0 ? Math.min((r.deduction / r.basePay) * 100, 100) : 0, color: "#DC2626" },
+              { label: "Base Salary", amount: r.basePay,    color: "#111" },
+              { label: "Deductions",  amount: -r.deduction, color: "#DC2626" },
+              { label: "OT",          amount: otAmount,     color: "#F97316" },
+              { label: "Incentive",   amount: incentive,    color: "#16A34A" },
             ].map((item) => (
-              <div key={item.label} style={{ marginBottom: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                  <span style={{ fontSize: 12, color: "#1E3A5F" }}>{item.label}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: item.amount < 0 ? "#DC2626" : item.amount === 0 ? "#1E3A5F" : "#111" }}>
-                    {item.amount === 0 ? "—" : item.amount < 0 ? `-${fmt(Math.abs(item.amount))}` : fmt(item.amount)}
-                  </span>
-                </div>
-                <div style={{ height: 7, borderRadius: 4, background: "#F3F4F6" }}>
-                  <div style={{ height: "100%", borderRadius: 4, width: `${item.pct}%`, background: item.color }} />
-                </div>
+              <div key={item.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F5F5F5" }}>
+                <span style={{ fontSize: 13, color: "#1E3A5F" }}>{item.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: item.amount < 0 ? "#DC2626" : item.amount === 0 ? "#1E3A5F" : item.color }}>
+                  {item.amount === 0 ? "—" : item.amount < 0 ? `-${fmt(Math.abs(item.amount))}` : fmt(item.amount)}
+                </span>
               </div>
             ))}
-            <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1.5px solid #F0F0F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Net Pay</span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 14, marginTop: 4 }}>
+              <span style={{ fontSize: 14, fontWeight: 800, color: "#111" }}>Net Pay</span>
               <span style={{ fontSize: 20, fontWeight: 900, color: localFinalNetPay < 0 ? "#DC2626" : "#16A34A", fontFamily: "var(--font-jakarta)" }}>{fmt(localFinalNetPay)}</span>
             </div>
           </div>
 
-          {/* RIGHT: OT & Incentive */}
-          <div style={{ padding: "22px 24px", background: "#FAFAFA" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 18 }}>
-              OT &amp; Incentive
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 300, color: "#D1D5DB" }}>
+            =
+          </div>
+
+          <div style={{ flex: "1 1 220px", background: "#FAFAFA", border: "1.5px solid #F0F0F0", borderRadius: 16, padding: "18px 20px" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 14 }}>
+              Admin Sets
             </div>
 
             {/* OT input — admin decides the amount, never auto-calculated from hours */}
-            <div style={{ marginBottom: 14 }}>
+            <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#1E3A5F", display: "block", marginBottom: 6 }}>
                 OT (₹)
               </label>
@@ -370,7 +344,7 @@ function EmployeeCard({
             </div>
 
             {/* Incentive input */}
-            <div style={{ marginBottom: 18 }}>
+            <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#1E3A5F", display: "block", marginBottom: 6 }}>
                 Incentive (₹)
               </label>
@@ -385,25 +359,6 @@ function EmployeeCard({
                 }}
                 placeholder="0"
               />
-            </div>
-
-            {/* Adjusted net pay preview */}
-            <div style={{
-              padding: "12px 14px", borderRadius: 12,
-              background: localFinalNetPay < 0 ? "linear-gradient(135deg, #FEF2F2, #FEE2E2)" : "linear-gradient(135deg, #F0FDF4, #DCFCE7)",
-              border: localFinalNetPay < 0 ? "1.5px solid #FECACA" : "1.5px solid #BBF7D0", marginBottom: 14,
-            }}>
-              <div style={{ fontSize: 10, color: localFinalNetPay < 0 ? "#B91C1C" : "#15803D", fontWeight: 700, marginBottom: 4 }}>ADJUSTED NET PAY</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: localFinalNetPay < 0 ? "#DC2626" : "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                {fmt(localFinalNetPay)}
-              </div>
-              {(otAmount > 0 || incentive > 0) && (
-                <div style={{ fontSize: 10, color: "#1E3A5F", marginTop: 4 }}>
-                  {fmt(r.netPay)}
-                  {otAmount > 0  ? ` + ${fmt(otAmount)} OT`     : ""}
-                  {incentive > 0 ? ` + ${fmt(incentive)} incentive` : ""}
-                </div>
-              )}
             </div>
 
             <button
@@ -436,6 +391,7 @@ function EmployeeCard({
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {[
+              { label: "Attendance", value: `${attendPct}%` },
               { label: "Target",     value: `${r.hoursPreview.targetHours}h` },
               { label: "Permission", value: `${r.hoursPreview.permissionHours}h` },
               { label: "Half Day",   value: `${r.hoursPreview.halfDayHours}h` },

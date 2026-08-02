@@ -49,10 +49,11 @@ export default async function PayrollPage({
     { count: pendingCollabCount },
     { count: pendingLeaveCount },
     { data: salaryRecordsRaw },
+    { data: kycRaw },
   ] = await Promise.all([
     admin
       .from("users")
-      .select("id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, paid_leave_days, passport_photo_url")
+      .select("id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, paid_leave_days, passport_photo_url, created_at")
       .eq("company_id", cid)
       .eq("role", "MEMBER")
       .eq("status", "active")
@@ -121,6 +122,11 @@ export default async function PayrollPage({
       .select("user_id, amount")
       .eq("company_id", cid)
       .eq("month", month),
+    // Bank details for the Report's Payment Details card
+    admin
+      .from("member_kyc")
+      .select("user_id, bank_name, bank_account, bank_ifsc")
+      .eq("company_id", cid),
   ])
 
   type UpdateRow = { user_id: string; date: string; working_hours: number | null; learning_hours: number | null; work_entries: { task_type?: string; duration_hours?: number | null; start_time?: string | null; end_time?: string | null }[] | null }
@@ -134,8 +140,9 @@ export default async function PayrollPage({
   type MemberRow = {
     id: string; name: string; employee_id: string; team: string | null
     employment_type: string | null; monthly_salary: number | null; hourly_rate: number | null
-    paid_leave_days: number | null; passport_photo_url: string | null
+    paid_leave_days: number | null; passport_photo_url: string | null; created_at: string | null
   }
+  type KycRow = { user_id: string; bank_name: string | null; bank_account: string | null; bank_ifsc: string | null }
 
   const members       = (membersRaw          ?? []) as MemberRow[]
   const updates       = (updatesRaw           ?? []) as UpdateRow[]
@@ -145,9 +152,11 @@ export default async function PayrollPage({
   const holidayDates  = new Set(((holidaysRaw ?? []) as { date: string }[]).map(h => h.date))
   const collabConfirms = (collabConfirmsRaw   ?? []) as { collaborator_id: string; date: string; confirmed_hours: number | null }[]
   const salaryRecords = (salaryRecordsRaw     ?? []) as { user_id: string; amount: number }[]
+  const kycRows       = (kycRaw               ?? []) as KycRow[]
 
   // Build salary snapshot map for this month
   const snapshotMap = new Map(salaryRecords.map(r => [r.user_id, r.amount]))
+  const kycMap = new Map(kycRows.map(k => [k.user_id, k]))
 
   // Auto-snapshot: insert salary record for any member not yet snapshotted this month
   // ON CONFLICT DO NOTHING — existing records are NEVER overwritten
@@ -201,10 +210,12 @@ export default async function PayrollPage({
     }
 
     const breakdown = computeEmployeeMonth(data, payrollSettings)
+    const kyc = kycMap.get(m.id)
 
     return {
       id: m.id, name: m.name, employee_id: m.employee_id, team: m.team,
-      passport_photo_url: m.passport_photo_url,
+      passport_photo_url: m.passport_photo_url, created_at: m.created_at,
+      bank_name: kyc?.bank_name ?? null, bank_account: kyc?.bank_account ?? null, bank_ifsc: kyc?.bank_ifsc ?? null,
       ...breakdown,
       isPaid: run?.is_paid ?? false,
       paidAt: run?.paid_at ?? null,

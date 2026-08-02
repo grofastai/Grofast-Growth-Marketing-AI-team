@@ -207,7 +207,7 @@ function EmployeeCard({
 
         {/* Avatar */}
         <div style={{
-          width: 52, height: 52, borderRadius: "50%", flexShrink: 0,
+          width: 52, height: 52, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
           background: r.isPaid
             ? "linear-gradient(135deg, #16A34A, #15803D)"
             : "linear-gradient(135deg, #E53935, #B71C1C)",
@@ -218,7 +218,12 @@ function EmployeeCard({
             ? "0 4px 14px rgba(22,163,74,0.3)"
             : "0 4px 14px rgba(229,57,53,0.3)",
         }}>
-          {getInitials(r.name)}
+          {r.passport_photo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={r.passport_photo_url} alt={r.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            getInitials(r.name)
+          )}
         </div>
 
         {/* Name + ID + badge */}

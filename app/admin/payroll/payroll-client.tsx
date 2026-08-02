@@ -888,13 +888,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
 .dl-btn{background:#DC2626;color:#fff;border:none;padding:7px 18px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 3px 10px rgba(220,38,38,0.4)}
 .page{max-width:860px;margin:20px auto 40px;background:#fff;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden}
 .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:24px 28px 20px;gap:16px}
-.co-logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#DC2626,#991B1B);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff;flex-shrink:0;box-shadow:0 4px 12px rgba(220,38,38,0.3)}
+.co-logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff;flex-shrink:0;box-shadow:0 4px 12px rgba(220,38,38,0.3)}
 .co-name{font-size:20px;font-weight:900;color:#111;letter-spacing:0.01em;line-height:1.1}
 .co-sub{font-size:11px;font-weight:700;color:#DC2626;text-transform:uppercase;letter-spacing:0.06em;margin-top:2px}
 .co-addr{font-size:10.5px;color:#9CA3AF;margin-top:6px;line-height:1.7;display:flex;align-items:flex-start;gap:5px}
 .contact-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px}
 .contact-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;font-weight:500}
-.slip-badge{background:linear-gradient(135deg,#DC2626,#991B1B);border-radius:14px;padding:16px 22px;min-width:190px;box-shadow:0 4px 16px rgba(220,38,38,0.35);position:relative;overflow:hidden;flex-shrink:0}
+.slip-badge{background:linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%);border-radius:14px;padding:16px 22px;min-width:190px;box-shadow:0 4px 16px rgba(220,38,38,0.35);position:relative;overflow:hidden;flex-shrink:0}
 .slip-badge::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.08)}
 .slip-month{font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px}
 .slip-title{font-size:28px;font-weight:900;color:#fff;letter-spacing:0.1em;line-height:1}
@@ -905,7 +905,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
 .emp-watermark{position:absolute;right:-10px;bottom:-20px;font-size:120px;font-weight:900;color:rgba(0,0,0,0.04);letter-spacing:-0.06em;line-height:1;pointer-events:none}
 .emp-photo{width:90px;height:90px;border-radius:50%;overflow:hidden;flex-shrink:0;border:3px solid #E5E7EB;background:#F3F4F6;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,0.1)}
 .emp-photo img{width:100%;height:100%;object-fit:cover;object-position:top center}
-.emp-photo-init{width:100%;height:100%;background:linear-gradient(135deg,#DC2626,#991B1B);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;color:#fff}
+.emp-photo-init{width:100%;height:100%;background:linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;color:#fff}
 .emp-info{flex:1;display:flex;gap:32px}
 .emp-left{flex:1}
 .emp-name{font-size:20px;font-weight:800;color:#111;margin-bottom:6px}

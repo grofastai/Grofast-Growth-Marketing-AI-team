@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useRef } from "react"
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { ChevronDown, ChevronUp, FileText, BarChart3, CheckCircle2, Clock, Zap } from "lucide-react"
@@ -22,6 +22,7 @@ type PayrollRow = {
   id: string; name: string; employee_id: string; team: string | null
   passport_photo_url: string | null; created_at: string | null
   bank_name: string | null; bank_account: string | null; bank_ifsc: string | null
+  signature_url: string | null
   employment_type: string
   presentDays: number; halfDays: number; absentDays: number; leaveDays: number
   missingUpdates: number; missingUpdateDates: string[]; deductibleDays: number
@@ -143,8 +144,8 @@ function resolveTeamClr(team: string | null, teams: TeamRow[]): { bg: string; co
 // Reports feature to keep looking exactly like that older design. Driven
 // entirely by PayrollRow (already computed, on screen) instead of the old
 // route's own DB queries, so it can't drift from what Payroll displays.
-function buildReportEmployeeCard(r: PayrollRow, opts: { year: number; mon: number; monthName: string; payDateStr: string; generatedTs: string }) {
-  const { year, mon, monthName, payDateStr, generatedTs } = opts
+function buildReportEmployeeCard(r: PayrollRow, opts: { year: number; mon: number; monthName: string; payDateStr: string; generatedTs: string; authorisedSignatureUrl: string | null }) {
+  const { year, mon, monthName, payDateStr, generatedTs, authorisedSignatureUrl } = opts
   const payslipId = `GSPL/${year}/${String(mon).padStart(2, "0")}/${r.employee_id}`
   const initials = getInitials(r.name)
   const isRegular = r.employment_type === "regular" && !!r.monthly_salary
@@ -368,14 +369,18 @@ function buildReportEmployeeCard(r: PayrollRow, opts: { year: number; mon: numbe
         <div class="footer-disc-text">This is a computer-generated payslip.<br/>No physical signature is required.<br/><span style="color:#D1D5DB">Generated on ${generatedTs}</span></div>
       </div>
       <div class="sig">
-        <div class="sig-name">GroFast</div>
+        ${authorisedSignatureUrl
+          ? `<img class="sig-img" src="${authorisedSignatureUrl}" alt="Authorised signature"/>`
+          : `<div class="sig-stamp"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> Digitally Signed</div>`}
         <div class="sig-line"></div>
         <div class="sig-role">Authorised Signatory</div>
         <div class="sig-co">Grofast Group Of Companies</div>
         <div class="sig-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Verified</div>
       </div>
       <div class="sig">
-        <div class="sig-name">${r.name.split(" ")[0]}</div>
+        ${r.signature_url
+          ? `<img class="sig-img" src="${r.signature_url}" alt="${r.name}'s signature"/>`
+          : `<div class="sig-name">${r.name.split(" ")[0]}</div>`}
         <div class="sig-line"></div>
         <div class="sig-role">Employee Signature</div>
         <div class="sig-co">${r.employee_id}</div>
@@ -709,6 +714,26 @@ export default function PayrollClient({
   const [showSettings, setShowSettings] = useState(false)
   const [settingsForm, setSettingsForm] = useState<PayrollSettings>(payrollSettings)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
+  const [isUploadingSignature, setIsUploadingSignature] = useState(false)
+  const signatureInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleSignatureUpload(file: File) {
+    setIsUploadingSignature(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("folder", "company-signature")
+      const res = await fetch("/api/upload-photo", { method: "POST", body: fd })
+      const json = await res.json()
+      if (!res.ok || !json.url) {
+        showToast(json.error ?? "Signature upload failed", "error")
+        return
+      }
+      setSettingsForm(prev => ({ ...prev, authorised_signature_url: json.url }))
+    } finally {
+      setIsUploadingSignature(false)
+    }
+  }
 
   const [year, mon] = month.split("-").map(Number)
   const monthName   = new Date(year, mon - 1).toLocaleString("en-IN", { month: "long", year: "numeric" })
@@ -868,7 +893,7 @@ export default function PayrollClient({
         : `${scopeRows.length} Employees &nbsp;·&nbsp; ${monthName} &nbsp;·&nbsp; Report`
 
       const cardsHtml = scopeRows
-        .map(r => buildReportEmployeeCard(r, { year, mon, monthName, payDateStr, generatedTs }))
+        .map(r => buildReportEmployeeCard(r, { year, mon, monthName, payDateStr, generatedTs, authorisedSignatureUrl: payrollSettings.authorised_signature_url }))
         .join("")
 
       win.document.write(`<!DOCTYPE html>
@@ -978,6 +1003,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
 .footer-disc-text{font-size:10px;color:#9CA3AF;line-height:1.8}
 .sig{text-align:center}
 .sig-name{font-family:'Dancing Script',cursive;font-size:22px;color:#374151;margin-bottom:5px;line-height:1}
+.sig-img{height:34px;max-width:150px;object-fit:contain;margin-bottom:5px}
+.sig-stamp{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:10px;border:1.5px dashed #DC2626;color:#DC2626;font-size:11px;font-weight:800;margin-bottom:5px;letter-spacing:0.02em}
 .sig-line{height:1px;background:#D1D5DB;margin-bottom:6px}
 .sig-role{font-size:11px;font-weight:700;color:#374151}
 .sig-co{font-size:10px;color:#9CA3AF;margin-top:2px}
@@ -1177,6 +1204,49 @@ function downloadPDF(){
             </div>
             <p style={{ fontSize: 11, color: "#1E3A5F", margin: "0 0 20px" }}>
               Whatever remains of gross salary after Basic + Travel + Medical is deducted shows on the payslip as &quot;Other Allowance&quot;.
+            </p>
+
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Report Signature</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              <div style={{ width: 90, height: 44, borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#F9FAFB", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+                {settingsForm.authorised_signature_url
+                  ? // eslint-disable-next-line @next/next/no-img-element
+                    <img src={settingsForm.authorised_signature_url} alt="Authorised signature" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                  : <span style={{ fontSize: 10, color: "#9CA3AF" }}>None</span>}
+              </div>
+              <div style={{ flex: 1, display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => signatureInputRef.current?.click()}
+                  disabled={isUploadingSignature}
+                  style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#fff", fontSize: 12, fontWeight: 700, color: "#1E3A5F", cursor: isUploadingSignature ? "wait" : "pointer" }}
+                >
+                  {isUploadingSignature ? "Uploading…" : settingsForm.authorised_signature_url ? "Replace" : "Upload"}
+                </button>
+                {settingsForm.authorised_signature_url && (
+                  <button
+                    type="button"
+                    onClick={() => setSettingsForm(prev => ({ ...prev, authorised_signature_url: null }))}
+                    style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid #FECDD3", background: "#FFF1F2", fontSize: 12, fontWeight: 700, color: "#DC2626", cursor: "pointer" }}
+                  >
+                    Remove
+                  </button>
+                )}
+                <input
+                  ref={signatureInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={e => {
+                    const file = e.target.files?.[0]
+                    if (file) handleSignatureUpload(file)
+                    e.target.value = ""
+                  }}
+                />
+              </div>
+            </div>
+            <p style={{ fontSize: 11, color: "#1E3A5F", margin: "0 0 20px" }}>
+              Used as the &quot;Authorised Signatory&quot; mark on the payroll Report. Falls back to a stylised &quot;GroFast&quot; if nothing is uploaded.
             </p>
 
             <div style={{ display: "flex", gap: 10 }}>

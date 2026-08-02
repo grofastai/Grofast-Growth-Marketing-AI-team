@@ -122,10 +122,10 @@ export default async function PayrollPage({
       .select("user_id, amount")
       .eq("company_id", cid)
       .eq("month", month),
-    // Bank details for the Report's Payment Details card
+    // Bank details + signature for the Report's Payment Details / signature blocks
     admin
       .from("member_kyc")
-      .select("user_id, bank_name, bank_account, bank_ifsc")
+      .select("user_id, bank_name, bank_account, bank_ifsc, signature_url")
       .eq("company_id", cid),
   ])
 
@@ -142,7 +142,7 @@ export default async function PayrollPage({
     employment_type: string | null; monthly_salary: number | null; hourly_rate: number | null
     paid_leave_days: number | null; passport_photo_url: string | null; created_at: string | null
   }
-  type KycRow = { user_id: string; bank_name: string | null; bank_account: string | null; bank_ifsc: string | null }
+  type KycRow = { user_id: string; bank_name: string | null; bank_account: string | null; bank_ifsc: string | null; signature_url: string | null }
 
   const members       = (membersRaw          ?? []) as MemberRow[]
   const updates       = (updatesRaw           ?? []) as UpdateRow[]
@@ -216,6 +216,7 @@ export default async function PayrollPage({
       id: m.id, name: m.name, employee_id: m.employee_id, team: m.team,
       passport_photo_url: m.passport_photo_url, created_at: m.created_at,
       bank_name: kyc?.bank_name ?? null, bank_account: kyc?.bank_account ?? null, bank_ifsc: kyc?.bank_ifsc ?? null,
+      signature_url: kyc?.signature_url ?? null,
       ...breakdown,
       isPaid: run?.is_paid ?? false,
       paidAt: run?.paid_at ?? null,

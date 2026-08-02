@@ -10,7 +10,16 @@
 // only export async functions — this constant and type are consumed by
 // both server code (lib/actions/payroll-settings.ts) and client code
 // (payroll-client.tsx's form state).
-export const PAYROLL_SETTINGS_DEFAULTS = {
+export const PAYROLL_SETTINGS_DEFAULTS: {
+  ot_threshold_hrs: number
+  half_day_threshold_hrs: number
+  salary_basis_days: number
+  basic_pct: number
+  hra_pct: number
+  travel_pct: number
+  medical_pct: number
+  authorised_signature_url: string | null
+} = {
   ot_threshold_hrs: 9.5,
   half_day_threshold_hrs: 4.75,
   salary_basis_days: 30,
@@ -18,6 +27,7 @@ export const PAYROLL_SETTINGS_DEFAULTS = {
   hra_pct: 20,
   travel_pct: 7,
   medical_pct: 3,
+  authorised_signature_url: null,
 }
 
 export type PayrollSettings = typeof PAYROLL_SETTINGS_DEFAULTS

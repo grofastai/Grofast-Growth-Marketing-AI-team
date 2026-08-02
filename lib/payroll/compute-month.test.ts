@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { computeEmployeeMonth, type EmployeeMonthData } from './compute-month'
 import { PAYROLL_SETTINGS_DEFAULTS } from '@/lib/payroll-settings-defaults'
 
@@ -91,5 +91,36 @@ describe('computeEmployeeMonth', () => {
     const sum = result.basic + result.hra + result.travelAllowance + result.medicalAllowance + result.otherAllowance
     expect(sum).toBe(30000)
     expect(result.basePay).toBe(sum)
+  })
+
+  describe('viewing a month still in progress', () => {
+    beforeEach(() => {
+      // IST is UTC+5:30 — this instant reads as 2026-07-15 in Asia/Kolkata.
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-07-15T10:00:00Z'))
+    })
+    afterEach(() => vi.useRealTimers())
+
+    it('never counts days after today as absent, even with zero data for them', () => {
+      // No updates/logs at all for the whole month — the pre-fix behavior scored
+      // every one of July's 31 days as absent. Only the 15 elapsed days (today
+      // inclusive) should count now; the 16 unlived days should count for nothing.
+      const result = computeEmployeeMonth(baseData(), PAYROLL_SETTINGS_DEFAULTS)
+      expect(result.absentDays).toBe(15)
+      expect(result.deductibleDays).toBe(15)
+    })
+
+    it('a future-dated approved leave does not count until its date arrives', () => {
+      const result = computeEmployeeMonth(baseData({
+        approvedLeaves: [{ from_date: '2026-07-20', to_date: '2026-07-20', leave_type: 'full_day' }],
+      }), PAYROLL_SETTINGS_DEFAULTS)
+      expect(result.leaveDays).toBe(0)
+      expect(result.absentDays).toBe(15)
+    })
+
+    it('prorates the hours-preview target to elapsed must-work days, not the full month', () => {
+      const result = computeEmployeeMonth(baseData(), PAYROLL_SETTINGS_DEFAULTS)
+      expect(result.hoursPreview.targetHours).toBe(15 * 8.5)
+    })
   })
 })

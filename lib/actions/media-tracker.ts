@@ -4,8 +4,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import {
-  createContentItemSchema, updateContentItemSchema, addContentPostSchema, updateContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema, updateVoiceOverSchema, setClientMonthlyTargetSchema,
-  type CreateContentItemInput, type UpdateContentItemInput, type AddContentPostInput, type UpdateContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput, type UpdateVoiceOverInput, type SetClientMonthlyTargetInput,
+  createContentItemSchema, updateContentItemSchema, rescheduleContentItemSchema, addContentPostSchema, updateContentPostSchema, createAdSchema, addAdRevisionSchema, addAdPerformanceEntrySchema, markReadyToPostSchema, requestCorrectionSchema, updateAdSchema, createAdsVideoScriptSchema, recordVoiceOverSchema, updateAdsVideoScriptSchema, updateVoiceOverSchema, setClientMonthlyTargetSchema,
+  type CreateContentItemInput, type UpdateContentItemInput, type RescheduleContentItemInput, type AddContentPostInput, type UpdateContentPostInput, type CreateAdInput, type AddAdRevisionInput, type AddAdPerformanceEntryInput, type MarkReadyToPostInput, type RequestCorrectionInput, type UpdateAdInput, type CreateAdsVideoScriptInput, type RecordVoiceOverInput, type UpdateAdsVideoScriptInput, type UpdateVoiceOverInput, type SetClientMonthlyTargetInput,
 } from '@/lib/validations/media-tracker'
 import { isValidPipelineTransition, type ContentPipelineStatus } from '@/lib/media-tracker/pipeline-transitions'
 import { todayIST } from '@/lib/utils/ist-date'
@@ -289,6 +289,39 @@ export async function updateContentItemStatus(
   if (status === 'cancelled' && cancelledBy) updates.cancelled_by = cancelledBy
 
   const { error } = await ctx.admin.from('content_items').update(updates).eq('id', id).eq('company_id', ctx.companyId)
+  if (error) return { success: false, error: error.message }
+
+  revalidateTracker()
+  return { success: true }
+}
+
+// Moving an approved item's posting/publishing date without touching anything else —
+// the Schedule button on the Branding/Ads Ready cards. updateContentItem can't serve this:
+// it rewrites the whole record and nulls scheduled_post_time/ready_platforms whenever they
+// aren't resent, so a one-field reschedule through it would silently drop the time slot and
+// the platform intent picked at the Move step.
+export async function rescheduleContentItem(
+  input: RescheduleContentItemInput
+): Promise<{ success: boolean; error?: string }> {
+  const parsed = rescheduleContentItemSchema.safeParse(input)
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+
+  const ctx = await currentUser()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const { data: current } = await ctx.admin.from('content_items')
+    .select('status').eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId).single()
+  if (!current) return { success: false, error: 'Content item not found' }
+  // A scheduled posting date only means anything while the item is approved and still
+  // waiting to go out. Once it's Posted the per-platform log is the real record, and
+  // before Branding/Ads Ready there's nothing approved to schedule yet.
+  if (current.status !== 'branding_ready' && current.status !== 'ads_ready') {
+    return { success: false, error: 'Only Branding Ready or Ads Ready items can be scheduled' }
+  }
+
+  const { error } = await ctx.admin.from('content_items')
+    .update({ scheduled_post_date: parsed.data.scheduled_post_date, updated_at: new Date().toISOString() })
+    .eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
 
   revalidateTracker()

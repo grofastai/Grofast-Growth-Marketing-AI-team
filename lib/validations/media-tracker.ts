@@ -64,6 +64,16 @@ export const updateContentItemSchema = z.object({
 })
 export type UpdateContentItemInput = z.infer<typeof updateContentItemSchema>
 
+// Changing only when an approved item is due to go out, from the Branding/Ads Ready card
+// itself. Deliberately NOT updateContentItemSchema: that one is a whole-record update and
+// nulls scheduled_post_time/ready_platforms when they aren't resent, which a one-field
+// reschedule must never do.
+export const rescheduleContentItemSchema = z.object({
+  content_item_id:     z.string().uuid(),
+  scheduled_post_date: z.string().min(1, 'Posting date is required'),
+})
+export type RescheduleContentItemInput = z.infer<typeof rescheduleContentItemSchema>
+
 // Correcting a logged post after the fact — who actually posted it, or when it actually
 // went out — without touching the platform itself (that's add/remove, not edit).
 export const updateContentPostSchema = z.object({

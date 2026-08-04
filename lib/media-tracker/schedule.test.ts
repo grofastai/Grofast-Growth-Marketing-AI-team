@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { groupSchedule, buildMonthGrid, computeUpcomingSchedule, type ScheduleEntry, type UpcomingScheduleInput } from './schedule'
+import { groupSchedule, buildMonthGrid, computeUpcomingSchedule, scheduleBadgeState, type ScheduleEntry, type UpcomingScheduleInput } from './schedule'
 
 function scheduledItem(overrides: Partial<UpcomingScheduleInput> & Pick<UpcomingScheduleInput, 'id'>): UpcomingScheduleInput {
   return {
@@ -15,6 +15,31 @@ function entry(overrides: Partial<ScheduleEntry> & Pick<ScheduleEntry, 'id' | 'd
     ...overrides,
   }
 }
+
+describe('scheduleBadgeState', () => {
+  it('flags a date before today as overdue', () => {
+    expect(scheduleBadgeState('2026-07-27', '2026-07-28')).toBe('overdue')
+  })
+
+  it('treats today as its own state, not overdue', () => {
+    expect(scheduleBadgeState('2026-07-28', '2026-07-28')).toBe('today')
+  })
+
+  it('flags a future date as upcoming', () => {
+    expect(scheduleBadgeState('2026-07-29', '2026-07-28')).toBe('upcoming')
+  })
+
+  it('returns none for legacy items with no date on file', () => {
+    expect(scheduleBadgeState(null, '2026-07-28')).toBe('none')
+    expect(scheduleBadgeState(undefined, '2026-07-28')).toBe('none')
+    expect(scheduleBadgeState('', '2026-07-28')).toBe('none')
+  })
+
+  it('compares across a month boundary without treating the smaller day number as later', () => {
+    expect(scheduleBadgeState('2026-07-31', '2026-08-01')).toBe('overdue')
+    expect(scheduleBadgeState('2026-08-01', '2026-07-31')).toBe('upcoming')
+  })
+})
 
 describe('groupSchedule', () => {
   it('pulls past-due entries into an Overdue group above Today', () => {

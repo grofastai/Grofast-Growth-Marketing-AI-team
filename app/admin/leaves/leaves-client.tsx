@@ -4,7 +4,7 @@ import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { useState, useTransition } from "react"
 import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, UserCheck, Home, XOctagon, Paperclip, Plus, Trash2, Pencil, X, AlertTriangle, ChevronLeft, ChevronRight, ChevronDown, ListFilter } from "lucide-react"
-import { updateLeaveStatus, adminApplyLeaveOnBehalf, adminUpdateLeaveRequest } from "@/lib/actions/leaves"
+import { updateLeaveStatus, adminApplyLeaveOnBehalf } from "@/lib/actions/leaves"
 import { addCompanyLeave, updateCompanyLeave, deleteCompanyLeave } from "@/lib/actions/company-leaves"
 import { todayIST } from "@/lib/utils/ist-date"
 import { HALF_DAY_THRESHOLD_HOURS } from "@/lib/utils/attendance-stats"
@@ -144,12 +144,11 @@ function getAvatar(name: string, gender: string | undefined, idx: number) {
 }
 
 // ── Leave Card ─────────────────────────────────────────────────────────────────
-function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject, onSelectMember, onEdit }: {
+function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject, onSelectMember }: {
   leave: Leave; idx: number
   isPending: boolean; actionId: string | null
   onApprove: (id: string) => void; onReject: (id: string) => void
   onSelectMember: (id: string) => void
-  onEdit: (leave: Leave) => void
 }) {
   const user = Array.isArray(leave.users) ? leave.users[0] : leave.users
   const name = user?.name ?? "Unknown"
@@ -256,20 +255,6 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject, onSel
           <span style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>{displayReason}</span>
           {isBackfilled && <AutoBadge />}
         </p>
-      </div>
-
-      {/* Edit — always available regardless of status, so a mistake (wrong leave
-          type, wrong time) can be corrected even after approval, not just while
-          still pending. */}
-      <div style={{ display: "flex", gap: 6, paddingTop: 4, borderTop: "1px solid #F9FAFB" }}>
-        <button onClick={() => onEdit(leave)} style={{
-          flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-          fontSize: 12, fontWeight: 700, color: "#374151",
-          background: "#F6F7FA", border: "1px solid #EBEDF2", borderRadius: 10,
-          padding: "8px 0", cursor: "pointer",
-        }}>
-          <Pencil size={12} /> Edit
-        </button>
       </div>
 
       {/* Actions */}
@@ -432,93 +417,6 @@ export default function LeavesClient({
     if (!result.success) { setApplyError(result.error ?? "Failed to apply leave."); return }
     setShowApplyModal(false)
     resetApplyForm()
-    router.refresh()
-  }
-
-  // Edit Leave — admin correcting an existing request's type/date/time/reason,
-  // regardless of its status (pending, approved, even rejected). Same field shape
-  // as Apply Team Leave above, just pre-filled from the record being edited instead
-  // of blank, and with an explicit override for the monthly-limit check since a
-  // correction can occasionally need to bypass it (e.g. reclassifying already
-  // shifts day-equivalents around within the same month).
-  const [editLeaveFor, setEditLeaveFor]         = useState<Leave | null>(null)
-  const [editLeaveType, setEditLeaveType]       = useState<"full_day" | "half_day" | "permission" | "wfh" | "shoot_day">("full_day")
-  const [editFromDate, setEditFromDate]         = useState("")
-  const [editToDate, setEditToDate]             = useState("")
-  const [editHalfFrom, setEditHalfFrom]         = useState("")
-  const [editHalfTo, setEditHalfTo]             = useState("")
-  const [editPermFrom, setEditPermFrom]         = useState("")
-  const [editPermTo, setEditPermTo]             = useState("")
-  const [editPermReasonType, setEditPermReasonType] = useState<"late_login" | "early_logoff" | "other" | "">("")
-  const [editReason, setEditReason]             = useState("")
-  const [editOverrideLimit, setEditOverrideLimit] = useState(false)
-  const [editPending, setEditPending]           = useState(false)
-  const [editError, setEditError]               = useState<string | null>(null)
-
-  function openEditLeave(leave: Leave) {
-    setEditLeaveFor(leave)
-    setEditLeaveType((leave.leave_type as typeof editLeaveType) ?? "full_day")
-    setEditFromDate(leave.from_date)
-    setEditToDate(leave.to_date)
-    setEditHalfFrom(leave.half_day_from_time ?? "")
-    setEditHalfTo(leave.half_day_to_time ?? "")
-    setEditPermFrom(leave.permission_time ?? "")
-    setEditPermTo(leave.permission_end_time ?? "")
-    setEditPermReasonType(leave.leave_type === "permission" ? (leave.permission_reason_type ?? "other") : "")
-    setEditReason(leave.reason ?? "")
-    setEditOverrideLimit(false)
-    setEditError(null)
-  }
-
-  function closeEditLeave() {
-    setEditLeaveFor(null)
-  }
-
-  async function submitEditLeave() {
-    if (!editLeaveFor) return
-    setEditError(null)
-    if (!editFromDate) { setEditError("Select a date."); return }
-    if (editLeaveType === "permission" && !editPermReasonType) { setEditError("Select a reason."); return }
-    if (editLeaveType === "permission" && editPermReasonType === "other" && !editReason.trim()) { setEditError("Enter a reason."); return }
-    if (editLeaveType !== "permission" && !editReason.trim()) { setEditError("Enter a reason."); return }
-    const isSingleDay = editLeaveType === "half_day" || editLeaveType === "permission" || editLeaveType === "shoot_day"
-    const toDate = isSingleDay ? editFromDate : (editToDate || editFromDate)
-    if (editLeaveType === "half_day" && (!editHalfFrom || !editHalfTo)) { setEditError("Set half day From/To time."); return }
-    if (editLeaveType === "half_day" && editHalfFrom && editHalfTo) {
-      const [fh, fm] = editHalfFrom.split(":").map(Number)
-      const [th, tm] = editHalfTo.split(":").map(Number)
-      const diff = (th * 60 + tm) - (fh * 60 + fm)
-      if (diff !== HALF_DAY_THRESHOLD_HOURS * 60) { setEditError(`Half day leave must be exactly ${HALF_DAY_THRESHOLD_HOURS}h.`); return }
-    }
-    if (editLeaveType === "permission" && (!editPermFrom || !editPermTo)) { setEditError("Set permission time."); return }
-
-    setEditPending(true)
-    const permHours = editPermFrom && editPermTo ? (() => {
-      const [fh, fm] = editPermFrom.split(":").map(Number)
-      const [th, tm] = editPermTo.split(":").map(Number)
-      const diff = (th * 60 + tm) - (fh * 60 + fm)
-      return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 1
-    })() : 1
-
-    const editPermReason = editPermReasonType === "late_login" ? "Late Login" : editPermReasonType === "early_logoff" ? "Early Logoff" : editReason.trim()
-
-    const result = await adminUpdateLeaveRequest({
-      leaveId: editLeaveFor.id,
-      leaveType: editLeaveType,
-      fromDate: editFromDate,
-      toDate,
-      reason: editLeaveType === "permission" ? editPermReason : editReason.trim(),
-      halfDayFromTime: editHalfFrom,
-      halfDayToTime: editHalfTo,
-      permissionTime: editPermFrom,
-      permissionEndTime: editPermTo,
-      permissionHours: permHours,
-      permissionReasonType: editLeaveType === "permission" ? (editPermReasonType || undefined) : undefined,
-      isExceptional: editOverrideLimit,
-    })
-    setEditPending(false)
-    if ("error" in result) { setEditError(result.error); return }
-    closeEditLeave()
     router.refresh()
   }
 
@@ -931,7 +829,6 @@ export default function LeavesClient({
                   isPending={isPending} actionId={actionId}
                   onApprove={handleApprove} onReject={handleReject}
                   onSelectMember={setMemberFilter}
-                  onEdit={openEditLeave}
                 />
               ))}
             </div>
@@ -1196,144 +1093,6 @@ export default function LeavesClient({
         </div>
       )}
 
-      {/* ── Edit Leave modal ─────────────────────────────────────────────── */}
-      {editLeaveFor && (
-        <div onClick={closeEditLeave} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(17,24,39,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, padding: "22px 22px 20px", width: "100%", maxWidth: 440, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.3)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <div>
-                <p style={{ fontSize: 15, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>Edit Leave</p>
-                <p style={{ fontSize: 11, color: "#6B7280", margin: "2px 0 0" }}>
-                  {(Array.isArray(editLeaveFor.users) ? editLeaveFor.users[0] : editLeaveFor.users)?.name ?? "Unknown"} — corrects the record regardless of its current status.
-                </p>
-              </div>
-              <button onClick={closeEditLeave} style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "#F3F4F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <X size={15} color="#6B7280" />
-              </button>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Leave Type *</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                  {([
-                    { key: "full_day",   label: "Full Day",   emoji: "☀️" },
-                    { key: "half_day",   label: "Half Day",   emoji: "🌤️" },
-                    { key: "permission", label: "Permission", emoji: "⏰" },
-                    { key: "wfh",        label: "WFH",         emoji: "🏠" },
-                    { key: "shoot_day",  label: "Shoot Day",  emoji: "📷" },
-                  ] as { key: typeof editLeaveType; label: string; emoji: string }[]).map(({ key, label, emoji }) => (
-                    <button key={key} type="button" onClick={() => setEditLeaveType(key)}
-                      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "10px 0", borderRadius: 12, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", ...(editLeaveType === key ? { background: "#DE1A1A", color: "#fff" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
-                      <span style={{ fontSize: 17 }}>{emoji}</span>{label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {(editLeaveType === "full_day") && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>From *</label>
-                    <input type="date" min="2025-01-01" value={editFromDate} onChange={e => setEditFromDate(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
-                  <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>To *</label>
-                    <input type="date" min={editFromDate || "2025-01-01"} value={editToDate} onChange={e => setEditToDate(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
-                </div>
-              )}
-
-              {(editLeaveType === "half_day" || editLeaveType === "permission" || editLeaveType === "shoot_day" || editLeaveType === "wfh") && (
-                <div style={editLeaveType === "wfh" ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } : {}}>
-                  <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>{editLeaveType === "wfh" ? "From *" : "Date *"}</label>
-                    <input type="date" min="2025-01-01" value={editFromDate} onChange={e => setEditFromDate(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
-                  {editLeaveType === "wfh" && (
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>To *</label>
-                      <input type="date" min={editFromDate || "2025-01-01"} value={editToDate} onChange={e => setEditToDate(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
-                  )}
-                </div>
-              )}
-
-              {editLeaveType === "half_day" && (
-                <>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>From</label>
-                      <input type="time" value={editHalfFrom} onChange={e => setEditHalfFrom(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
-                    <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>To</label>
-                      <input type="time" value={editHalfTo} onChange={e => setEditHalfTo(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
-                  </div>
-                  {editHalfFrom && editHalfTo && (() => {
-                    const [fh, fm] = editHalfFrom.split(":").map(Number)
-                    const [th, tm] = editHalfTo.split(":").map(Number)
-                    const diff = (th * 60 + tm) - (fh * 60 + fm)
-                    if (diff <= 0) return <p style={{ fontSize: 11, color: "#EF4444", margin: "8px 0 0", fontWeight: 600 }}>To time must be after From time</p>
-                    const hrs = Math.floor(diff / 60), mins = diff % 60
-                    const requiredMins = HALF_DAY_THRESHOLD_HOURS * 60
-                    const isValid = diff === requiredMins
-                    return (
-                      <p style={{ fontSize: 11, color: isValid ? "#6366F1" : "#EF4444", margin: "8px 0 0", fontWeight: 600 }}>
-                        Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""}
-                        {!isValid && ` — half day must be exactly ${HALF_DAY_THRESHOLD_HOURS}h`}
-                      </p>
-                    )
-                  })()}
-                </>
-              )}
-
-              {editLeaveType === "permission" && (
-                <>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Leave From</label>
-                      <input type="time" value={editPermFrom} onChange={e => setEditPermFrom(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
-                    <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Return By</label>
-                      <input type="time" value={editPermTo} onChange={e => setEditPermTo(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Select Reason *</label>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                      {([
-                        { key: "late_login" as const,   label: "Late Login",   emoji: "🌅" },
-                        { key: "early_logoff" as const, label: "Early Logoff", emoji: "🌇" },
-                        { key: "other" as const,        label: "Other",        emoji: "📝" },
-                      ]).map(({ key, label, emoji }) => (
-                        <button key={key} type="button" onClick={() => setEditPermReasonType(key)}
-                          style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "10px 0", borderRadius: 12, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", ...(editPermReasonType === key ? { background: "#DE1A1A", color: "#fff" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
-                          <span style={{ fontSize: 16 }}>{emoji}</span>{label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {(editLeaveType !== "permission" || editPermReasonType === "other" || !editPermReasonType) && (
-                <div>
-                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Reason *</label>
-                  <textarea value={editReason} onChange={e => setEditReason(e.target.value)} rows={2} placeholder="Explain the reason…"
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", resize: "none", boxSizing: "border-box" }} />
-                </div>
-              )}
-
-              {(editLeaveType === "full_day" || editLeaveType === "half_day") && (
-                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#6B7280", cursor: "pointer" }}>
-                  <input type="checkbox" checked={editOverrideLimit} onChange={e => setEditOverrideLimit(e.target.checked)} />
-                  Override monthly limit / date-overlap check
-                </label>
-              )}
-
-              {editError && (
-                <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>⚠️ {editError}</p>
-              )}
-
-              <div style={{ display: "flex", gap: 10 }}>
-                <button type="button" onClick={closeEditLeave}
-                  style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
-                <button type="button" disabled={editPending} onClick={submitEditLeave}
-                  style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: editPending ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                  {editPending && <Loader2 size={13} className="animate-spin" />} Save Changes
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

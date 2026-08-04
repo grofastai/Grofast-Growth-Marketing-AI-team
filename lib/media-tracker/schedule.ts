@@ -132,6 +132,23 @@ export function buildMonthGrid(year: number, month: number, entries: ScheduleEnt
   return days
 }
 
+// What the schedule badge on a Branding/Ads Ready Kanban card should say about its
+// posting date. Pure and unit-tested here for the same reason the rest of this file is:
+// "is this late?" is a date comparison, and getting it wrong on a card means the board
+// quietly stops flagging work that's already slipped.
+//
+// 'none' is the normal state straight after approval, not an edge case: reaching
+// Branding/Ads Ready sets no date, and one only arrives when someone uses the Schedule
+// button. That's also exactly what keeps an unscheduled item off the Schedule tab.
+export type ScheduleBadgeState = 'none' | 'overdue' | 'today' | 'upcoming'
+
+export function scheduleBadgeState(scheduledDate: string | null | undefined, today: string): ScheduleBadgeState {
+  if (!scheduledDate) return 'none'
+  if (scheduledDate < today) return 'overdue'
+  if (scheduledDate === today) return 'today'
+  return 'upcoming'
+}
+
 // A compact, read-only preview of what's coming up — same "branding_ready/ads_ready with
 // a scheduled_post_date" criteria the Schedule tab itself uses (see scheduledContentItems
 // in media-tracker-client.tsx), for the Overview Dashboard's Upcoming Schedule section.

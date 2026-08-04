@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useRef } from "react"
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
-import { ChevronDown, ChevronUp, FileText, CheckCircle2, Clock, Zap } from "lucide-react"
+import { ChevronDown, ChevronUp, FileText, BarChart3, CheckCircle2, Clock, Zap } from "lucide-react"
 import {
   markEmployeePaid,
   markEmployeeUnpaid,
@@ -16,14 +16,18 @@ import { useToast } from "@/components/ui/useToast"
 import { PageHero } from "@/components/admin/PageHero"
 import type { TeamRow } from "@/lib/actions/teams"
 import { hexToRgba } from "@/lib/utils/team-colors"
+import { inWords } from "@/lib/utils/in-words"
 
 type PayrollRow = {
   id: string; name: string; employee_id: string; team: string | null
-  passport_photo_url: string | null
+  passport_photo_url: string | null; created_at: string | null
+  bank_name: string | null; bank_account: string | null; bank_ifsc: string | null
+  signature_url: string | null
   employment_type: string
   presentDays: number; halfDays: number; absentDays: number; leaveDays: number
   missingUpdates: number; missingUpdateDates: string[]; deductibleDays: number
   totalHours: number; otHours: number; collabHours: number
+  basic: number; hra: number; travelAllowance: number; medicalAllowance: number; otherAllowance: number
   basePay: number; deduction: number; otPay: number; netPay: number
   bonus: number; advance: number; incentive: number; finalNetPay: number
   isPaid: boolean; paidAt: string | null
@@ -50,28 +54,6 @@ function fmtK(n: number) {
 function getInitials(name: string) {
   return (name || "").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
 }
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
-}
-
-// ── Attendance Ring SVG ─────────────────────────────────────────────────────
-function AttendanceRing({ pct, size = 60 }: { pct: number; size?: number }) {
-  const r = size * 0.38, cx = size / 2, cy = size / 2
-  const circ = 2 * Math.PI * r
-  const filled = (Math.min(pct, 100) / 100) * circ
-  const color = pct >= 80 ? "#16A34A" : pct >= 60 ? "#F59E0B" : "#E53935"
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F0F0F0" strokeWidth={size * 0.11} />
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={size * 0.11}
-        strokeDasharray={`${filled} ${circ - filled}`} strokeLinecap="round"
-        transform={`rotate(-90 ${cx} ${cy})`} />
-      <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.21} fontWeight="900" fill="#111">{pct}%</text>
-    </svg>
-  )
-}
-
 // ── Salary Health Donut ─────────────────────────────────────────────────────
 function SalaryHealthDonut({ pct }: { pct: number }) {
   const r = 54, cx = 72, cy = 72
@@ -124,84 +106,6 @@ function MiniSparkline({ color, idx }: { color: string; idx: number }) {
   )
 }
 
-// ── Mini Attendance Calendar ────────────────────────────────────────────────
-function MiniCalendar({
-  year, mon, presentDays, halfDays, absentDays, leaveDays,
-}: { year: number; mon: number; presentDays: number; halfDays: number; absentDays: number; leaveDays: number }) {
-  const daysInMonth = new Date(year, mon, 0).getDate()
-  const firstDayOfWeek = new Date(year, mon - 1, 1).getDay()
-  const startOffset = (firstDayOfWeek + 6) % 7
-
-  let workCount = 0
-  const dayList: { num: number; status: "present" | "half" | "absent" | "leave" | "weekend" }[] = []
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dow = new Date(year, mon - 1, d).getDay()
-    const isWknd = dow === 0 || dow === 6
-    if (isWknd) {
-      dayList.push({ num: d, status: "weekend" })
-    } else {
-      workCount++
-      if (workCount <= presentDays) dayList.push({ num: d, status: "present" })
-      else if (workCount <= presentDays + halfDays) dayList.push({ num: d, status: "half" })
-      else if (workCount <= presentDays + halfDays + leaveDays) dayList.push({ num: d, status: "leave" })
-      else dayList.push({ num: d, status: "absent" })
-    }
-  }
-
-  const cells: ({ num: number; status: "present" | "half" | "absent" | "leave" | "weekend" } | null)[] = [
-    ...Array(startOffset).fill(null),
-    ...dayList,
-  ]
-  while (cells.length % 7 !== 0) cells.push(null)
-  const weeks: typeof cells[] = []
-  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
-
-  const DAYS = ["M", "T", "W", "T", "F", "S", "S"]
-  const clr = {
-    present: { bg: "#DCFCE7", color: "#15803D" },
-    half:    { bg: "#FEF9C3", color: "#CA8A04" },
-    absent:  { bg: "#FEE2E2", color: "#DC2626" },
-    leave:   { bg: "#E0F2FE", color: "#0369A1" },
-    weekend: { bg: "#F3F4F6", color: "#9CA3AF" },
-  }
-
-  return (
-    <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
-        {DAYS.map((d, i) => (
-          <div key={i} style={{ textAlign: "center", fontSize: 9, fontWeight: 700, color: "#1E3A5F" }}>{d}</div>
-        ))}
-      </div>
-      {weeks.map((week, wi) => (
-        <div key={wi} style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 2 }}>
-          {week.map((cell, di) => {
-            if (!cell) return <div key={di} />
-            const c = clr[cell.status]
-            return (
-              <div key={di} style={{ borderRadius: 5, padding: "3px 0", textAlign: "center", background: c.bg, fontSize: 9, fontWeight: 700, color: c.color }}>
-                {cell.num}
-              </div>
-            )
-          })}
-        </div>
-      ))}
-      <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-        {[
-          { color: "#15803D", label: `Full ${presentDays}d` },
-          { color: "#CA8A04", label: `Half ${halfDays}d` },
-          { color: "#DC2626", label: `Absent ${absentDays}d` },
-          { color: "#0369A1", label: `Leave ${leaveDays}d` },
-        ].map((item) => (
-          <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: item.color, display: "inline-block" }} />
-            <span style={{ fontSize: 9, color: "#1E3A5F" }}>{item.label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 // ── Team badge colours ──────────────────────────────────────────────────────
 const TEAM_CLR: Record<string, { bg: string; color: string }> = {
   "Media Production Team":             { bg: "#FFF1F2", color: "#EC4899" },
@@ -234,27 +138,279 @@ function resolveTeamClr(team: string | null, teams: TeamRow[]): { bg: string; co
   return TEAM_CLR[team ?? ""] ?? DEF_TEAM
 }
 
+// ── Payslip-style Report card ───────────────────────────────────────────────
+// Ported verbatim (CSS + markup) from the payslip design that shipped before
+// the 2026-07-31 "minimal Infosys-style" redesign — the user wants the
+// Reports feature to keep looking exactly like that older design. Driven
+// entirely by PayrollRow (already computed, on screen) instead of the old
+// route's own DB queries, so it can't drift from what Payroll displays.
+function buildReportEmployeeCard(r: PayrollRow, opts: { year: number; mon: number; monthName: string; payDateStr: string; generatedTs: string; authorisedSignatureUrl: string | null }) {
+  const { year, mon, monthName, payDateStr, generatedTs, authorisedSignatureUrl } = opts
+  const payslipId = `GSPL/${year}/${String(mon).padStart(2, "0")}/${r.employee_id}`
+  const initials = getInitials(r.name)
+  const isRegular = r.employment_type === "regular" && !!r.monthly_salary
+
+  const basic           = isRegular ? r.basic : r.basePay
+  const hra              = isRegular ? r.hra : 0
+  const travelAllowance  = isRegular ? r.travelAllowance : 0
+  const medicalAllowance = isRegular ? r.medicalAllowance : 0
+  const otherAllowance   = isRegular ? r.otherAllowance : 0
+
+  const totalEarnings   = r.basePay + r.otPay + r.bonus + r.incentive
+  const totalDeductions = r.deduction + r.advance
+  const presentDaysShow = r.presentDays + r.halfDays * 0.5
+  const workDaysForRow  = r.effectiveWorkDays
+
+  const joiningDateFmt = r.created_at
+    ? new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
+    : "—"
+
+  const ic = (color: string) => ({
+    person:   `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>`,
+    building: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18M2 22h20M10 6h.01M14 6h.01M10 10h.01M14 10h.01M10 14h.01M14 14h.01"/></svg>`,
+    calendar: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+    card:     `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
+    bank:     `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="22" x2="21" y2="22"/><path d="M12 2L3 8h18L12 2z"/><line x1="5" y1="8" x2="5" y2="22"/><line x1="10" y1="8" x2="10" y2="22"/><line x1="14" y1="8" x2="14" y2="22"/><line x1="19" y1="8" x2="19" y2="22"/></svg>`,
+    hash:     `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>`,
+    phone:    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6.09 6.09l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg>`,
+    mail:     `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,4 12,13 2,4"/></svg>`,
+    globe:    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+  })
+  const R = ic("#DC2626")
+
+  const pieColors = ["#22C55E", "#F43F5E", "#3B82F6", "#F97316", "#A855F7"]
+  const pieItems = [
+    { label: "Basic Salary",      val: basic },
+    { label: "HRA",               val: hra },
+    { label: "Travel Allowance",  val: travelAllowance },
+    { label: "Medical Allowance", val: medicalAllowance },
+    { label: "Other Allowance",   val: otherAllowance },
+  ].filter(it => it.val > 0)
+  const grossBase = basic + hra + travelAllowance + medicalAllowance + otherAllowance
+  const pieR = 54, pieCx = 70, pieCy = 70, pieCirc = 2 * Math.PI * pieR
+  let pieAcc = 0
+  const donutSegs = grossBase > 0 ? pieItems.map((it, idx) => {
+    const pct = it.val / grossBase
+    const dash = pct * pieCirc
+    const off = -(pieAcc * pieCirc)
+    pieAcc += pct
+    return `<circle cx="${pieCx}" cy="${pieCy}" r="${pieR}" fill="none" stroke="${pieColors[idx]}" stroke-width="20" stroke-dasharray="${dash.toFixed(1)} ${(pieCirc - dash).toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" style="transform:rotate(-90deg);transform-origin:${pieCx}px ${pieCy}px"/>`
+  }).join("") : ""
+  const donutSvg = `<svg viewBox="0 0 140 140" width="140" height="140"><circle cx="${pieCx}" cy="${pieCy}" r="${pieR}" fill="none" stroke="#F3F4F6" stroke-width="20"/>${donutSegs}<text x="${pieCx}" y="${pieCy - 6}" text-anchor="middle" font-size="10" font-weight="800" fill="#111" font-family="Inter,sans-serif">${fmt(grossBase)}</text><text x="${pieCx}" y="${pieCy + 8}" text-anchor="middle" font-size="8" fill="#9CA3AF" font-family="Inter,sans-serif">Gross Salary</text></svg>`
+
+  const spDotRed    = `<svg viewBox="0 0 120 28" width="120" height="28"><path d="M0,22 Q10,20 20,18 T40,14 T60,12 T80,10 T100,8 T120,6" fill="none" stroke="#FCA5A5" stroke-width="1.5" stroke-dasharray="3 3" stroke-linecap="round"/></svg>`
+  const spDotGreen  = `<svg viewBox="0 0 120 28" width="120" height="28"><path d="M0,22 Q10,20 20,18 T40,14 T60,10 T80,8 T100,6 T120,4" fill="none" stroke="#86EFAC" stroke-width="1.5" stroke-dasharray="3 3" stroke-linecap="round"/></svg>`
+  const spDotOrange = `<svg viewBox="0 0 120 28" width="120" height="28"><path d="M0,14 Q10,13 20,14 T40,12 T60,11 T80,12 T100,10 T120,9" fill="none" stroke="#FED7AA" stroke-width="1.5" stroke-dasharray="3 3" stroke-linecap="round"/></svg>`
+
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(payslipId)}&bgcolor=FFFFFF&color=111827`
+
+  return `
+  <div class="page">
+
+    <!-- HEADER -->
+    <div class="hdr">
+      <div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+          <div class="co-logo">GF</div>
+          <div>
+            <div class="co-name">GROFAST</div>
+            <div class="co-sub">Group Of Companies</div>
+          </div>
+        </div>
+        <div class="co-addr">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" style="margin-top:1px;flex-shrink:0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>4-188D, Poomalai Nagar, Kaveripattinam,<br/>Chowttahalli, Tamil Nadu 635112</span>
+        </div>
+        <div class="contact-row">
+          <span class="contact-item">${R.phone} 9159124541 | 6382905922</span>
+          <span class="contact-item">${R.mail} grofastdigital@gmail.com</span>
+          <span class="contact-item">${R.globe} www.grofastdigital.com</span>
+        </div>
+      </div>
+      <div>
+        <div class="slip-badge">
+          <div class="slip-month">${monthName}</div>
+          <div class="slip-title">PAYSLIP</div>
+          <div class="slip-doc"><svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+        </div>
+        <div class="slip-id-row"><span style="font-size:11px;color:#6B7280">Payslip ID: </span><span style="font-size:11px;font-weight:700;color:#374151">${payslipId}</span></div>
+      </div>
+    </div>
+
+    <div class="hdivider"></div>
+
+    <!-- EMPLOYEE CARD -->
+    <div class="emp-card">
+      <div class="emp-watermark">GF</div>
+      <div class="emp-photo">
+        ${r.passport_photo_url
+          ? `<img src="${r.passport_photo_url}" alt="${r.name}"/>`
+          : `<div class="emp-photo-init">${initials}</div>`}
+      </div>
+      <div class="emp-info">
+        <div class="emp-left">
+          <div class="emp-name">${r.name}</div>
+          <div class="emp-badge">Team Member</div>
+          <div class="emp-field"><div class="emp-lbl">${R.person} Employee ID</div><div class="emp-val">${r.employee_id}</div></div>
+          <div class="emp-field"><div class="emp-lbl">${R.building} Department</div><div class="emp-val">${r.team ?? "—"}</div></div>
+          <div class="emp-field"><div class="emp-lbl">${R.person} Designation</div><div class="emp-val">${r.team ? "Team Member" : "Employee"}</div></div>
+        </div>
+        <div class="emp-right">
+          <div class="emp-field"><div class="emp-lbl">${R.calendar} Joining Date</div><div class="emp-val">${joiningDateFmt}</div></div>
+          <div class="emp-field"><div class="emp-lbl">${R.bank} Bank Name</div><div class="emp-val">${r.bank_name ?? "—"}</div></div>
+          <div class="emp-field"><div class="emp-lbl">${R.card} Account Number</div><div class="emp-val">${r.bank_account ? `XXXX XXXX ${r.bank_account.slice(-4)}` : "—"}</div></div>
+          <div class="emp-field"><div class="emp-lbl">${R.hash} IFSC Code</div><div class="emp-val">${r.bank_ifsc ?? "—"}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NET SALARY -->
+    <div class="net-banner">
+      <div class="net-left">
+        <div class="net-label">Net Salary</div>
+        <div class="net-amount">${fmt(r.finalNetPay)}</div>
+        <div class="net-words">Rupees ${inWords(Math.round(r.finalNetPay))} Only</div>
+      </div>
+      <div class="net-divider"></div>
+      <div class="net-right">
+        <div class="net-cal-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+        <div class="net-paid-lbl">Salary Paid On</div>
+        <div class="net-paid-date">${payDateStr}</div>
+        <div class="net-method"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> via Bank Transfer</div>
+      </div>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-top"><div class="kpi-icon kpi-ico-red"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg></div><div class="kpi-lbl">Gross Salary</div></div>
+        <div class="kpi-val kpi-red">${fmt(totalEarnings)}</div>${spDotRed}
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-top"><div class="kpi-icon kpi-ico-red"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 16 16 12"/><line x1="12" y1="8" x2="12" y2="16"/></svg></div><div class="kpi-lbl">Leave Deduction</div></div>
+        <div class="kpi-val kpi-red">${r.deduction > 0 ? fmt(r.deduction) : "₹ 0"}</div>${spDotRed}
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-top"><div class="kpi-icon kpi-ico-green"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 15 11 17 15 13"/></svg></div><div class="kpi-lbl">Paid Days</div></div>
+        <div class="kpi-val kpi-dark">${presentDaysShow} / ${workDaysForRow}</div>${spDotGreen}
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-top"><div class="kpi-icon kpi-ico-orange"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="kpi-lbl">Overtime Hours</div></div>
+        <div class="kpi-val kpi-orange">${r.otHours} hrs</div>${spDotOrange}
+      </div>
+    </div>
+
+    <!-- EARNINGS / DEDUCTIONS / BREAKDOWN -->
+    <div class="tri-grid">
+      <div class="ed-card">
+        <div class="ed-hdr ed-hdr-green"><div class="ed-ico ed-ico-green"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><span class="ed-title ed-title-green">Earnings</span><span style="margin-left:auto;font-size:9px;color:#9CA3AF;font-weight:600">Amount (₹)</span></div>
+        ${isRegular ? `
+        <div class="ed-row"><span class="ed-row-name">Basic Salary</span><span class="ed-row-amt">${Math.round(basic).toLocaleString("en-IN")}</span></div>
+        <div class="ed-row"><span class="ed-row-name">HRA</span><span class="ed-row-amt">${Math.round(hra).toLocaleString("en-IN")}</span></div>
+        <div class="ed-row"><span class="ed-row-name">Travel Allowance</span><span class="ed-row-amt">${Math.round(travelAllowance).toLocaleString("en-IN")}</span></div>
+        <div class="ed-row"><span class="ed-row-name">Medical Allowance</span><span class="ed-row-amt">${Math.round(medicalAllowance).toLocaleString("en-IN")}</span></div>
+        ${otherAllowance > 0 ? `<div class="ed-row"><span class="ed-row-name">Other Allowance</span><span class="ed-row-amt">${Math.round(otherAllowance).toLocaleString("en-IN")}</span></div>` : ""}
+        ${r.otPay > 0 ? `<div class="ed-row"><span class="ed-row-name">Overtime Pay (${r.otHours}h)</span><span class="ed-row-amt">${Math.round(r.otPay).toLocaleString("en-IN")}</span></div>` : ""}
+        ${r.bonus > 0 ? `<div class="ed-row"><span class="ed-row-name">Bonus</span><span class="ed-row-amt">${Math.round(r.bonus).toLocaleString("en-IN")}</span></div>` : ""}
+        ${r.incentive > 0 ? `<div class="ed-row"><span class="ed-row-name">Incentive</span><span class="ed-row-amt">${Math.round(r.incentive).toLocaleString("en-IN")}</span></div>` : ""}
+        ` : `<div class="ed-row"><span class="ed-row-name">Hours Worked (${r.totalHours}h)</span><span class="ed-row-amt">${Math.round(r.basePay).toLocaleString("en-IN")}</span></div>`}
+        <div class="ed-total ed-total-green"><span>Total Earnings</span><span>${fmt(totalEarnings)}</span></div>
+      </div>
+      <div class="ed-card">
+        <div class="ed-hdr ed-hdr-red"><div class="ed-ico ed-ico-red"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#991B1B" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div><span class="ed-title ed-title-red">Deductions</span><span style="margin-left:auto;font-size:9px;color:#9CA3AF;font-weight:600">Amount (₹)</span></div>
+        ${r.deduction > 0 ? `<div class="ed-row"><span class="ed-row-name">Leave Deduction (${r.leaveDays} day${r.leaveDays !== 1 ? "s" : ""})</span><span class="ed-row-amt">${Math.round(r.deduction).toLocaleString("en-IN")}</span></div>` : `<div class="ed-row"><span class="ed-row-name" style="color:#9CA3AF">No deductions this month</span><span class="ed-row-amt" style="color:#9CA3AF">—</span></div>`}
+        ${r.advance > 0 ? `<div class="ed-row"><span class="ed-row-name">Advance Recovery</span><span class="ed-row-amt">${Math.round(r.advance).toLocaleString("en-IN")}</span></div>` : ""}
+        <div class="ed-total ed-total-red"><span>Total Deductions</span><span>${fmt(totalDeductions)}</span></div>
+      </div>
+      <div class="breakdown-card">
+        <div class="breakdown-hdr">Salary Breakdown</div>
+        <div class="breakdown-body">
+          ${donutSvg}
+          <div class="pie-legend">
+            ${pieItems.map((it, idx) => `<div class="pie-row"><div class="pie-dot" style="background:${pieColors[idx]}"></div><span class="pie-name">${it.label}</span><span class="pie-pct">${grossBase > 0 ? ((it.val / grossBase) * 100).toFixed(1) : "0"}%</span></div>`).join("")}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ATTENDANCE / PAYMENT / SECURE -->
+    <div class="bot-grid">
+      <div class="bot-card">
+        <div class="bot-hdr"><div class="bot-hdr-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><span class="bot-hdr-title">Attendance Summary</span></div>
+        <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><span class="bot-lbl">Total Working Days</span></div><span class="bot-val">${workDaysForRow}</span></div>
+        <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div><span class="bot-lbl">Present Days</span></div><span class="bot-val">${presentDaysShow}</span></div>
+        <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><span class="bot-lbl">Leave Days</span></div><span class="bot-val">${r.leaveDays}</span></div>
+        <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg></div><span class="bot-lbl">Absent Days</span></div><span class="bot-val">${r.absentDays}</span></div>
+        <div class="bot-row"><div class="bot-lbl-wrap"><div class="bot-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><span class="bot-lbl">Overtime Hours</span></div><span class="bot-val">${r.otHours} hrs</span></div>
+      </div>
+      <div class="bot-card">
+        <div class="bot-hdr"><div class="bot-hdr-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2"><line x1="3" y1="22" x2="21" y2="22"/><path d="M12 2L3 8h18L12 2z"/><line x1="5" y1="8" x2="5" y2="22"/><line x1="10" y1="8" x2="10" y2="22"/><line x1="14" y1="8" x2="14" y2="22"/><line x1="19" y1="8" x2="19" y2="22"/></svg></div><span class="bot-hdr-title">Payment Details</span></div>
+        <div class="bot-row"><div class="bot-lbl-wrap"><span class="bot-lbl">Payment Date</span></div><span class="bot-val">${payDateStr}</span></div>
+        <div class="bot-row"><div class="bot-lbl-wrap"><span class="bot-lbl">Payment Method</span></div><span class="bot-val" style="color:#16A34A">Bank Transfer</span></div>
+        <div class="bot-row"><div class="bot-lbl-wrap"><span class="bot-lbl">Bank Name</span></div><span class="bot-val">${r.bank_name ?? "—"}</span></div>
+        <div class="bot-row"><div class="bot-lbl-wrap"><span class="bot-lbl">Account Number</span></div><span class="bot-val">${r.bank_account ? `XXXX XXXX ${r.bank_account.slice(-4)}` : "—"}</span></div>
+        <div class="bot-row"><div class="bot-lbl-wrap"><span class="bot-lbl">Transaction ID</span></div><span class="bot-val" style="font-size:10px">${payslipId.replace(/\//g, "")}TXN</span></div>
+      </div>
+      <div class="secure-card">
+        <div class="secure-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <div class="secure-title">100% Secure Payslip</div>
+        <div class="secure-desc">This payslip is system generated and digitally verified.</div>
+        <div class="qr-wrap">
+          <img src="${qrUrl}" width="90" height="90" style="border-radius:8px;border:1px solid #E5E7EB" alt="QR"/>
+          <div class="qr-label">Scan to verify<br/>this payslip</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      <div class="footer-disc">
+        <div class="footer-shield"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <div class="footer-disc-text">This is a computer-generated payslip.<br/>No physical signature is required.<br/><span style="color:#D1D5DB">Generated on ${generatedTs}</span></div>
+      </div>
+      <div class="sig">
+        ${authorisedSignatureUrl
+          ? `<img class="sig-img-stamp" src="${authorisedSignatureUrl}" alt="Authorised signature"/>`
+          : `<div class="sig-stamp"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> Digitally Signed</div>`}
+        <div class="sig-line"></div>
+        <div class="sig-role">Authorised Signatory</div>
+        <div class="sig-co">Grofast Group Of Companies</div>
+        <div class="sig-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Verified</div>
+      </div>
+      <div class="sig">
+        ${r.signature_url
+          ? `<img class="sig-img" src="${r.signature_url}" alt="${r.name}'s signature"/>`
+          : `<div class="sig-name">${r.name.split(" ")[0]}</div>`}
+        <div class="sig-line"></div>
+        <div class="sig-role">Employee Signature</div>
+        <div class="sig-co">${r.employee_id}</div>
+        <div class="sig-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> ${r.name}</div>
+      </div>
+    </div>
+
+  </div>`
+}
+
 // ── Expandable Employee Card ────────────────────────────────────────────────
 function EmployeeCard({
-  r, month, year, mon, workDays, isExpanded, onToggle,
+  r, month, isExpanded, onToggle, onDownloadReport,
   selectMode = false, selected = false, onToggleSelect, teams = [],
 }: {
-  r: PayrollRow; month: string; year: number; mon: number; workDays: number
-  isExpanded: boolean; onToggle: () => void
+  r: PayrollRow; month: string
+  isExpanded: boolean; onToggle: () => void; onDownloadReport: () => void
   selectMode?: boolean; selected?: boolean; onToggleSelect?: () => void
   teams?: TeamRow[]
 }) {
   const [isPending, startTransition] = useTransition()
   const [savingBonus, setSavingBonus] = useState(false)
-  const [bonus, setBonus]         = useState(r.bonus)
-  const [advance, setAdvance]     = useState(r.advance)
+  // Bonus/Advance are no longer editable here — carried through unchanged on save so
+  // a historical value (set before this panel was simplified) is never wiped out.
+  const [bonus]     = useState(r.bonus)
+  const [advance]   = useState(r.advance)
   const [incentive, setIncentive] = useState(r.incentive)
+  const [otAmount, setOtAmount]   = useState(r.otPay)
 
-  const localFinalNetPay = Math.round((r.netPay + bonus + incentive - advance) * 100) / 100
-  const effectiveDays = r.effectiveWorkDays > 0 ? r.effectiveWorkDays : workDays
-  const attendPct = effectiveDays > 0
-    ? Math.round(((r.presentDays + r.halfDays * 0.5 + r.leaveDays) / effectiveDays) * 100)
-    : 0
+  const localFinalNetPay = Math.round((r.netPay + otAmount + bonus + incentive - advance) * 100) / 100
   const tClr = resolveTeamClr(r.team, teams)
 
   function handleTogglePaid() {
@@ -270,7 +426,7 @@ function EmployeeCard({
   async function handleSaveBonus() {
     setSavingBonus(true)
     try {
-      await saveBonusAdvance(r.id, month, bonus, advance, incentive)
+      await saveBonusAdvance(r.id, month, bonus, advance, incentive, otAmount)
     } finally {
       setSavingBonus(false)
     }
@@ -304,7 +460,7 @@ function EmployeeCard({
 
         {/* Avatar */}
         <div style={{
-          width: 52, height: 52, borderRadius: "50%", flexShrink: 0,
+          width: 52, height: 52, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
           background: r.isPaid
             ? "linear-gradient(135deg, #16A34A, #15803D)"
             : "linear-gradient(135deg, #E53935, #B71C1C)",
@@ -315,7 +471,12 @@ function EmployeeCard({
             ? "0 4px 14px rgba(22,163,74,0.3)"
             : "0 4px 14px rgba(229,57,53,0.3)",
         }}>
-          {getInitials(r.name)}
+          {r.passport_photo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={r.passport_photo_url} alt={r.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            getInitials(r.name)
+          )}
         </div>
 
         {/* Name + ID + badge */}
@@ -330,29 +491,7 @@ function EmployeeCard({
                 {r.team}
               </span>
             )}
-            {/* Paid status badge */}
-            {r.isPaid ? (
-              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "#F0FDF4", color: "#16A34A", display: "flex", alignItems: "center", gap: 3 }}>
-                <CheckCircle2 size={9} /> Paid {r.paidAt ? fmtDate(r.paidAt) : ""}
-              </span>
-            ) : (
-              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "#FFF7ED", color: "#EA580C", display: "flex", alignItems: "center", gap: 3 }}>
-                <Clock size={9} /> Pending
-              </span>
-            )}
-            {/* Missing work update warning */}
-            {r.missingUpdates > 0 && (
-              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "#FEF9C3", color: "#92400E", display: "flex", alignItems: "center", gap: 3 }}>
-                ⚠ {r.missingUpdates} Missing Update{r.missingUpdates > 1 ? "s" : ""}
-              </span>
-            )}
           </div>
-        </div>
-
-        {/* Attendance donut */}
-        <div style={{ flexShrink: 0, textAlign: "center" }}>
-          <AttendanceRing pct={attendPct} size={54} />
-          <div style={{ fontSize: 9, color: "#1E3A5F", marginTop: 2, fontWeight: 600 }}>Attendance</div>
         </div>
 
         {/* Salary chips */}
@@ -360,12 +499,6 @@ function EmployeeCard({
           {[
             { label: "Base Salary",    value: r.basePay > 0 ? fmt(r.basePay) : "—",                  color: "#111" },
             { label: "Deductions",     value: r.deduction > 0 ? `-${fmt(r.deduction)}` : "—",         color: "#DC2626" },
-            { label: "Half Days",      value: r.halfDays > 0 ? `${r.halfDays}d` : "—",                color: "#CA8A04" },
-            { label: "OT Pay",         value: r.otPay > 0 ? fmt(r.otPay) : "—",                       color: "#F97316" },
-            // Always show the real figure, including zero/negative — a negative Net Pay
-            // (deductions exceeding base pay) is exactly the case an admin most needs to
-            // see, not one to hide behind a blank dash.
-            { label: "Net Pay",        value: r.basePay > 0 ? fmt(localFinalNetPay) : "—",             color: localFinalNetPay < 0 ? "#DC2626" : "#16A34A" },
           ].map((chip) => (
             <div key={chip.label} style={{
               textAlign: "center", padding: "8px 14px", borderRadius: 12,
@@ -411,83 +544,73 @@ function EmployeeCard({
           >
             <FileText size={13} style={{ color: "#E53935" }} />
           </a>
+          <button
+            type="button"
+            onClick={onDownloadReport}
+            style={{ width: 34, height: 34, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(79,70,229,0.07)", border: "1.5px solid rgba(79,70,229,0.15)", cursor: "pointer" }}
+            title="Download Report"
+          >
+            <BarChart3 size={13} style={{ color: "#4F46E5" }} />
+          </button>
         </div>
       </div>
 
-      {/* ── Expanded panel ── */}
+      {/* ── Expanded panel — "The Math" (read-only, live) connected to "Admin Sets" (editable) ── */}
       {isExpanded && (
-        <div className="grid grid-cols-1 md:grid-cols-3" style={{ borderTop: "1.5px solid #F5F5F5" }}>
+        <div className="flex flex-col md:flex-row" style={{ borderTop: "1.5px solid #F5F5F5", padding: "22px 24px", alignItems: "stretch", gap: 14 }}>
 
-          {/* LEFT: Payroll Breakdown bars */}
-          <div style={{ padding: "22px 24px", borderRight: "1px solid #F5F5F5" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 18 }}>
-              Payroll Breakdown
+          <div style={{ flex: "1.3 1 260px", background: "#fff", border: "1.5px solid #F0F0F0", borderRadius: 16, padding: "18px 20px" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 14 }}>
+              The Math
             </div>
             {[
-              { label: "Base Salary",    amount: r.basePay,    pct: 100,  color: "#16A34A" },
-              { label: "OT Earnings",    amount: r.otPay,      pct: r.basePay > 0 ? Math.min((r.otPay / r.basePay) * 100, 100) : 0, color: "#F97316" },
-              { label: "Bonus",          amount: bonus,         pct: r.basePay > 0 ? Math.min((bonus / r.basePay) * 100, 100) : 0, color: "#A855F7" },
-              { label: "Advance",        amount: -advance,      pct: r.basePay > 0 ? Math.min((advance / r.basePay) * 100, 100) : 0, color: "#F43F5E" },
-              { label: `Absent Deduction (${r.absentDays}d full + ${r.halfDays}d half)`, amount: -r.deduction, pct: r.basePay > 0 ? Math.min((r.deduction / r.basePay) * 100, 100) : 0, color: "#DC2626" },
+              { label: "Base Salary", amount: r.basePay,    color: "#111" },
+              { label: "Deductions",  amount: -r.deduction, color: "#DC2626" },
+              { label: "OT",          amount: otAmount,     color: "#F97316" },
+              { label: "Incentive",   amount: incentive,    color: "#16A34A" },
             ].map((item) => (
-              <div key={item.label} style={{ marginBottom: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                  <span style={{ fontSize: 12, color: "#1E3A5F" }}>{item.label}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: item.amount < 0 ? "#DC2626" : item.amount === 0 ? "#1E3A5F" : "#111" }}>
-                    {item.amount === 0 ? "—" : item.amount < 0 ? `-${fmt(Math.abs(item.amount))}` : fmt(item.amount)}
-                  </span>
-                </div>
-                <div style={{ height: 7, borderRadius: 4, background: "#F3F4F6" }}>
-                  <div style={{ height: "100%", borderRadius: 4, width: `${item.pct}%`, background: item.color }} />
-                </div>
+              <div key={item.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F5F5F5" }}>
+                <span style={{ fontSize: 13, color: "#1E3A5F" }}>{item.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: item.amount < 0 ? "#DC2626" : item.amount === 0 ? "#1E3A5F" : item.color }}>
+                  {item.amount === 0 ? "—" : item.amount < 0 ? `-${fmt(Math.abs(item.amount))}` : fmt(item.amount)}
+                </span>
               </div>
             ))}
-            <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1.5px solid #F0F0F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Net Pay</span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 14, marginTop: 4 }}>
+              <span style={{ fontSize: 14, fontWeight: 800, color: "#111" }}>Net Pay</span>
               <span style={{ fontSize: 20, fontWeight: 900, color: localFinalNetPay < 0 ? "#DC2626" : "#16A34A", fontFamily: "var(--font-jakarta)" }}>{fmt(localFinalNetPay)}</span>
             </div>
           </div>
 
-          {/* CENTER: Attendance Calendar */}
-          <div style={{ padding: "22px 24px", borderRight: "1px solid #F5F5F5" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 18 }}>
-              {new Date(year, mon - 1).toLocaleString("en-IN", { month: "long", year: "numeric" })} Attendance
-            </div>
-            <MiniCalendar
-              year={year} mon={mon}
-              presentDays={r.presentDays}
-              halfDays={r.halfDays}
-              absentDays={r.absentDays}
-              leaveDays={r.leaveDays}
-            />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 300, color: "#D1D5DB" }}>
+            =
           </div>
 
-          {/* RIGHT: Bonus & Adjustments */}
-          <div style={{ padding: "22px 24px", background: "#FAFAFA" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 18 }}>
-              Bonus &amp; Adjustments
+          <div style={{ flex: "1 1 220px", background: "#FAFAFA", border: "1.5px solid #F0F0F0", borderRadius: 16, padding: "18px 20px" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: 14 }}>
+              Admin Sets
             </div>
 
-            {/* Bonus input */}
-            <div style={{ marginBottom: 14 }}>
+            {/* OT input — admin decides the amount, never auto-calculated from hours */}
+            <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#1E3A5F", display: "block", marginBottom: 6 }}>
-                Bonus (₹)
+                OT (₹)
               </label>
               <input
                 type="number"
                 min={0}
-                value={bonus}
-                onChange={e => setBonus(Math.max(0, Number(e.target.value)))}
+                value={otAmount}
+                onChange={e => setOtAmount(Math.max(0, Number(e.target.value)))}
                 style={{
                   width: "100%", padding: "9px 12px", borderRadius: 10, border: "1.5px solid #E5E7EB",
-                  fontSize: 14, fontWeight: 700, color: "#A855F7", background: "#fff", outline: "none",
+                  fontSize: 14, fontWeight: 700, color: "#F97316", background: "#fff", outline: "none",
                 }}
                 placeholder="0"
               />
             </div>
 
             {/* Incentive input */}
-            <div style={{ marginBottom: 14 }}>
+            <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#1E3A5F", display: "block", marginBottom: 6 }}>
                 Incentive (₹)
               </label>
@@ -502,44 +625,6 @@ function EmployeeCard({
                 }}
                 placeholder="0"
               />
-            </div>
-
-            {/* Advance / Recovery input */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#1E3A5F", display: "block", marginBottom: 6 }}>
-                Advance Recovery (₹)
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={advance}
-                onChange={e => setAdvance(Math.max(0, Number(e.target.value)))}
-                style={{
-                  width: "100%", padding: "9px 12px", borderRadius: 10, border: "1.5px solid #E5E7EB",
-                  fontSize: 14, fontWeight: 700, color: "#DC2626", background: "#fff", outline: "none",
-                }}
-                placeholder="0"
-              />
-            </div>
-
-            {/* Adjusted net pay preview */}
-            <div style={{
-              padding: "12px 14px", borderRadius: 12,
-              background: localFinalNetPay < 0 ? "linear-gradient(135deg, #FEF2F2, #FEE2E2)" : "linear-gradient(135deg, #F0FDF4, #DCFCE7)",
-              border: localFinalNetPay < 0 ? "1.5px solid #FECACA" : "1.5px solid #BBF7D0", marginBottom: 14,
-            }}>
-              <div style={{ fontSize: 10, color: localFinalNetPay < 0 ? "#B91C1C" : "#15803D", fontWeight: 700, marginBottom: 4 }}>ADJUSTED NET PAY</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: localFinalNetPay < 0 ? "#DC2626" : "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                {fmt(localFinalNetPay)}
-              </div>
-              {(bonus > 0 || incentive > 0 || advance > 0) && (
-                <div style={{ fontSize: 10, color: "#1E3A5F", marginTop: 4 }}>
-                  {fmt(r.netPay)}
-                  {bonus > 0     ? ` + ${fmt(bonus)} bonus`     : ""}
-                  {incentive > 0 ? ` + ${fmt(incentive)} incentive` : ""}
-                  {advance > 0   ? ` − ${fmt(advance)} advance`  : ""}
-                </div>
-              )}
             </div>
 
             <button
@@ -572,15 +657,10 @@ function EmployeeCard({
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {[
-              { label: "Target",     value: `${r.hoursPreview.targetHours}h` },
-              { label: "Permission", value: `${r.hoursPreview.permissionHours}h` },
-              { label: "Half Day",   value: `${r.hoursPreview.halfDayHours}h` },
-              { label: "Leave",      value: `${r.hoursPreview.leaveHours}h` },
-              { label: "Required",   value: `${r.hoursPreview.requiredHours}h` },
-              { label: "Actual",     value: `${r.hoursPreview.actualHours}h` },
-              { label: "Shortfall",  value: `${r.hoursPreview.shortfallHours}h` },
-              { label: "Deduction",  value: fmt(r.hoursPreview.deduction) },
-              { label: "Net Pay (preview)", value: r.hoursPreview.netPay === null ? "—" : fmt(r.hoursPreview.netPay) },
+              { label: "Total Present Day",     value: `${r.presentDays}` },
+              { label: "Total Permission Hours", value: `${r.hoursPreview.permissionHours}h` },
+              { label: "Total Leave Day",       value: `${r.leaveDays}` },
+              { label: "Total Half Day",        value: `${r.halfDays}` },
             ].map(chip => (
               <div key={chip.label} style={{ textAlign: "center", padding: "6px 12px", borderRadius: 10, background: "#fff", border: "1px solid #E5E7EB", minWidth: 72 }}>
                 <div style={{ fontSize: 9, color: "#6366F1", marginBottom: 2, fontWeight: 600 }}>{chip.label}</div>
@@ -634,6 +714,26 @@ export default function PayrollClient({
   const [showSettings, setShowSettings] = useState(false)
   const [settingsForm, setSettingsForm] = useState<PayrollSettings>(payrollSettings)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
+  const [isUploadingSignature, setIsUploadingSignature] = useState(false)
+  const signatureInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleSignatureUpload(file: File) {
+    setIsUploadingSignature(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("folder", "company-signature")
+      const res = await fetch("/api/upload-photo", { method: "POST", body: fd })
+      const json = await res.json()
+      if (!res.ok || !json.url) {
+        showToast(json.error ?? "Signature upload failed", "error")
+        return
+      }
+      setSettingsForm(prev => ({ ...prev, authorised_signature_url: json.url }))
+    } finally {
+      setIsUploadingSignature(false)
+    }
+  }
 
   const [year, mon] = month.split("-").map(Number)
   const monthName   = new Date(year, mon - 1).toLocaleString("en-IN", { month: "long", year: "numeric" })
@@ -641,7 +741,6 @@ export default function PayrollClient({
   const totalFinal  = rows.reduce((s, r) => s + r.finalNetPay, 0)
   const totalOT     = rows.reduce((s, r) => s + r.otPay,       0)
   const totalDed    = rows.reduce((s, r) => s + r.deduction,   0)
-  const totalBase   = rows.reduce((s, r) => s + r.basePay,     0)
 
   const paidCount       = rows.filter(r => r.isPaid).length
   const unpaidRows      = rows.filter(r => !r.isPaid && r.basePay > 0)
@@ -749,14 +848,13 @@ export default function PayrollClient({
     }
   }
 
-  // Builds a printable summary report entirely client-side from the rows
+  // Builds a payslip-style printable report entirely client-side from the rows
   // already computed and on screen — no new API route, no re-running any
   // salary calculation, so it can't drift from what's actually displayed.
-  // One card per employee (profile photo, attendance, hours, pay), not a
-  // flat table — reuses the same figures already shown when an admin
-  // expands that employee's row on this page.
-  function handleGenerateReport() {
-    if (rows.length === 0) {
+  // Renders the full payslip-style card (buildReportEmployeeCard) once per
+  // employee, stacked for the whole-team report.
+  function handleGenerateReport(scopeRows: PayrollRow[] = rows) {
+    if (scopeRows.length === 0) {
       showToast("No payroll rows to report for this month.", "error")
       return
     }
@@ -784,118 +882,154 @@ export default function PayrollClient({
       showToast(`Report failed to generate: ${message}`, "error")
     }
 
-    function statRow(label: string, value: string, colorClass = "") {
-      return `<div class="stat"><span class="stat-lbl">${label}</span><span class="stat-val ${colorClass}">${value}</span></div>`
-    }
-
     function buildAndWriteReport(win: Window) {
-    const employeeCards = rows.map(r => {
-      const photo = r.passport_photo_url
-        ? `<img src="${r.passport_photo_url}" alt="${r.name}"/>`
-        : `<span>${getInitials(r.name)}</span>`
-      const meta = r.team ? `#${r.employee_id} · ${r.team}` : `#${r.employee_id}`
-      return `
-      <div class="emp-card">
-        <div class="emp-hdr">
-          <div class="emp-photo">${photo}</div>
-          <div class="emp-id">
-            <div class="emp-name">${r.name}</div>
-            <div class="emp-meta">${meta}</div>
-          </div>
-          <span class="status-pill ${r.isPaid ? "paid" : "pending"}">${r.isPaid ? "Paid" : "Pending"}</span>
-        </div>
-        <div class="stat-groups">
-          <div class="stat-group">
-            <div class="stat-group-title">Attendance</div>
-            <div class="stat-grid">
-              ${statRow("Present Days", String(r.presentDays), "green")}
-              ${statRow("Half Days", String(r.halfDays), "amber")}
-              ${statRow("Absent Days", String(r.absentDays), "red")}
-              ${statRow("Leave Days", String(r.leaveDays), "blue")}
-              ${statRow("Working Days", String(r.effectiveWorkDays))}
-            </div>
-          </div>
-          <div class="stat-group">
-            <div class="stat-group-title">Hours</div>
-            <div class="stat-grid">
-              ${statRow("Total Hours", `${r.totalHours}h`)}
-              ${statRow("OT Hours", `${r.otHours}h`, "amber")}
-              ${statRow("Permission", `${r.hoursPreview.permissionHours}h`)}
-              ${statRow("Required", `${r.hoursPreview.requiredHours}h`)}
-              ${statRow("Actual", `${r.hoursPreview.actualHours}h`)}
-              ${statRow("Shortfall", `${r.hoursPreview.shortfallHours}h`, r.hoursPreview.shortfallHours > 0 ? "red" : "")}
-            </div>
-          </div>
-          <div class="stat-group">
-            <div class="stat-group-title">Pay</div>
-            <div class="stat-grid">
-              ${statRow("Base Pay", fmt(r.basePay))}
-              ${statRow("Deduction", r.deduction > 0 ? `-${fmt(r.deduction)}` : "—", r.deduction > 0 ? "red" : "")}
-              ${statRow("OT Pay", r.otPay > 0 ? fmt(r.otPay) : "—", r.otPay > 0 ? "green" : "")}
-              ${statRow("Bonus", r.bonus > 0 ? fmt(r.bonus) : "—", r.bonus > 0 ? "green" : "")}
-              ${statRow("Advance", r.advance > 0 ? `-${fmt(r.advance)}` : "—", r.advance > 0 ? "red" : "")}
-            </div>
-            <div class="stat net">
-              <span class="stat-lbl">Net Pay</span><span class="stat-val bold">${fmt(r.finalNetPay)}</span>
-            </div>
-          </div>
-        </div>
-      </div>`
-    }).join("")
+      const payDateStr  = new Date(year, mon, 5).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
+      const generatedTs = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })
+      const reportTitle = scopeRows.length === 1
+        ? `Payroll Report — ${scopeRows[0].name} — ${monthName}`
+        : `Payroll Report — ${monthName}`
+      const topbarText = scopeRows.length === 1
+        ? `${scopeRows[0].name} &nbsp;·&nbsp; ${monthName} &nbsp;·&nbsp; Report`
+        : `${scopeRows.length} Employees &nbsp;·&nbsp; ${monthName} &nbsp;·&nbsp; Report`
 
-    win.document.write(`<!DOCTYPE html><html><head><title>Payroll Report — ${monthName}</title>
-      <style>
-        *{box-sizing:border-box}
-        body{font-family:Arial,sans-serif;padding:24px;color:#111;background:#F3F4F6;margin:0}
-        h1{font-size:20px;margin:0 0 4px}
-        p.sub{color:#374151;margin:0 0 20px;font-size:13px}
-        .totals{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:24px}
-        .totals div{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:12px 16px;flex:1 1 160px}
-        .totals span.lbl{display:block;font-size:11px;color:#6B7280;margin-bottom:4px}
-        .totals strong{display:block;font-size:18px}
-        .cards{display:flex;flex-direction:column;gap:14px}
-        .emp-card{background:#fff;border:1px solid #E5E7EB;border-radius:14px;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
-        .emp-hdr{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid #F3F4F6}
-        .emp-photo{width:44px;height:44px;border-radius:50%;overflow:hidden;flex-shrink:0;background:#DE1A1A;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px}
-        .emp-photo img{width:100%;height:100%;object-fit:cover}
-        .emp-id{flex:1;min-width:0}
-        .emp-name{font-size:14px;font-weight:800;color:#111}
-        .emp-meta{font-size:11px;color:#6B7280;margin-top:1px}
-        .status-pill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;flex-shrink:0}
-        .status-pill.paid{background:#F0FDF4;color:#16A34A}
-        .status-pill.pending{background:#FFF7ED;color:#EA580C}
-        .stat-groups{display:grid;grid-template-columns:1fr 1fr 1fr}
-        .stat-group{padding:12px 18px;border-left:1px solid #F3F4F6}
-        .stat-group:first-child{border-left:none}
-        .stat-group-title{font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px}
-        .stat-grid{display:flex;flex-direction:column;gap:5px}
-        .stat{display:flex;justify-content:space-between;font-size:12px}
-        .stat-lbl{color:#374151}
-        .stat-val{font-weight:700;color:#111}
-        .stat-val.green{color:#16A34A}
-        .stat-val.amber{color:#D97706}
-        .stat-val.red{color:#DC2626}
-        .stat-val.blue{color:#2563EB}
-        .stat.net{border-top:1px solid #F3F4F6;margin:6px 18px 0;padding-top:6px}
-        .stat-val.bold{font-size:14px}
-        @media print{ body{padding:0;background:#fff} }
-        @media (max-width:900px){
-          .stat-groups{grid-template-columns:1fr}
-          .stat-group{border-left:none;border-top:1px solid #F3F4F6}
-          .stat-group:first-child{border-top:none}
-        }
-      </style></head>
-      <body>
-        <h1>Payroll Report — ${monthName}</h1>
-        <p class="sub">${rows.length} employees · ${paidCount} paid · Generated ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
-        <div class="totals">
-          <div><span class="lbl">Total Base Pay</span><strong>${fmt(totalBase)}</strong></div>
-          <div><span class="lbl">Total OT Pay</span><strong>${fmt(totalOT)}</strong></div>
-          <div><span class="lbl">Total Deductions</span><strong>${fmt(totalDed)}</strong></div>
-          <div><span class="lbl">Total Net Payroll</span><strong>${fmt(totalFinal)}</strong></div>
-        </div>
-        <div class="cards">${employeeCards}</div>
-      </body></html>`)
+      const cardsHtml = scopeRows
+        .map(r => buildReportEmployeeCard(r, { year, mon, monthName, payDateStr, generatedTs, authorisedSignatureUrl: payrollSettings.authorised_signature_url }))
+        .join("")
+
+      win.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${reportTitle}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:13px}
+.topbar{background:#111;padding:10px 24px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+.topbar-dot{width:7px;height:7px;border-radius:50%;background:#DC2626;flex-shrink:0}
+.topbar-text{font-size:12px;color:#9CA3AF;font-weight:500;flex:1}
+.dl-btn{background:#DC2626;color:#fff;border:none;padding:7px 18px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 3px 10px rgba(220,38,38,0.4)}
+.page{max-width:860px;margin:20px auto 40px;background:#fff;border-radius:16px;border:1px solid #E5E7EB;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:24px 28px 20px;gap:16px}
+.co-logo{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff;flex-shrink:0;box-shadow:0 4px 12px rgba(220,38,38,0.3)}
+.co-name{font-size:20px;font-weight:900;color:#111;letter-spacing:0.01em;line-height:1.1}
+.co-sub{font-size:11px;font-weight:700;color:#DC2626;text-transform:uppercase;letter-spacing:0.06em;margin-top:2px}
+.co-addr{font-size:10.5px;color:#9CA3AF;margin-top:6px;line-height:1.7;display:flex;align-items:flex-start;gap:5px}
+.contact-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px}
+.contact-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#6B7280;font-weight:500}
+.slip-badge{background:linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%);border-radius:14px;padding:16px 22px;min-width:190px;box-shadow:0 4px 16px rgba(220,38,38,0.35);position:relative;overflow:hidden;flex-shrink:0}
+.slip-badge::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.08)}
+.slip-month{font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px}
+.slip-title{font-size:28px;font-weight:900;color:#fff;letter-spacing:0.1em;line-height:1}
+.slip-doc{position:absolute;right:16px;top:50%;transform:translateY(-50%);opacity:0.25}
+.slip-id-row{margin-top:8px;padding:0 28px}
+.hdivider{height:1px;background:#F3F4F6;margin:0 28px}
+.emp-card{margin:20px 28px;background:#F8F9FC;border:1.5px solid #E5E7EB;border-radius:14px;padding:22px 24px;display:flex;gap:22px;align-items:flex-start;position:relative;overflow:hidden}
+.emp-watermark{position:absolute;right:-10px;bottom:-20px;font-size:120px;font-weight:900;color:rgba(0,0,0,0.04);letter-spacing:-0.06em;line-height:1;pointer-events:none}
+.emp-photo{width:90px;height:90px;border-radius:50%;overflow:hidden;flex-shrink:0;border:3px solid #E5E7EB;background:#F3F4F6;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,0.1)}
+.emp-photo img{width:100%;height:100%;object-fit:cover;object-position:top center}
+.emp-photo-init{width:100%;height:100%;background:linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;color:#fff}
+.emp-info{flex:1;display:flex;gap:32px}
+.emp-left{flex:1}
+.emp-name{font-size:20px;font-weight:800;color:#111;margin-bottom:6px}
+.emp-badge{display:inline-block;background:#DCFCE7;color:#15803D;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:0.04em;margin-bottom:14px}
+.emp-field{margin-bottom:10px}
+.emp-lbl{display:flex;align-items:center;gap:5px;font-size:10px;color:#9CA3AF;font-weight:500;margin-bottom:2px}
+.emp-val{font-size:13px;font-weight:700;color:#111}
+.emp-right{min-width:200px}
+.net-banner{margin:0 28px 20px;background:#F0FDF4;border:1.5px solid #DCFCE7;border-radius:14px;padding:20px 26px;display:flex;align-items:center}
+.net-left{flex:1}
+.net-label{font-size:10px;font-weight:800;color:#16A34A;text-transform:uppercase;letter-spacing:0.14em;display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.net-label::before{content:'';width:7px;height:7px;border-radius:50%;background:#16A34A;flex-shrink:0}
+.net-amount{font-size:38px;font-weight:900;color:#111;letter-spacing:-0.03em;line-height:1;margin-bottom:6px}
+.net-words{font-size:11.5px;color:#6B7280;line-height:1.5;max-width:260px}
+.net-divider{width:1px;background:#D1FAE5;align-self:stretch;margin:0 24px;flex-shrink:0}
+.net-right{display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0}
+.net-cal-icon{width:44px;height:44px;border-radius:50%;background:#DCFCE7;border:2px solid #A7F3D0;display:flex;align-items:center;justify-content:center}
+.net-paid-lbl{font-size:10px;color:#6B7280;font-weight:500;text-align:center}
+.net-paid-date{font-size:14px;font-weight:800;color:#111;text-align:center}
+.net-method{display:inline-flex;align-items:center;gap:5px;background:#DCFCE7;color:#15803D;font-size:11px;font-weight:700;padding:4px 12px;border-radius:99px;border:1px solid #A7F3D0}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 28px 20px}
+.kpi-card{border:1.5px solid #E5E7EB;border-radius:12px;padding:14px 16px 10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.04);overflow:hidden}
+.kpi-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.kpi-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.kpi-lbl{font-size:9.5px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.08em;line-height:1.3}
+.kpi-val{font-size:19px;font-weight:900;margin-bottom:8px;letter-spacing:-0.02em}
+.kpi-red{color:#DC2626}.kpi-green{color:#16A34A}.kpi-dark{color:#111}.kpi-orange{color:#F97316}
+.kpi-ico-red{background:#FEF2F2}.kpi-ico-green{background:#F0FDF4}.kpi-ico-orange{background:#FFF7ED}
+.tri-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:0 28px 20px}
+.ed-card{border:1.5px solid #E5E7EB;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.04);display:flex;flex-direction:column}
+.ed-hdr{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid #E5E7EB}
+.ed-hdr-green{background:#F0FDF4}.ed-hdr-red{background:#FFF5F5}
+.ed-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center}
+.ed-ico-green{background:#DCFCE7}.ed-ico-red{background:#FEE2E2}
+.ed-title{font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase}
+.ed-title-green{color:#15803D}.ed-title-red{color:#991B1B}
+.ed-row{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-bottom:1px solid #F9FAFB;font-size:12px}
+.ed-row:last-of-type{border-bottom:none}
+.ed-row-name{color:#374151}.ed-row-amt{font-weight:600;color:#111}
+.ed-total{display:flex;justify-content:space-between;padding:10px 14px;font-size:12px;font-weight:800;border-top:2px solid #E5E7EB;margin-top:auto}
+.ed-total-green{background:#F0FDF4;color:#15803D}.ed-total-red{background:#FFF5F5;color:#991B1B}
+.breakdown-card{border:1.5px solid #E5E7EB;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+.breakdown-hdr{padding:11px 14px;border-bottom:1px solid #E5E7EB;font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#374151;background:#FAFAFA}
+.breakdown-body{padding:14px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.pie-legend{width:100%;display:flex;flex-direction:column;gap:5px}
+.pie-row{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.pie-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.pie-name{font-size:10.5px;color:#374151;flex:1}
+.pie-pct{font-size:10.5px;font-weight:700;color:#111}
+.bot-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:0 28px 20px}
+.bot-card{border:1.5px solid #E5E7EB;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+.bot-hdr{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid #E5E7EB;background:#EFF6FF}
+.bot-hdr-ico{width:24px;height:24px;border-radius:7px;background:#DBEAFE;display:flex;align-items:center;justify-content:center}
+.bot-hdr-title{font-size:10px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#1D4ED8}
+.bot-row{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-bottom:1px solid #F9FAFB}
+.bot-row:last-child{border-bottom:none}
+.bot-lbl-wrap{display:flex;align-items:center;gap:8px}
+.bot-ico{width:22px;height:22px;border-radius:6px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.bot-lbl{font-size:11.5px;color:#374151}
+.bot-val{font-size:11.5px;font-weight:700;color:#111}
+.secure-card{border:1.5px solid #E5E7EB;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.04);display:flex;flex-direction:column;align-items:center;gap:12px;background:#fff}
+.secure-icon{width:42px;height:42px;border-radius:50%;background:#EFF6FF;display:flex;align-items:center;justify-content:center}
+.secure-title{font-size:12px;font-weight:800;color:#111;text-align:center}
+.secure-desc{font-size:10.5px;color:#6B7280;text-align:center;line-height:1.6}
+.qr-wrap{display:flex;flex-direction:column;align-items:center;gap:5px}
+.qr-label{font-size:10px;color:#9CA3AF;text-align:center;line-height:1.5}
+.footer{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:20px;padding:18px 28px;border-top:1px solid #F3F4F6;align-items:center}
+.footer-disc{display:flex;align-items:flex-start;gap:10px}
+.footer-shield{width:32px;height:32px;border-radius:50%;background:#FEF2F2;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.footer-disc-text{font-size:10px;color:#9CA3AF;line-height:1.8}
+.sig{text-align:center}
+.sig-name{font-family:'Dancing Script',cursive;font-size:22px;color:#374151;margin-bottom:5px;line-height:1}
+.sig-img{height:34px;max-width:150px;object-fit:contain;margin-bottom:5px}
+.sig-img-stamp{height:70px;width:70px;object-fit:contain;margin-bottom:5px}
+.sig-stamp{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:10px;border:1.5px dashed #DC2626;color:#DC2626;font-size:11px;font-weight:800;margin-bottom:5px;letter-spacing:0.02em}
+.sig-line{height:1px;background:#D1D5DB;margin-bottom:6px}
+.sig-role{font-size:11px;font-weight:700;color:#374151}
+.sig-co{font-size:10px;color:#9CA3AF;margin-top:2px}
+.sig-check{display:inline-flex;align-items:center;gap:4px;margin-top:5px;background:#F0FDF4;color:#16A34A;font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;border:1px solid #DCFCE7}
+@media print{body{background:#fff}.topbar{display:none}.page{margin:0;max-width:100%;box-shadow:none;border-radius:0;border:none}.page:not(:last-child){page-break-after:always}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-dot"></div>
+  <span class="topbar-text">${topbarText}</span>
+  <button class="dl-btn" id="dl-btn" onclick="downloadPDF()">
+    <svg id="dl-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <span id="dl-label">Download / Print</span>
+  </button>
+</div>
+${cardsHtml}
+<script>
+function downloadPDF(){
+  window.print();
+}
+</script>
+</body>
+</html>`)
       win.document.close()
     }
   }
@@ -1041,7 +1175,6 @@ export default function PayrollClient({
             <p style={{ fontSize: 11, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Attendance Rules</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 18 }}>
               {([
-                ["ot_threshold_hrs", "OT Threshold (hrs/day)"],
                 ["half_day_threshold_hrs", "Half-Day Threshold (hrs)"],
                 ["salary_basis_days", "Salary Basis (days/month)"],
               ] as const).map(([key, label]) => (
@@ -1072,6 +1205,49 @@ export default function PayrollClient({
             </div>
             <p style={{ fontSize: 11, color: "#1E3A5F", margin: "0 0 20px" }}>
               Whatever remains of gross salary after Basic + Travel + Medical is deducted shows on the payslip as &quot;Other Allowance&quot;.
+            </p>
+
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#1E3A5F", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" }}>Report Signature</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              <div style={{ width: 90, height: 44, borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#F9FAFB", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+                {settingsForm.authorised_signature_url
+                  ? // eslint-disable-next-line @next/next/no-img-element
+                    <img src={settingsForm.authorised_signature_url} alt="Authorised signature" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                  : <span style={{ fontSize: 10, color: "#9CA3AF" }}>None</span>}
+              </div>
+              <div style={{ flex: 1, display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => signatureInputRef.current?.click()}
+                  disabled={isUploadingSignature}
+                  style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#fff", fontSize: 12, fontWeight: 700, color: "#1E3A5F", cursor: isUploadingSignature ? "wait" : "pointer" }}
+                >
+                  {isUploadingSignature ? "Uploading…" : settingsForm.authorised_signature_url ? "Replace" : "Upload"}
+                </button>
+                {settingsForm.authorised_signature_url && (
+                  <button
+                    type="button"
+                    onClick={() => setSettingsForm(prev => ({ ...prev, authorised_signature_url: null }))}
+                    style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid #FECDD3", background: "#FFF1F2", fontSize: 12, fontWeight: 700, color: "#DC2626", cursor: "pointer" }}
+                  >
+                    Remove
+                  </button>
+                )}
+                <input
+                  ref={signatureInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={e => {
+                    const file = e.target.files?.[0]
+                    if (file) handleSignatureUpload(file)
+                    e.target.value = ""
+                  }}
+                />
+              </div>
+            </div>
+            <p style={{ fontSize: 11, color: "#1E3A5F", margin: "0 0 20px" }}>
+              Used as the &quot;Authorised Signatory&quot; mark on the payroll Report. Falls back to a stylised &quot;GroFast&quot; if nothing is uploaded.
             </p>
 
             <div style={{ display: "flex", gap: 10 }}>
@@ -1276,11 +1452,9 @@ export default function PayrollClient({
                     key={r.id}
                     r={r}
                     month={month}
-                    year={year}
-                    mon={mon}
-                    workDays={workDays}
                     isExpanded={expandedId === r.id}
                     onToggle={() => setExpandedId(expandedId === r.id ? null : r.id)}
+                    onDownloadReport={() => handleGenerateReport([r])}
                     selectMode={selectMode}
                     selected={selectedIds.has(r.id)}
                     onToggleSelect={() => toggleSelectId(r.id)}
@@ -1345,7 +1519,7 @@ export default function PayrollClient({
                 { emoji: "📄", label: "Generate Payslip", action: handleBulkPayslip, active: false },
                 { emoji: "📋", label: selectMode ? "Cancel Select" : "Bulk Update", action: handleToggleSelectMode, active: selectMode },
                 { emoji: "⚙️", label: "Payroll Settings", action: handleOpenSettings, active: false },
-                { emoji: "📊", label: "Reports", action: handleGenerateReport, active: false },
+                { emoji: "📊", label: "Reports", action: () => handleGenerateReport(), active: false },
               ].map((action) => (
                 <button key={action.label} onClick={action.action} style={{
                   padding: "12px 8px", borderRadius: 14,

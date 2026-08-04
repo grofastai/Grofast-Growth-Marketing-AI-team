@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { computeEmployeeMonth, type EmployeeMonthData } from './compute-month'
 import { PAYROLL_SETTINGS_DEFAULTS } from '@/lib/payroll-settings-defaults'
 
@@ -24,19 +24,30 @@ function fullDayUpdate(date: string) {
 }
 
 describe('computeEmployeeMonth', () => {
-  it('charges no deduction and pays base + OT for a month with only full working days', () => {
+  it('charges no deduction for a month with only full working days, and never auto-adds OT', () => {
     // Filling every calendar day (including what would normally be rest days, per
     // this company's "weekends are working days" policy) legitimately produces
-    // overtime under the fixed 25-day x 8.5h monthly target, so this asserts the
-    // formula composes correctly rather than a full month meaning zero OT.
+    // overtime *hours* under the fixed 25-day x 8.5h monthly target — but OT *pay*
+    // is admin-entered only (payroll_runs.ot_amount), never derived from hours,
+    // so otPay must stay 0 here even though otHours is well above zero.
     const updates = []
     for (let d = 1; d <= 31; d++) updates.push(fullDayUpdate(`2026-07-${String(d).padStart(2, '0')}`))
     const logs = updates.map(u => ({ date: u.date, clock_in: '09:30', status: 'present' }))
     const result = computeEmployeeMonth(baseData({ updates, logs }), PAYROLL_SETTINGS_DEFAULTS)
     expect(result.deduction).toBe(0)
     expect(result.basePay).toBe(30000)
-    expect(result.netPay).toBe(Math.round((result.basePay + result.otPay) * 100) / 100)
+    expect(result.otHours).toBeGreaterThan(0)
+    expect(result.otPay).toBe(0)
+    expect(result.netPay).toBe(result.basePay)
     expect(result.finalNetPay).toBe(result.netPay)
+  })
+
+  it('uses payroll_runs.ot_amount as OT pay, exactly as admin-entered', () => {
+    const result = computeEmployeeMonth(baseData({
+      run: { bonus: 0, advance: 0, incentive: 0, ot_amount: 750 },
+    }), PAYROLL_SETTINGS_DEFAULTS)
+    expect(result.otPay).toBe(750)
+    expect(result.finalNetPay).toBe(Math.round((result.netPay + 750) * 100) / 100)
   })
 
   it('deducts one day of pay for an absent day (no clock-in, no update)', () => {
@@ -60,7 +71,7 @@ describe('computeEmployeeMonth', () => {
 
   it('adds bonus and incentive, subtracts advance, in finalNetPay', () => {
     const result = computeEmployeeMonth(baseData({
-      run: { bonus: 1000, advance: 500, incentive: 200 },
+      run: { bonus: 1000, advance: 500, incentive: 200, ot_amount: 0 },
     }), PAYROLL_SETTINGS_DEFAULTS)
     expect(result.finalNetPay).toBe(Math.round((result.netPay + 1000 + 200 - 500) * 100) / 100)
   })
@@ -80,5 +91,36 @@ describe('computeEmployeeMonth', () => {
     const sum = result.basic + result.hra + result.travelAllowance + result.medicalAllowance + result.otherAllowance
     expect(sum).toBe(30000)
     expect(result.basePay).toBe(sum)
+  })
+
+  describe('viewing a month still in progress', () => {
+    beforeEach(() => {
+      // IST is UTC+5:30 — this instant reads as 2026-07-15 in Asia/Kolkata.
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-07-15T10:00:00Z'))
+    })
+    afterEach(() => vi.useRealTimers())
+
+    it('never counts days after today as absent, even with zero data for them', () => {
+      // No updates/logs at all for the whole month — the pre-fix behavior scored
+      // every one of July's 31 days as absent. Only the 15 elapsed days (today
+      // inclusive) should count now; the 16 unlived days should count for nothing.
+      const result = computeEmployeeMonth(baseData(), PAYROLL_SETTINGS_DEFAULTS)
+      expect(result.absentDays).toBe(15)
+      expect(result.deductibleDays).toBe(15)
+    })
+
+    it('a future-dated approved leave does not count until its date arrives', () => {
+      const result = computeEmployeeMonth(baseData({
+        approvedLeaves: [{ from_date: '2026-07-20', to_date: '2026-07-20', leave_type: 'full_day' }],
+      }), PAYROLL_SETTINGS_DEFAULTS)
+      expect(result.leaveDays).toBe(0)
+      expect(result.absentDays).toBe(15)
+    })
+
+    it('prorates the hours-preview target to elapsed must-work days, not the full month', () => {
+      const result = computeEmployeeMonth(baseData(), PAYROLL_SETTINGS_DEFAULTS)
+      expect(result.hoursPreview.targetHours).toBe(15 * 8.5)
+    })
   })
 })

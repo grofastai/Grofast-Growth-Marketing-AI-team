@@ -416,7 +416,6 @@ export async function submitSplitLeaveRequest(
   formData: FormData
 ): Promise<{ error: string } | { success: true }> {
   const from_date           = formData.get('from_date') as string
-  const half_day_period     = (formData.get('half_day_period') as string) || 'morning'
   const half_day_from_time  = formData.get('half_day_from_time') as string
   const half_day_to_time    = formData.get('half_day_to_time') as string
   const permission_time     = formData.get('permission_time') as string
@@ -539,7 +538,7 @@ export async function submitSplitLeaveRequest(
   const finalReason = isExceptional ? `[EXCEPTIONAL] ${reason}` : reason
   const { data: insertedHalf, error: halfError } = await (adminCl.from('leaves') as any).insert({
     company_id, user_id: effectiveUserId, from_date, to_date: from_date, reason: finalReason,
-    leave_type: 'half_day', half_day_period, half_day_from_time, half_day_to_time,
+    leave_type: 'half_day', half_day_from_time, half_day_to_time,
   }).select('id').single()
   if (halfError) return { error: halfError.message }
 
@@ -1028,7 +1027,7 @@ async function autoInsertLeaveHistory(
 
     const entry = {
       task_type: 'break',
-      title: `Half Day Leave (${leave.half_day_period ?? 'morning'})`,
+      title: 'Half Day Leave',
       client_name: leave.reason ?? 'Half Day',
       duration_hours: Math.round((diffMins / 60) * 10) / 10,
       notes: leave.reason ?? '',

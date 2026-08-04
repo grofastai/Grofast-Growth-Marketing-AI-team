@@ -42,9 +42,8 @@ export function formatLeaveDetail(leave: LeaveForApproval): string {
   if (type === 'half_day') {
     const from = fmtTimeStr(leave.half_day_from_time)
     const to = fmtTimeStr(leave.half_day_to_time)
-    const period = leave.half_day_period ? ` (${leave.half_day_period})` : ''
-    if (from && to) return `Half Day${period} · ${from}–${to}`
-    return `Half Day${period}`
+    if (from && to) return `Half Day · ${from}–${to}`
+    return 'Half Day'
   }
 
   if (type === 'wfh') return 'Work From Home'
@@ -129,7 +128,7 @@ export async function autoInsertLeaveHistory(admin: AdminClient, leave: LeaveFor
 
     await upsertWorkEntry(admin, leave.company_id, leave.user_id, leave.from_date, {
       task_type: 'break',
-      title: `Half Day Leave (${leave.half_day_period ?? 'morning'})`,
+      title: 'Half Day Leave',
       client_name: leave.reason ?? 'Half Day',
       duration_hours: Math.round((diffMins / 60) * 10) / 10,
       notes: leave.reason ?? '',

@@ -235,7 +235,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject, onSel
           {isPerm
             ? `${leave.permission_hours ?? 1}h${leave.permission_time && leave.permission_end_time ? ` · ${fmtTimeStr(leave.permission_time)}–${fmtTimeStr(leave.permission_end_time)}` : leave.permission_time ? ` · ${fmtTimeStr(leave.permission_time)}` : ""}`
             : isHalfDay
-            ? `Half Day${leave.half_day_period ? ` (${leave.half_day_period})` : ""}${leave.half_day_from_time && leave.half_day_to_time ? ` · ${fmtTimeStr(leave.half_day_from_time)}–${fmtTimeStr(leave.half_day_to_time)}` : ""}`
+            ? `Half Day${leave.half_day_from_time && leave.half_day_to_time ? ` · ${fmtTimeStr(leave.half_day_from_time)}–${fmtTimeStr(leave.half_day_to_time)}` : ""}`
             : `${days} day${days !== 1 ? "s" : ""}`}
         </span>
       </div>
@@ -445,7 +445,6 @@ export default function LeavesClient({
   const [editLeaveType, setEditLeaveType]       = useState<"full_day" | "half_day" | "permission" | "wfh" | "shoot_day">("full_day")
   const [editFromDate, setEditFromDate]         = useState("")
   const [editToDate, setEditToDate]             = useState("")
-  const [editHalfPeriod, setEditHalfPeriod]     = useState<"morning" | "afternoon">("morning")
   const [editHalfFrom, setEditHalfFrom]         = useState("")
   const [editHalfTo, setEditHalfTo]             = useState("")
   const [editPermFrom, setEditPermFrom]         = useState("")
@@ -461,7 +460,6 @@ export default function LeavesClient({
     setEditLeaveType((leave.leave_type as typeof editLeaveType) ?? "full_day")
     setEditFromDate(leave.from_date)
     setEditToDate(leave.to_date)
-    setEditHalfPeriod(leave.half_day_period === "afternoon" ? "afternoon" : "morning")
     setEditHalfFrom(leave.half_day_from_time ?? "")
     setEditHalfTo(leave.half_day_to_time ?? "")
     setEditPermFrom(leave.permission_time ?? "")
@@ -510,7 +508,6 @@ export default function LeavesClient({
       fromDate: editFromDate,
       toDate,
       reason: editLeaveType === "permission" ? editPermReason : editReason.trim(),
-      halfDayPeriod: editHalfPeriod,
       halfDayFromTime: editHalfFrom,
       halfDayToTime: editHalfTo,
       permissionTime: editPermFrom,
@@ -1256,17 +1253,6 @@ export default function LeavesClient({
 
               {editLeaveType === "half_day" && (
                 <>
-                  <div>
-                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Period</label>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                      {(["morning", "afternoon"] as const).map(p => (
-                        <button key={p} type="button" onClick={() => setEditHalfPeriod(p)}
-                          style={{ padding: "8px 0", borderRadius: 10, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", textTransform: "capitalize", ...(editHalfPeriod === p ? { background: "#DE1A1A", color: "#fff" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
-                          {p}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div><label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>From</label>
                       <input type="time" value={editHalfFrom} onChange={e => setEditHalfFrom(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid #EBEDF2", background: "#F9FAFB", fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }} /></div>

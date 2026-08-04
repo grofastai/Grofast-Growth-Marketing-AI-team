@@ -1802,7 +1802,6 @@ export default function HistoryClient({
                   const startT = leave.half_day_from_time ?? ""
                   const endT   = leave.half_day_to_time   ?? ""
                   const dur    = startT && endT ? calcDurationFromTimes(startT, endT) : null
-                  const period = leave.half_day_period ?? ""
                   return (
                     <div key={`leave-${item.date}`} style={{ background:"#fff", borderRadius:20, border:"1px solid rgba(245,158,11,0.2)", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid rgba(245,158,11,0.1)", background:"rgba(245,158,11,0.02)" }}>
@@ -1813,7 +1812,7 @@ export default function HistoryClient({
                           </div>
                           <div>
                             <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{ldLabel}</p>
-                            <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Half Day Leave{period ? ` · ${period}` : ""}</p>
+                            <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Half Day Leave</p>
                           </div>
                         </div>
                         <span style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.12)", padding:"3px 10px", borderRadius:99 }}>Approved</span>
@@ -1926,7 +1925,7 @@ export default function HistoryClient({
               // with a logged partial day), not as a separate banner pinned above everything.
               const leaveOnDay = approvedLeaves.find(l => l.leave_type !== "full_day" && u.date >= l.from_date && u.date <= l.to_date)
               const leaveBannerStyle: Record<string, { emoji: string; title: string; color: string; bg: string }> = {
-                half_day:   { emoji: "🌗", title: "Half Day Leave" + (leaveOnDay?.half_day_period ? ` · ${leaveOnDay.half_day_period}` : ""), color: "#D97706", bg: "rgba(245,158,11,0.06)" },
+                half_day:   { emoji: "🌗", title: "Half Day Leave", color: "#D97706", bg: "rgba(245,158,11,0.06)" },
                 permission: { emoji: "🕐", title: "Permission", color: "#6366F1", bg: "rgba(99,102,241,0.06)" },
                 wfh:        { emoji: "🏠", title: "Work From Home", color: "#0EA5E9", bg: "rgba(14,165,233,0.06)" },
                 shoot_day:  { emoji: "🎥", title: "Shoot Day", color: "#DB2777", bg: "rgba(219,39,119,0.06)" },

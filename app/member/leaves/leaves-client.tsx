@@ -341,13 +341,11 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const timelineEntries = [...permissionDeductionEntries, ...allEntries].sort((a, b) => b.from_date.localeCompare(a.from_date))
   const [showForm, setShowForm]         = useState(false)
   const [leaveType, setLeaveType]       = useState<LeaveType>("full_day")
-  const [halfPeriod, setHalfPeriod]     = useState<"morning" | "afternoon">("morning")
   const [permFrom, setPermFrom]         = useState("")
   const [permTo, setPermTo]             = useState("")
   const [permReasonType, setPermReasonType] = useState<"late_login" | "early_logoff" | "other" | "">("")
   const [showHalfDayPrompt, setShowHalfDayPrompt] = useState(false)
   const [showFullDayPrompt, setShowFullDayPrompt] = useState(false)
-  const [existingHalfDayPeriod, setExistingHalfDayPeriod] = useState<string>("morning")
   const [halfDaySelectedDate, setHalfDaySelectedDate] = useState("")
   const [halfFrom, setHalfFrom]         = useState("")
   const [halfTo, setHalfTo]             = useState("")
@@ -393,8 +391,6 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   useEffect(() => {
     if (editingLeave) {
       setLeaveType((editingLeave.leave_type ?? "full_day") as LeaveType)
-      if (editingLeave.half_day_period === "afternoon") setHalfPeriod("afternoon")
-      else setHalfPeriod("morning")
       if (editingLeave.leave_type === "permission") {
         setPermFrom(editingLeave.permission_time ?? "")
         setPermTo((editingLeave as any).permission_end_time ?? "")
@@ -890,7 +886,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : type === "permission" ? "Permission" : type === "absent" ? "On Leave" : type === "wfh" ? "Work From Home" : type === "shoot_day" ? "Shoot Day" : type === "half_day_auto" ? "Half Day Leave (Auto-deducted)" : type === "full_day_auto" ? "Full Day Leave (Auto-deducted)" : "Full Day Leave"
                     const halfTimeRange = leave.half_day_from_time && leave.half_day_to_time ? `${fmtTimeStr(leave.half_day_from_time)}–${fmtTimeStr(leave.half_day_to_time)}` : null
                     const permTimeRange = leave.permission_time && leave.permission_end_time ? `${fmtTimeStr(leave.permission_time)}–${fmtTimeStr(leave.permission_end_time)}` : leave.permission_time ? fmtTimeStr(leave.permission_time) : null
-                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}${halfTimeRange ? ` · ${halfTimeRange}` : ""}` : type === "permission" ? `${leave.permission_hours ?? 1}h${permTimeRange ? ` · ${permTimeRange}` : ""}` : type === "absent" ? "Leave" : type === "wfh" ? "WFH" : type === "shoot_day" ? "Shoot Day" : type === "half_day_auto" ? "Permission → Half Day" : type === "full_day_auto" ? "Permission → Full Day" : "Full Day"
+                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day${halfTimeRange ? ` · ${halfTimeRange}` : ""}` : type === "permission" ? `${leave.permission_hours ?? 1}h${permTimeRange ? ` · ${permTimeRange}` : ""}` : type === "absent" ? "Leave" : type === "wfh" ? "WFH" : type === "shoot_day" ? "Shoot Day" : type === "half_day_auto" ? "Permission → Half Day" : type === "full_day_auto" ? "Permission → Full Day" : "Full Day"
                     const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : type === "absent" ? "rgba(107,114,128,0.12)" : type === "wfh" ? "rgba(99,102,241,0.12)" : type === "shoot_day" ? "rgba(245,158,11,0.12)" : type === "half_day_auto" ? "rgba(251,191,36,0.14)" : type === "full_day_auto" ? "rgba(16,185,129,0.12)" : "rgba(245,158,11,0.12)"
                     const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : type === "absent" ? "#6B7280" : type === "wfh" ? "#6366F1" : type === "shoot_day" ? "#F59E0B" : type === "half_day_auto" ? "#B45309" : type === "full_day_auto" ? "#10B981" : "#F59E0B"
                     const duration  = isPerm ? `${leave.permission_hours}h session` : isHalf ? "1 Session" : isAutoDeduct ? "Auto" : `${days} Day${days && days > 1 ? "s" : ""}`
@@ -907,7 +903,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                           <span style={{ fontSize: 8, fontWeight: 900, color: sc.color, letterSpacing: "0.1em" }}>{mon}</span>
                           <span style={{ fontSize: 26, fontWeight: 900, color: sc.color, lineHeight: 1 }}>{day}</span>
                           <span style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600 }}>{yr}</span>
-                          <span style={{ fontSize: 8, color: "#9CA3AF" }}>{wd} · {isHalf ? (leave.half_day_period ?? "Morning") : isPerm ? "Session" : type === "absent" ? "Leave" : isAutoDeduct ? "Auto" : "Full Day"}</span>
+                          <span style={{ fontSize: 8, color: "#9CA3AF" }}>{wd} · {isHalf ? "Half Day" : isPerm ? "Session" : type === "absent" ? "Leave" : isAutoDeduct ? "Auto" : "Full Day"}</span>
                         </div>
 
                         {/* Card */}
@@ -1237,7 +1233,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: "0 0 2px" }}>{editingLeave ? "Edit Leave Request" : "Apply for Leave"}</p>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Fill in the details below</p>
               </div>
-              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setPermReasonType(""); setHalfFrom(""); setHalfTo(""); setSplitMode(false); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
+              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setPermFrom(""); setPermTo(""); setPermReasonType(""); setHalfFrom(""); setHalfTo(""); setSplitMode(false); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
                 style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <X size={16} color="#fff" />
               </button>
@@ -1315,7 +1311,6 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                       from_date: (fd.get("from_date") as string) || l.from_date,
                       to_date: (fd.get("to_date") as string) || (fd.get("from_date") as string) || l.to_date,
                       reason: (fd.get("reason") as string) || l.reason,
-                      half_day_period: fd.get("half_day_period") as string | null ?? l.half_day_period,
                       permission_hours: fd.get("permission_hours") ? Number(fd.get("permission_hours")) : l.permission_hours,
                       permission_time: (fd.get("permission_time") as string) || l.permission_time,
                       ...(fd.get("permission_end_time") ? { permission_end_time: fd.get("permission_end_time") as string } : {}),
@@ -1326,14 +1321,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     setShowForm(false)
                     setEditingLeave(null)
                     setLeaveType("full_day")
-                    setHalfPeriod("morning")
                     setPermFrom(""); setPermTo(""); setPermReasonType("")
                     setHalfFrom(""); setHalfTo("")
                   })
                 } : checkDuplicateDate}
                 style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <input type="hidden" name="leave_type" value={leaveType} />
-                {leaveType === "half_day" && !splitMode && <input type="hidden" name="half_day_period" value={halfPeriod} />}
 
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Leave Type *</label>
@@ -1387,7 +1380,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                       setHalfDaySelectedDate(d)
                       if (d) {
                         const existing = leaves.find(l => l.leave_type === "half_day" && l.from_date === d && (l.status === "pending" || l.status === "approved") && (!editingLeave || l.id !== editingLeave.id))
-                        if (existing) { setExistingHalfDayPeriod(existing.half_day_period ?? "morning"); setShowFullDayPrompt(true) }
+                        if (existing) setShowFullDayPrompt(true)
                       }
                     }} />
                     {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}</div>
@@ -1453,7 +1446,6 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 {leaveType === "half_day" && splitMode && (
                   <>
                     <input type="hidden" name="from_date" value={halfDaySelectedDate} />
-                    <input type="hidden" name="half_day_period" value={halfPeriod} />
                     <input type="hidden" name="half_day_from_time" value={splitHalfFrom} />
                     <input type="hidden" name="half_day_to_time" value={splitHalfTo} />
                     <input type="hidden" name="permission_time" value={splitPermFrom} />
@@ -1614,7 +1606,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 )}
 
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setPermReasonType(""); setHalfFrom(""); setHalfTo(""); setSplitMode(false); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
+                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setPermFrom(""); setPermTo(""); setPermReasonType(""); setHalfFrom(""); setHalfTo(""); setSplitMode(false); setEditError(null); setIsExceptional(false); setCollisionBlocked(false) }}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
                   <button type="submit" disabled={pending || editing || splitPending}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: (pending || editing || splitPending) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>
@@ -1638,7 +1630,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
             </div>
             <p style={{ fontSize:16, fontWeight:800, color:"#111111", margin:"0 0 8px", textAlign:"center" }}>2 Half Days = 1 Full Day</p>
             <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 22px", textAlign:"center", lineHeight:1.6 }}>
-              You already have a <strong>{existingHalfDayPeriod === "morning" ? "Morning" : "Afternoon"} Half Day</strong> applied for this date. Two half days count as <strong>1 Full Day</strong> leave. Switch to Full Day instead?
+              You already have a <strong>Half Day</strong> applied for this date. Two half days count as <strong>1 Full Day</strong> leave. Switch to Full Day instead?
             </p>
             <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
               <button onClick={() => { setLeaveType("full_day"); setHalfFrom(""); setHalfTo(""); setShowFullDayPrompt(false) }}

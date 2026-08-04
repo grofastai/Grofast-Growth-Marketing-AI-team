@@ -137,9 +137,9 @@ export function buildMonthGrid(year: number, month: number, entries: ScheduleEnt
 // "is this late?" is a date comparison, and getting it wrong on a card means the board
 // quietly stops flagging work that's already slipped.
 //
-// 'none' covers legacy rows only. Every item that reaches Branding/Ads Ready through the
-// Move dialog carries a date (required client- and server-side), but items approved before
-// that rule existed can still have a null one.
+// 'none' is the normal state straight after approval, not an edge case: reaching
+// Branding/Ads Ready sets no date, and one only arrives when someone uses the Schedule
+// button. That's also exactly what keeps an unscheduled item off the Schedule tab.
 export type ScheduleBadgeState = 'none' | 'overdue' | 'today' | 'upcoming'
 
 export function scheduleBadgeState(scheduledDate: string | null | undefined, today: string): ScheduleBadgeState {

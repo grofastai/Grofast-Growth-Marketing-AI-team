@@ -9,6 +9,9 @@ import { PageHero } from "@/components/admin/PageHero"
 import { todayIST } from "@/lib/utils/ist-date"
 import type { TeamRow } from "@/lib/actions/teams"
 import { hexToRgba } from "@/lib/utils/team-colors"
+import { parseLeaveReason } from "@/lib/utils/leave-balance"
+import AutoBadge from "@/components/ui/AutoBadge"
+import ExceptionalBadge from "@/components/ui/ExceptionalBadge"
 
 type WorkEntry = Record<string, unknown>
 
@@ -35,6 +38,23 @@ interface Update {
   tasks_list: { id: string; title: string; status: string; priority: string | null }[]
   tasks_completed: number
   tasks_total: number
+}
+
+// Same shape Member > History gets for its leave cards — every approved leave type,
+// with the time-window columns, so the admin drawer can render the identical cards.
+interface LeaveDetail {
+  id: string
+  user_id: string
+  leave_type: string
+  from_date: string
+  to_date: string
+  reason: string | null
+  permission_time: string | null
+  permission_end_time: string | null
+  permission_hours: number | null
+  half_day_from_time: string | null
+  half_day_to_time: string | null
+  half_day_period: string | null
 }
 
 interface Member { id: string; name: string; employee_id: string; team?: string | null; role?: string; monthly_salary?: number | null; hourly_rate?: number | null }
@@ -263,8 +283,159 @@ function avatarColor(name: string) {
   return AVATAR_COLORS[h % AVATAR_COLORS.length]
 }
 
+// ── Leave / Permission rendering ─────────────────────────────────────────────
+// Same emoji / colour / wording as Member > History's leave cards, so a person's day
+// reads identically whether the admin opens Activities or the member opens History.
+const LEAVE_CFG: Record<string, { emoji: string; title: string; sub: string; text: string; tint: string; fallback: string }> = {
+  full_day:   { emoji: "🌴", title: "Full Day Leave", sub: "Full Day Leave",   text: "#059669", tint: "#10B981", fallback: "Approved Leave" },
+  half_day:   { emoji: "🌓", title: "Half Day Leave", sub: "Half Day Leave",   text: "#D97706", tint: "#F59E0B", fallback: "Half Day Leave" },
+  permission: { emoji: "🕐", title: "Permission",     sub: "Permission Leave", text: "#6366F1", tint: "#6366F1", fallback: "Permission Leave" },
+  wfh:        { emoji: "🏠", title: "Work From Home", sub: "Work From Home",   text: "#0EA5E9", tint: "#0EA5E9", fallback: "Approved WFH" },
+  shoot_day:  { emoji: "🎥", title: "Shoot Day",      sub: "Shoot Day",        text: "#DB2777", tint: "#DB2777", fallback: "Approved Shoot Day" },
+}
+
+// Half day carries its own from/to; permission carries a start plus either an explicit end
+// or an hours count to derive it. Full day / WFH / shoot day cover the whole day — no window.
+function leaveWindow(l: LeaveDetail): { start: string; end: string } | null {
+  if (l.leave_type === "half_day") {
+    const s = l.half_day_from_time ?? "", e = l.half_day_to_time ?? ""
+    return s && e ? { start: s, end: e } : null
+  }
+  if (l.leave_type === "permission") {
+    const s = l.permission_time ?? ""
+    let e = l.permission_end_time ?? ""
+    if (!e && s && l.permission_hours) {
+      const [fh, fm] = s.split(":").map(Number)
+      const totalMins = fh * 60 + fm + Math.round(l.permission_hours * 60)
+      e = `${String(Math.floor(totalMins / 60)).padStart(2, "0")}:${String(totalMins % 60).padStart(2, "0")}`
+    }
+    return s && e ? { start: s, end: e } : null
+  }
+  return null
+}
+
+function LeaveReason({ reason, fallback }: { reason: string | null; fallback: string }) {
+  const parsed = parseLeaveReason(reason)
+  return (
+    <>
+      {parsed.text || fallback}
+      {parsed.isAuto && <AutoBadge />}
+      {parsed.isExceptional && <ExceptionalBadge />}
+    </>
+  )
+}
+
+// A day with no daily update at all — the leave IS the day, so it gets its own card.
+function LeaveOnlyCard({ date, leave }: { date: string; leave: LeaveDetail }) {
+  const cfg = LEAVE_CFG[leave.leave_type]
+  if (!cfg) return null
+  const d = (() => { try { return new Date(date + "T12:00:00") } catch { return null } })()
+  const dateLabel = d ? d.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : date
+  const win = leaveWindow(leave)
+  const dur = win ? calcDurationFromTimes(win.start, win.end) : null
+  const period = leave.leave_type === "half_day" && leave.half_day_period ? ` · ${leave.half_day_period}` : ""
+
+  return (
+    <div style={{ background: "#fff", borderRadius: 20, border: `1px solid ${hexToRgba(cfg.tint, 0.2)}`, overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "14px 18px", borderBottom: `1px solid ${hexToRgba(cfg.tint, 0.1)}`, background: hexToRgba(cfg.tint, 0.02) }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: hexToRgba(cfg.tint, 0.1), display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ fontSize: 14, fontWeight: 900, color: cfg.text, lineHeight: 1 }}>{d ? d.getDate() : ""}</span>
+            <span style={{ fontSize: 8, fontWeight: 700, color: cfg.text, textTransform: "uppercase" }}>{d ? d.toLocaleDateString("en-US", { month: "short" }) : ""}</span>
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: 13, fontWeight: 800, color: "#111111", margin: 0 }}>{dateLabel}</p>
+            <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>{cfg.sub}{period}</p>
+          </div>
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, color: cfg.tint, background: hexToRgba(cfg.tint, 0.12), padding: "3px 10px", borderRadius: 99, flexShrink: 0 }}>Approved</span>
+      </div>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 16, padding: win ? "18px" : "20px 18px",
+        background: leave.leave_type === "full_day"
+          ? `linear-gradient(135deg,${hexToRgba(cfg.tint, 0.06)} 0%,${hexToRgba(cfg.tint, 0.02)} 100%)`
+          : undefined,
+      }}>
+        <div style={{ fontSize: win ? 32 : 36, lineHeight: 1 }}>{cfg.emoji}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 14, fontWeight: 900, color: cfg.text, margin: "0 0 3px" }}>{cfg.title}</p>
+          <p style={{ fontSize: 12, color: "#6B7280", margin: win ? "0 0 6px" : 0, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <LeaveReason reason={leave.reason} fallback={cfg.fallback} />
+          </p>
+          {win && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 4 }}>
+                <Clock size={11} style={{ color: "#9CA3AF" }} /> {fmt12(win.start)} – {fmt12(win.end)}
+              </span>
+              {dur != null && dur > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: cfg.text, background: hexToRgba(cfg.tint, 0.1), padding: "2px 8px", borderRadius: 99 }}>{fmtHours(dur)}</span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// A leave with a real time window on a day that also has work — slots into the timeline
+// at its actual clock position, exactly like History does.
+function LeaveTimelineRow({ leave, win, isLast }: { leave: LeaveDetail; win: { start: string; end: string }; isLast: boolean }) {
+  const cfg = LEAVE_CFG[leave.leave_type]
+  if (!cfg) return null
+  const dur = calcDurationFromTimes(win.start, win.end)
+  const period = leave.leave_type === "half_day" && leave.half_day_period ? ` · ${leave.half_day_period}` : ""
+
+  return (
+    <div style={{ borderBottom: isLast ? "none" : "1px solid #F5F6FA", background: hexToRgba(cfg.tint, 0.06), borderLeft: `3px solid ${cfg.tint}` }}>
+      <div style={{ display: "flex", gap: 14, padding: "14px 18px 14px 15px", alignItems: "flex-start" }}>
+        <div style={{ width: 34, height: 34, borderRadius: 10, background: cfg.tint, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: `0 2px 8px ${hexToRgba(cfg.tint, 0.25)}` }}>
+          <span style={{ fontSize: 16 }}>{cfg.emoji}</span>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, fontWeight: 900, color: cfg.text }}>{cfg.title}{period}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: cfg.text, background: hexToRgba(cfg.tint, 0.1), padding: "2px 8px", borderRadius: 99 }}>Approved</span>
+          </div>
+          <p style={{ fontSize: 11, color: "#6B7280", margin: "0 0 3px", fontWeight: 600, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <LeaveReason reason={leave.reason} fallback={cfg.fallback} />
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4, flexWrap: "wrap" }}>
+            {dur != null && dur > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 3 }}>
+                <Clock size={9} style={{ color: "#9CA3AF" }} /> {fmtHours(dur)}
+              </span>
+            )}
+            <span style={{ fontSize: 10, color: "#9CA3AF" }}>{fmt12(win.start)} – {fmt12(win.end)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// A whole-day leave (WFH / shoot day / full day, or a half day-permission with no times
+// recorded) on a day that also has work — no clock position to slot into, so it rides on
+// top of the day card as a banner, same as History's fallback banner.
+function LeaveDayBanner({ leave }: { leave: LeaveDetail }) {
+  const cfg = LEAVE_CFG[leave.leave_type]
+  if (!cfg) return null
+  const period = leave.leave_type === "half_day" && leave.half_day_period ? ` · ${leave.half_day_period}` : ""
+  const parsed = parseLeaveReason(leave.reason)
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 18px", background: hexToRgba(cfg.tint, 0.06), borderBottom: `1px solid ${hexToRgba(cfg.tint, 0.13)}` }}>
+      <span style={{ fontSize: 14 }}>{cfg.emoji}</span>
+      <span style={{ fontSize: 11, fontWeight: 700, color: cfg.text, display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        {cfg.title}{period}{parsed.text ? `: ${parsed.text}` : ""}
+        {parsed.isAuto && <AutoBadge />}
+        {parsed.isExceptional && <ExceptionalBadge />}
+      </span>
+    </div>
+  )
+}
+
 // ── Person Detail Drawer ──────────────────────────────────────────────────────
-function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, collabEntries = [], members, teams = [] }: { updates: Update[]; onClose: () => void; collabHoursMap?: Record<string, number>; collabEntries?: { date: string; entry: WorkEntry; submitterName: string }[]; members: Member[]; teams?: TeamRow[] }) {
+function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, collabEntries = [], members, teams = [], leaves = [], from, to }: { updates: Update[]; onClose: () => void; collabHoursMap?: Record<string, number>; collabEntries?: { date: string; entry: WorkEntry; submitterName: string }[]; members: Member[]; teams?: TeamRow[]; leaves?: LeaveDetail[]; from: string; to: string }) {
   const firstUpdate = updates[0]
   const user = Array.isArray(firstUpdate?.users) ? firstUpdate.users[0] : firstUpdate?.users
   if (!user) return null
@@ -304,7 +475,28 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, collabEntri
       return ta.localeCompare(tb)
     })
   }
-  const dateGroups = [...byDate.entries()] // already sorted latest first
+  // ── Approved leave / permission / WFH / shoot day for this person ──────────
+  // Member > History shows these alongside the work; without them the admin only ever
+  // sees the hours that WERE worked and never why the rest of the day is missing.
+  // Expanded per date, clamped to the visible range and to today (a future-dated approved
+  // leave hasn't happened yet — same rule History applies).
+  const leaveEnd = to < todayIST() ? to : todayIST()
+  const leavesByDate = new Map<string, LeaveDetail[]>()
+  for (const l of leaves) {
+    if (l.user_id !== user.id) continue
+    if (!LEAVE_CFG[l.leave_type]) continue
+    const cur = new Date(l.from_date + "T12:00:00")
+    const end = new Date(l.to_date + "T12:00:00")
+    while (cur <= end) {
+      const ds = cur.toISOString().split("T")[0]
+      if (ds >= from && ds <= leaveEnd) leavesByDate.set(ds, [...(leavesByDate.get(ds) ?? []), l])
+      cur.setDate(cur.getDate() + 1)
+    }
+  }
+
+  // Every date that has work, a leave, or both — newest first
+  const allDates = [...new Set([...byDate.keys(), ...leavesByDate.keys()])].sort((a, b) => b.localeCompare(a))
+  const dateGroups: [string, WorkEntry[], LeaveDetail[]][] = allDates.map(d => [d, byDate.get(d) ?? [], leavesByDate.get(d) ?? []])
   const totalEntryCount = dateGroups.reduce((s, [, e]) => s + e.length, 0)
   const notes = updates.map(u => u.notes).filter(Boolean).join(" | ")
 
@@ -345,9 +537,37 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, collabEntri
             <div style={{ textAlign: "center", padding: "48px 0", color: "#1E3A5F", fontSize: 13 }}>No work entries recorded</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {dateGroups.map(([date, entries]) => {
+              {dateGroups.map(([date, entries, dayLeaves]) => {
                 const dObj = (() => { try { return new Date(date + "T12:00:00") } catch { return null } })()
                 const dateLabel = dObj ? dObj.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : date
+
+                // Leave-only day (no daily update at all) — the leave IS the day, so it gets
+                // its own card instead of an empty work card, exactly like History.
+                if (entries.length === 0) {
+                  return (
+                    <div key={date} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {dayLeaves.map(l => <LeaveOnlyCard key={`${date}-${l.id}`} date={date} leave={l} />)}
+                    </div>
+                  )
+                }
+
+                // Leaves with a real clock window slot into the timeline; whole-day ones
+                // (full day / WFH / shoot day, or a half day with no times) ride on top as a banner.
+                const timedLeaves = dayLeaves.map(l => ({ leave: l, win: leaveWindow(l) })).filter((x): x is { leave: LeaveDetail; win: { start: string; end: string } } => x.win !== null)
+                const bannerLeaves = dayLeaves.filter(l => leaveWindow(l) === null)
+                const timeline: Array<
+                  | { kind: "entry"; entry: WorkEntry; sort: string }
+                  | { kind: "leave"; leave: LeaveDetail; win: { start: string; end: string }; sort: string }
+                > = [
+                  ...entries.map(e => ({ kind: "entry" as const, entry: e, sort: (e.start_time as string | undefined) ?? "" })),
+                  ...timedLeaves.map(t => ({ kind: "leave" as const, leave: t.leave, win: t.win, sort: t.win.start })),
+                ]
+                timeline.sort((a, b) => {
+                  if (!a.sort && !b.sort) return 0
+                  if (!a.sort) return 1
+                  if (!b.sort) return -1
+                  return a.sort.localeCompare(b.sort)
+                })
 
                 return (
                   <div key={date} style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
@@ -364,6 +584,10 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, collabEntri
                         </p>
                       </div>
                     </div>
+
+                    {/* Whole-day leave context (WFH / shoot day / full day, or a half day with
+                        no times on file) — no clock slot to sit in, so it banners the day. */}
+                    {bannerLeaves.map(l => <LeaveDayBanner key={`${date}-${l.id}`} leave={l} />)}
 
                     {/* Day stats — same figures as History's header, wrapped to its own row.
                         Own entries only for workH/travelH/learnH/breakH — a merged-in collab
@@ -407,9 +631,15 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, collabEntri
                       )
                     })()}
 
-                    {/* Entries — plain divided rows, no per-entry card/border */}
+                    {/* Entries — plain divided rows, no per-entry card/border.
+                        Timed leave/permission blocks sit in their real chronological slot. */}
                     <div>
-                      {entries.map((e, i) => {
+                      {timeline.map((item, i) => {
+                        const isLastRow = i === timeline.length - 1
+                        if (item.kind === "leave") {
+                          return <LeaveTimelineRow key={`leave-${item.leave.id}`} leave={item.leave} win={item.win} isLast={isLastRow} />
+                        }
+                        const e = item.entry
                         const cfg = TASK_CFG[String(e.task_type ?? "other")] ?? TASK_CFG.other
                         const { Icon } = cfg
                         const rawTitle = (e.title || e.task_name || e.description || "") as string
@@ -434,10 +664,9 @@ function PersonDetailDrawer({ updates, onClose, collabHoursMap = {}, collabEntri
                         const location = (e._location as string | undefined) ?? ""
                         const notes = (e.notes ?? e.description ?? "") as string
                         const cleanNotes = isShoot ? stripShootNotes(notes) : notes.replace(/^\[(completed|in_progress|not_started)\]\s*/, "").trim()
-                        const isLast = i === entries.length - 1
 
                         return (
-                          <div key={i} style={{ borderBottom: isLast ? "none" : "1px solid #F5F6FA" }}>
+                          <div key={i} style={{ borderBottom: isLastRow ? "none" : "1px solid #F5F6FA" }}>
                             <div style={{ display: "flex", gap: 14, padding: "14px 18px", alignItems: "flex-start" }}>
                               {/* Type icon square */}
                               <div style={{ width: 34, height: 34, borderRadius: 10, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -527,6 +756,7 @@ export default function ActivitiesClient({
   confirmedEntryIds = [],
   pendingLeaves = [],
   pendingCollabs = [],
+  detailedLeaves = [],
   teams = [],
 }: {
   updates: Update[]
@@ -541,6 +771,7 @@ export default function ActivitiesClient({
   confirmedEntryIds?: string[]
   pendingLeaves?: PendingLeave[]
   pendingCollabs?: PendingCollab[]
+  detailedLeaves?: LeaveDetail[]
   teams?: TeamRow[]
 }) {
   const router = useRouter()
@@ -1332,6 +1563,9 @@ export default function ActivitiesClient({
           collabEntries={selectedUserCollabEntries}
           members={members}
           teams={teams}
+          leaves={detailedLeaves}
+          from={from}
+          to={to}
         />
       )}
     </div>

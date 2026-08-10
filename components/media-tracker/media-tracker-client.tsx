@@ -4768,6 +4768,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           shoots={shoots}
           ads={ads}
           clientTargets={clientTargets}
+          clients={clients}
           today={today}
           onAttentionClick={goTo}
           onSetTarget={handleSetOverviewTarget}

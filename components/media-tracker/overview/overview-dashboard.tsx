@@ -39,7 +39,7 @@ function ContentTypeToggle({ value, onChange }: { value: ContentTypeFilter; onCh
 }
 
 export function OverviewDashboard({
-  overview, items, shoots, ads, clientTargets, today,
+  overview, items, shoots, ads, clientTargets, clients, today,
   onAttentionClick, onSetTarget,
 }: {
   overview: Overview
@@ -47,6 +47,7 @@ export function OverviewDashboard({
   shoots: Shoot[]
   ads: Ad[]
   clientTargets: ClientTarget[]
+  clients: { id: string; name: string }[]
   today: string
   onAttentionClick: (target: AttentionItem["target"]) => void
   onSetTarget: (clientName: string, kind: "branding" | "ads", contentType: "video" | "poster", month: string, newTarget: number) => Promise<void>
@@ -61,13 +62,19 @@ export function OverviewDashboard({
     () => computeMonthlyRollup(items, clientTargets, effectiveMonth, "branding", contentTypeFilter),
     [items, clientTargets, effectiveMonth, contentTypeFilter]
   )
+  // computeClientDeliveryStatus derives its client list from content_items/content_client_targets
+  // client_name text, with no idea which clients are marked Past — so a Past client with any
+  // leftover item/target still surfaces here unless filtered back down to the active roster.
+  const activeClientNames = useMemo(() => new Set(clients.map(c => c.name)), [clients])
   const brandingRows = useMemo(
-    () => computeClientDeliveryStatus(items, clientTargets, effectiveMonth, today, "branding", contentTypeFilter),
-    [items, clientTargets, effectiveMonth, today, contentTypeFilter]
+    () => computeClientDeliveryStatus(items, clientTargets, effectiveMonth, today, "branding", contentTypeFilter)
+      .filter(row => activeClientNames.has(row.client)),
+    [items, clientTargets, effectiveMonth, today, contentTypeFilter, activeClientNames]
   )
   const adsRows = useMemo(
-    () => computeClientDeliveryStatus(items, clientTargets, effectiveMonth, today, "ads", contentTypeFilter),
-    [items, clientTargets, effectiveMonth, today, contentTypeFilter]
+    () => computeClientDeliveryStatus(items, clientTargets, effectiveMonth, today, "ads", contentTypeFilter)
+      .filter(row => activeClientNames.has(row.client)),
+    [items, clientTargets, effectiveMonth, today, contentTypeFilter, activeClientNames]
   )
   // How Work Moves reads the stage counts already split by content type on `overview`
   // (overview.videos / overview.posters) — each already combines that content type's

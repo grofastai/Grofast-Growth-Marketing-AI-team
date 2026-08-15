@@ -49,6 +49,7 @@ export default async function ActivitiesPage({
     { data: collabConfirmsRaw },
     { data: pendingLeavesRaw },
     { data: pendingCollabsRaw },
+    { data: detailedLeavesRaw },
   ] = await Promise.all([
     admin
       .from("users")
@@ -115,6 +116,17 @@ export default async function ActivitiesPage({
       .select("collaborator_id, date, status")
       .eq("company_id", companyId)
       .eq("status", "pending"),
+    // Every approved leave type in range — full detail, for the person drawer so it reads
+    // exactly like Member > History (which shows leave/permission/WFH/shoot day alongside
+    // the work entries, not just the work). Deliberately NOT limited to full_day/half_day
+    // like `approvedLeaves` above: that one drives the "On Leave" count, this one drives display.
+    admin
+      .from("leaves")
+      .select("id, user_id, leave_type, from_date, to_date, reason, permission_time, permission_end_time, permission_hours, half_day_from_time, half_day_to_time, half_day_period")
+      .eq("company_id", companyId)
+      .eq("status", "approved")
+      .lte("from_date", to)
+      .gte("to_date", from),
   ])
 
   // Group tasks by user
@@ -185,6 +197,7 @@ export default async function ActivitiesPage({
       confirmedEntryIds={confirmedEntryIds}
       pendingLeaves={pendingLeavesRaw ?? []}
       pendingCollabs={pendingCollabsRaw ?? []}
+      detailedLeaves={detailedLeavesRaw ?? []}
       teams={teams}
     />
   )

@@ -12,17 +12,48 @@ interface ButtonParam {
   payload: string
 }
 
-export async function sendWhatsAppTemplate(
+// Meta's delivery funnel, in order. `accepted` is ours (the /messages call returned 200);
+// the rest arrive asynchronously on the `statuses` webhook. `failed` outranks everything
+// because a message that was reported sent can still be dropped afterwards.
+const DELIVERY_STATUS_RANK: Record<string, number> = {
+  accepted: 0, sent: 1, delivered: 2, read: 3, failed: 4,
+}
+
+// Meta replays and reorders status events — a `sent` can land after `delivered`. Only ever
+// move a row forward, so a late duplicate can't overwrite the real outcome.
+export function shouldUpgradeDeliveryStatus(current: string | null, next: string): boolean {
+  const nextRank = DELIVERY_STATUS_RANK[next]
+  if (nextRank === undefined) return false
+  const currentRank = current === null ? -1 : DELIVERY_STATUS_RANK[current] ?? -1
+  return nextRank > currentRank
+}
+
+export interface WhatsAppSendResult {
+  /** Meta ACCEPTED the send (HTTP 2xx). This is NOT proof of delivery — see messageId. */
+  ok: boolean
+  /** Meta's wamid. Store it as notifications.provider_ref so the delivery-status
+   *  webhook can later flip that row to delivered/read/failed. */
+  messageId: string | null
+  /** Meta's rejection reason (code + message) when ok is false. */
+  error: string | null
+}
+
+// A 200 from Meta only means "queued for delivery" — the message can still be dropped
+// afterwards (marketing frequency caps, blocked recipient, number not on WhatsApp) and
+// Meta reports that asynchronously via the `statuses` webhook, never in this response.
+// Callers that need to know whether a message actually landed must persist `messageId`
+// so app/api/webhooks/whatsapp can match the status event back to the send.
+export async function sendWhatsAppTemplateDetailed(
   phone: string,
   templateName: string,
   params: string[],
   buttons?: ButtonParam[]
-): Promise<boolean> {
+): Promise<WhatsAppSendResult> {
   const token = process.env.META_WHATSAPP_TOKEN
   const phoneId = process.env.META_PHONE_NUMBER_ID
   if (!token || !phoneId) {
     console.warn('[whatsapp] META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID not set — skipping')
-    return false
+    return { ok: false, messageId: null, error: 'meta credentials not configured' }
   }
 
   const components: object[] = [
@@ -62,16 +93,32 @@ export async function sendWhatsAppTemplate(
       }),
     })
 
+    const json = await res.json().catch(() => ({} as Record<string, unknown>))
+
     if (!res.ok) {
-      const json = await res.json().catch(() => ({}))
-      console.error(`[whatsapp] Meta API error for ${phone}:`, json)
-      return false
+      console.error(`[whatsapp] Meta API error for ${phone} (${templateName}):`, json)
+      const e = (json as { error?: { code?: number; message?: string } }).error
+      return { ok: false, messageId: null, error: e ? `${e.code ?? '?'}: ${e.message ?? ''}` : `http ${res.status}` }
     }
-    return true
+
+    const messageId =
+      (json as { messages?: Array<{ id?: string }> }).messages?.[0]?.id ?? null
+    return { ok: true, messageId, error: null }
   } catch (err) {
     console.error('[whatsapp] fetch failed:', err)
-    return false
+    return { ok: false, messageId: null, error: err instanceof Error ? err.message : 'fetch failed' }
   }
+}
+
+// Boolean-only wrapper — the 15+ existing call sites only branch on success.
+export async function sendWhatsAppTemplate(
+  phone: string,
+  templateName: string,
+  params: string[],
+  buttons?: ButtonParam[]
+): Promise<boolean> {
+  const { ok } = await sendWhatsAppTemplateDetailed(phone, templateName, params, buttons)
+  return ok
 }
 
 interface TemplateEntry {

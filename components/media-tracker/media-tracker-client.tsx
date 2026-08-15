@@ -10,7 +10,7 @@ import {
   Plus, X, GripVertical, Video, Image as ImageIcon, Camera, PlaySquare, ThumbsUp,
   Building2, Store, Search, Trash2, Sparkles, Pencil, AtSign,
   Layers, History, ArrowRight, Check, ChevronDown, Megaphone, Target, AlertTriangle, CalendarDays, RotateCcw, LayoutDashboard,
-  MoreVertical, XCircle, ExternalLink,
+  MoreVertical, XCircle, ExternalLink, Clock,
 } from "lucide-react"
 import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
@@ -1436,6 +1436,13 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEdit, onDelete }: {
   // a Completed (green) card shouldn't have blue crew badges fighting its own theme.
   const accent = SHOOT_STATUS_CFG[shoot.status].color
   const accentDark = darken(accent, 0.7)
+
+  // The shoot's slot was previously only visible after opening the edit modal — but "when"
+  // is the first thing anyone scanning the board wants, so it belongs on the card face.
+  const fromLabel = fmtTime(toISTTimeString(shoot.start_time))
+  const toLabel = fmtTime(toISTTimeString(shoot.end_time))
+  const timeLabel = fromLabel ? (toLabel ? `${fromLabel} – ${toLabel}` : fromLabel) : ""
+
   return (
     <div className="rounded-2xl p-4 mb-2.5 select-none"
       style={{
@@ -1451,6 +1458,12 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEdit, onDelete }: {
           <p className="text-[12px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>
             {shoot.client} · {fmtDate(shoot.start_time.split("T")[0])}
           </p>
+          {timeLabel && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-md"
+              style={{ marginTop: 4, background: `${accent}14`, color: accentDark, fontVariantNumeric: "tabular-nums" }}>
+              <Clock size={10} style={{ flexShrink: 0 }} /> {timeLabel}
+            </span>
+          )}
           {shoot.tags.length > 0 && (
             <div className="flex flex-wrap gap-1" style={{ marginTop: 4 }}>
               {shoot.tags.map(tag => (
@@ -4768,6 +4781,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           shoots={shoots}
           ads={ads}
           clientTargets={clientTargets}
+          clients={clients}
           today={today}
           onAttentionClick={goTo}
           onSetTarget={handleSetOverviewTarget}

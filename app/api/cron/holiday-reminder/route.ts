@@ -3,11 +3,22 @@ export const revalidate = 0
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
+import { sendWhatsAppTemplateDetailed, formatPhone } from '@/lib/whatsapp'
 import { todayIST } from '@/lib/utils/ist-date'
-import { filterAlreadyNotifiedToday, markNotifiedToday } from '@/lib/cron/dedup'
+import { filterAlreadyNotifiedToday, markNotifiedToday, type NotifiedRow } from '@/lib/cron/dedup'
 
+// Send-log marker for the WhatsApp channel (no title/body — hidden from the bell).
 const NOTIF_TYPE = 'whatsapp_holiday_reminder_sent'
+// The in-app bell notification itself. Deliberately a separate type on its own dedupe
+// track: WhatsApp can silently fail at Meta's end, so the bell is the channel that is
+// actually guaranteed to reach the employee.
+const IN_APP_TYPE = 'holiday_reminder'
+
+interface Member {
+  id: string
+  name: string
+  phone: string | null
+}
 
 function adminSupabase() {
   return createClient(
@@ -64,36 +75,65 @@ export async function GET(request: NextRequest) {
 
   let sent = 0
   let checked = 0
+  let inApp = 0
 
   for (const holiday of holidays) {
-    const { data: members } = await admin
+    // No phone filter here — the in-app notification must reach everyone, including
+    // members with no phone number on file (they got nothing at all before).
+    const { data: membersRaw } = await admin
       .from('users')
       .select('id, name, phone')
       .eq('company_id', holiday.company_id)
       .eq('status', 'active')
-      .not('phone', 'is', null)
 
-    const candidates = (members ?? []).filter((m: any) => m.phone)
+    const members = (membersRaw ?? []) as Member[]
+
+    // --- Channel 1: in-app bell (guaranteed — no external dependency) ---------
+    const alreadyInApp = await filterAlreadyNotifiedToday(admin, IN_APP_TYPE, members.map(m => m.id))
+    const inAppRows = members
+      .filter(m => !alreadyInApp.has(m.id))
+      .map(m => ({
+        company_id: holiday.company_id,
+        user_id: m.id,
+        type: IN_APP_TYPE,
+        title: `Holiday tomorrow — ${holiday.name}`,
+        body: `${dateLabel} is a company holiday. Enjoy your day off!`,
+        link: '/member/leaves',
+      }))
+
+    if (inAppRows.length) {
+      const { error: inAppErr } = await admin.from('notifications').insert(inAppRows)
+      if (inAppErr) console.error('[holiday-reminder] in-app insert failed:', inAppErr.message)
+      else inApp += inAppRows.length
+    }
+
+    // --- Channel 2: WhatsApp (best-effort — Meta can still drop it) -----------
+    const candidates = members.filter(m => m.phone)
     checked += candidates.length
 
-    const alreadyNotified = await filterAlreadyNotifiedToday(admin, NOTIF_TYPE, candidates.map((m: any) => m.id))
-    const toNotify = candidates.filter((m: any) => !alreadyNotified.has(m.id))
+    const alreadyNotified = await filterAlreadyNotifiedToday(admin, NOTIF_TYPE, candidates.map(m => m.id))
+    const toNotify = candidates.filter(m => !alreadyNotified.has(m.id))
 
-    const notifiedRows: Array<{ userId: string; companyId: string }> = []
+    const notifiedRows: NotifiedRow[] = []
     await Promise.all(
-      toNotify.map(async (m: any) => {
-        const ok = await sendWhatsAppTemplate(
-          formatPhone(m.phone), 'grofast_holiday_reminder', [m.name, holiday.name, dateLabel]
+      toNotify.map(async (m) => {
+        const phone = formatPhone(m.phone!)
+        const res = await sendWhatsAppTemplateDetailed(
+          phone, 'grofast_holiday_reminder', [m.name, holiday.name, dateLabel]
         ).catch((err) => {
           console.error(`[holiday-reminder] failed to send to ${m.name}:`, err)
-          return false
+          return { ok: false, messageId: null, error: String(err) }
         })
-        if (ok) { sent++; notifiedRows.push({ userId: m.id, companyId: holiday.company_id }) }
+        if (res.ok) {
+          sent++
+          // provider_ref is what makes a later silent drop traceable back to this person.
+          notifiedRows.push({ userId: m.id, companyId: holiday.company_id, providerRef: res.messageId, phone })
+        }
       })
     )
     await markNotifiedToday(admin, NOTIF_TYPE, notifiedRows)
   }
 
-  console.log(`[holiday-reminder] date=${tomorrow} checked=${checked} sent=${sent}`)
-  return NextResponse.json({ holidays: holidays.length, checked, sent, date: tomorrow })
+  console.log(`[holiday-reminder] date=${tomorrow} checked=${checked} whatsapp=${sent} in_app=${inApp}`)
+  return NextResponse.json({ holidays: holidays.length, checked, sent, inApp, date: tomorrow })
 }

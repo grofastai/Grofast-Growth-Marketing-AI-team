@@ -24,14 +24,32 @@ export async function filterAlreadyNotifiedToday(
   return new Set((data ?? []).map((r: { user_id: string }) => r.user_id))
 }
 
+export interface NotifiedRow {
+  userId: string
+  companyId: string
+  // Meta's wamid. When supplied, the row is also written with status='accepted' and the
+  // recipient phone, so app/api/webhooks/whatsapp can match Meta's async delivery-status
+  // events back to this send and flip it to delivered/read/failed. Without it a silently
+  // dropped message is indistinguishable from a delivered one.
+  providerRef?: string | null
+  phone?: string | null
+}
+
 // Takes {userId, companyId} pairs (not a single shared companyId) — attendance-nudge
 // and logout-nudge query MEMBER users across every company in one unscoped pass, so
 // there's no single company_id to attach to the whole batch.
 export async function markNotifiedToday(
-  admin: SupabaseClient, type: string, rows: Array<{ userId: string; companyId: string }>
+  admin: SupabaseClient, type: string, rows: NotifiedRow[]
 ): Promise<void> {
   if (!rows.length) return
-  await admin.from('notifications').insert(
-    rows.map(({ userId, companyId }) => ({ company_id: companyId, user_id: userId, type }))
+  const { error } = await admin.from('notifications').insert(
+    rows.map(({ userId, companyId, providerRef, phone }) => ({
+      company_id: companyId,
+      user_id: userId,
+      type,
+      ...(providerRef ? { provider_ref: providerRef, status: 'accepted' } : {}),
+      ...(phone ? { phone } : {}),
+    }))
   )
+  if (error) console.error(`[cron-dedup] failed to mark ${type}:`, error.message)
 }

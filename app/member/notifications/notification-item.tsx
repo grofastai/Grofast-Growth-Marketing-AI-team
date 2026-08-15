@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import {
   Bell, CheckCircle2, ClipboardList, Megaphone, LifeBuoy,
-  MessageSquare, ArrowRight,
+  MessageSquare, ArrowRight, PartyPopper,
 } from 'lucide-react'
 
 export interface NotificationRow {
@@ -32,6 +32,8 @@ function getTypeMeta(type: string): NotifMeta {
       return { icon: <LifeBuoy size={18} style={{ color: '#DE1A1A' }} />, bg: 'rgba(222,26,26,0.10)', label: 'Support' }
     case 'task_completed':
       return { icon: <CheckCircle2 size={18} style={{ color: '#22C55E' }} />, bg: 'rgba(34,197,94,0.12)', label: 'Task Done' }
+    case 'holiday_reminder':
+      return { icon: <PartyPopper size={18} style={{ color: '#8B5CF6' }} />, bg: 'rgba(139,92,246,0.12)', label: 'Holiday' }
     default:
       return { icon: <Bell size={18} style={{ color: '#9CA3AF' }} />, bg: 'rgba(156,163,175,0.12)', label: 'Notification' }
   }

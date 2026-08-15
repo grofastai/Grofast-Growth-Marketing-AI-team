@@ -1,6 +1,7 @@
 'use client'
 import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Plus, Search, CalendarDays, BookOpen, FolderOpen } from 'lucide-react'
 import { FolderSidebar } from './folder-sidebar'
 import { NotesList } from './notes-list'
@@ -113,9 +114,8 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
               position: 'absolute', right: 'clamp(8px,4vw,40px)', top: '50%', transform: 'translateY(-50%)',
               width: 'clamp(70px,20vw,150px)', height: '120%', pointerEvents: 'none', zIndex: 1,
             }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/notes-hero.png" alt=""
-                style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', filter: 'drop-shadow(0 6px 24px rgba(0,0,0,0.25))' }} />
+              <Image src="/brand/notes-hero.png" alt="" fill sizes="150px"
+                style={{ objectFit: 'contain', objectPosition: 'center', filter: 'drop-shadow(0 6px 24px rgba(0,0,0,0.25))' }} />
             </div>
           }
         />

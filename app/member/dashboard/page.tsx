@@ -1,6 +1,6 @@
 export const revalidate = 0
 
-import { createServerClient } from "@/lib/supabase/server"
+import { createServerClient, getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import type React from "react"
@@ -23,7 +23,7 @@ function adminClient() {
 
 export default async function MemberDashboardPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) return null
 
   const cookieStore = await cookies()

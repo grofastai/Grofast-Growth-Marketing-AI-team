@@ -2,6 +2,7 @@
 
 import { useState, useRef, useMemo, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { createBrowserClient } from '@/lib/supabase/client'
 import { addResponse, updateTicketStatus, createTicket, closeTicket, getSupportHandlerCandidates, setSupportHandler, editResponse, deleteResponse } from '@/lib/actions/support'
 import { useToast } from '@/components/ui/useToast'
@@ -256,9 +257,8 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
               <div className="absolute right-2 bottom-6 top-auto translate-y-0 w-[clamp(64px,24vw,130px)] h-[56%] md:left-[28%] md:right-auto md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:w-[clamp(150px,45vw,420px)] md:h-[135%]" style={{
                 pointerEvents: 'none', zIndex: 1,
               }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/support/hero-girl.png" alt=""
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center bottom', filter: 'drop-shadow(0 6px 24px rgba(0,0,0,0.25))' }} />
+                <Image src="/brand/support/hero-girl.png" alt="" fill sizes="420px"
+                  style={{ objectFit: 'contain', objectPosition: 'center bottom', filter: 'drop-shadow(0 6px 24px rgba(0,0,0,0.25))' }} />
               </div>
             }
             actions={
@@ -513,9 +513,8 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                   {/* Character with soft glow ring */}
                   <div style={{ position: 'relative', width: 220, height: 200, marginBottom: 20, flexShrink: 0 }}>
                     <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: 'radial-gradient(circle, rgba(222,26,26,0.07) 0%, transparent 70%)', top: '20%' }} />
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/brand/support/hero-boy.png" alt=""
-                      style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.12))' }} />
+                    <Image src="/brand/support/hero-boy.png" alt="" fill sizes="220px"
+                      style={{ objectFit: 'contain', filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.12))' }} />
                   </div>
 
                   <h3 style={{ fontSize: 18, fontWeight: 900, color: '#1F2430', margin: '0 0 8px', fontFamily: 'var(--font-jakarta)', letterSpacing: '-0.01em' }}>Select a ticket</h3>

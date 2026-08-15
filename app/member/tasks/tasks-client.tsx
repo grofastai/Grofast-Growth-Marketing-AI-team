@@ -4,6 +4,7 @@ const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 
 import { useState, useTransition, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
@@ -963,7 +964,7 @@ export default function MemberTasksClient({
           <div style={{ position: "absolute", bottom: -40, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
           {/* Illustration — visible at every width, scales down on mobile via clamp() instead of disappearing */}
-          <img src="/brand/task-board-hero.png" alt="" aria-hidden="true"
+          <Image src="/brand/task-board-hero.png" alt="" aria-hidden="true" width={1536} height={1024}
             style={{ position: "absolute", top: "50%", right: "clamp(12px,6vw,84px)", transform: "translateY(-50%)", height: "clamp(72px,26vw,188px)", width: "auto", objectFit: "contain", zIndex: 2, pointerEvents: "none", filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.35))" }} />
 
           {/* LEFT: badge + title + subtitle — paddingRight reserves space so the title/subtitle never

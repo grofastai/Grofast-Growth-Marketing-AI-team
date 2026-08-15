@@ -995,7 +995,7 @@ export default function InsightsClient({
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5, fontFamily: TABLE_FONT }}>
               <thead>
                 <tr style={{ background: HERO_GRAD }}>
-                  {['Member', 'Full Day', 'Half Day', 'Permission', 'Days Used', 'Balance'].map(h => (
+                  {['Member', 'Full Day', 'Half Day', 'Permission', 'Overtime Offset', 'Days Used', 'Balance'].map(h => (
                     <th key={h} style={{
                       textAlign: h === 'Member' ? 'left' : 'center', padding: '12px 14px', fontSize: 10, fontWeight: 800, color: '#FFFFFF',
                       textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap',
@@ -1025,6 +1025,9 @@ export default function InsightsClient({
                       </td>
                       <td style={{ padding: '11px 14px', textAlign: 'center', fontWeight: 700, color: r.permissionHours > 0 ? INK : DIM, borderBottom: isLast ? 'none' : `1px solid ${RULE}`, fontVariantNumeric: 'tabular-nums' }}>
                         {r.permissionHours > 0 ? `${r.permissionHours}h` : '—'}
+                      </td>
+                      <td style={{ padding: '11px 14px', textAlign: 'center', fontWeight: 700, color: r.overtimeOffset > 0 ? SEMANTIC.info : DIM, borderBottom: isLast ? 'none' : `1px solid ${RULE}`, fontVariantNumeric: 'tabular-nums' }}>
+                        {r.overtimeOffset > 0 ? `${r.overtimeOffset}h` : '—'}
                       </td>
                       <td style={{ padding: '11px 14px', borderBottom: isLast ? 'none' : `1px solid ${RULE}` }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
@@ -1056,7 +1059,7 @@ export default function InsightsClient({
             <thead style={{ background: TABLE_HEAD_GRAD }}>
               <tr>
                 {['Employee', 'ID', 'Monthly Salary', 'Per Hour Rate'].map(h => (
-                  <th key={h} style={h === 'Employee' || h === 'ID' ? { ...groupThStyle, textAlign: 'left', borderRight: h === 'ID' ? groupThStyle.borderRight : 'none' } : { ...groupThStyle, borderRight: h === 'Per Hour Rate' ? 'none' : groupThStyle.borderRight }}>{h}</th>
+                  <th key={h} style={h === 'Employee' || h === 'ID' ? { ...groupThStyle, textAlign: 'left', borderRight: h === 'ID' ? groupThStyle.borderRight : 'none' } : { ...groupThStyle, textAlign: 'right', borderRight: h === 'Per Hour Rate' ? 'none' : groupThStyle.borderRight }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -1065,10 +1068,10 @@ export default function InsightsClient({
                 <tr key={m.employeeId} style={{ background: i % 2 === 0 ? CARD : HEAD_BG }}>
                   <td style={{ padding: '12px 16px', fontWeight: 600, color: INK }}>{m.name.trim()}</td>
                   <td style={{ padding: '12px 16px', color: MUTED, fontWeight: 600, fontFamily: 'monospace' }}>{m.employeeId}</td>
-                  <td style={{ padding: '12px 16px', fontWeight: 600, color: INK }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, color: INK, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                     {m.monthlySalary > 0 ? `₹${m.monthlySalary.toLocaleString('en-IN')}` : '—'}
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
+                  <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                     {m.hourlyRate > 0 ? (
                       <span style={{
                         color: RED, fontWeight: 700, fontSize: 13, fontFamily: 'monospace',

@@ -105,6 +105,7 @@ export type LeaveBreakdownRow = {
   fullDays: number
   halfDays: number; halfDayHours: number
   permissionHours: number
+  overtimeOffset: number  // same-month overtime that netted against Permission before it converted to days — see sumLeaveDays' overtimeByMonth param
   daysUsed: number       // sumLeaveDays() total — what the 5-day cap is actually checked against
   balance: number         // MONTHLY_LEAVE_CAP - daysUsed, negative once they've gone over (e.g. Exceptional Leave)
 }
@@ -465,10 +466,17 @@ export default async function InsightsPage({
         }
       }
       const daysUsed = sumLeaveDays(rows as LeaveForBalance[], dateFrom, dateTo, memberOvertimeByMonth)
+      // Same figure sumLeaveDays used to net against Permission above — surfaced
+      // as its own column (see insights-client.tsx) so it's visible right next to
+      // Permission why a member's hours didn't cost them a leave day, instead of
+      // needing to cross-reference the separate Team Utilization Overtime column,
+      // which measures something different (total hours vs monthly target).
+      const overtimeOffset = memberOvertimeByMonth[dateFrom.slice(0, 7)] ?? 0
       return {
         id: m.id, name: m.name,
         fullDays, halfDays, halfDayHours: Math.round(halfDayHours * 10) / 10,
         permissionHours: Math.round(permissionHours * 10) / 10,
+        overtimeOffset: Math.round(overtimeOffset * 10) / 10,
         daysUsed: Math.round(daysUsed * 10) / 10,
         balance: Math.round((MONTHLY_LEAVE_CAP - daysUsed) * 10) / 10,
       }

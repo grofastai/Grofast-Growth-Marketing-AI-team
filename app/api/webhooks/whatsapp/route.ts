@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { sendNotificationViaTemplate } from '@/lib/whatsapp'
+import { sendNotificationViaTemplate, shouldUpgradeDeliveryStatus } from '@/lib/whatsapp'
 import { autoInsertLeaveHistory, formatLeaveDetail } from '@/lib/leave-approval-effects'
 import { findUnresolvedLogoutDate, formatGateDate } from '@/lib/attendance-gate'
 import { todayIST } from '@/lib/utils/ist-date'
@@ -32,11 +32,24 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ status: 'ok' })
 }
 
+interface MetaDeliveryStatus {
+  id?: string            // wamid — matches notifications.provider_ref
+  status?: string        // sent | delivered | read | failed
+  recipient_id?: string
+  errors?: Array<{
+    code?: number
+    title?: string
+    message?: string
+    error_data?: { details?: string }
+  }>
+}
+
 interface MetaWebhookBody {
   object?: string
   entry?: Array<{
     changes?: Array<{
       value?: {
+        statuses?: MetaDeliveryStatus[]
         messages?: Array<{
           from?: string
           type?: string
@@ -60,6 +73,11 @@ async function processWebhook(body: unknown) {
 
   for (const entry of wb.entry ?? []) {
     for (const change of entry.changes ?? []) {
+      // Meta reports delivery outcomes here, not in the /messages API response. These
+      // events were previously dropped on the floor, which is why a message Meta accepted
+      // (HTTP 200) but never delivered looked identical to a delivered one.
+      await recordDeliveryStatuses(change.value?.statuses ?? [])
+
       for (const message of change.value?.messages ?? []) {
         if (message.type === 'text' && message.text?.body && message.from) {
           await handleAttendanceTextReply(message.from, message.text.body)
@@ -94,6 +112,51 @@ async function processWebhook(body: unknown) {
         }
       }
     }
+  }
+}
+
+async function recordDeliveryStatuses(statuses: MetaDeliveryStatus[]) {
+  if (!statuses.length) return
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  for (const s of statuses) {
+    const wamid = s.id
+    const status = s.status
+    if (!wamid || !status) continue
+
+    if (status === 'failed') {
+      // The reason a send silently vanishes lives ONLY here. Common codes:
+      //   131049 — dropped to "maintain healthy ecosystem engagement" (marketing frequency cap)
+      //   131026 — undeliverable (recipient not on WhatsApp / can't receive)
+      //   131047 — re-engagement required
+      const e = s.errors?.[0]
+      console.error(
+        `[whatsapp-status] FAILED to ${s.recipient_id ?? 'unknown'} — code=${e?.code ?? '?'} ` +
+        `title="${e?.title ?? ''}" details="${e?.error_data?.details ?? e?.message ?? ''}" wamid=${wamid}`
+      )
+    }
+
+    // Only rows written with a provider_ref can be matched. Messages sent without one
+    // still surface via the console.error above, they just aren't attributable to a user.
+    const { data: row } = await supabase
+      .from('notifications')
+      .select('id, status')
+      .eq('provider_ref', wamid)
+      .maybeSingle()
+
+    if (!row) continue
+    if (!shouldUpgradeDeliveryStatus(row.status, status)) continue
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ status })
+      .eq('id', row.id)
+
+    if (error) console.error('[whatsapp-status] update failed:', error.message)
   }
 }
 

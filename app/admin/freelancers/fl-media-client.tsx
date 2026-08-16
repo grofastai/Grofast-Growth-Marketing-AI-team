@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useTransition } from "react"
+import Image from "next/image"
 import { Loader2, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react"
 import { updateWorkEntryPrice } from "@/lib/actions/daily-updates"
 
@@ -202,11 +203,11 @@ export default function FlMediaClient({
             <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
             <div style={{ position: "absolute", bottom: -30, left: 120, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
             {/* Character (desktop) — anchored bottom-right, but inset far enough (right:230) to clear the top-right month-nav pill (~180px wide + margin), so it always renders to the pill's left */}
-            <img src="/brand/freelancer-media-production-character.png" alt="" aria-hidden="true"
+            <Image src="/brand/freelancer-media-production-character.png" alt="" aria-hidden="true" width={1536} height={1024}
               className="hidden sm:block"
               style={{ position: "absolute", bottom: 0, right: 230, width: "clamp(140px,26vw,320px)", height: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(220,20,60,0.5))" }} />
             {/* Character (mobile) — grounded, shifted right for breathing room from the text; mobile month-nav is in-flow below the text, not corner-pinned, so no gutter needed here */}
-            <img src="/brand/freelancer-media-production-character.png" alt="" aria-hidden="true"
+            <Image src="/brand/freelancer-media-production-character.png" alt="" aria-hidden="true" width={1536} height={1024}
               className="block sm:hidden"
               style={{ position: "absolute", bottom: 50, right: 10, width: "clamp(140px,34vw,220px)", height: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(220,20,60,0.5))" }} />
           </div>

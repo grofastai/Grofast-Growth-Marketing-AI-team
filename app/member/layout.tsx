@@ -1,5 +1,5 @@
 ﻿import { redirect } from "next/navigation"
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import MemberSidebar from "@/components/member/sidebar"
@@ -17,8 +17,7 @@ function adminSupabase() {
 }
 
 export default async function MemberLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
 
   const admin = adminSupabase()

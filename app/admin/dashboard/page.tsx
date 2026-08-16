@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import type { CSSProperties } from "react"
 import { cacheGet, cacheSet } from "@/lib/cache"
@@ -11,7 +11,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { getAlerts } from "@/lib/alerts"
 import PendingApprovalsCard from "./pending-approvals"
-import TaskSummaryChart from "./task-summary-chart"
+import TaskSummaryChart from "./task-summary-chart-lazy"
 import MiniCalendar from "./mini-calendar"
 import DashboardSearch from "@/components/admin/DashboardSearch"
 import { todayIST, toISTDateString, nowISTShifted } from "@/lib/utils/ist-date"
@@ -55,8 +55,7 @@ type UpdateRow = {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   // nowISTShifted() reads as IST wall-clock time via its UTC getters — plain new Date()
   // reads the server's own clock (UTC on Vercel), wrong for "today"/"this month" during
@@ -78,102 +77,117 @@ export default async function DashboardPage() {
   // Stat counts are cached per company per day (60s TTL) — reduces 8 DB round-trips to 1 cache read
   type StatCache = { presentToday: number; activeTasks: number; activeClients: number; onLeaveTodayCount: number; taskCompleted: number; taskInProgress: number; taskTodo: number; taskOverdue: number }
   const statsKey = `dashboard:stats:${cid}:${today}`
-  let statCounts = await cacheGet<StatCache>(statsKey)
 
-  if (!statCounts) {
-    // attendance_logs.user_id has no FK constraint to users.id in this schema, so
-    // PostgREST can't resolve an embedded users!inner(...) join — fetch the filtered
-    // member id list first, then scope the attendance_logs count to it.
-    const { data: realMembersForCount } = await admin
-      .from("users")
-      .select("id")
-      .eq("company_id", cid).eq("role", "MEMBER").eq("status", "active")
-      .eq("is_management", false).eq("is_freelancer_login", false)
-    const realMemberIds = (realMembersForCount ?? []).map(m => m.id)
+  // The 3 blocks below (stat counts, this-month batch, yesterday batch) only depend
+  // on `cid`/date values already known at this point — not on each other's results —
+  // so they're fetched concurrently instead of as 3 sequential round-trip stages.
+  const [
+    statCounts,
+    [
+      { data: pendingLeavesRaw },
+      { data: recentUpdatesRaw },
+      { data: monthLeavesRaw },
+      alerts,
+      { data: collabRaw },
+      { data: todayLeavesRaw },
+    ],
+    [
+      { data: yesterdayUpdatesRaw },
+      { data: activeMembersRaw },
+      { data: yesterdayLeavesRaw },
+      { data: yesterdayHolidayRaw },
+    ],
+  ] = await Promise.all([
+    (async (): Promise<StatCache> => {
+      const cached = await cacheGet<StatCache>(statsKey)
+      if (cached) return cached
 
-    const [p, a, c, l, tc, ti, tt, to] = await Promise.all([
-      realMemberIds.length > 0
-        ? admin.from("attendance_logs").select("*", { count: "exact", head: true })
-            .eq("company_id", cid).eq("date", today).eq("status", "present")
-            .in("user_id", realMemberIds)
-        : Promise.resolve({ count: 0 }),
-      admin.from("tasks").select("*", { count: "exact", head: true })
-        .eq("company_id", cid).neq("status", "completed"),
-      admin.from("clients").select("*", { count: "exact", head: true })
-        .eq("company_id", cid).eq("status", "active"),
-      admin.from("leaves").select("*", { count: "exact", head: true })
+      // attendance_logs.user_id has no FK constraint to users.id in this schema, so
+      // PostgREST can't resolve an embedded users!inner(...) join — fetch the filtered
+      // member id list first, then scope the attendance_logs count to it.
+      const { data: realMembersForCount } = await admin
+        .from("users")
+        .select("id")
+        .eq("company_id", cid).eq("role", "MEMBER").eq("status", "active")
+        .eq("is_management", false).eq("is_freelancer_login", false)
+      const realMemberIds = (realMembersForCount ?? []).map(m => m.id)
+
+      const [p, a, c, l, tc, ti, tt, to] = await Promise.all([
+        realMemberIds.length > 0
+          ? admin.from("attendance_logs").select("*", { count: "exact", head: true })
+              .eq("company_id", cid).eq("date", today).eq("status", "present")
+              .in("user_id", realMemberIds)
+          : Promise.resolve({ count: 0 }),
+        admin.from("tasks").select("*", { count: "exact", head: true })
+          .eq("company_id", cid).neq("status", "completed"),
+        admin.from("clients").select("*", { count: "exact", head: true })
+          .eq("company_id", cid).eq("status", "active"),
+        admin.from("leaves").select("*", { count: "exact", head: true })
+          .eq("company_id", cid).eq("status", "approved")
+          .in("leave_type", ["full_day", "half_day"])
+          .lte("from_date", today).gte("to_date", today),
+        admin.from("tasks").select("*", { count: "exact", head: true })
+          .eq("company_id", cid).eq("status", "completed"),
+        admin.from("tasks").select("*", { count: "exact", head: true })
+          .eq("company_id", cid).eq("status", "in_progress"),
+        admin.from("tasks").select("*", { count: "exact", head: true })
+          .eq("company_id", cid).eq("status", "todo"),
+        admin.from("tasks").select("*", { count: "exact", head: true })
+          .eq("company_id", cid).neq("status", "completed").lt("due_date", today),
+      ])
+      const fresh: StatCache = {
+        presentToday:     p.count ?? 0,
+        activeTasks:      a.count ?? 0,
+        activeClients:    c.count ?? 0,
+        onLeaveTodayCount: l.count ?? 0,
+        taskCompleted:    tc.count ?? 0,
+        taskInProgress:   ti.count ?? 0,
+        taskTodo:         tt.count ?? 0,
+        taskOverdue:      to.count ?? 0,
+      }
+      await cacheSet(statsKey, fresh, 60)
+      return fresh
+    })(),
+    Promise.all([
+      admin.from("leaves")
+        .select("id, from_date, to_date, reason, users(name, employee_id)")
+        .eq("company_id", cid).eq("status", "pending")
+        .order("created_at", { ascending: false }).limit(5),
+      admin.from("daily_updates")
+        .select("attendance_status, work_type, working_hours, created_at, users(name, employee_id)")
+        .eq("company_id", cid).eq("date", today)
+        .order("created_at", { ascending: false }).limit(6),
+      admin.from("leaves")
+        .select("from_date, to_date, leave_type, users(id, name)")
+        .eq("company_id", cid).eq("status", "approved")
+        .lte("from_date", monthEnd).gte("to_date", monthStart),
+      cid ? getAlerts(cid) : Promise.resolve({ notUpdatedCount: 0, notUpdatedNames: [], overdueTaskCount: 0, overdueProjectCount: 0, total: 0 }),
+      admin.from("daily_updates")
+        .select("date, participant_ids")
+        .eq("company_id", cid)
+        .gte("date", monthStart)
+        .lte("date", today),
+      admin.from("leaves")
+        .select("id, leave_type, reason, users(name, employee_id)")
         .eq("company_id", cid).eq("status", "approved")
         .in("leave_type", ["full_day", "half_day"])
         .lte("from_date", today).gte("to_date", today),
-      admin.from("tasks").select("*", { count: "exact", head: true })
-        .eq("company_id", cid).eq("status", "completed"),
-      admin.from("tasks").select("*", { count: "exact", head: true })
-        .eq("company_id", cid).eq("status", "in_progress"),
-      admin.from("tasks").select("*", { count: "exact", head: true })
-        .eq("company_id", cid).eq("status", "todo"),
-      admin.from("tasks").select("*", { count: "exact", head: true })
-        .eq("company_id", cid).neq("status", "completed").lt("due_date", today),
-    ])
-    statCounts = {
-      presentToday:     p.count ?? 0,
-      activeTasks:      a.count ?? 0,
-      activeClients:    c.count ?? 0,
-      onLeaveTodayCount: l.count ?? 0,
-      taskCompleted:    tc.count ?? 0,
-      taskInProgress:   ti.count ?? 0,
-      taskTodo:         tt.count ?? 0,
-      taskOverdue:      to.count ?? 0,
-    }
-    await cacheSet(statsKey, statCounts, 60)
-  }
+    ]),
+    // Yesterday not-updated members
+    Promise.all([
+      admin.from("daily_updates").select("user_id").eq("company_id", cid).eq("date", yesterday),
+      admin.from("users").select("id, name, is_management, is_freelancer_login").eq("company_id", cid).eq("role", "MEMBER").eq("status", "active"),
+      // Members on approved full_day or half_day leave yesterday (exempt from update requirement)
+      admin.from("leaves").select("user_id")
+        .eq("company_id", cid).eq("status", "approved")
+        .in("leave_type", ["full_day", "half_day"])
+        .lte("from_date", yesterday).gte("to_date", yesterday),
+      // Company holiday yesterday — if so, nobody needs to update
+      admin.from("company_leaves").select("id").eq("company_id", cid).eq("date", yesterday).maybeSingle(),
+    ]),
+  ])
 
   const { presentToday, activeTasks, activeClients, onLeaveTodayCount, taskCompleted, taskInProgress, taskTodo, taskOverdue } = statCounts
-
-  const [
-    { data: pendingLeavesRaw },
-    { data: recentUpdatesRaw },
-    { data: monthLeavesRaw },
-    alerts,
-    { data: collabRaw },
-    { data: todayLeavesRaw },
-  ] = await Promise.all([
-    admin.from("leaves")
-      .select("id, from_date, to_date, reason, users(name, employee_id)")
-      .eq("company_id", cid).eq("status", "pending")
-      .order("created_at", { ascending: false }).limit(5),
-    admin.from("daily_updates")
-      .select("attendance_status, work_type, working_hours, created_at, users(name, employee_id)")
-      .eq("company_id", cid).eq("date", today)
-      .order("created_at", { ascending: false }).limit(6),
-    admin.from("leaves")
-      .select("from_date, to_date, leave_type, users(id, name)")
-      .eq("company_id", cid).eq("status", "approved")
-      .lte("from_date", monthEnd).gte("to_date", monthStart),
-    cid ? getAlerts(cid) : Promise.resolve({ notUpdatedCount: 0, notUpdatedNames: [], overdueTaskCount: 0, overdueProjectCount: 0, total: 0 }),
-    admin.from("daily_updates")
-      .select("date, participant_ids")
-      .eq("company_id", cid)
-      .gte("date", monthStart)
-      .lte("date", today),
-    admin.from("leaves")
-      .select("id, leave_type, reason, users(name, employee_id)")
-      .eq("company_id", cid).eq("status", "approved")
-      .in("leave_type", ["full_day", "half_day"])
-      .lte("from_date", today).gte("to_date", today),
-  ])
-
-  // Yesterday not-updated members
-  const [{ data: yesterdayUpdatesRaw }, { data: activeMembersRaw }, { data: yesterdayLeavesRaw }, { data: yesterdayHolidayRaw }] = await Promise.all([
-    admin.from("daily_updates").select("user_id").eq("company_id", cid).eq("date", yesterday),
-    admin.from("users").select("id, name, is_management, is_freelancer_login").eq("company_id", cid).eq("role", "MEMBER").eq("status", "active"),
-    // Members on approved full_day or half_day leave yesterday (exempt from update requirement)
-    admin.from("leaves").select("user_id")
-      .eq("company_id", cid).eq("status", "approved")
-      .in("leave_type", ["full_day", "half_day"])
-      .lte("from_date", yesterday).gte("to_date", yesterday),
-    // Company holiday yesterday — if so, nobody needs to update
-    admin.from("company_leaves").select("id").eq("company_id", cid).eq("date", yesterday).maybeSingle(),
-  ])
   const yesterdayUpdatedIds  = new Set((yesterdayUpdatesRaw  ?? []).map((u: { user_id: string }) => u.user_id))
   const yesterdayOnLeaveIds  = new Set((yesterdayLeavesRaw   ?? []).map((l: { user_id: string }) => l.user_id))
   const yesterdayWasHoliday  = !!yesterdayHolidayRaw

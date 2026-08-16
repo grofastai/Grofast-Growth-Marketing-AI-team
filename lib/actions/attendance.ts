@@ -680,8 +680,9 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
 // Bounded by MAX_LOOKBACK_DAYS and the user's own join date, so a brand-new hire's
 // pre-employment history is never scanned or flagged.
 // Longest approved leave ever actually taken here is 6 days — 21 gives a wide safety
-// margin (rare medical/maternity leave etc.) without needing a batched-query rewrite:
-// the day-by-day scan below stays cheap enough at this size (~63 DB calls worst case).
+// margin (rare medical/maternity leave etc.). The window's attendance/update/holiday
+// rows are fetched once as 3 ranged queries and scanned in memory (see below), rather
+// than one round-trip per day, so widening this further is cheap.
 const MAX_LOOKBACK_DAYS = 21
 
 export async function findLastWorkingDayIssues(ctx: { userId: string; companyId: string }): Promise<{
@@ -701,7 +702,13 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
   windowStart.setUTCDate(windowStart.getUTCDate() - MAX_LOOKBACK_DAYS)
   const windowStartStr = windowStart.toISOString().split('T')[0]
 
-  const [{ data: profile }, { data: pendingLeaves }, { data: collabRows }] = await Promise.all([
+  // Loop below walks backward starting at "yesterday" (today's own attendance isn't
+  // due yet), so the scanned range is [windowStartStr, yesterdayStr] inclusive.
+  const yesterday = nowISTShifted()
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1)
+  const yesterdayStr = yesterday.toISOString().split('T')[0]
+
+  const [{ data: profile }, { data: pendingLeaves }, { data: collabRows }, { data: attLogRows }, { data: updateRows }, { data: holidayRows }] = await Promise.all([
     admin.from('users').select('joined_at').eq('id', ctx.userId).single(),
     // A leave still awaiting admin approval must not be treated as "no leave at
     // all" — it only becomes an attendance_logs placeholder once approved (see
@@ -715,9 +722,28 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
       .eq('collaborator_id', ctx.userId).eq('company_id', ctx.companyId)
       .in('status', ['confirmed', 'edited_confirmed'])
       .gte('date', windowStartStr),
+    // The day-by-day scan below used to issue 3 fresh queries per iteration (up to
+    // ~63 round-trips for a 21-day window) sitting directly in the member layout's
+    // render path. Fetching the whole window once and looking up by date in memory
+    // collapses that to 3 queries total, regardless of window size.
+    admin.from('attendance_logs').select('date, clock_in, clock_out, status')
+      .eq('user_id', ctx.userId).eq('company_id', ctx.companyId)
+      .gte('date', windowStartStr).lte('date', yesterdayStr),
+    admin.from('daily_updates').select('date, work_entries, learning_hours')
+      .eq('user_id', ctx.userId).eq('company_id', ctx.companyId)
+      .gte('date', windowStartStr).lte('date', yesterdayStr),
+    admin.from('company_leaves').select('date')
+      .eq('company_id', ctx.companyId)
+      .gte('date', windowStartStr).lte('date', yesterdayStr),
   ])
   const joinedAt = (profile as { joined_at?: string | null } | null)?.joined_at ?? ''
   const collabDates = new Set((collabRows ?? []).map(r => (r as { date: string }).date))
+
+  type AttLogRow = { date: string; clock_in: string | null; clock_out: string | null; status: string }
+  type UpdateRow = { date: string; work_entries?: unknown; learning_hours?: number | string | null }
+  const attLogByDate = new Map((attLogRows ?? []).map(r => [(r as AttLogRow).date, r as AttLogRow]))
+  const updateByDate = new Map((updateRows ?? []).map(r => [(r as UpdateRow).date, r as UpdateRow]))
+  const holidayDates = new Set((holidayRows ?? []).map(r => (r as { date: string }).date))
 
   const pendingLeaveDates = new Set<string>()
   for (const lv of (pendingLeaves ?? []) as { from_date: string; to_date: string }[]) {
@@ -748,24 +774,15 @@ export async function findLastWorkingDayIssues(ctx: { userId: string; companyId:
     const dateStr = cursor.toISOString().split('T')[0]
     if (joinedAt && dateStr < joinedAt) break // don't scan before they joined
 
-    const [{ data: attLog }, { data: update }, { data: holiday }] = await Promise.all([
-      admin.from('attendance_logs')
-        .select('clock_in, clock_out, status')
-        .eq('user_id', ctx.userId).eq('company_id', ctx.companyId).eq('date', dateStr).maybeSingle(),
-      admin.from('daily_updates')
-        .select('work_entries, learning_hours')
-        .eq('user_id', ctx.userId).eq('company_id', ctx.companyId).eq('date', dateStr).maybeSingle(),
-      admin.from('company_leaves')
-        .select('id')
-        .eq('company_id', ctx.companyId).eq('date', dateStr).maybeSingle(),
-    ])
+    const attLog = attLogByDate.get(dateStr) ?? null
+    const update = updateByDate.get(dateStr) ?? null
 
     // A full day off (status 'leave', from an approved full-day leave) or a marked
     // absence is genuinely nothing to check. A pending (not yet approved) leave with
     // no attendance row is also excused — the member is waiting on admin, not AWOL.
     // A half-day leave is NOT in this list — it only excuses its own slot, not the
     // rest of the day the member still owes.
-    const excused = !!holiday || attLog?.status === 'leave' || attLog?.status === 'absent'
+    const excused = holidayDates.has(dateStr) || attLog?.status === 'leave' || attLog?.status === 'absent'
       || (!attLog && pendingLeaveDates.has(dateStr))
     if (excused) { noLeaveStreakOpen = false; continue } // full day off/holiday/pending-leave — skip entirely, keep walking back for BOTH checks; a clean day also ends the no-leave streak
 

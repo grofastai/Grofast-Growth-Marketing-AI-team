@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
+import Image from "next/image"
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   useDraggable, useDroppable,
@@ -4750,8 +4751,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           // Reused from the retired Content Calendar hero — same character and the same
           // frosted-glass date/total/posted trio, one scrollable row on mobile.
           <div className="flex flex-nowrap overflow-x-auto md:flex-wrap md:overflow-visible" style={{ alignItems: "center", gap: 12, scrollbarWidth: "none", maxWidth: "100%" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/content-cal-hero-girl.png" alt=""
+            <Image src="/brand/content-cal-hero-girl.png" alt="" width={1536} height={1024}
               style={{ height: "clamp(64px,16vw,110px)", width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
             <div className="flex gap-2" style={{ flexShrink: 0 }}>
               <HeroGlassStat

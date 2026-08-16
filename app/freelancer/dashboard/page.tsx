@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import Link from "next/link"
 import { Users, ClipboardList, Camera, Scissors, Mic } from "lucide-react"
@@ -28,8 +28,7 @@ function StatCard({ label, value, icon: Icon, color }: { label: string; value: n
 }
 
 export default async function FreelancerDashboardPage() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
 
   const admin = adminSupabase()

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import {
   Search, X, Sparkles, Building2, Users, TrendingUp, Plus, Pencil, Trash2, Check,
   MapPin, Phone, Mail, CalendarRange, Layers, Tag, User,
@@ -347,8 +348,7 @@ export default function ClientsUnifiedClient({
             right-hand chart card clean off). */}
         <div style={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)', width: 'clamp(140px,36vw,360px)', aspectRatio: '1774 / 887', pointerEvents: 'none', zIndex: 0, borderRadius: 14, overflow: 'hidden' }}>
           <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '30%', background: 'linear-gradient(to right, #8B1A1A 0%, transparent 100%)', zIndex: 2 }} />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/client-hero.png" alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block', opacity: 0.92 }} />
+          <Image src="/brand/client-hero.png" alt="" fill sizes="360px" style={{ objectFit: 'contain', objectPosition: 'center', opacity: 0.92 }} />
         </div>
         <div style={{ padding: 'clamp(24px,6vw,40px) clamp(18px,5vw,32px)', display: 'flex', alignItems: 'center', gap: 16, position: 'relative', zIndex: 1 }}>
           {/* Capped to 60% so it can never run under the illustration, which occupies the right 50% of the hero */}

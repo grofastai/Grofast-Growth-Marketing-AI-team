@@ -1,5 +1,6 @@
 import { createServerClient as createSSRClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { cache } from 'react'
 import type { Database } from './types'
 
 export async function createServerClient() {
@@ -26,3 +27,12 @@ export async function createServerClient() {
     }
   )
 }
+
+// auth.getUser() is a live network round-trip to Supabase Auth (unlike getSession(),
+// which only decodes the JWT locally). Layout + page both need the verified user on
+// every render, so cache() collapses repeat calls within one request into one call.
+export const getCurrentUser = cache(async () => {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+})

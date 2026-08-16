@@ -461,7 +461,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         {/* Illustration — visible at every width; sits right of the title on mobile (same row) and in the flex gap between title and status/ring on desktop */}
         <div className="flex justify-end" style={{ alignSelf:"flex-end", flexShrink:0, position:"relative", zIndex:1 }}>
           <div style={{ position:"absolute", bottom:2, left:"50%", transform:"translateX(-50%)", width:100, height:20, borderRadius:"50%", background:"radial-gradient(ellipse, rgba(0,0,0,0.4) 0%, transparent 72%)", filter:"blur(2px)", pointerEvents:"none" }} />
-          <img src="/brand/attendance-boy.png" alt="" aria-hidden="true"
+          <Image src="/brand/attendance-boy.png" alt="" aria-hidden="true" width={1024} height={1536}
             style={{ position:"relative", height: "clamp(90px,24vw,164px)", width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 10px 18px rgba(0,0,0,0.3))" }} />
         </div>
 

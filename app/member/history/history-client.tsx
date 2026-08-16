@@ -2881,9 +2881,9 @@ export default function HistoryClient({
                                           </div>
                                         )}
                                       </div>
-                                    ) : editDraft.task_type!=="other" ? (
+                                    ) : (
                                       <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }} /></div>
-                                    ) : null}
+                                    )}
                                     {editDraft.task_type==="other" && members.length>0 && (
                                       <div className="w-full md:w-1/2">
                                         <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:5 }}>👥 Worked With</label>

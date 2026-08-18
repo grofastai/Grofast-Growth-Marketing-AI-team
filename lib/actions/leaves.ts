@@ -1184,7 +1184,14 @@ export async function adminApplyLeaveOnBehalf(input: {
   permissionEndTime?: string
   permissionHours?: number
   permissionReasonType?: 'late_login' | 'early_logoff' | 'other'
-}): Promise<{ success: boolean; error?: string }> {
+  // Admin already sees the conflict message and chose to proceed anyway — e.g.
+  // correcting a mistaken entry the employee can't fix themselves for a past
+  // date, or a Permission window that necessarily falls inside a continuous
+  // clock-in/out session (which can't be "gapped" without erasing real hours).
+  // Employee self-service (submitLeaveRequest) has no such override — this
+  // flag only exists on the admin path (2026-08-18).
+  forceOverrideConflict?: boolean
+}): Promise<{ success: boolean; error?: string; conflictWarning?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
@@ -1278,8 +1285,10 @@ export async function adminApplyLeaveOnBehalf(input: {
       })
     })
   }
-  if (conflictDates.length) {
-    return { success: false, error: `${target.name} already has a login or work logged on ${conflictDates.join(', ')} — cannot apply leave over an existing day.` }
+  if (conflictDates.length && !input.forceOverrideConflict) {
+    // Warning, not a hard stop — admin can resubmit with forceOverrideConflict
+    // once they've seen this and decided to proceed anyway.
+    return { success: false, conflictWarning: `${target.name} already has a login or work logged on ${conflictDates.join(', ')}.` }
   }
 
   const { data: inserted, error: insertError } = await admin.from('leaves').insert({

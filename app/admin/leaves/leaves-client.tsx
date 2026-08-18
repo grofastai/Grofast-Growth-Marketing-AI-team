@@ -365,15 +365,22 @@ export default function LeavesClient({
   const [applyReason, setApplyReason]           = useState("")
   const [applyPending, setApplyPending]         = useState(false)
   const [applyError, setApplyError]             = useState<string | null>(null)
+  // Overridable conflict warning (admin-only) — distinct from applyError,
+  // which is a hard validation stop. Set when adminApplyLeaveOnBehalf finds
+  // real attendance/work overlapping the requested leave; "Apply Anyway"
+  // resubmits with forceOverrideConflict.
+  const [applyConflictWarning, setApplyConflictWarning] = useState<string | null>(null)
 
   function resetApplyForm() {
     setApplyUserId(""); setApplyLeaveType("full_day"); setApplyFromDate(""); setApplyToDate("")
     setApplyHalfPeriod("morning"); setApplyHalfFrom(""); setApplyHalfTo("")
     setApplyPermFrom(""); setApplyPermTo(""); setApplyPermReasonType(""); setApplyReason(""); setApplyError(null)
+    setApplyConflictWarning(null)
   }
 
-  async function submitApplyLeave() {
+  async function submitApplyLeave(forceOverrideConflict = false) {
     setApplyError(null)
+    setApplyConflictWarning(null)
     if (!applyUserId) { setApplyError("Select an employee."); return }
     if (!applyFromDate) { setApplyError("Select a date."); return }
     if (applyLeaveType === "permission" && !applyPermReasonType) { setApplyError("Select a reason."); return }
@@ -412,9 +419,13 @@ export default function LeavesClient({
       permissionEndTime: applyPermTo,
       permissionHours: permHours,
       permissionReasonType: applyLeaveType === "permission" ? (applyPermReasonType || undefined) : undefined,
+      forceOverrideConflict,
     })
     setApplyPending(false)
-    if (!result.success) { setApplyError(result.error ?? "Failed to apply leave."); return }
+    if (!result.success) {
+      if (result.conflictWarning) { setApplyConflictWarning(result.conflictWarning); return }
+      setApplyError(result.error ?? "Failed to apply leave."); return
+    }
     setShowApplyModal(false)
     resetApplyForm()
     router.refresh()
@@ -1080,13 +1091,27 @@ export default function LeavesClient({
                 <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>⚠️ {applyError}</p>
               )}
 
+              {applyConflictWarning && (
+                <div style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)" }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "#92400E", margin: "0 0 6px" }}>⚠️ {applyConflictWarning}</p>
+                  <p style={{ fontSize: 11, color: "#92400E", margin: 0 }}>You can still apply this leave if you're intentionally overriding it (e.g. correcting a mistake).</p>
+                </div>
+              )}
+
               <div style={{ display: "flex", gap: 10 }}>
                 <button type="button" onClick={() => { setShowApplyModal(false); resetApplyForm() }}
                   style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
-                <button type="button" disabled={applyPending} onClick={submitApplyLeave}
-                  style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: applyPending ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                  {applyPending && <Loader2 size={13} className="animate-spin" />} Apply & Approve
-                </button>
+                {applyConflictWarning ? (
+                  <button type="button" disabled={applyPending} onClick={() => submitApplyLeave(true)}
+                    style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#F59E0B,#B45309)", color: "#fff", border: "none", cursor: "pointer", opacity: applyPending ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    {applyPending && <Loader2 size={13} className="animate-spin" />} Apply Anyway
+                  </button>
+                ) : (
+                  <button type="button" disabled={applyPending} onClick={() => submitApplyLeave()}
+                    style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: applyPending ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    {applyPending && <Loader2 size={13} className="animate-spin" />} Apply & Approve
+                  </button>
+                )}
               </div>
             </div>
           </div>

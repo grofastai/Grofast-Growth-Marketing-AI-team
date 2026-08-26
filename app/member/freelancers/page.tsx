@@ -39,7 +39,7 @@ export default async function MemberFreelancersPage() {
   if ((assignedCount ?? 0) === 0) redirect("/member/dashboard")
 
   const [freelancersResult, workEntriesResult, activeClientsResult, pastClientsResult] = await Promise.all([
-    admin.from("freelancers").select("id, name, team, phone, rating, status, created_at")
+    admin.from("freelancers").select("id, name, team, phone, payment_qr_url, rating, status, created_at")
       .eq("company_id", cid).not("team", "is", null).order("name"),
     admin.from("freelancer_work_entries_v2").select("*")
       .eq("company_id", cid).order("date_finished", { ascending: false }),

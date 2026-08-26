@@ -299,6 +299,30 @@ export async function deleteFreelancer(id: string): Promise<{ success: boolean; 
   return { success: true }
 }
 
+/** Save (or clear, with url = null) a freelancer's GPay/PhonePe payment QR.
+ *  The image itself is uploaded through POST /api/upload-photo (auth + rate
+ *  limited there); this only persists the returned public URL. */
+export async function updateFreelancerPaymentQr(
+  id: string,
+  url: string | null,
+): Promise<{ success: boolean; error?: string }> {
+  const companyId = await getCompanyId()
+  if (!companyId) return { success: false, error: "Not authenticated" }
+
+  const admin = adminClient()
+  const { error } = await admin
+    .from("freelancers")
+    .update({ payment_qr_url: url })
+    .eq("id", id)
+    .eq("company_id", companyId)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath("/admin/freelancers")
+  revalidatePath(`/admin/freelancers/${id}`)
+  revalidatePath("/member/freelancers")
+  return { success: true }
+}
+
 export async function createWorkEntry(input: WorkEntryInput): Promise<{ success: boolean; error?: string }> {
   const companyId = await getCompanyId()
   if (!companyId) return { success: false, error: "Not authenticated" }

@@ -10,6 +10,7 @@ import {
   createWorkEntry, approveWorkEntry, rejectWorkEntry,
 } from "@/lib/actions/freelancers"
 import { addFreelancerPayment, deleteFreelancerPayment } from "@/lib/actions/freelancer-payments"
+import FreelancerPaymentCard from "@/components/freelancers/FreelancerPaymentCard"
 import { buildClientOptions } from "@/lib/utils/client-options"
 import ClientSelector from "@/components/ui/ClientSelector"
 import { todayIST } from "@/lib/utils/ist-date"
@@ -20,6 +21,7 @@ export type FreelancerRecord = {
   id: string; name: string; type: string; phone?: string | null
   whatsapp?: string | null; location?: string | null; upi_id?: string | null
   bank_name?: string | null; account_number?: string | null; ifsc?: string | null
+  payment_qr_url?: string | null
   notes?: string | null; status: string; rating?: number
   cost_per_video?: number | null; cost_per_minute?: number | null; cost_per_hour?: number | null
   availability_notes?: string | null; created_at: string
@@ -218,6 +220,14 @@ function OverviewTab({ freelancer, stats, typeColor }: {
           ))}
         </div>
       </div>
+
+      <FreelancerPaymentCard
+        freelancerId={freelancer.id}
+        name={freelancer.name}
+        phone={freelancer.phone ?? null}
+        qrUrl={freelancer.payment_qr_url ?? null}
+        accent={typeColor}
+      />
 
       {(freelancer.cost_per_video || freelancer.cost_per_minute || freelancer.cost_per_hour) && (
         <div style={{ ...CARD, padding: 20 }}>

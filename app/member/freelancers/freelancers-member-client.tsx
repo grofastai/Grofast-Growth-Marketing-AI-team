@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useTransition } from "react"
 import Image from "next/image"
-import { X, Plus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Star, Link2, FileText, IndianRupee, Users, Pencil, CheckCircle2, Trash2 } from "lucide-react"
+import { X, Plus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Star, Link2, FileText, IndianRupee, Users, Pencil, CheckCircle2, Trash2, Phone, QrCode } from "lucide-react"
 import { FreelancersHero } from "@/components/freelancers/FreelancersHero"
+import FreelancerPaymentCard, { formatFreelancerPhone, phoneDialTarget } from "@/components/freelancers/FreelancerPaymentCard"
 import { saveFreelancerWorkEntry, toggleFreelancerPaymentStatus, updateFreelancerWorkEntry, deleteFreelancerWorkEntry } from "@/lib/actions/freelancer-work"
 import { buildClientOptions } from "@/lib/utils/client-options"
 import ClientSelector from "@/components/ui/ClientSelector"
@@ -26,6 +27,7 @@ export type Freelancer = {
   name: string
   team: FreelancerTeam
   phone: string | null
+  payment_qr_url: string | null
   rating: number
   status: "active" | "inactive"
   created_at: string
@@ -735,6 +737,7 @@ function FreelancerListItem({ freelancer, works, total, unpaid, isSelected, onCl
   isSelected: boolean; onClick: () => void
 }) {
   const cfg = safeCfg(freelancer.team)
+  const phoneLabel = formatFreelancerPhone(freelancer.phone)
   return (
     <button onClick={onClick} style={{ width: "100%", textAlign: "left", padding: "10px 14px", background: "transparent", border: "none", borderBottom: "1px solid #F5F5F7", cursor: "pointer", transition: "all 0.15s", borderLeft: `3px solid ${isSelected ? cfg.color : "transparent"}`, backgroundColor: isSelected ? `${cfg.color}0D` : "transparent" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
@@ -743,7 +746,20 @@ function FreelancerListItem({ freelancer, works, total, unpaid, isSelected, onCl
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: 13, fontWeight: 800, color: isSelected ? "#111" : "#374151", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{freelancer.name}</p>
-          <p style={{ fontSize: 10, color: cfg.color, margin: "2px 0 0", fontWeight: 700 }}>{cfg.emoji} {cfg.shortLabel}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2, minWidth: 0 }}>
+            <p style={{ fontSize: 10, color: cfg.color, margin: 0, fontWeight: 700, whiteSpace: "nowrap" }}>{cfg.emoji} {cfg.shortLabel}</p>
+            {phoneLabel && (
+              <span style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <Phone size={9} /> {phoneLabel}
+              </span>
+            )}
+            {/* QR present marker — makes it obvious at a glance who still needs one */}
+            {freelancer.payment_qr_url && (
+              <span title="Payment QR saved" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 15, height: 15, borderRadius: 4, background: cfg.bg, border: `1px solid ${cfg.border}`, flexShrink: 0 }}>
+                <QrCode size={9} color={cfg.color} />
+              </span>
+            )}
+          </div>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <p style={{ fontSize: 12, fontWeight: 900, color: "#111", margin: 0 }}>{total > 0 ? fmt(total) : "—"}</p>
@@ -912,9 +928,17 @@ export default function FreelancersMemberClient({
   const [teamFilter, setTeamFilter] = useState<"all" | FreelancerTeam>("all")
   const [addWorkFor, setAddWorkFor] = useState<Freelancer | null>(null)
   const [editEntry, setEditEntry] = useState<WorkEntry | null>(null)
+  // QR uploads/removals patched in locally so the hero, card and list badge all
+  // update immediately — the server row only lands on the next page load.
+  const [qrOverrides, setQrOverrides] = useState<Record<string, string | null>>({})
   const [, startTransition] = useTransition()
 
-  const activeFreelancers = useMemo(() => freelancers.filter(f => f.status === "active"), [freelancers])
+  const activeFreelancers = useMemo(() =>
+    freelancers
+      .filter(f => f.status === "active")
+      .map(f => f.id in qrOverrides ? { ...f, payment_qr_url: qrOverrides[f.id] } : f),
+    [freelancers, qrOverrides]
+  )
   const selectedFreelancer = activeFreelancers.find(f => f.id === selectedId) ?? null
 
   const filteredFreelancers = useMemo(() =>
@@ -1264,6 +1288,8 @@ export default function FreelancersMemberClient({
               ? new Date(selectedFreelancer.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
               : null
             const isRJ = selectedFreelancer.team === "Freelance RJ Voiceover"
+            const heroPhone = formatFreelancerPhone(selectedFreelancer.phone)
+            const heroDial = phoneDialTarget(selectedFreelancer.phone)
             return (
               <div>
                 {/* HERO BANNER */}
@@ -1308,6 +1334,12 @@ export default function FreelancersMemberClient({
                               <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{selectedFreelancer.rating.toFixed(1)}</span>
                             </div>
                             {joinedDate && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Since {joinedDate}</span>}
+                            {heroPhone && (
+                              <a href={`tel:+${heroDial}`}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.28)", color: "#fff", textDecoration: "none", whiteSpace: "nowrap" }}>
+                                <Phone size={11} /> {heroPhone}
+                              </a>
+                            )}
                           </div>
                           <div style={{ marginTop: 10 }}>
                             <p style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>{cfg.emoji} {cfg.tagline}</p>
@@ -1336,6 +1368,15 @@ export default function FreelancersMemberClient({
                         {joinedDate && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Since {joinedDate}</span>}
                       </div>
                       <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", margin: "16px 0 0", letterSpacing: "-0.01em", lineHeight: 1.3 }}>{cfg.tagline}</p>
+                      {/* Phone sits under the tagline on mobile — the text column is capped
+                          at 40% width here, so a pill on the "Since …" row would wrap into
+                          the character artwork. */}
+                      {heroPhone && (
+                        <a href={`tel:+${heroDial}`}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 99, background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.28)", color: "#fff", textDecoration: "none", whiteSpace: "nowrap", alignSelf: "flex-start", marginTop: 12 }}>
+                          <Phone size={11} /> {heroPhone}
+                        </a>
+                      )}
                       <button onClick={() => setAddWorkFor(selectedFreelancer)}
                         style={{ marginTop: 16, padding: "9px 16px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0, alignSelf: "flex-start" }}>
                         <Plus size={14} /> Add Work
@@ -1355,6 +1396,18 @@ export default function FreelancersMemberClient({
                       ))}
                     </div>
                   </div>
+                </div>
+
+                {/* CONTACT & PAYMENT */}
+                <div style={{ margin: "14px 16px 0" }}>
+                  <FreelancerPaymentCard
+                    freelancerId={selectedFreelancer.id}
+                    name={selectedFreelancer.name}
+                    phone={selectedFreelancer.phone}
+                    qrUrl={selectedFreelancer.payment_qr_url}
+                    accent={cfg.color}
+                    onQrChange={url => setQrOverrides(prev => ({ ...prev, [selectedFreelancer.id]: url }))}
+                  />
                 </div>
 
                 {/* WORK HISTORY */}

@@ -10,6 +10,11 @@ import { formatLeaveDetail } from '@/lib/leave-approval-effects'
 import { sumLeaveDays, overtimeHoursByMonth } from '@/lib/utils/leave-balance'
 import { HALF_DAY_THRESHOLD_HOURS } from '@/lib/utils/attendance-stats'
 import { toISTTimeString } from '@/lib/utils/ist-date'
+import {
+  planWorkDayAttendance,
+  PLACEHOLDER_CLOCK_IN_UTC,
+  PLACEHOLDER_CLOCK_OUT_UTC,
+} from '@/lib/wfh-shoot-attendance'
 import { z } from 'zod'
 
 function createAdminClient() {
@@ -1082,44 +1087,54 @@ export async function updateLeaveStatus(
       curr.setDate(curr.getDate() + 1)
     }
 
-  // For same-day WFH/Shoot Day: auto clock-in using the time employee applied (leave.created_at)
-  // Rule: if applied before 9 AM → use 9:30 AM (shift start) as clock-in; after 9 AM → use actual apply time
+  // WFH/Shoot Day is work, not an absence, so an approval must always leave a real
+  // attendance row behind — see lib/wfh-shoot-attendance.ts for why (GF010, 2026-08-25).
+  // Same-day request  → clock in from the moment they applied, clock-out left open.
+  // Day already past  → 9:30 AM–7:00 PM IST placeholder; there is no live session left
+  //                     to open, and writing nothing hands them the "Contact Admin" gate.
+  // Future day        → nothing; they clock in themselves on the day.
   } else if (status === 'approved' && leave && (leave.leave_type === 'wfh' || leave.leave_type === 'shoot_day')) {
     const todayIst = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
-    // Only auto-clock-in when the leave was SUBMITTED on the same day (attendance-page button flow).
-    // Pre-planned leaves applied in advance have created_at from a different date — skip auto clock-in
-    // so the employee can manually clock in at the actual start time.
-    // to_date is intentionally not required to equal today — a same-day request can
-    // span multiple days (e.g. "WFH today through Friday"); only day 1 needs auto clock-in.
     const createdIst = new Date(leave.created_at).toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
-    if (leave.from_date === todayIst && createdIst === leave.from_date) {
+    const workType = leave.leave_type === 'shoot_day' ? 'shoot' : 'wfh'
+
+    for (const plan of planWorkDayAttendance(leave.from_date, leave.to_date, createdIst, todayIst)) {
+      // Always use the actual apply time — shoots and WFH can legitimately start at 6 AM, 7 AM, etc.
+      const times = plan.mode === 'apply_time'
+        ? { clock_in: leave.created_at }
+        : {
+            clock_in:  `${plan.date} ${PLACEHOLDER_CLOCK_IN_UTC}`,
+            clock_out: `${plan.date} ${PLACEHOLDER_CLOCK_OUT_UTC}`,
+          }
+
       const { data: existing } = await admin
         .from('attendance_logs')
         .select('id, clock_in')
         .eq('company_id', leave.company_id)
         .eq('user_id', leave.user_id)
-        .eq('date', todayIst)
+        .eq('date', plan.date)
         .maybeSingle()
-      // Always use actual apply time — shoots and WFH can legitimately start at 6 AM, 7 AM, etc.
-      const clockInTime = leave.created_at
-      const workType = leave.leave_type === 'shoot_day' ? 'shoot' : 'wfh'
+
       if (!existing) {
         // No record yet — plain insert (avoids onConflict key mismatch issues)
-        await admin.from('attendance_logs').insert({
+        const { error: attErr } = await admin.from('attendance_logs').insert({
           company_id: leave.company_id,
           user_id:    leave.user_id,
-          date:       todayIst,
-          clock_in:   clockInTime,
+          date:       plan.date,
           work_type:  workType,
           status:     'present',
+          ...times,
         })
+        if (attErr) console.error('[wfh/shoot approval] attendance insert:', attErr.message)
       } else if (!existing.clock_in) {
-        // Record exists but no clock_in yet — update it
-        await admin.from('attendance_logs').update({
-          clock_in:  clockInTime,
+        // Record exists but no clock_in yet — fill it in. A row that already has a
+        // clock_in is the member's own real session and is never overwritten.
+        const { error: attErr } = await admin.from('attendance_logs').update({
           work_type: workType,
           status:    'present',
+          ...times,
         }).eq('id', existing.id)
+        if (attErr) console.error('[wfh/shoot approval] attendance update:', attErr.message)
       }
     }
     // Auto-insert history entry
@@ -1306,10 +1321,12 @@ export async function adminApplyLeaveOnBehalf(input: {
   const approveResult = await updateLeaveStatus(inserted.id, 'approved')
   if (!approveResult.success) return approveResult
 
-  // updateLeaveStatus's WFH/shoot_day auto-clock-in only fires when applied on its own
-  // start date (the attendance-page "same day" flow) — a backfilled past WFH/shoot day
-  // would otherwise get NO attendance row at all and just trade one gate for another.
-  // Give it a plain present/9:30–7:00 placeholder instead, same as any other backfilled day.
+  // updateLeaveStatus above already writes today's and every past day's attendance row
+  // (see planWorkDayAttendance), so those days no-op out of the loop below on the
+  // `existing.clock_in` guard. What it deliberately leaves alone is a FUTURE day — a
+  // member is expected to clock in themselves when it arrives. An admin applying on a
+  // member's behalf is different: they're recording an arrangement the member won't be
+  // prompted about, so give those days the same plain present/9:30–7:00 placeholder.
   if (parsed.data.leave_type === 'wfh' || parsed.data.leave_type === 'shoot_day') {
     const workType = parsed.data.leave_type === 'shoot_day' ? 'shoot' : 'wfh'
     for (const d of datesInRange) {

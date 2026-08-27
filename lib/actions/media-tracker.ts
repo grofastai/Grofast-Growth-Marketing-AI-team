@@ -68,6 +68,11 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
   const source = parsed.data.content_type === 'poster' ? 'poster' : 'shoot'
   const entryStatus = parsed.data.content_type === 'poster' ? 'design' : 'ready_to_edit'
 
+  // Only meaningful on the backfill path — the normal flow captures this at the
+  // Ready to Edit -> On Review move instead.
+  const driveLink = isBackfillPosted ? (parsed.data.edited_drive_link || '').trim() : ''
+  if (driveLink && !isValidDriveLink(driveLink)) return { success: false, error: 'A valid Google Drive link is required' }
+
   const { data, error } = await ctx.admin.from('content_items').insert({
     company_id:   ctx.companyId,
     client_name:  parsed.data.client_name,
@@ -79,6 +84,7 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
     shot_date:    shotDate,
     edited_by:    isBackfillPosted ? (parsed.data.edited_by || ctx.id) : null,
     edited_date:  isBackfillPosted ? (parsed.data.posted_date || today) : null,
+    edited_drive_link: driveLink || null,
     notes:        parsed.data.notes || null,
     created_by:   ctx.id,
   }).select('id').single()

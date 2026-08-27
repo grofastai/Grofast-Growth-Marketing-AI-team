@@ -32,6 +32,10 @@ export const createContentItemSchema = z.object({
   // Who actually posted it — same reasoning as edited_by, asked instead of silently
   // crediting whoever's filling out the backfill form.
   posted_by:            z.string().uuid().optional(),
+  // Where the edited file lives. Backfilled items skip the Edited -> On Review move
+  // where this is normally captured, so it has to be askable here or the Drive link
+  // is lost for every item logged as already posted.
+  edited_drive_link:    z.string().optional(),
   // Only meaningful when posted_platforms includes 'other'.
   other_platform_label: z.string().optional(),
 })

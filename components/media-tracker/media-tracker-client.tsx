@@ -1715,6 +1715,10 @@ function NewContentModal({ clients, pastClients, members, defaultContentType = "
   const [postedDate, setPostedDate] = useState(todayIST())
   const [editedBy, setEditedBy] = useState("")
   const [postedBy, setPostedBy] = useState("")
+  // Backfilled items skip the Edited -> On Review move where the Drive link is normally
+  // asked, so it has to be capturable here — otherwise anything logged as already posted
+  // lands on the board with no way back to the file.
+  const [driveLink, setDriveLink] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -1725,6 +1729,7 @@ function NewContentModal({ clients, pastClients, members, defaultContentType = "
   async function submit() {
     if (!client || !title.trim()) { setError("Client and title are required"); return }
     if (alreadyPosted && postedPlatforms.length === 0) { setError("Pick at least one platform it was posted to"); return }
+    if (alreadyPosted && driveLink.trim() && !isValidDriveLink(driveLink)) { setError("A valid Google Drive link is required"); return }
     setSaving(true); setError(null)
     const res = await createContentItem({
       client_name: client, title: title.trim(), content_type: contentType, shot_date: shotDate, notes: notes.trim() || undefined,
@@ -1733,6 +1738,7 @@ function NewContentModal({ clients, pastClients, members, defaultContentType = "
       edited_by: alreadyPosted ? (editedBy || undefined) : undefined,
       posted_by: alreadyPosted ? (postedBy || undefined) : undefined,
       other_platform_label: alreadyPosted && postedPlatforms.includes("other") ? (otherPlatformLabel.trim() || undefined) : undefined,
+      edited_drive_link: alreadyPosted ? (driveLink.trim() || undefined) : undefined,
     })
     setSaving(false)
     if (!res.success || !res.id) { setError(res.error ?? "Failed to save"); return }
@@ -1745,7 +1751,7 @@ function NewContentModal({ clients, pastClients, members, defaultContentType = "
       posted_branding: alreadyPosted && postedPlatforms.some(p => !ADS_PLATFORM_SET.has(p)),
       posted_ads: alreadyPosted && postedPlatforms.some(p => ADS_PLATFORM_SET.has(p)),
       cancelled_by: null,
-      edited_drive_link: null,
+      edited_drive_link: alreadyPosted ? (driveLink.trim() || null) : null,
       is_promotion: false,
       shot_date: shotDate, edited_date: alreadyPosted ? postedDate : null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({
@@ -1820,6 +1826,14 @@ function NewContentModal({ clients, pastClients, members, defaultContentType = "
                 <option value="">— Not set —</option>
                 {members.map(m => <option key={m.id} value={m.id}>{upper(m.name)}</option>)}
               </select>
+            </div>
+            <div>
+              <label style={LABEL}>Drive Link</label>
+              <input type="url" style={FIELD} value={driveLink} onChange={e => setDriveLink(e.target.value)}
+                placeholder="https://drive.google.com/…" />
+              {driveLink.trim().length > 0 && !isValidDriveLink(driveLink) && (
+                <p style={{ fontSize: 10, color: "#DE1A1A", margin: "4px 0 0" }}>Must be a Google Drive or Docs link</p>
+              )}
             </div>
           </div>
         )}

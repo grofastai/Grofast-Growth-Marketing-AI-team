@@ -8,6 +8,7 @@ import { loginSchema, changePasswordSchema } from '@/lib/validations/auth'
 import { loginLimiter } from '@/lib/ratelimit'
 import { findUnresolvedLogoutDate } from '@/lib/attendance-gate'
 import { todayIST } from '@/lib/utils/ist-date'
+import { getValidImpersonationId, IMPERSONATE_COOKIE } from '@/lib/impersonation'
 
 function adminSupabase() {
   return createClient(
@@ -138,19 +139,26 @@ export async function changePasswordAction(
 }
 
 export async function logoutAction(): Promise<void> {
-  // If an admin is impersonating a member, "Sign Out" exits impersonation and
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // If an ADMIN is impersonating a member, "Sign Out" exits impersonation and
   // returns to the admin panel — it does NOT end the admin's real session and
   // does NOT touch the member's attendance timer.
+  //
+  // This used to fire on the mere presence of the cookie. Because gf_impersonate can
+  // be set by hand (httpOnly blocks JS reads, not writes), a member holding one hit
+  // this branch and "Sign Out" left their session very much alive. Validate first.
   const cookieStore = await cookies()
-  if (cookieStore.get('gf_impersonate')?.value) {
-    cookieStore.delete('gf_impersonate')
-    redirect('/admin/team')
+  if (user) {
+    const impersonating = await getValidImpersonationId(user.id)
+    // Cleared either way: a real impersonation ends here, and a forged or stale one
+    // must not bleed into the next session on this browser.
+    cookieStore.delete(IMPERSONATE_COOKIE)
+    if (impersonating) redirect('/admin/team')
   }
 
-  const supabase = await createServerClient()
-
   // Pause the live timer for any active clock-in before signing out
-  const { data: { user } } = await supabase.auth.getUser()
   if (user) {
     const admin = adminSupabase()
     const today = todayIST()

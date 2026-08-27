@@ -2,7 +2,7 @@ export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
-import { cookies } from "next/headers"
+import { getValidImpersonationId } from "@/lib/impersonation"
 import { redirect } from "next/navigation"
 import ProfileClient from "./profile-client"
 import { getMyPayslipHistory } from "@/lib/actions/profile"
@@ -20,8 +20,7 @@ export default async function ProfilePage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
-  const cookieStore = await cookies()
-  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const impersonateId = await getValidImpersonationId(user.id)
   const effectiveUserId = impersonateId ?? user.id
 
   // ── Date helpers ─────────────────────────────────────────────

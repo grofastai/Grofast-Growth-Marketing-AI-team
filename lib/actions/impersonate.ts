@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
+import { getValidImpersonationId } from "@/lib/impersonation"
 
 const COOKIE = "gf_impersonate"
 
@@ -47,45 +48,18 @@ export async function stopImpersonation() {
   redirect("/admin/team")
 }
 
-/** Returns the user ID to use for data queries in member pages.
- *  If an admin is impersonating, returns the target user's ID. */
-export async function getImpersonatedUserId(): Promise<string | null> {
-  const cookieStore = await cookies()
-  return cookieStore.get(COOKIE)?.value ?? null
-}
-
 /** Resolves the effective user ID for member-scoped data/actions.
  *  When the logged-in user is an ADMIN with an active impersonation cookie,
  *  returns the impersonated member's ID (same-company only). Otherwise returns
  *  the logged-in user's own ID. Returns null when there is no session.
  *
- *  The admin-role + same-company checks make this safe to honor the cookie:
- *  a non-admin cannot escalate by forging the cookie. */
+ *  The admin-role + same-company checks live in getValidImpersonationId, which is
+ *  the single place allowed to read this cookie. A raw getter used to sit next to
+ *  this one and was the easy, wrong thing to reach for — hence the lint ban. */
 export async function getEffectiveUserId(): Promise<string | null> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const admin = adminClient()
-  const { data: self } = await admin
-    .from("users")
-    .select("role, company_id")
-    .eq("id", user.id)
-    .single()
-
-  if (self?.role === "ADMIN") {
-    const impersonateId = (await cookies()).get(COOKIE)?.value
-    if (impersonateId && impersonateId !== user.id) {
-      const { data: target } = await admin
-        .from("users")
-        .select("company_id")
-        .eq("id", impersonateId)
-        .single()
-      if (target?.company_id && target.company_id === self.company_id) {
-        return impersonateId
-      }
-    }
-  }
-
-  return user.id
+  return (await getValidImpersonationId(user.id)) ?? user.id
 }

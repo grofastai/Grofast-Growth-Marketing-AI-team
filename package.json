@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check:rls": "node scripts/check-rls.mjs",
     "generate:images": "ts-node --project scripts/tsconfig.json scripts/generate-brand-images.ts",
     "chatgpt:login": "ts-node --project scripts/tsconfig.json scripts/generate-brand-images.ts --login-only",
     "drive:oauth-setup": "ts-node --project scripts/tsconfig.json scripts/google-drive-oauth-setup.ts"

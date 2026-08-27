@@ -1,6 +1,6 @@
 export const revalidate = 0
 
-import { cookies } from "next/headers"
+import { getValidImpersonationId } from "@/lib/impersonation"
 import { redirect } from "next/navigation"
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
@@ -18,8 +18,7 @@ export default async function MemberPayslipPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
-  const cookieStore = await cookies()
-  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const impersonateId = await getValidImpersonationId(user.id)
   const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminSupabase()

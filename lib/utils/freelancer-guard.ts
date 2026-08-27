@@ -1,8 +1,8 @@
 import "server-only"
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
-import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
+import { getValidImpersonationId } from "@/lib/impersonation"
 
 function adminSupabase() {
   return createClient(
@@ -20,8 +20,9 @@ export async function blockFreelancerMedia() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
-  const cookieStore = await cookies()
-  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  // Validated, not read raw: an unchecked cookie let a freelancer point this guard at
+  // a non-freelancer's row and walk straight into the pages it exists to block.
+  const impersonateId = await getValidImpersonationId(user.id)
   const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminSupabase()

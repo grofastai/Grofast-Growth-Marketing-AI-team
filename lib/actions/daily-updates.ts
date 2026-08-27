@@ -2,7 +2,7 @@
 
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
-import { cookies } from 'next/headers'
+import { getValidImpersonationId } from '@/lib/impersonation'
 import { revalidatePath } from 'next/cache'
 import { dailyUpdateSchema, type DailyUpdateInput } from '@/lib/validations/daily-update'
 import { sendNotification } from '@/lib/notifications/send'
@@ -39,15 +39,10 @@ async function getUserContext(): Promise<{ userId: string; companyId: string } |
   const { data } = await admin.from('users').select('role, company_id').eq('id', user.id).single()
   if (!data?.company_id) return { error: 'Profile not found — re-login required' }
 
-  if (data.role === 'ADMIN') {
-    const impersonateId = (await cookies()).get('gf_impersonate')?.value
-    if (impersonateId && impersonateId !== user.id) {
-      const { data: target } = await admin.from('users').select('company_id').eq('id', impersonateId).single()
-      if (target?.company_id && target.company_id === data.company_id) {
-        return { userId: impersonateId, companyId: target.company_id as string }
-      }
-    }
-  }
+  // getValidImpersonationId enforces ADMIN + same-company, so a target it returns
+  // always shares this company_id.
+  const impersonateId = await getValidImpersonationId(user.id)
+  if (impersonateId) return { userId: impersonateId, companyId: data.company_id as string }
 
   return { userId: user.id, companyId: data.company_id as string }
 }

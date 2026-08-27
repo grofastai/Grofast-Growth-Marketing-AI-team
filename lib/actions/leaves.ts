@@ -2,7 +2,7 @@
 
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
-import { cookies } from 'next/headers'
+import { getValidImpersonationId } from '@/lib/impersonation'
 import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertNotification, insertManyNotifications } from './notifications'
@@ -245,17 +245,9 @@ export async function submitLeaveRequest(
   const adminCl = createAdminClient()
 
   // Resolve effective user — admin impersonation support
-  let effectiveUserId = session.user.id
   const { data: selfProfile } = await adminCl.from('users').select('role, company_id').eq('id', session.user.id).single()
-  if (selfProfile?.role === 'ADMIN') {
-    const impersonateId = (await cookies()).get('gf_impersonate')?.value
-    if (impersonateId && impersonateId !== session.user.id) {
-      const { data: target } = await adminCl.from('users').select('company_id').eq('id', impersonateId).single()
-      if (target?.company_id && target.company_id === selfProfile.company_id) {
-        effectiveUserId = impersonateId
-      }
-    }
-  }
+  const impersonateId = await getValidImpersonationId(session.user.id)
+  const effectiveUserId = impersonateId ?? session.user.id
 
   let company_id = selfProfile?.role === 'ADMIN' && effectiveUserId !== session.user.id
     ? (await adminCl.from('users').select('company_id').eq('id', effectiveUserId).single()).data?.company_id ?? null
@@ -456,15 +448,9 @@ export async function submitSplitLeaveRequest(
   if (!session) return { error: 'Not authenticated' }
 
   const adminCl = createAdminClient()
-  let effectiveUserId = session.user.id
   const { data: selfProfile } = await adminCl.from('users').select('role, company_id').eq('id', session.user.id).single()
-  if (selfProfile?.role === 'ADMIN') {
-    const impersonateId = (await cookies()).get('gf_impersonate')?.value
-    if (impersonateId && impersonateId !== session.user.id) {
-      const { data: target } = await adminCl.from('users').select('company_id').eq('id', impersonateId).single()
-      if (target?.company_id && target.company_id === selfProfile.company_id) effectiveUserId = impersonateId
-    }
-  }
+  const impersonateId = await getValidImpersonationId(session.user.id)
+  const effectiveUserId = impersonateId ?? session.user.id
   let company_id = selfProfile?.role === 'ADMIN' && effectiveUserId !== session.user.id
     ? (await adminCl.from('users').select('company_id').eq('id', effectiveUserId).single()).data?.company_id ?? null
     : parseCompanyId(session.access_token)

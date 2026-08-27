@@ -2,6 +2,7 @@
 import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
+import { getValidImpersonationId } from "@/lib/impersonation"
 import MemberSidebar from "@/components/member/sidebar"
 import { getNotificationCount } from "@/lib/actions/notifications"
 import { getYesterdayGateStatus } from "@/lib/actions/attendance"
@@ -21,8 +22,7 @@ export default async function MemberLayout({ children }: { children: React.React
   if (!user) redirect("/login")
 
   const admin = adminSupabase()
-  const cookieStore = await cookies()
-  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const impersonateId = await getValidImpersonationId(user.id)
 
   const [{ data: profile }, unreadCount, gate] = await Promise.all([
     admin.from("users").select("name, employee_id, role, must_change_password, photo_url, company_id, can_manage_freelancers, team, is_management").eq("id", user.id).single(),
@@ -51,7 +51,7 @@ export default async function MemberLayout({ children }: { children: React.React
   // Admin impersonation — render the member panel as the member sees it, plus a
   // slim "Back to Admin" bar pinned at the top so the admin can return with one
   // click (it also clarifies whose account is being viewed).
-  if (profile?.role === "ADMIN" && impersonateId) {
+  if (impersonateId && profile) {
     const { data: impProfile } = await admin
       .from("users")
       .select("name, employee_id, photo_url, company_id, team")

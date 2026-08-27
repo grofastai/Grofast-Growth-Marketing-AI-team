@@ -2,13 +2,13 @@
 
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
-import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertManyNotifications } from './notifications'
 import { calcNetWorkHours } from '@/lib/utils/work-hours'
 import { findUnresolvedLogoutDate, formatGateDate, hasFiledUpdate } from '@/lib/attendance-gate'
 import { todayIST, nowISTShifted } from '@/lib/utils/ist-date'
+import { getValidImpersonationId } from '@/lib/impersonation'
 
 // 9:30 AM IST = 04:00 UTC. Returns true if clock-in is after 9:30 AM IST.
 function isLateArrival(isoUtc: string): boolean {
@@ -43,19 +43,11 @@ async function getUserContext(): Promise<{ userId: string; companyId: string } |
   const admin = adminSupabase()
   const { data, error: dbError } = await admin.from('users').select('role, company_id').eq('id', user.id).single()
   if (data?.company_id) {
-    // Admin impersonation — when an admin has an active impersonation cookie, act
-    // as the target member (reads + writes) so the member panel reflects their
-    // data. Only honored for ADMINs and same-company targets (the cookie is
-    // set server-side by startImpersonation, which already enforces this).
-    if (data.role === 'ADMIN') {
-      const impersonateId = (await cookies()).get('gf_impersonate')?.value
-      if (impersonateId && impersonateId !== user.id) {
-        const { data: target } = await admin.from('users').select('company_id').eq('id', impersonateId).single()
-        if (target?.company_id && target.company_id === data.company_id) {
-          return { userId: impersonateId, companyId: target.company_id as string }
-        }
-      }
-    }
+    // Admin impersonation — act as the target member (reads + writes) so the member
+    // panel reflects their data. getValidImpersonationId enforces ADMIN + same-company,
+    // so a target it returns always shares this company_id.
+    const impersonateId = await getValidImpersonationId(user.id)
+    if (impersonateId) return { userId: impersonateId, companyId: data.company_id as string }
     return { userId: user.id, companyId: data.company_id as string }
   }
 

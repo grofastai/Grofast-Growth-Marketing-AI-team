@@ -2,7 +2,7 @@ export const revalidate = 30
 
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
-import { cookies } from "next/headers"
+import { getValidImpersonationId } from "@/lib/impersonation"
 import { redirect } from "next/navigation"
 import { getMediaTrackerData } from "@/lib/data/media-tracker"
 import MediaTrackerClient from "@/components/media-tracker/media-tracker-client"
@@ -19,8 +19,7 @@ export default async function MemberMediaTrackerPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
-  const cookieStore = await cookies()
-  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const impersonateId = await getValidImpersonationId(user.id)
   const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminSupabase()

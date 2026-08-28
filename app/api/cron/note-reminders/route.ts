@@ -4,7 +4,8 @@ export const revalidate = 0
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { insertManyNotifications } from '@/lib/actions/notifications'
-import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
+import { formatPhone } from '@/lib/whatsapp'
+import { createWhatsAppRun } from '@/lib/cron-whatsapp'
 
 function adminSupabase() {
   return createClient(
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
   }
 
   const admin = adminSupabase()
+  const run = createWhatsAppRun()
   const now = new Date().toISOString()
 
   const { data: dueNotes, error } = await admin
@@ -95,7 +97,7 @@ export async function GET(request: NextRequest) {
         recipientIds.map(async (uid: string) => {
           const phone = phoneByUser.get(uid)
           if (phone) {
-            await sendWhatsAppTemplate(formatPhone(phone), 'grofast_note_reminder', [snippet, reminderLabel])
+            await run.send(formatPhone(phone), 'grofast_note_reminder', [snippet, reminderLabel])
               .catch(console.error)
           }
         })
@@ -109,5 +111,5 @@ export async function GET(request: NextRequest) {
   const ids = dueNotes.map((n: any) => n.id)
   await admin.from('notes').update({ reminded: true }).in('id', ids)
 
-  return NextResponse.json({ checked: dueNotes.length, triggered, checkedAt: now })
+  return run.respond({ checked: dueNotes.length, triggered, checkedAt: now })
 }

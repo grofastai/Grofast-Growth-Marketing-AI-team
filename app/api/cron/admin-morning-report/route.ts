@@ -3,7 +3,8 @@ export const revalidate = 0
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
+import { formatPhone } from '@/lib/whatsapp'
+import { createWhatsAppRun } from '@/lib/cron-whatsapp'
 import { todayIST } from '@/lib/utils/ist-date'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -88,16 +89,17 @@ export async function GET(request: NextRequest) {
     ? `${pendingNames} and ${pending.length - 10} more`
     : pendingNames || 'None'
 
+  const run = createWhatsAppRun()
   let whatsappSent = false
   if (adminUser?.phone) {
-    whatsappSent = await sendWhatsAppTemplate(
+    whatsappSent = await run.send(
       formatPhone(adminUser.phone),
       'grofast_admin_morning_report',
       [dateLabel, String(submittedCount), String(allMembers.length), pendingDisplay]
     )
   }
 
-  return NextResponse.json({
+  return run.respond({
     date: today,
     totalMembers: allMembers.length,
     submittedCount,

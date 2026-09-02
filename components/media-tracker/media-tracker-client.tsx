@@ -34,6 +34,7 @@ import { isValidDriveLink } from "@/lib/utils/drive-link"
 import { scheduleBadgeState, type ScheduleEntry } from "@/lib/media-tracker/schedule"
 import { ScheduleTab } from "./schedule/schedule-tab"
 import { OverviewDashboard } from "./overview/overview-dashboard"
+import { MonthSelect, FILTER_FIELD } from "./month-select"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 // "ads" is a real posting destination — an Ads Video can be scheduled/posted straight
@@ -392,17 +393,6 @@ const FIELD: React.CSSProperties = {
   background: "#fff", border: "1.5px solid #EBEDF2", borderRadius: 10,
   padding: "8px 10px", outline: "none",
 }
-// Toolbar filters (client/time/day) — distinct from FIELD, which stays neutral for
-// modal form inputs. These render above every board (Video/Poster/Ads/Overview), each
-// with its own accent color, so a fixed red clashed on the non-video boards. Neutral
-// reads correctly next to all of them.
-const FILTER_FIELD: React.CSSProperties = {
-  width: "auto", fontSize: 12, fontWeight: 700, color: "#374151",
-  background: "#fff",
-  border: "1.5px solid #E5E7EB", borderRadius: 10,
-  padding: "8px 10px", outline: "none", cursor: "pointer",
-}
-
 function initials(name?: string | null) {
   if (!name) return "?"
   return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
@@ -1136,15 +1126,8 @@ function KanbanColumnHeader({ label, count, accent }: { label: string; count: nu
 }
 
 // ── Shared date filters — every board gets the same month + day controls ──────
-function MonthSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: string[] }) {
-  return (
-    <select value={value} onChange={e => onChange(e.target.value)}
-      style={FILTER_FIELD}>
-      <option value="all">All Time</option>
-      {options.map(m => <option key={m} value={m}>{fmtMonth(m)}</option>)}
-    </select>
-  )
-}
+// MonthSelect + FILTER_FIELD live in ./month-select so the Overview dashboard shares
+// the identical control (importing them from here would be a cycle).
 
 function DayFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (

@@ -157,10 +157,14 @@ export const createAdsVideoScriptSchema = z.object({
 export type CreateAdsVideoScriptInput = z.infer<typeof createAdsVideoScriptSchema>
 
 // Assigning the recorded voice-over — who, and when. Moves the item to "voiceover".
+// script_drive_link is captured here because this is where the Scripting stage is
+// completed — the written script has to leave a real Drive/Docs link behind, same rule
+// the edit stage already enforces at Completed Edit.
 export const recordVoiceOverSchema = z.object({
-  content_item_id: z.string().uuid(),
-  voiceover_by:    z.string().uuid(),
-  voiceover_date:  z.string().min(1, 'Date is required'),
+  content_item_id:   z.string().uuid(),
+  voiceover_by:      z.string().uuid(),
+  voiceover_date:    z.string().min(1, 'Date is required'),
+  script_drive_link: z.string().min(1, 'A valid Google Drive link is required'),
 })
 export type RecordVoiceOverInput = z.infer<typeof recordVoiceOverSchema>
 
@@ -183,9 +187,10 @@ export type UpdateAdsVideoScriptInput = z.infer<typeof updateAdsVideoScriptSchem
 // date was wrong. Deliberately NOT a pipeline transition (item is already at "voiceover"),
 // just an in-place correction — see updateVoiceOver.
 export const updateVoiceOverSchema = z.object({
-  content_item_id: z.string().uuid(),
-  voiceover_by:    z.string().uuid(),
-  voiceover_date:  z.string().min(1, 'Date is required'),
+  content_item_id:   z.string().uuid(),
+  voiceover_by:      z.string().uuid(),
+  voiceover_date:    z.string().min(1, 'Date is required'),
+  script_drive_link: z.string().min(1, 'A valid Google Drive link is required'),
 })
 export type UpdateVoiceOverInput = z.infer<typeof updateVoiceOverSchema>
 
@@ -193,6 +198,9 @@ export type UpdateVoiceOverInput = z.infer<typeof updateVoiceOverSchema>
 // wants to speak the script on camera instead of using a recorded voice-over.
 export const moveScriptToShootSchema = z.object({
   content_item_id: z.string().uuid(),
+  // The other way a Scripting item is completed — same compulsory script link as the
+  // Voice Over route, so no script ever leaves Scripting without one on file.
+  script_drive_link: z.string().min(1, 'A valid Google Drive link is required'),
   shoot_type:       z.enum(SHOOT_TYPES).optional(),
   shot_date:        z.string().min(1, 'Shot date is required'),
   shot_time_from:   z.string().min(1, 'From time is required'),

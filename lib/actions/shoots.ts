@@ -590,6 +590,11 @@ export async function moveScriptToShoot(
     .single()
   if (!item) return { success: false, error: 'Content item not found' }
   if (item.status !== 'scripting') return { success: false, error: 'Only items in Scripting can be moved to a shoot' }
+  // Spinning off a shoot is the other way Scripting is completed, so it carries the same
+  // compulsory script link as the Voice Over route — see recordVoiceOver.
+  if (!isValidDriveLink(parsed.data.script_drive_link)) {
+    return { success: false, error: 'A valid Google Drive link is required' }
+  }
 
   const start_time = `${parsed.data.shot_date}T${parsed.data.shot_time_from}:00+05:30`
   const end_time = `${parsed.data.shot_date}T${parsed.data.shot_time_to}:00+05:30`
@@ -608,6 +613,10 @@ export async function moveScriptToShoot(
     status: 'scheduled',
   }).select('id').single()
   if (error) return { success: false, error: error.message }
+
+  await admin.from('content_items')
+    .update({ script_drive_link: parsed.data.script_drive_link.trim(), updated_at: new Date().toISOString() })
+    .eq('id', item.id)
 
   revalidatePath('/admin/shoots')
   revalidatePath('/member/shoots')

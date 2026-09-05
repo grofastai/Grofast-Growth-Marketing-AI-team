@@ -103,6 +103,7 @@ export type ContentItem = {
   cancelled_by: CancelledBy | null
   // Required at the Edited -> Completed Edit (on_review) move — where the edit actually lives.
   edited_drive_link: string | null
+  script_drive_link: string | null
   // Ticked independently at Mark as Posted/Ads — one-way, never unset by the app.
   is_promotion: boolean
   shotByUsers?: Member[]
@@ -804,6 +805,16 @@ function ContentCardInner({
             {upper(item.editedByUser.name)}{item.edited_date ? ` · ${fmtDate(item.edited_date)}` : ""}
           </span>
         ) : null}
+        {/* The written script's home — captured when Scripting is completed (Voice Over
+            or Move to Shoot), so it stays openable for the rest of the item's life. */}
+        {item.script_drive_link && (
+          <a href={item.script_drive_link} target="_blank" rel="noopener noreferrer"
+            onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}
+            title="Open script Drive link" className="flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{ background: "rgba(168,85,247,0.1)", color: "#A855F7", textDecoration: "none" }}>
+            <ExternalLink size={10} /> Script
+          </a>
+        )}
         {/* The edit's actual home — captured once, at the Ready to Edit -> On Review move. */}
         {item.edited_drive_link && (
           <a href={item.edited_drive_link} target="_blank" rel="noopener noreferrer"
@@ -1735,6 +1746,7 @@ function NewContentModal({ clients, pastClients, members, defaultContentType = "
       posted_ads: alreadyPosted && postedPlatforms.some(p => ADS_PLATFORM_SET.has(p)),
       cancelled_by: null,
       edited_drive_link: alreadyPosted ? (driveLink.trim() || null) : null,
+      script_drive_link: null,
       is_promotion: false,
       shot_date: shotDate, edited_date: alreadyPosted ? postedDate : null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       posts: alreadyPosted ? postedPlatforms.map((platform, i) => ({
@@ -1860,7 +1872,7 @@ function NewAdsVideoModal({ clients, pastClients, members, currentUserId, onClos
       status: "scripting", shot_date: null, edited_date: null, notes: notes.trim() || null, created_at: new Date().toISOString(),
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: finalHookCount, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, is_promotion: false, scriptedByUser, posts: [],
+      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, script_drive_link: null, is_promotion: false, scriptedByUser, posts: [],
     })
   }
 
@@ -1971,22 +1983,27 @@ function EditVoiceOverModal({ item, freelancers, onClose, onSaved, onAdvance }: 
   item: ContentItem
   freelancers: VoiceFreelancer[]
   onClose: () => void
-  onSaved: (voiceoverBy: VoiceFreelancer, date: string) => void
+  onSaved: (voiceoverBy: VoiceFreelancer, date: string, scriptLink: string) => void
   onAdvance: (item: ContentItem, next: ContentStatus) => void
 }) {
   const [voiceoverId, setVoiceoverId] = useState(item.voiceoverBy?.id ?? freelancers[0]?.id ?? "")
   const [date, setDate] = useState(item.voiceover_date ?? todayIST())
+  const [scriptLink, setScriptLink] = useState(item.script_drive_link ?? "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function submit() {
     const freelancer = freelancers.find(f => f.id === voiceoverId)
     if (!freelancer) { setError("Pick who recorded the voice-over"); return }
+    if (!isValidDriveLink(scriptLink)) { setError("A valid Google Drive link to the script is required"); return }
     setSaving(true); setError(null)
-    const res = await updateVoiceOver({ content_item_id: item.id, voiceover_by: freelancer.id, voiceover_date: date })
+    const res = await updateVoiceOver({
+      content_item_id: item.id, voiceover_by: freelancer.id, voiceover_date: date,
+      script_drive_link: scriptLink.trim(),
+    })
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to save"); return }
-    onSaved(freelancer, date)
+    onSaved(freelancer, date, scriptLink.trim())
   }
 
   return (
@@ -2007,6 +2024,14 @@ function EditVoiceOverModal({ item, freelancers, onClose, onSaved, onAdvance }: 
         <div>
           <label style={LABEL}>Date</label>
           <input type="date" style={FIELD} value={date} onChange={e => setDate(e.target.value)} />
+        </div>
+        <div>
+          <label style={LABEL}>Script Drive Link *</label>
+          <input type="url" style={FIELD} value={scriptLink} onChange={e => setScriptLink(e.target.value)}
+            placeholder="https://docs.google.com/…" />
+          {scriptLink.trim().length > 0 && !isValidDriveLink(scriptLink) && (
+            <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>Must be a drive.google.com or docs.google.com link</p>
+          )}
         </div>
         <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12 }}>
           <label style={LABEL}>Stage</label>
@@ -3062,8 +3087,8 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
   onClose: () => void
   onConfirm: (editorId: string, editorName: string, editedDate: string, driveLink: string) => void
 }) {
-  // A poster has no "edit" step to hand off — it's designed, not edited, and there's no
-  // drive file to link (the design itself is what's attached to the client/post).
+  // A poster is designed, not edited — the wording changes, but the finished file still
+  // has to be handed over with a Drive link, same as a video's edit.
   const isPoster = item.content_type === "poster"
   // Prefers whoever was already assigned at the Editing hand-off; otherwise defaults to
   // whoever clicked — the common case for an unassigned item is "I edited this" — but a
@@ -3073,16 +3098,16 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
     : members.some(m => m.id === currentUserId) ? currentUserId : (members[0]?.id ?? "")
   )
   const [editedDate, setEditedDate] = useState(todayIST())
-  // Where the edited file actually lives — required so On Review always has somewhere
-  // to open the edit from, without asking around for it. Not applicable to posters.
+  // Where the finished file actually lives — required so On Review always has somewhere
+  // to open the edit/design from, without asking around for it.
   const [driveLink, setDriveLink] = useState(item.edited_drive_link ?? "")
   const [error, setError] = useState<string | null>(null)
 
   function submit() {
     const editor = members.find(m => m.id === editorId)
     if (!editor) { setError(isPoster ? "Pick who designed this" : "Pick who edited this"); return }
-    if (!isPoster && !isValidDriveLink(driveLink)) { setError("A valid Google Drive link is required"); return }
-    onConfirm(editor.id, editor.name, editedDate, isPoster ? "" : driveLink.trim())
+    if (!isValidDriveLink(driveLink)) { setError("A valid Google Drive link is required"); return }
+    onConfirm(editor.id, editor.name, editedDate, driveLink.trim())
   }
 
   return (
@@ -3102,16 +3127,14 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
             <input type="date" style={FIELD} value={editedDate} onChange={e => setEditedDate(e.target.value)} />
           </div>
         </div>
-        {!isPoster && (
-          <div>
-            <label style={LABEL}>Drive Link *</label>
-            <input type="url" style={FIELD} value={driveLink} onChange={e => setDriveLink(e.target.value)}
-              placeholder="https://drive.google.com/…" />
-            {driveLink.trim().length > 0 && !isValidDriveLink(driveLink) && (
-              <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>Must be a drive.google.com or docs.google.com link</p>
-            )}
-          </div>
-        )}
+        <div>
+          <label style={LABEL}>Drive Link *</label>
+          <input type="url" style={FIELD} value={driveLink} onChange={e => setDriveLink(e.target.value)}
+            placeholder="https://drive.google.com/…" />
+          {driveLink.trim().length > 0 && !isValidDriveLink(driveLink) && (
+            <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>Must be a drive.google.com or docs.google.com link</p>
+          )}
+        </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit}>{isPoster ? "Mark Designed" : "Mark Edited"}</PrimaryButton>
       </div>
@@ -3120,25 +3143,32 @@ function MarkEditedModal({ item, members, currentUserId, onClose, onConfirm }: {
 }
 
 // ── "Who recorded this?" — the accountability prompt when a script enters Voice Over ──
+// Also where Scripting is completed, so the written script's Drive link is compulsory
+// here — the artist can't record from a script nobody can open.
 function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
   item: ContentItem
   freelancers: VoiceFreelancer[]
   onClose: () => void
-  onConfirm: (voiceoverBy: VoiceFreelancer, date: string) => void
+  onConfirm: (voiceoverBy: VoiceFreelancer, date: string, scriptLink: string) => void
 }) {
   const [voiceoverId, setVoiceoverId] = useState(freelancers[0]?.id ?? "")
   const [date, setDate] = useState(todayIST())
+  const [scriptLink, setScriptLink] = useState(item.script_drive_link ?? "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function submit() {
     const freelancer = freelancers.find(f => f.id === voiceoverId)
     if (!freelancer) { setError("Pick who recorded the voice-over"); return }
+    if (!isValidDriveLink(scriptLink)) { setError("A valid Google Drive link to the script is required"); return }
     setSaving(true); setError(null)
-    const res = await recordVoiceOver({ content_item_id: item.id, voiceover_by: freelancer.id, voiceover_date: date })
+    const res = await recordVoiceOver({
+      content_item_id: item.id, voiceover_by: freelancer.id, voiceover_date: date,
+      script_drive_link: scriptLink.trim(),
+    })
     setSaving(false)
     if (!res.success) { setError(res.error ?? "Failed to save"); return }
-    onConfirm(freelancer, date)
+    onConfirm(freelancer, date, scriptLink.trim())
   }
 
   return (
@@ -3160,6 +3190,14 @@ function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
           <label style={LABEL}>Date</label>
           <input type="date" style={FIELD} value={date} onChange={e => setDate(e.target.value)} />
         </div>
+        <div>
+          <label style={LABEL}>Script Drive Link *</label>
+          <input type="url" style={FIELD} value={scriptLink} onChange={e => setScriptLink(e.target.value)}
+            placeholder="https://docs.google.com/…" />
+          {scriptLink.trim().length > 0 && !isValidDriveLink(scriptLink) && (
+            <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>Must be a drive.google.com or docs.google.com link</p>
+          )}
+        </div>
         {error && <p style={{ fontSize: 11, color: "#DE1A1A", margin: 0 }}>{error}</p>}
         <PrimaryButton onClick={submit} disabled={saving || freelancers.length === 0}>{saving ? "Saving…" : "Confirm Voice Over"}</PrimaryButton>
       </div>
@@ -3172,22 +3210,27 @@ function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
 function MoveToShootModal({ item, onClose, onMoved }: {
   item: ContentItem
   onClose: () => void
-  onMoved: (shoot: Shoot) => void
+  onMoved: (shoot: Shoot, scriptLink: string) => void
 }) {
   const [shotDate, setShotDate] = useState(todayIST())
   const [fromTime, setFromTime] = useState("")
   const [toTime, setToTime] = useState("")
   const [notes, setNotes] = useState("")
+  // The other route out of Scripting — same compulsory script link as the Voice Over one,
+  // so the crew shooting it can actually open what they're reading from.
+  const [scriptLink, setScriptLink] = useState(item.script_drive_link ?? "")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function submit() {
     if (!fromTime) { setError("From time is required"); return }
     if (!toTime) { setError("To time is required"); return }
+    if (!isValidDriveLink(scriptLink)) { setError("A valid Google Drive link to the script is required"); return }
     setSaving(true); setError(null)
     const res = await moveScriptToShoot({
       content_item_id: item.id, shot_date: shotDate,
       shot_time_from: fromTime, shot_time_to: toTime, notes: notes.trim() || undefined,
+      script_drive_link: scriptLink.trim(),
     })
     setSaving(false)
     if (!res.success || !res.shootId) { setError(res.error ?? "Failed to save"); return }
@@ -3206,7 +3249,7 @@ function MoveToShootModal({ item, onClose, onMoved }: {
       drive_link: null,
       goingByUsers: [],
       titles: [],
-    })
+    }, scriptLink.trim())
   }
 
   return (
@@ -3225,6 +3268,14 @@ function MoveToShootModal({ item, onClose, onMoved }: {
             <label style={LABEL}>To Time *</label>
             <input type="time" style={FIELD} value={toTime} onChange={e => setToTime(e.target.value)} />
           </div>
+        </div>
+        <div>
+          <label style={LABEL}>Script Drive Link *</label>
+          <input type="url" style={FIELD} value={scriptLink} onChange={e => setScriptLink(e.target.value)}
+            placeholder="https://docs.google.com/…" />
+          {scriptLink.trim().length > 0 && !isValidDriveLink(scriptLink) && (
+            <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>Must be a drive.google.com or docs.google.com link</p>
+          )}
         </div>
         <div>
           <label style={LABEL}>Notes</label>
@@ -4119,9 +4170,9 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     })
   }
 
-  function handleVoiceOverRecorded(item: ContentItem, voiceoverBy: VoiceFreelancer, date: string) {
+  function handleVoiceOverRecorded(item: ContentItem, voiceoverBy: VoiceFreelancer, date: string, scriptLink: string) {
     setItems(prev => prev.map(i => i.id === item.id
-      ? { ...i, status: "voiceover", voiceoverBy, voiceover_date: date }
+      ? { ...i, status: "voiceover", voiceoverBy, voiceover_date: date, script_drive_link: scriptLink }
       : i))
     setVoiceOverItem(null)
   }
@@ -4504,7 +4555,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       status: "ready_to_edit", shot_date: ci.shot_date, edited_date: null, notes: ci.notes,
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, is_promotion: false,
+      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, script_drive_link: null, is_promotion: false,
       shotByUsers: crew.length > 0 ? crew : undefined,
       created_at: new Date().toISOString(), posts: [],
     }))
@@ -4559,7 +4610,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
       status: "ready_to_edit", shot_date: created.shot_date, edited_date: null, notes: created.notes,
       ready_platforms: [], scheduled_post_date: null, scheduled_post_time: null, corrections: [],
       hook_count: null, use_for: [], priority: null, shoot_type: null, voiceover_date: null, reviewed_at: null,
-      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, is_promotion: false,
+      posted_branding: false, posted_ads: false, cancelled_by: null, edited_drive_link: null, script_drive_link: null, is_promotion: false,
       created_at: new Date().toISOString(), posts: [],
     }
     setItems(prev => [newItem, ...prev])
@@ -5449,7 +5500,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         <VoiceOverModal
           item={voiceOverItem} freelancers={voiceoverOptions}
           onClose={() => setVoiceOverItem(null)}
-          onConfirm={(freelancer, date) => handleVoiceOverRecorded(voiceOverItem, freelancer, date)}
+          onConfirm={(freelancer, date, scriptLink) => handleVoiceOverRecorded(voiceOverItem, freelancer, date, scriptLink)}
         />
       )}
       {editAdsVideoFor && (
@@ -5468,8 +5519,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
           item={editVoiceOverFor} freelancers={voiceoverOptions}
           onClose={() => setEditVoiceOverFor(null)}
           onAdvance={(item, next) => { advance(item, next); setEditVoiceOverFor(null) }}
-          onSaved={(voiceoverBy, date) => {
-            setItems(prev => prev.map(i => i.id === editVoiceOverFor.id ? { ...i, voiceoverBy, voiceover_date: date } : i))
+          onSaved={(voiceoverBy, date, scriptLink) => {
+            setItems(prev => prev.map(i => i.id === editVoiceOverFor.id ? { ...i, voiceoverBy, voiceover_date: date, script_drive_link: scriptLink } : i))
             setEditVoiceOverFor(null)
           }}
         />
@@ -5478,7 +5529,11 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
         <MoveToShootModal
           item={moveToShootFor}
           onClose={() => setMoveToShootFor(null)}
-          onMoved={shoot => { setShoots(prev => [shoot, ...prev]); setMoveToShootFor(null) }}
+          onMoved={(shoot, scriptLink) => {
+            setShoots(prev => [shoot, ...prev])
+            setItems(prev => prev.map(i => i.id === moveToShootFor.id ? { ...i, script_drive_link: scriptLink } : i))
+            setMoveToShootFor(null)
+          }}
         />
       )}
       {moveOnReviewFor && (

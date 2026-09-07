@@ -100,6 +100,26 @@ function parseLearningTitle(title: string | null): { client: string; topic: stri
   return m ? { client: m[1], topic: m[2] } : { client: "", topic: title }
 }
 
+// Does this entry belong to `client`? Multi-client entries keep the real list in
+// client_names[] — client_name alone can be stale/blank for those, which is the same
+// caveat the search filter above works around.
+function entryHasClient(e: WorkEntry, client: string): boolean {
+  const c = client.toLowerCase()
+  if ((e.client_name ?? "").toLowerCase() === c) return true
+  return !!(e.is_multi_client && e.client_names?.some(cn => cn.toLowerCase() === c))
+}
+
+// A day matches a client when any of its entries do. Old-format learning has no
+// work_entries row at all — its client is folded into learning_topic as "[Client] Topic".
+function updateHasClient(
+  u: { work_entries: WorkEntry[] | null; learning_topic?: string | null },
+  client: string,
+): boolean {
+  const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+  if (entries.some(e => entryHasClient(e, client))) return true
+  return parseLearningTitle(u.learning_topic ?? null).client.toLowerCase() === client.toLowerCase()
+}
+
 function stripShootNotes(notes: string): string {
   if (!notes) return ""
   return notes.split(" | ").filter(p => !p.match(/^(Brand:|Shop:|Location:|Travel:|Client:)/)).join(" | ").trim()
@@ -514,6 +534,7 @@ export default function HistoryClient({
   })
   const [search, setSearch]               = useState("")
   const [selectedDate, setSelectedDate]   = useState(defaultDate ?? "")
+  const [selectedClient, setSelectedClient] = useState("")
 
   async function handleDelete(id: string) {
     if (!(await confirm("Delete this day's submission? This cannot be undone."))) return
@@ -774,6 +795,7 @@ export default function HistoryClient({
 
   const searchActive = search.trim().length > 0
   const dateActive   = selectedDate.length > 0
+  const clientActive = selectedClient.length > 0
 
   // Filtered updates (by date if active, by search if active)
   // Search intentionally ignores the selected month pill — a search is a
@@ -783,6 +805,9 @@ export default function HistoryClient({
   const filtered = useMemo(() => {
     let base = searchActive ? updates : monthFiltered
     if (dateActive) base = base.filter(u => u.date === selectedDate)
+    // The client filter narrows whatever scope is already active — unlike search it
+    // deliberately does NOT widen past the selected month pill.
+    if (clientActive) base = base.filter(u => updateHasClient(u, selectedClient))
     if (!searchActive) return base
     const q = search.toLowerCase()
     return base.filter(u => {
@@ -805,7 +830,7 @@ export default function HistoryClient({
         (u.learning_notes ?? "").toLowerCase().includes(q)
       return matchesEntry || matchesLegacyLearning
     })
-  }, [monthFiltered, updates, search, searchActive, selectedDate, dateActive])
+  }, [monthFiltered, updates, search, searchActive, selectedDate, dateActive, selectedClient, clientActive])
 
   // Latest day for hero (always from month, not search-filtered)
   const latest = monthFiltered[0] ?? null
@@ -1039,6 +1064,9 @@ export default function HistoryClient({
       if (ownDates.has(date)) continue
       if (dateActive && date !== selectedDate) continue
       if (monthPrefix && !date.startsWith(monthPrefix)) continue
+      // A collab-only day survives a client filter only if one of the entries the
+      // viewer was tagged in was actually for that client.
+      if (clientActive && !pus.some(pu => updateHasClient(pu, selectedClient))) continue
       orphans.push({ date, pus })
     }
     orphans.sort((a, b) => b.date.localeCompare(a.date))
@@ -1046,7 +1074,7 @@ export default function HistoryClient({
     // Approved leave dates — only days that have already arrived (ds <= todayIST)
     const leaveItems: MergedItem[] = []
     const collabDates = new Set(orphans.map(o => o.date))
-    for (const leave of approvedLeaves) {
+    for (const leave of (clientActive ? [] : approvedLeaves)) {
       const start = new Date(leave.from_date + "T12:00:00")
       const end   = new Date(leave.to_date   + "T12:00:00")
       const cur   = new Date(start)
@@ -1067,7 +1095,7 @@ export default function HistoryClient({
     // Freelancers (login) have no leave/holiday features, so skip entirely for them
     const leaveDates = new Set(leaveItems.map(l => l.date))
     const holidayItems: MergedItem[] = []
-    for (const holiday of (isFreelancerMedia ? [] : companyLeaves)) {
+    for (const holiday of ((isFreelancerMedia || clientActive) ? [] : companyLeaves)) {
       if (holiday.date > todayIST) continue
       if (ownDates.has(holiday.date)) continue
       if (collabDates.has(holiday.date)) continue
@@ -1082,7 +1110,7 @@ export default function HistoryClient({
     // so the member (and anyone reviewing their history) can see it and fix it.
     const holidayDates = new Set(holidayItems.map(h => h.date))
     const missingItems: MergedItem[] = []
-    for (const date of missingSubmissionDates) {
+    for (const date of (clientActive ? [] : missingSubmissionDates)) {
       if (date > todayIST) continue
       if (ownDates.has(date)) continue
       if (collabDates.has(date)) continue
@@ -1096,7 +1124,7 @@ export default function HistoryClient({
     const ownItems: MergedItem[]    = filtered.map(u => ({ type: "own", date: u.date, u }))
     const collabItems: MergedItem[] = orphans.map(o => ({ type: "collab", date: o.date, pus: o.pus }))
     return [...ownItems, ...collabItems, ...leaveItems, ...holidayItems, ...missingItems].sort((a, b) => b.date.localeCompare(a.date))
-  }, [filtered, participatedByDate, selectedMonth, months, approvedLeaves, companyLeaves, missingSubmissionDates, dateActive, selectedDate])
+  }, [filtered, participatedByDate, selectedMonth, months, approvedLeaves, companyLeaves, missingSubmissionDates, dateActive, selectedDate, clientActive, selectedClient])
 
   useEffect(() => {
     if (!scrollToConfirmId) return
@@ -1180,6 +1208,23 @@ export default function HistoryClient({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* Client filter — same shared picker (Active list → 📁 Past Clients, no free typing) as everywhere else */}
+          <div style={{ flex:"1 1 150px", minWidth:150, maxWidth:220 }}>
+            <ClientSelector
+              label=""
+              placeholder="All Clients"
+              value={selectedClient}
+              onValueChange={setSelectedClient}
+              clientOptions={activeClientsForEdit}
+              pastClientOptions={pastClientsOnly}
+              fieldStyle={{
+                padding:"9px 28px 9px 12px", borderRadius:12, fontSize:12, fontWeight:600,
+                border: clientActive ? "1.5px solid #DE1A1A" : "1.5px solid #EBEDF2",
+                color:  clientActive ? "#DE1A1A" : "#374151",
+              }}
+            />
+          </div>
+
           {/* Date picker */}
           <div style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 12px", borderRadius:12, background:"#fff", border: dateActive ? "1.5px solid #DE1A1A" : "1px solid #EBEDF2" }}>
             <CalendarDays size={14} style={{ color: dateActive ? "#DE1A1A" : "#9CA3AF", flexShrink:0 }}/>
@@ -1451,7 +1496,7 @@ export default function HistoryClient({
                 <p style={{ fontSize:36, margin:"0 0 12px" }}>📋</p>
                 <p style={{ fontSize:16, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>No entries found</p>
                 <p style={{ fontSize:13, color:"#9CA3AF", margin:0 }}>
-                  {searchActive || dateActive || selectedMonth ? "Try clearing your filters" : "No daily updates submitted yet"}
+                  {searchActive || dateActive || clientActive || selectedMonth ? "Try clearing your filters" : "No daily updates submitted yet"}
                 </p>
               </div>
             ) : mergedList.map(item => {

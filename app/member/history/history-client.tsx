@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect } from "react"
-import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning, addEntryToDate } from "@/lib/actions/daily-updates"
 import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
@@ -25,6 +25,14 @@ import {
   ArrowRight, Flame, Star, X, Pencil, Check, ChevronDown,
   Mic, ImageIcon, FileText, Code2, CalendarClock,
 } from "lucide-react"
+
+// recharts is ~100KB+ of client JS for one 80px sparkline, and History is the page
+// members open most. Loading it lazily keeps it out of the initial bundle and off the
+// hydration path; the placeholder holds the exact 80px so nothing shifts when it lands.
+const HoursTrendChart = dynamic(() => import("./hours-trend-chart"), {
+  ssr: false,
+  loading: () => <div style={{ height: 80 }} />,
+})
 
 interface WorkEntry {
   id?: string; task_type: "shoot" | "edit" | "other" | "break" | "learning" | "voiceover" | "poster" | "scripting" | "development" | "other_activity"
@@ -3594,15 +3602,7 @@ export default function HistoryClient({
 
               {/* Hours trend mini-chart */}
               <div style={{ height:80, marginBottom:14 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={stats.dailyData} margin={{ top:4, right:4, left:-28, bottom:0 }}>
-                    <XAxis dataKey="day" tick={{ fontSize:9, fill:"#9CA3AF" }} tickLine={false} axisLine={false} />
-                    <YAxis tick={{ fontSize:9, fill:"#9CA3AF" }} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={{ fontSize:11, borderRadius:8, border:"1px solid #E5E7EB", background:"#fff" }} formatter={(v) => [`${v as number}h`, "Hours"]} labelFormatter={l => `Day ${l}`} />
-                    <ReferenceLine y={8.5} stroke="#F59E0B" strokeDasharray="4 3" strokeWidth={1.5} label={{ value:"8.5h", fontSize:9, fill:"#F59E0B", position:"right" }} />
-                    <Line type="monotone" dataKey="hours" stroke="#DE1A1A" strokeWidth={2} dot={{ r:2, fill:"#DE1A1A" }} activeDot={{ r:4 }} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <HoursTrendChart data={stats.dailyData} />
               </div>
 
               {/* Stats rows */}

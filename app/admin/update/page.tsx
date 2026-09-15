@@ -1,6 +1,6 @@
 export const revalidate = 0
 
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
@@ -17,8 +17,7 @@ function adminSupabase() {
 }
 
 export default async function AdminUpdatePage() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
 
   type Project = { id: string; business_name: string }

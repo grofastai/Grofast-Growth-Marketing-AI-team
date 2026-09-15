@@ -31,8 +31,19 @@ export async function createServerClient() {
 // auth.getUser() is a live network round-trip to Supabase Auth (unlike getSession(),
 // which only decodes the JWT locally). Layout + page both need the verified user on
 // every render, so cache() collapses repeat calls within one request into one call.
-export const getCurrentUser = cache(async () => {
+//
+// Every render-time path should come through here — not call supabase.auth.getUser()
+// itself. A member page load used to hit Supabase Auth four times (layout, page, and two
+// helpers the layout awaits), and the two helper calls ran AFTER the layout's own call had
+// already resolved, so each was a pure extra round trip. Security is unchanged: this is
+// still the authoritative getUser(), just asked once per request.
+//
+// Outside a render (a Server Action invoked by POST) React's cache() doesn't memoize and
+// simply calls through, so action behaviour is identical too.
+export const getCurrentUserResult = cache(async () => {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  return user
+  const { data: { user }, error } = await supabase.auth.getUser()
+  return { user, error }
 })
+
+export const getCurrentUser = cache(async () => (await getCurrentUserResult()).user)

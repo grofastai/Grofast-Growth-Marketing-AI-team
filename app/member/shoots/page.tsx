@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase/server'
+import { createServerClient, getCurrentUser } from '@/lib/supabase/server'
 import { createClient } from "@supabase/supabase-js"
 import { getValidImpersonationId } from "@/lib/impersonation"
 import { redirect } from 'next/navigation'
@@ -16,7 +16,7 @@ function adminSupabase() {
 
 export default async function MemberShootsPage() {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login')
 
   const impersonateId = await getValidImpersonationId(user.id)

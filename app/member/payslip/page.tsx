@@ -2,7 +2,7 @@ export const revalidate = 0
 
 import { getValidImpersonationId } from "@/lib/impersonation"
 import { redirect } from "next/navigation"
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import PayslipClient from "./payslip-client"
 
@@ -15,8 +15,7 @@ function adminSupabase() {
 }
 
 export default async function MemberPayslipPage() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
   const impersonateId = await getValidImpersonationId(user.id)
   const effectiveUserId = impersonateId ?? user.id

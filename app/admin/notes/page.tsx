@@ -1,5 +1,5 @@
 import { getHubNotes, getFolders } from '@/lib/actions/notes'
-import { createServerClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import NotesHub from '@/components/notes/notes-hub'
@@ -12,8 +12,7 @@ function adminSupabase() {
 }
 
 export default async function AdminNotesPage() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login')
   const admin = adminSupabase()
   const { data: profile } = await admin.from('users').select('company_id, role').eq('id', user.id).single()

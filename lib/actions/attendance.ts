@@ -1,6 +1,6 @@
 'use server'
 
-import { createServerClient } from '@/lib/supabase/server'
+import { createServerClient, getCurrentUserResult } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
@@ -35,9 +35,12 @@ function adminSupabase() {
 }
 
 async function getUserContext(): Promise<{ userId: string; companyId: string } | { error: string }> {
-  const supabase = await createServerClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  // Cached, error included: the member layout awaits this (via getYesterdayGateStatus)
+  // after its own getCurrentUser() call, so an uncached getUser() here was a second auth
+  // round trip on every member page. The error is kept so the messages below don't change.
+  const { user, error: authError } = await getCurrentUserResult()
   if (!user) return { error: authError ? `Auth error: ${authError.message}` : 'No session — please log in again' }
+  const supabase = await createServerClient()
 
   // Try users table first (service-role query)
   const admin = adminSupabase()

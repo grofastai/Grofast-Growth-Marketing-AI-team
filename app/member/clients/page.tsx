@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { getValidImpersonationId } from "@/lib/impersonation"
 import { redirect } from "next/navigation"
@@ -24,8 +24,7 @@ type ClientRow = {
 }
 
 export default async function MemberClientsPage() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
   const impersonateId = await getValidImpersonationId(user.id)
   const effectiveUserId = impersonateId ?? user.id

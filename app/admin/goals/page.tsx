@@ -1,6 +1,6 @@
 export const revalidate = 0
 
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import GoalsClient from "./goals-client"
 
@@ -13,8 +13,7 @@ function adminSupabase() {
 }
 
 export default async function GoalsPage() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   const admin = adminSupabase()
   const { data: profile } = await admin

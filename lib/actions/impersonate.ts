@@ -1,6 +1,6 @@
 "use server"
 
-import { createServerClient } from "@/lib/supabase/server"
+import { createServerClient, getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
@@ -57,8 +57,9 @@ export async function stopImpersonation() {
  *  the single place allowed to read this cookie. A raw getter used to sit next to
  *  this one and was the easy, wrong thing to reach for — hence the lint ban. */
 export async function getEffectiveUserId(): Promise<string | null> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Cached: the member layout awaits this (via getNotificationCount) right after its own
+  // getCurrentUser() call, so an uncached getUser() here was a second auth round trip.
+  const user = await getCurrentUser()
   if (!user) return null
 
   return (await getValidImpersonationId(user.id)) ?? user.id

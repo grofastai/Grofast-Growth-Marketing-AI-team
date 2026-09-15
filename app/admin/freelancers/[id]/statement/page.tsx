@@ -1,7 +1,7 @@
 export const revalidate = 0
 
 import { createClient } from "@supabase/supabase-js"
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { redirect, notFound } from "next/navigation"
 import { todayIST } from "@/lib/utils/ist-date"
 
@@ -45,8 +45,7 @@ export default async function StatementPage({
   const year   = parseInt(sp.year  ?? nowYear)
   const month  = parseInt(sp.month ?? nowMonth)
 
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
 
   const admin = adminSupabase()

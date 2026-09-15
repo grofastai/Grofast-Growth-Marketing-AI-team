@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import LeavesClient from "./leaves-client"
@@ -20,8 +20,7 @@ export default async function LeavesPage({
   searchParams: Promise<{ mode?: string; status?: string; type?: string }>
 }) {
   const params = await searchParams
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
 
   // Single combined filter mode: pending/approved/rejected filter by STATUS,

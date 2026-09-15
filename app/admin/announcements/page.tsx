@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"
 
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import AnnouncementsClient from "./announcements-client"
@@ -19,8 +19,7 @@ export default async function AnnouncementsPage({
   searchParams: Promise<{ search?: string }>
 }) {
   const { search: initialSearch } = await searchParams
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
 
   const admin = adminClient()

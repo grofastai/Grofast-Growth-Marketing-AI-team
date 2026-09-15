@@ -1,6 +1,6 @@
 export const revalidate = 0
 
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect, notFound } from "next/navigation"
 import FreelancerProfileClient from "./profile-client"
@@ -20,8 +20,7 @@ export default async function FreelancerProfilePage({
 }) {
   const { id } = await params
 
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
 
   const admin = adminSupabase()

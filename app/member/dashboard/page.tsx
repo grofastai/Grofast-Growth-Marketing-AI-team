@@ -153,7 +153,10 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
   // All-time distinct task_types this person has ever logged (drives which dashboard cards appear)
   const everTypes = new Set<string>()
-  for (const row of (everLoggedRaw ?? []) as { work_entries: WorkEntryLike[] | null }[]) {
+  // work_entries isn't in the generated lib/supabase/types.ts, and `db` is a union of the typed
+  // and untyped clients — so how TS types this select is fragile (it flips to SelectQueryError
+  // when unrelated files change type-check order). Cast through unknown, as history/page.tsx does.
+  for (const row of (everLoggedRaw ?? []) as unknown as { work_entries: WorkEntryLike[] | null }[]) {
     for (const e of Array.isArray(row.work_entries) ? row.work_entries : []) {
       if (e.task_type) everTypes.add(e.task_type.toLowerCase())
     }

@@ -1,6 +1,6 @@
 export const revalidate = 0
 
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import Image from "next/image"
 import Link from "next/link"
@@ -47,8 +47,7 @@ export default async function AttendancePage({
   const selectedDate = params.date ?? today
   const isToday      = selectedDate === today
 
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) return null
 
   const admin = adminSupabase()

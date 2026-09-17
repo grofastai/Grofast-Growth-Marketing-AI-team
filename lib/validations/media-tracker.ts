@@ -158,13 +158,15 @@ export type CreateAdsVideoScriptInput = z.infer<typeof createAdsVideoScriptSchem
 
 // Assigning the recorded voice-over — who, and when. Moves the item to "voiceover".
 // script_drive_link is captured here because this is where the Scripting stage is
-// completed — the written script has to leave a real Drive/Docs link behind, same rule
-// the edit stage already enforces at Completed Edit.
+// completed. It is optional — unlike the edit stage's link, a script may be finished
+// before the doc exists — but must be a real Drive/Docs link if one is given.
 export const recordVoiceOverSchema = z.object({
   content_item_id:   z.string().uuid(),
   voiceover_by:      z.string().uuid(),
   voiceover_date:    z.string().min(1, 'Date is required'),
-  script_drive_link: z.string().min(1, 'A valid Google Drive link is required'),
+  // Optional: a script can be completed before its doc is filed. Still validated as a
+  // real Drive/Docs link when one IS supplied — see isValidDriveLink in the actions.
+  script_drive_link: z.string().default(''),
 })
 export type RecordVoiceOverInput = z.infer<typeof recordVoiceOverSchema>
 
@@ -190,7 +192,9 @@ export const updateVoiceOverSchema = z.object({
   content_item_id:   z.string().uuid(),
   voiceover_by:      z.string().uuid(),
   voiceover_date:    z.string().min(1, 'Date is required'),
-  script_drive_link: z.string().min(1, 'A valid Google Drive link is required'),
+  // Optional: a script can be completed before its doc is filed. Still validated as a
+  // real Drive/Docs link when one IS supplied — see isValidDriveLink in the actions.
+  script_drive_link: z.string().default(''),
 })
 export type UpdateVoiceOverInput = z.infer<typeof updateVoiceOverSchema>
 
@@ -198,9 +202,11 @@ export type UpdateVoiceOverInput = z.infer<typeof updateVoiceOverSchema>
 // wants to speak the script on camera instead of using a recorded voice-over.
 export const moveScriptToShootSchema = z.object({
   content_item_id: z.string().uuid(),
-  // The other way a Scripting item is completed — same compulsory script link as the
-  // Voice Over route, so no script ever leaves Scripting without one on file.
-  script_drive_link: z.string().min(1, 'A valid Google Drive link is required'),
+  // The other way a Scripting item is completed — same optional script link as the
+  // Voice Over route.
+  // Optional: a script can be completed before its doc is filed. Still validated as a
+  // real Drive/Docs link when one IS supplied — see isValidDriveLink in the actions.
+  script_drive_link: z.string().default(''),
   shoot_type:       z.enum(SHOOT_TYPES).optional(),
   shot_date:        z.string().min(1, 'Shot date is required'),
   shot_time_from:   z.string().min(1, 'From time is required'),

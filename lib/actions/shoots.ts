@@ -591,8 +591,9 @@ export async function moveScriptToShoot(
   if (!item) return { success: false, error: 'Content item not found' }
   if (item.status !== 'scripting') return { success: false, error: 'Only items in Scripting can be moved to a shoot' }
   // Spinning off a shoot is the other way Scripting is completed, so it carries the same
-  // compulsory script link as the Voice Over route — see recordVoiceOver.
-  if (!isValidDriveLink(parsed.data.script_drive_link)) {
+  // optional script link as the Voice Over route — see recordVoiceOver.
+  const scriptLink = parsed.data.script_drive_link.trim()
+  if (scriptLink && !isValidDriveLink(scriptLink)) {
     return { success: false, error: 'A valid Google Drive link is required' }
   }
 
@@ -615,7 +616,7 @@ export async function moveScriptToShoot(
   if (error) return { success: false, error: error.message }
 
   await admin.from('content_items')
-    .update({ script_drive_link: parsed.data.script_drive_link.trim(), updated_at: new Date().toISOString() })
+    .update({ script_drive_link: scriptLink || null, updated_at: new Date().toISOString() })
     .eq('id', item.id)
 
   revalidatePath('/admin/shoots')

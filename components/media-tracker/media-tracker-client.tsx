@@ -1995,7 +1995,7 @@ function EditVoiceOverModal({ item, freelancers, onClose, onSaved, onAdvance }: 
   async function submit() {
     const freelancer = freelancers.find(f => f.id === voiceoverId)
     if (!freelancer) { setError("Pick who recorded the voice-over"); return }
-    if (!isValidDriveLink(scriptLink)) { setError("A valid Google Drive link to the script is required"); return }
+    if (scriptLink.trim() && !isValidDriveLink(scriptLink)) { setError("That link must point at Google Drive or Docs — or leave it empty"); return }
     setSaving(true); setError(null)
     const res = await updateVoiceOver({
       content_item_id: item.id, voiceover_by: freelancer.id, voiceover_date: date,
@@ -2026,7 +2026,7 @@ function EditVoiceOverModal({ item, freelancers, onClose, onSaved, onAdvance }: 
           <input type="date" style={FIELD} value={date} onChange={e => setDate(e.target.value)} />
         </div>
         <div>
-          <label style={LABEL}>Script Drive Link *</label>
+          <label style={LABEL}>Script Drive Link</label>
           <input type="url" style={FIELD} value={scriptLink} onChange={e => setScriptLink(e.target.value)}
             placeholder="https://docs.google.com/…" />
           {scriptLink.trim().length > 0 && !isValidDriveLink(scriptLink) && (
@@ -3160,7 +3160,7 @@ function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
   async function submit() {
     const freelancer = freelancers.find(f => f.id === voiceoverId)
     if (!freelancer) { setError("Pick who recorded the voice-over"); return }
-    if (!isValidDriveLink(scriptLink)) { setError("A valid Google Drive link to the script is required"); return }
+    if (scriptLink.trim() && !isValidDriveLink(scriptLink)) { setError("That link must point at Google Drive or Docs — or leave it empty"); return }
     setSaving(true); setError(null)
     const res = await recordVoiceOver({
       content_item_id: item.id, voiceover_by: freelancer.id, voiceover_date: date,
@@ -3191,7 +3191,7 @@ function VoiceOverModal({ item, freelancers, onClose, onConfirm }: {
           <input type="date" style={FIELD} value={date} onChange={e => setDate(e.target.value)} />
         </div>
         <div>
-          <label style={LABEL}>Script Drive Link *</label>
+          <label style={LABEL}>Script Drive Link</label>
           <input type="url" style={FIELD} value={scriptLink} onChange={e => setScriptLink(e.target.value)}
             placeholder="https://docs.google.com/…" />
           {scriptLink.trim().length > 0 && !isValidDriveLink(scriptLink) && (
@@ -3225,7 +3225,7 @@ function MoveToShootModal({ item, onClose, onMoved }: {
   async function submit() {
     if (!fromTime) { setError("From time is required"); return }
     if (!toTime) { setError("To time is required"); return }
-    if (!isValidDriveLink(scriptLink)) { setError("A valid Google Drive link to the script is required"); return }
+    if (scriptLink.trim() && !isValidDriveLink(scriptLink)) { setError("That link must point at Google Drive or Docs — or leave it empty"); return }
     setSaving(true); setError(null)
     const res = await moveScriptToShoot({
       content_item_id: item.id, shot_date: shotDate,
@@ -3270,7 +3270,7 @@ function MoveToShootModal({ item, onClose, onMoved }: {
           </div>
         </div>
         <div>
-          <label style={LABEL}>Script Drive Link *</label>
+          <label style={LABEL}>Script Drive Link</label>
           <input type="url" style={FIELD} value={scriptLink} onChange={e => setScriptLink(e.target.value)}
             placeholder="https://docs.google.com/…" />
           {scriptLink.trim().length > 0 && !isValidDriveLink(scriptLink) && (

@@ -602,9 +602,11 @@ export async function recordVoiceOver(input: RecordVoiceOverInput): Promise<{ su
   if (!isValidPipelineTransition(current.status as ContentPipelineStatus, 'voiceover')) {
     return { success: false, error: `Cannot move from ${current.status} to voiceover` }
   }
-  // Completing Scripting always leaves the written script behind — enforced server-side
-  // for the same reason the edit link is: the modal can't be the only gate.
-  if (!isValidDriveLink(parsed.data.script_drive_link)) {
+  // The script link is optional, but a supplied one must really point at Drive/Docs —
+  // checked server-side for the same reason the edit link is: the modal can't be the
+  // only gate. Blank clears it, since the modal pre-fills the current value.
+  const scriptLink = parsed.data.script_drive_link.trim()
+  if (scriptLink && !isValidDriveLink(scriptLink)) {
     return { success: false, error: 'A valid Google Drive link is required' }
   }
 
@@ -612,7 +614,7 @@ export async function recordVoiceOver(input: RecordVoiceOverInput): Promise<{ su
     status:            'voiceover',
     voiceover_by:      parsed.data.voiceover_by,
     voiceover_date:    parsed.data.voiceover_date,
-    script_drive_link: parsed.data.script_drive_link.trim(),
+    script_drive_link: scriptLink || null,
     updated_at:        new Date().toISOString(),
   }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
@@ -664,14 +666,15 @@ export async function updateVoiceOver(input: UpdateVoiceOverInput): Promise<{ su
   if (!current.voiceover_by && current.status !== 'voiceover') {
     return { success: false, error: 'This item has no voice-over recorded yet' }
   }
-  if (!isValidDriveLink(parsed.data.script_drive_link)) {
+  const scriptLink = parsed.data.script_drive_link.trim()
+  if (scriptLink && !isValidDriveLink(scriptLink)) {
     return { success: false, error: 'A valid Google Drive link is required' }
   }
 
   const { error } = await ctx.admin.from('content_items').update({
     voiceover_by:      parsed.data.voiceover_by,
     voiceover_date:    parsed.data.voiceover_date,
-    script_drive_link: parsed.data.script_drive_link.trim(),
+    script_drive_link: scriptLink || null,
     updated_at:        new Date().toISOString(),
   }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }

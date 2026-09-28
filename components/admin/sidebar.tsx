@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, Clock, Target,
   CalendarOff, Megaphone, Briefcase, LogOut,
   Receipt, IndianRupee, FolderOpen, LifeBuoy,
-  MoreHorizontal, X, Bell, ClipboardList, Activity, TrendingUp, Clapperboard, Shield, Film, StickyNote, Layers,
+  MoreHorizontal, X, Bell, ClipboardList, Activity, TrendingUp, Clapperboard, Shield, Film, StickyNote, Layers, Timer,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
@@ -19,6 +19,7 @@ const navItems = [
   { label: "Team",          href: "/admin/team",              icon: Users },
   { label: "Leaves",        href: "/admin/leaves",            icon: CalendarOff },
   { label: "Activities",    href: "/admin/activities",        icon: Activity },
+  { label: "Punctuality",   href: "/admin/punctuality",       icon: Timer },
   { label: "Expenses",      href: "/admin/expenses",          icon: Receipt },
   { label: "Freelancers",   href: "/admin/freelancers",       icon: Film },
   { label: "Team Insights", href: "/admin/insights",          icon: TrendingUp },
@@ -42,6 +43,7 @@ const bottomNavItems = [
 const moreNavItems = [
   { label: "Leaves",        href: "/admin/leaves",            icon: CalendarOff },
   { label: "Activities",    href: "/admin/activities",        icon: Activity },
+  { label: "Punctuality",   href: "/admin/punctuality",       icon: Timer },
   { label: "Expenses",      href: "/admin/expenses",          icon: Receipt },
   { label: "Freelancers",   href: "/admin/freelancers",       icon: Film },
   { label: "Team Insights", href: "/admin/insights",          icon: TrendingUp },

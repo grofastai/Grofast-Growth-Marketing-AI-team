@@ -779,6 +779,12 @@ export default function ActivitiesClient({
   const [customFrom, setCustomFrom] = useState(from)
   const [customTo, setCustomTo]     = useState(to)
   const [showCustom, setShowCustom] = useState(false)
+  // Which preset button was last clicked. Needed because "This Week" and
+  // "Today" compute to the identical from/to range on Mondays (week start =
+  // today) — without this, activePreset()'s range lookup always resolves to
+  // whichever preset is listed first, so clicking "This Week" on a Monday
+  // looked like it did nothing (2026-09-28 fix).
+  const [manualPreset, setManualPreset] = useState<string | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   // Header toggle — design review only for now (2026-07-31): switches which
   // button is highlighted. The actual "Work Analysis" view isn't built yet;
@@ -809,6 +815,11 @@ export default function ActivitiesClient({
   ]
 
   function activePreset() {
+    if (manualPreset === "Custom") return "Custom"
+    if (manualPreset) {
+      const preset = DATE_PRESETS.find(p => p.label === manualPreset)
+      if (preset && preset.from === from && preset.to === to) return manualPreset
+    }
     return DATE_PRESETS.find(p => p.from === from && p.to === to)?.label ?? "Custom"
   }
 
@@ -1172,7 +1183,7 @@ export default function ActivitiesClient({
           {DATE_PRESETS.map(p => (
             <button
               key={p.label}
-              onClick={() => { setShowCustom(false); navigate(p.from, p.to) }}
+              onClick={() => { setShowCustom(false); setManualPreset(p.label); navigate(p.from, p.to) }}
               style={{
                 padding: "8px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
                 background: curPreset === p.label ? "#E31E24" : "#F3F4F6",
@@ -1201,7 +1212,7 @@ export default function ActivitiesClient({
               <span style={{ fontSize: 12, color: "#1E3A5F" }}>to</span>
               <input type="date" min={customFrom || "2025-01-01"} max={todayIST()} value={customTo} onChange={e => setCustomTo(e.target.value)}
                 style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#1E3A5F" }} />
-              <button onClick={() => { navigate(customFrom, customTo); setShowCustom(false) }}
+              <button onClick={() => { navigate(customFrom, customTo); setShowCustom(false); setManualPreset("Custom") }}
                 style={{ padding: "6px 14px", borderRadius: 8, background: "#E31E24", color: "#fff", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
                 Apply
               </button>

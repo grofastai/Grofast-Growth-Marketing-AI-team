@@ -1097,7 +1097,7 @@ export default function ExpensesClient({
                   <tbody>
                     {directRows.map(({ e, count, amount, row }, i) => (
                       <tr key={e.id + (count > 1 ? "-g" : "")} style={{ borderBottom: i < directRows.length - 1 ? "1px solid #F5F5F5" : "none" }}>
-                        <td className="px-6 py-3 text-[12px] font-bold uppercase whitespace-nowrap" style={{ color: "#6B1D3A" }}>{count > 1 ? `×${count}` : fmtDate(e.date)}</td>
+                        <td className="px-6 py-3 text-[12px] font-bold uppercase whitespace-nowrap" style={{ color: "#6B1D3A" }}>{fmtDate(e.date)}</td>
                         <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>{e.client_name}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase"
@@ -1105,6 +1105,7 @@ export default function ExpensesClient({
                         </td>
                         <td className="px-4 py-3 text-[12px] font-semibold uppercase" style={{ color: "#800080" }}>
                           {e.shoot_title ? e.shoot_title : ""}{e.notes ? (e.shoot_title ? ` · ${e.notes}` : e.notes) : (!e.shoot_title ? "—" : "")}
+                          {count > 1 && <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#8B5CF6" }}>×{count}</span>}
                         </td>
                         <td className="px-4 py-3 text-right text-[13px] font-black whitespace-nowrap" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
                           ₹{Math.round(amount).toLocaleString("en-IN")}

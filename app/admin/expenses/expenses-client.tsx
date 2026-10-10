@@ -846,6 +846,33 @@ export default function ExpensesClient({
       .filter(r => !search.trim() || r.clientName.toLowerCase().includes(search.trim().toLowerCase()))
   }, [shootRows, clientFilter, search])
 
+  // All Time lists every month's entries — identical ones (same name/client/type/details) are
+  // merged into a single row with a summed amount + entry count, so a monthly bill like
+  // Office Rent shows once instead of once per month. Monthly view is left row-for-row.
+  const directRows = useMemo(() => {
+    if (!isAll) return filteredClientExpenses.map(e => ({ key: e.id, count: 1, amount: e.amount, row: e as ClientExpense | null, e }))
+    const m = new Map<string, { key: string; count: number; amount: number; row: ClientExpense | null; e: ClientExpense }>()
+    for (const e of filteredClientExpenses) {
+      const k = [e.client_name, e.type, e.shoot_title ?? "", e.notes ?? ""].map(x => x.trim().replace(/\s+/g, " ").toLowerCase()).join("|")
+      const g = m.get(k)
+      if (g) { g.count++; g.amount += e.amount; g.row = null }
+      else m.set(k, { key: k, count: 1, amount: e.amount, row: e, e })
+    }
+    return Array.from(m.values())
+  }, [filteredClientExpenses, isAll])
+
+  const commonRows = useMemo(() => {
+    if (!isAll) return commonExpenses.map(e => ({ key: e.id, count: 1, amount: e.amount, name: e.name, notes: e.notes as string | null | undefined, row: e as CommonExpense | null }))
+    const m = new Map<string, { key: string; count: number; amount: number; name: string; notes: string | null | undefined; row: CommonExpense | null }>()
+    for (const e of commonExpenses) {
+      const k = e.name.trim().replace(/\s+/g, " ").toLowerCase()
+      const g = m.get(k)
+      if (g) { g.count++; g.amount += e.amount; g.row = null; if (e.notes && !(g.notes ?? "").includes(e.notes)) g.notes = g.notes ? `${g.notes} · ${e.notes}` : e.notes }
+      else m.set(k, { key: k, count: 1, amount: e.amount, name: e.name, notes: e.notes, row: e })
+    }
+    return Array.from(m.values())
+  }, [commonExpenses, isAll])
+
   const viewDetailsRow = useMemo(
     () => clientSummaryRows.find(r => r.name === viewDetailsClient) ?? null,
     [clientSummaryRows, viewDetailsClient]
@@ -1068,9 +1095,9 @@ export default function ExpensesClient({
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredClientExpenses.map((e, i) => (
-                      <tr key={e.id} style={{ borderBottom: i < filteredClientExpenses.length - 1 ? "1px solid #F5F5F5" : "none" }}>
-                        <td className="px-6 py-3 text-[12px] font-bold uppercase whitespace-nowrap" style={{ color: "#6B1D3A" }}>{fmtDate(e.date)}</td>
+                    {directRows.map(({ e, count, amount, row }, i) => (
+                      <tr key={e.id + (count > 1 ? "-g" : "")} style={{ borderBottom: i < directRows.length - 1 ? "1px solid #F5F5F5" : "none" }}>
+                        <td className="px-6 py-3 text-[12px] font-bold uppercase whitespace-nowrap" style={{ color: "#6B1D3A" }}>{count > 1 ? `${count} entries` : fmtDate(e.date)}</td>
                         <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>{e.client_name}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase"
@@ -1080,17 +1107,17 @@ export default function ExpensesClient({
                           {e.shoot_title ? e.shoot_title : ""}{e.notes ? (e.shoot_title ? ` · ${e.notes}` : e.notes) : (!e.shoot_title ? "—" : "")}
                         </td>
                         <td className="px-4 py-3 text-right text-[13px] font-black whitespace-nowrap" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
-                          ₹{Math.round(e.amount).toLocaleString("en-IN")}
+                          ₹{Math.round(amount).toLocaleString("en-IN")}
                         </td>
                         <td className="px-6 py-3">
-                          <div className="flex items-center justify-end gap-2">
+                          {row && <div className="flex items-center justify-end gap-2">
                             <button onClick={() => { setEditClient(e); setModal("client") }} className="opacity-40 hover:opacity-90 transition-opacity">
                               <Pencil size={13} style={{ color: "#6B1D3A" }} />
                             </button>
                             <button onClick={() => handleDeleteClient(e.id)} disabled={isPending} className="opacity-30 hover:opacity-80 transition-opacity">
                               <Trash2 size={13} style={{ color: "#DC2626" }} />
                             </button>
-                          </div>
+                          </div>}
                         </td>
                       </tr>
                     ))}
@@ -1160,11 +1187,14 @@ export default function ExpensesClient({
                     </tr>
                   </thead>
                   <tbody>
-                    {commonExpenses.map((e, i) => {
+                    {commonRows.map((e, i) => {
                       const share = !isAll && overheadDivisor > 0 ? e.amount / overheadDivisor : 0
                       return (
-                        <tr key={e.id} style={{ borderBottom: i < commonExpenses.length - 1 ? "1px solid #F5F5F5" : "none" }}>
-                          <td className="px-6 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>{e.name}</td>
+                        <tr key={e.key} style={{ borderBottom: i < commonRows.length - 1 ? "1px solid #F5F5F5" : "none" }}>
+                          <td className="px-6 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>
+                            {e.name}
+                            {e.count > 1 && <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.1)", color: "#8B5CF6" }}>×{e.count}</span>}
+                          </td>
                           <td className="px-4 py-3 text-[12px] font-semibold" style={{ color: "#800080" }}>{e.notes || "—"}</td>
                           <td className="px-4 py-3 text-right text-[12px] font-semibold whitespace-nowrap" style={{ color: share > 0 ? "#8B5CF6" : "#111111" }}>
                             {share > 0 ? fmtRupee(share) : "—"}
@@ -1173,16 +1203,16 @@ export default function ExpensesClient({
                             ₹{Math.round(e.amount).toLocaleString("en-IN")}
                           </td>
                           <td className="px-6 py-3">
-                            <div className="flex items-center justify-end gap-2">
-                              <button onClick={() => { setEditCommon(e); setModal("common") }}
+                            {e.row && <div className="flex items-center justify-end gap-2">
+                              <button onClick={() => { setEditCommon(e.row); setModal("common") }}
                                 className="opacity-40 hover:opacity-90 transition-opacity">
                                 <Pencil size={13} style={{ color: "#6B1D3A" }} />
                               </button>
-                              <button onClick={() => handleDeleteCommon(e.id)} disabled={isPending}
+                              <button onClick={() => handleDeleteCommon(e.row!.id)} disabled={isPending}
                                 className="opacity-30 hover:opacity-80 transition-opacity">
                                 <Trash2 size={13} style={{ color: "#DC2626" }} />
                               </button>
-                            </div>
+                            </div>}
                           </td>
                         </tr>
                       )

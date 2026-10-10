@@ -1097,7 +1097,7 @@ export default function ExpensesClient({
                   <tbody>
                     {directRows.map(({ e, count, amount, row }, i) => (
                       <tr key={e.id + (count > 1 ? "-g" : "")} style={{ borderBottom: i < directRows.length - 1 ? "1px solid #F5F5F5" : "none" }}>
-                        <td className="px-6 py-3 text-[12px] font-bold uppercase whitespace-nowrap" style={{ color: "#6B1D3A" }}>{count > 1 ? `${count} entries` : fmtDate(e.date)}</td>
+                        <td className="px-6 py-3 text-[12px] font-bold uppercase whitespace-nowrap" style={{ color: "#6B1D3A" }}>{count > 1 ? `×${count}` : fmtDate(e.date)}</td>
                         <td className="px-4 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>{e.client_name}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase"

@@ -1,6 +1,6 @@
-import { createServerClient } from '@/lib/supabase/server'
+import { createServerClient, getCurrentUser } from '@/lib/supabase/server'
 import { createClient } from "@supabase/supabase-js"
-import { cookies } from "next/headers"
+import { getValidImpersonationId } from "@/lib/impersonation"
 import { redirect } from 'next/navigation'
 import MemberShootsClient from './shoots-client'
 
@@ -16,11 +16,10 @@ function adminSupabase() {
 
 export default async function MemberShootsPage() {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect('/login')
 
-  const cookieStore = await cookies()
-  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const impersonateId = await getValidImpersonationId(user.id)
   const effectiveUserId = impersonateId ?? user.id
   // When impersonating, read through the service-role client (RLS would otherwise
   // return zero rows since the session is still the admin's), scoped to effectiveUserId.

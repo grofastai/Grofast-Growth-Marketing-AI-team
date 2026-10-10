@@ -1,6 +1,6 @@
 export const revalidate = 0
 
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import PayrollClient from "./payroll-client"
@@ -15,8 +15,7 @@ export default async function PayrollPage({
   searchParams: Promise<{ month?: string }>
 }) {
   const params  = await searchParams
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
 
   const now     = new Date()

@@ -2,7 +2,7 @@ export const revalidate = 0
 
 import { createServerClient, getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
-import { cookies } from "next/headers"
+import { getValidImpersonationId } from "@/lib/impersonation"
 import type React from "react"
 import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap, Camera, Film, Coffee, BookOpen, Mic, Monitor, Layers, FileText, Code2, CalendarClock } from "lucide-react"
 import Link from "next/link"
@@ -26,8 +26,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const user = await getCurrentUser()
   if (!user) return null
 
-  const cookieStore = await cookies()
-  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const impersonateId = await getValidImpersonationId(user.id)
   const effectiveUserId = impersonateId ?? user.id
 
   // When an admin is impersonating, the RLS-bound `supabase` client is still
@@ -154,7 +153,10 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
   // All-time distinct task_types this person has ever logged (drives which dashboard cards appear)
   const everTypes = new Set<string>()
-  for (const row of (everLoggedRaw ?? []) as { work_entries: WorkEntryLike[] | null }[]) {
+  // work_entries isn't in the generated lib/supabase/types.ts, and `db` is a union of the typed
+  // and untyped clients — so how TS types this select is fragile (it flips to SelectQueryError
+  // when unrelated files change type-check order). Cast through unknown, as history/page.tsx does.
+  for (const row of (everLoggedRaw ?? []) as unknown as { work_entries: WorkEntryLike[] | null }[]) {
     for (const e of Array.isArray(row.work_entries) ? row.work_entries : []) {
       if (e.task_type) everTypes.add(e.task_type.toLowerCase())
     }

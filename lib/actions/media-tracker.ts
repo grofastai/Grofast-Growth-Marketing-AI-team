@@ -68,6 +68,11 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
   const source = parsed.data.content_type === 'poster' ? 'poster' : 'shoot'
   const entryStatus = parsed.data.content_type === 'poster' ? 'design' : 'ready_to_edit'
 
+  // Only meaningful on the backfill path — the normal flow captures this at the
+  // Ready to Edit -> On Review move instead.
+  const driveLink = isBackfillPosted ? (parsed.data.edited_drive_link || '').trim() : ''
+  if (driveLink && !isValidDriveLink(driveLink)) return { success: false, error: 'A valid Google Drive link is required' }
+
   const { data, error } = await ctx.admin.from('content_items').insert({
     company_id:   ctx.companyId,
     client_name:  parsed.data.client_name,
@@ -79,6 +84,7 @@ export async function createContentItem(input: CreateContentItemInput): Promise<
     shot_date:    shotDate,
     edited_by:    isBackfillPosted ? (parsed.data.edited_by || ctx.id) : null,
     edited_date:  isBackfillPosted ? (parsed.data.posted_date || today) : null,
+    edited_drive_link: driveLink || null,
     notes:        parsed.data.notes || null,
     created_by:   ctx.id,
   }).select('id').single()
@@ -249,8 +255,6 @@ export async function updateContentItemStatus(
     return { success: false, error: `Cannot move from ${current.status} to ${status}` }
   }
 
-  // A poster has no drive file to link — only videos are required to leave one behind.
-  const isPoster = current.content_type === 'poster'
   // Only the fresh Edited -> Completed Edit move is a real submission that needs a Drive
   // link recorded. Branding/Ads Ready -> Completed Edit is an undo of an approval (see
   // advance() in media-tracker-client.tsx) — the item already has a link on file from
@@ -259,7 +263,9 @@ export async function updateContentItemStatus(
 
   // Enforced server-side too — the client can't be trusted to be the only gate on a
   // pipeline transition that's supposed to always leave a real Drive link behind.
-  if (isFreshReview && !isPoster && !isValidDriveLink(editedDriveLink ?? '')) {
+  // Posters are held to the same rule as videos: the finished design file has to be
+  // openable from On Review without asking the designer where it lives.
+  if (isFreshReview && !isValidDriveLink(editedDriveLink ?? '')) {
     return { success: false, error: 'A valid Google Drive link is required' }
   }
   const updates: Record<string, unknown> = { status, updated_at: new Date().toISOString() }
@@ -269,7 +275,7 @@ export async function updateContentItemStatus(
   if (status === 'edited' && editorId) updates.edited_by = editorId
   if (isFreshReview) {
     updates.edited_date = editedDate || todayIST()
-    if (!isPoster) updates.edited_drive_link = editedDriveLink!.trim()
+    updates.edited_drive_link = editedDriveLink!.trim()
     // Reaching On Review (Completed Edit) is where the editor is recorded — the
     // accountability moment ("who edited this?"), asked at the Edited -> On Review move.
     if (editorId) updates.edited_by = editorId
@@ -596,12 +602,20 @@ export async function recordVoiceOver(input: RecordVoiceOverInput): Promise<{ su
   if (!isValidPipelineTransition(current.status as ContentPipelineStatus, 'voiceover')) {
     return { success: false, error: `Cannot move from ${current.status} to voiceover` }
   }
+  // The script link is optional, but a supplied one must really point at Drive/Docs —
+  // checked server-side for the same reason the edit link is: the modal can't be the
+  // only gate. Blank clears it, since the modal pre-fills the current value.
+  const scriptLink = parsed.data.script_drive_link.trim()
+  if (scriptLink && !isValidDriveLink(scriptLink)) {
+    return { success: false, error: 'A valid Google Drive link is required' }
+  }
 
   const { error } = await ctx.admin.from('content_items').update({
-    status:         'voiceover',
-    voiceover_by:   parsed.data.voiceover_by,
-    voiceover_date: parsed.data.voiceover_date,
-    updated_at:     new Date().toISOString(),
+    status:            'voiceover',
+    voiceover_by:      parsed.data.voiceover_by,
+    voiceover_date:    parsed.data.voiceover_date,
+    script_drive_link: scriptLink || null,
+    updated_at:        new Date().toISOString(),
   }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
 
@@ -652,11 +666,16 @@ export async function updateVoiceOver(input: UpdateVoiceOverInput): Promise<{ su
   if (!current.voiceover_by && current.status !== 'voiceover') {
     return { success: false, error: 'This item has no voice-over recorded yet' }
   }
+  const scriptLink = parsed.data.script_drive_link.trim()
+  if (scriptLink && !isValidDriveLink(scriptLink)) {
+    return { success: false, error: 'A valid Google Drive link is required' }
+  }
 
   const { error } = await ctx.admin.from('content_items').update({
-    voiceover_by:   parsed.data.voiceover_by,
-    voiceover_date: parsed.data.voiceover_date,
-    updated_at:     new Date().toISOString(),
+    voiceover_by:      parsed.data.voiceover_by,
+    voiceover_date:    parsed.data.voiceover_date,
+    script_drive_link: scriptLink || null,
+    updated_at:        new Date().toISOString(),
   }).eq('id', parsed.data.content_item_id).eq('company_id', ctx.companyId)
   if (error) return { success: false, error: error.message }
 

@@ -28,6 +28,25 @@ export function shouldUpgradeDeliveryStatus(current: string | null, next: string
   return nextRank > currentRank
 }
 
+// Meta error codes that mean the TEMPLATE is broken, not the delivery: the name does
+// not exist, it is not approved, or it exists under a different language than the one
+// we send (WHATSAPP_TEMPLATE_LANG, default 'en'). These never fix themselves — every
+// future run fails identically — so they must be reported loudly rather than counted
+// as "not sent" alongside a blocked recipient or a frequency cap.
+//   132000 param count mismatch     132001 template does not exist in this language
+//   132005 template text too long   132007 template format/param error
+//   132012 param format mismatch    132015 template is paused
+//   133010 template not approved
+const TEMPLATE_CONFIG_ERROR_CODES = new Set([132000, 132001, 132005, 132007, 132012, 132015, 133010])
+
+/** True when `error` (as returned on WhatsAppSendResult) is a template misconfiguration
+ *  that will recur on every send until somebody changes the template in Meta. */
+export function isTemplateConfigError(error: string | null): boolean {
+  if (!error) return false
+  const code = Number(error.split(':')[0].trim())
+  return Number.isFinite(code) && TEMPLATE_CONFIG_ERROR_CODES.has(code)
+}
+
 export interface WhatsAppSendResult {
   /** Meta ACCEPTED the send (HTTP 2xx). This is NOT proof of delivery — see messageId. */
   ok: boolean
@@ -36,6 +55,9 @@ export interface WhatsAppSendResult {
   messageId: string | null
   /** Meta's rejection reason (code + message) when ok is false. */
   error: string | null
+  /** The send failed because the template itself is misconfigured in Meta. Retrying
+   *  will not help; a human has to fix the template. */
+  configError?: boolean
 }
 
 // A 200 from Meta only means "queued for delivery" — the message can still be dropped
@@ -96,9 +118,22 @@ export async function sendWhatsAppTemplateDetailed(
     const json = await res.json().catch(() => ({} as Record<string, unknown>))
 
     if (!res.ok) {
-      console.error(`[whatsapp] Meta API error for ${phone} (${templateName}):`, json)
       const e = (json as { error?: { code?: number; message?: string } }).error
-      return { ok: false, messageId: null, error: e ? `${e.code ?? '?'}: ${e.message ?? ''}` : `http ${res.status}` }
+      const error = e ? `${e.code ?? '?'}: ${e.message ?? ''}` : `http ${res.status}`
+      const configError = isTemplateConfigError(error)
+      if (configError) {
+        // Its own log line, and its own error group in the Vercel dashboard. A broken
+        // template silently skipped the admin morning report for 12 days because this
+        // was indistinguishable from an ordinary undeliverable message.
+        console.error(
+          `[whatsapp] TEMPLATE MISCONFIGURED — template="${templateName}" ` +
+          `language="${process.env.WHATSAPP_TEMPLATE_LANG ?? 'en'}" reason="${error}". ` +
+          `Every send of this template will keep failing until it is fixed in Meta.`
+        )
+      } else {
+        console.error(`[whatsapp] Meta API error for ${phone} (${templateName}):`, json)
+      }
+      return { ok: false, messageId: null, error, configError }
     }
 
     const messageId =

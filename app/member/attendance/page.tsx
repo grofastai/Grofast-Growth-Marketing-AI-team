@@ -1,6 +1,6 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createServerClient, getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
-import { cookies } from "next/headers"
+import { getValidImpersonationId } from "@/lib/impersonation"
 import { redirect } from "next/navigation"
 import AttendanceClient from "./attendance-client"
 import { blockFreelancerMedia } from "@/lib/utils/freelancer-guard"
@@ -20,11 +20,10 @@ function adminSupabase() {
 export default async function AttendancePage() {
   await blockFreelancerMedia()
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
 
-  const cookieStore = await cookies()
-  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const impersonateId = await getValidImpersonationId(user.id)
   const effectiveUserId = impersonateId ?? user.id
 
   // nowISTShifted() reads as IST wall-clock time via its UTC getters — plain new Date()

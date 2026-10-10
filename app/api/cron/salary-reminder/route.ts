@@ -3,7 +3,8 @@ export const revalidate = 0
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
+import { formatPhone } from '@/lib/whatsapp'
+import { createWhatsAppRun } from '@/lib/cron-whatsapp'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -75,16 +76,17 @@ export async function GET(request: NextRequest) {
 
   const memberCount = String((members ?? []).length)
 
+  const run = createWhatsAppRun()
   let whatsappSent = false
   if (adminUser?.phone) {
-    whatsappSent = await sendWhatsAppTemplate(
+    whatsappSent = await run.send(
       formatPhone(adminUser.phone),
       'grofast_salary_reminder',
       [monthLabel, salaryDate, memberCount]
     )
   }
 
-  return NextResponse.json({
+  return run.respond({
     month: monthLabel,
     salaryDate,
     memberCount,

@@ -4,6 +4,7 @@ export const revalidate = 0
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendWhatsAppTemplateDetailed, formatPhone } from '@/lib/whatsapp'
+import { createWhatsAppRun } from '@/lib/cron-whatsapp'
 import { todayIST } from '@/lib/utils/ist-date'
 import { filterAlreadyNotifiedToday, markNotifiedToday, type NotifiedRow } from '@/lib/cron/dedup'
 
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest) {
   }
 
   const admin = adminSupabase()
+  const run = createWhatsAppRun()
   const tomorrow = tomorrowIST()
 
   const { data: holidays, error } = await admin
@@ -124,6 +126,7 @@ export async function GET(request: NextRequest) {
           console.error(`[holiday-reminder] failed to send to ${m.name}:`, err)
           return { ok: false, messageId: null, error: String(err) }
         })
+        run.record('grofast_holiday_reminder', res)
         if (res.ok) {
           sent++
           // provider_ref is what makes a later silent drop traceable back to this person.
@@ -135,5 +138,5 @@ export async function GET(request: NextRequest) {
   }
 
   console.log(`[holiday-reminder] date=${tomorrow} checked=${checked} whatsapp=${sent} in_app=${inApp}`)
-  return NextResponse.json({ holidays: holidays.length, checked, sent, inApp, date: tomorrow })
+  return run.respond({ holidays: holidays.length, checked, sent, inApp, date: tomorrow })
 }

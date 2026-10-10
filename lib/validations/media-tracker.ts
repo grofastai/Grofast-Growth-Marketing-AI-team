@@ -32,6 +32,10 @@ export const createContentItemSchema = z.object({
   // Who actually posted it — same reasoning as edited_by, asked instead of silently
   // crediting whoever's filling out the backfill form.
   posted_by:            z.string().uuid().optional(),
+  // Where the edited file lives. Backfilled items skip the Edited -> On Review move
+  // where this is normally captured, so it has to be askable here or the Drive link
+  // is lost for every item logged as already posted.
+  edited_drive_link:    z.string().optional(),
   // Only meaningful when posted_platforms includes 'other'.
   other_platform_label: z.string().optional(),
 })
@@ -153,10 +157,16 @@ export const createAdsVideoScriptSchema = z.object({
 export type CreateAdsVideoScriptInput = z.infer<typeof createAdsVideoScriptSchema>
 
 // Assigning the recorded voice-over — who, and when. Moves the item to "voiceover".
+// script_drive_link is captured here because this is where the Scripting stage is
+// completed. It is optional — unlike the edit stage's link, a script may be finished
+// before the doc exists — but must be a real Drive/Docs link if one is given.
 export const recordVoiceOverSchema = z.object({
-  content_item_id: z.string().uuid(),
-  voiceover_by:    z.string().uuid(),
-  voiceover_date:  z.string().min(1, 'Date is required'),
+  content_item_id:   z.string().uuid(),
+  voiceover_by:      z.string().uuid(),
+  voiceover_date:    z.string().min(1, 'Date is required'),
+  // Optional: a script can be completed before its doc is filed. Still validated as a
+  // real Drive/Docs link when one IS supplied — see isValidDriveLink in the actions.
+  script_drive_link: z.string().default(''),
 })
 export type RecordVoiceOverInput = z.infer<typeof recordVoiceOverSchema>
 
@@ -179,9 +189,12 @@ export type UpdateAdsVideoScriptInput = z.infer<typeof updateAdsVideoScriptSchem
 // date was wrong. Deliberately NOT a pipeline transition (item is already at "voiceover"),
 // just an in-place correction — see updateVoiceOver.
 export const updateVoiceOverSchema = z.object({
-  content_item_id: z.string().uuid(),
-  voiceover_by:    z.string().uuid(),
-  voiceover_date:  z.string().min(1, 'Date is required'),
+  content_item_id:   z.string().uuid(),
+  voiceover_by:      z.string().uuid(),
+  voiceover_date:    z.string().min(1, 'Date is required'),
+  // Optional: a script can be completed before its doc is filed. Still validated as a
+  // real Drive/Docs link when one IS supplied — see isValidDriveLink in the actions.
+  script_drive_link: z.string().default(''),
 })
 export type UpdateVoiceOverInput = z.infer<typeof updateVoiceOverSchema>
 
@@ -189,6 +202,11 @@ export type UpdateVoiceOverInput = z.infer<typeof updateVoiceOverSchema>
 // wants to speak the script on camera instead of using a recorded voice-over.
 export const moveScriptToShootSchema = z.object({
   content_item_id: z.string().uuid(),
+  // The other way a Scripting item is completed — same optional script link as the
+  // Voice Over route.
+  // Optional: a script can be completed before its doc is filed. Still validated as a
+  // real Drive/Docs link when one IS supplied — see isValidDriveLink in the actions.
+  script_drive_link: z.string().default(''),
   shoot_type:       z.enum(SHOOT_TYPES).optional(),
   shot_date:        z.string().min(1, 'Shot date is required'),
   shot_time_from:   z.string().min(1, 'From time is required'),

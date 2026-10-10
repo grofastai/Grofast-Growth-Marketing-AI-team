@@ -3,7 +3,8 @@ export const revalidate = 0
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
+import { formatPhone } from '@/lib/whatsapp'
+import { createWhatsAppRun } from '@/lib/cron-whatsapp'
 import { todayIST } from '@/lib/utils/ist-date'
 import { filterAlreadyNotifiedToday, markNotifiedToday } from '@/lib/cron/dedup'
 
@@ -67,11 +68,12 @@ export async function GET(request: NextRequest) {
   const alreadyNotified = await filterAlreadyNotifiedToday(admin, NOTIF_TYPE, candidates.map((u: any) => u.id))
   const toNudge = candidates.filter((u: any) => !alreadyNotified.has(u.id))
 
+  const run = createWhatsAppRun()
   let sent = 0
   const notifiedRows: Array<{ userId: string; companyId: string }> = []
   await Promise.all(
     toNudge.map(async (u: any) => {
-      const ok = await sendWhatsAppTemplate(formatPhone(u.phone), 'grofast_logout_nudge', [u.name])
+      const ok = await run.send(formatPhone(u.phone), 'grofast_logout_nudge', [u.name])
         .catch((err) => {
           console.error(`[logout-nudge] failed to send to ${u.name}:`, err)
           return false
@@ -82,5 +84,5 @@ export async function GET(request: NextRequest) {
   await markNotifiedToday(admin, NOTIF_TYPE, notifiedRows)
 
   console.log(`[logout-nudge] date=${today} checked=${toNudge.length} sent=${sent}`)
-  return NextResponse.json({ checked: toNudge.length, sent, date: today })
+  return run.respond({ checked: toNudge.length, sent, date: today })
 }

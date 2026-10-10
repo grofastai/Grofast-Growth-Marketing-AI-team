@@ -1,7 +1,7 @@
 export const revalidate = 0
 
 import { redirect } from "next/navigation"
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import type { Freelancer, WorkEntry } from "@/app/member/freelancers/freelancers-member-client"
 import type { FlMediaMember, FlMediaEntry } from "./fl-media-client"
@@ -16,8 +16,7 @@ function adminSupabase() {
 }
 
 export default async function AdminFreelancersPage() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
 
   const admin = adminSupabase()
@@ -33,7 +32,7 @@ export default async function AdminFreelancersPage() {
 
   // Fetch all data in parallel
   const [freelancersResult, workEntriesResult, clientsResult, pastClientsResult, flMembersResult] = await Promise.all([
-    admin.from("freelancers").select("id, name, team, phone, rating, status, created_at")
+    admin.from("freelancers").select("id, name, team, phone, payment_qr_url, rating, status, created_at")
       .eq("company_id", cid).not("team", "is", null).order("name"),
     admin.from("freelancer_work_entries_v2").select("*")
       .eq("company_id", cid).order("date_finished", { ascending: false }),

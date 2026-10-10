@@ -9,6 +9,7 @@ import { DeliveryStatusTable } from "./delivery-status-table"
 import { WorkFlow } from "./work-flow"
 import { ContentPipelineSection } from "./content-pipeline"
 import { UpcomingSchedule } from "./upcoming-schedule"
+import { MonthSelect } from "../month-select"
 import type { ContentItem, Shoot, Ad, ClientTarget } from "@/components/media-tracker/media-tracker-client"
 
 function fmtMonth(ym: string): string {
@@ -53,11 +54,23 @@ export function OverviewDashboard({
   onSetTarget: (clientName: string, kind: "branding" | "ads", contentType: "video" | "poster", month: string, newTarget: number) => Promise<void>
 }) {
   const [contentTypeFilter, setContentTypeFilter] = useState<ContentTypeFilter>("video")
+  // Delivery tables + Monthly Progress ring are scoped to one month at a time. Defaults to
+  // the current month; picking another re-reads targets and published counts for it (and
+  // makes the inline Target edit write to that month's target row).
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => today.slice(0, 7))
 
   const todayAndAllTime = useMemo(() => computeTodayAndAllTime({ items, shoots, ads, today }), [items, shoots, ads, today])
   const contentPipeline = useMemo(() => computeContentPipeline({ items, shoots }), [items, shoots])
   const upcomingSchedule = useMemo(() => computeUpcomingSchedule(items, today, 5), [items, today])
-  const effectiveMonth = today.slice(0, 7)
+  // Every month worth looking at: anything published, anything with a target set, plus the
+  // current month so the default selection always has a matching option.
+  const monthOptions = useMemo(() => {
+    const months = new Set<string>([today.slice(0, 7)])
+    for (const i of items) for (const p of i.posts) months.add(p.posted_date.slice(0, 7))
+    for (const t of clientTargets) months.add(t.month)
+    return Array.from(months).sort().reverse()
+  }, [items, clientTargets, today])
+  const effectiveMonth = selectedMonth
   const monthlyRollup = useMemo(
     () => computeMonthlyRollup(items, clientTargets, effectiveMonth, "branding", contentTypeFilter),
     [items, clientTargets, effectiveMonth, contentTypeFilter]
@@ -114,7 +127,9 @@ export function OverviewDashboard({
 
         <main className="flex flex-col gap-[32px] min-w-0">
           <section>
-            <div className="flex items-baseline justify-end flex-wrap gap-3" style={{ margin: "0 0 16px" }}>
+            <div className="flex items-center justify-end flex-wrap gap-3" style={{ margin: "0 0 16px" }}>
+              <MonthSelect value={selectedMonth} onChange={setSelectedMonth} options={monthOptions}
+                allowAllTime={false} ariaLabel="Filter delivery status by month" />
               <ContentTypeToggle value={contentTypeFilter} onChange={setContentTypeFilter} />
             </div>
 

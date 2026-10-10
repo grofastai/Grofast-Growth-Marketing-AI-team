@@ -4,7 +4,8 @@ export const revalidate = 0
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
+import { formatPhone } from '@/lib/whatsapp'
+import { createWhatsAppRun } from '@/lib/cron-whatsapp'
 import { todayIST } from '@/lib/utils/ist-date'
 import { filterAlreadyNotifiedToday, markNotifiedToday } from '@/lib/cron/dedup'
 
@@ -88,11 +89,12 @@ export async function GET(request: NextRequest) {
     day: 'numeric', month: 'long', timeZone: 'Asia/Kolkata',
   })
 
+  const run = createWhatsAppRun()
   let sent = 0
   const notifiedRows: Array<{ userId: string; companyId: string }> = []
   await Promise.all(
     toNudge.map(async (emp: any) => {
-      const ok = await sendWhatsAppTemplate(
+      const ok = await run.send(
         formatPhone(emp.phone),
         'grofast_attendance_nudge',
         [emp.name, dateLabel],
@@ -111,5 +113,5 @@ export async function GET(request: NextRequest) {
   await markNotifiedToday(admin, NOTIF_TYPE, notifiedRows)
 
   console.log(`[attendance-nudge] date=${today} checked=${toNudge.length} sent=${sent}`)
-  return NextResponse.json({ checked: toNudge.length, sent, date: today })
+  return run.respond({ checked: toNudge.length, sent, date: today })
 }

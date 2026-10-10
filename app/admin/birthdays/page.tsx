@@ -1,6 +1,6 @@
 ﻿export const revalidate = 3600
 
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { Cake, Star, PartyPopper, Calendar, Users } from "lucide-react"
@@ -42,8 +42,7 @@ function getInitials(name: string) {
 }
 
 export default async function BirthdaysPage() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
 
   const admin = createClient(

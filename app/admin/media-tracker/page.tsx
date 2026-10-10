@@ -1,6 +1,6 @@
 export const revalidate = 30
 
-import { createServerClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { getMediaTrackerData } from "@/lib/data/media-tracker"
@@ -15,8 +15,7 @@ function adminSupabase() {
 }
 
 export default async function AdminMediaTrackerPage() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) redirect("/login")
 
   const admin = adminSupabase()

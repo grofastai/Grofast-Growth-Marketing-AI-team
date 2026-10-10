@@ -858,7 +858,7 @@ export default function ExpensesClient({
       if (g) { g.count++; g.amount += e.amount; g.row = null }
       else m.set(k, { key: k, count: 1, amount: e.amount, row: e, e })
     }
-    return Array.from(m.values())
+    return Array.from(m.values()).sort((x, y) => y.amount - x.amount)
   }, [filteredClientExpenses, isAll])
 
   const commonRows = useMemo(() => {
@@ -870,7 +870,7 @@ export default function ExpensesClient({
       if (g) { g.count++; g.amount += e.amount; g.row = null; if (e.notes && !(g.notes ?? "").includes(e.notes)) g.notes = g.notes ? `${g.notes} · ${e.notes}` : e.notes }
       else m.set(k, { key: k, count: 1, amount: e.amount, name: e.name, notes: e.notes, row: e })
     }
-    return Array.from(m.values())
+    return Array.from(m.values()).sort((x, y) => y.amount - x.amount)
   }, [commonExpenses, isAll])
 
   const viewDetailsRow = useMemo(

@@ -655,7 +655,7 @@ function TravelTab({ shoots, savedTravel, clientFilter, onClientFilterChange, cl
 const PRODUCTIVITY_GAP_NAME = "PRODUCTIVITY GAP"
 
 export default function ExpensesClient({
-  updates, users, clientExpenses, commonExpenses, activeClients, commonParticipation, selectedMonth, employeeCostByClient, productivityGapCost,
+  updates, users, clientExpenses, commonExpenses, activeClients, commonParticipation, selectedMonth, employeeCostByClient, productivityGapCost, allTimeOverhead,
 }: {
   updates: UpdateRow[]
   users: MemberUser[]
@@ -666,6 +666,7 @@ export default function ExpensesClient({
   selectedMonth: string
   employeeCostByClient: Record<string, number>
   productivityGapCost: number
+  allTimeOverhead: { byClient: Record<string, number>; perClient: number } | null
 }) {
   const router = useRouter()
   const [modal, setModal]             = useState<"client" | "common" | null>(null)
@@ -679,9 +680,17 @@ export default function ExpensesClient({
   const [search, setSearch]            = useState("")
   const [viewDetailsClient, setViewDetailsClient] = useState<string | null>(null)
 
-  const [yr, mo] = selectedMonth.split("-").map(Number)
+  const isAll = selectedMonth === "all"
+  const todayYm = new Date().toISOString().slice(0, 7)
+  // Add / Copy / participation are inherently per-month — in All Time they act on the current month.
+  const actionMonth = isAll ? todayYm : selectedMonth
+  const [yr, mo] = actionMonth.split("-").map(Number)
+  const periodLabel = isAll ? "All Time" : `${MONTHS_SHORT[mo - 1]} ${yr}`
+  const whenLabel = isAll ? "" : " this month"
 
   function goMonth(delta: number) {
+    // From All Time, an arrow lands on the current month instead of stepping from it.
+    if (isAll) { router.push(`/admin/expenses?month=${todayYm}`); return }
     let nm = mo + delta; let ny = yr
     if (nm < 1)  { nm = 12; ny-- }
     if (nm > 12) { nm = 1;  ny++ }
@@ -768,7 +777,7 @@ export default function ExpensesClient({
 
   const totalClientDirect = useMemo(() => clientExpenses.reduce((s, e) => s + e.amount, 0), [clientExpenses])
   const totalCommon       = useMemo(() => commonExpenses.reduce((s, e) => s + e.amount, 0), [commonExpenses])
-  const perClientOverhead = overheadDivisor > 0 ? totalCommon / overheadDivisor : 0
+  const perClientOverhead = allTimeOverhead ? allTimeOverhead.perClient : (overheadDivisor > 0 ? totalCommon / overheadDivisor : 0)
   const grandTotal        = totalClientDirect + totalCommon
 
   const clientSummaryRows = useMemo(() => {
@@ -786,7 +795,7 @@ export default function ExpensesClient({
       // Only clients checked in the Common tab's list share this month's overhead —
       // a client with real employee/direct cost but not checked still shows their real
       // cost, just with zero common share, instead of being forced into the split.
-      const overhead = includedNames.has(name) ? perClientOverhead : 0
+      const overhead = allTimeOverhead ? (allTimeOverhead.byClient[name] ?? 0) : (includedNames.has(name) ? perClientOverhead : 0)
       return {
         name,
         empCost,
@@ -808,7 +817,7 @@ export default function ExpensesClient({
     return productivityGapCost > 0
       ? [{ name: PRODUCTIVITY_GAP_NAME, empCost: productivityGapCost, direct: 0, overhead: 0, total: productivityGapCost }, ...rows]
       : rows
-  }, [clientExpenses, activeClients, perClientOverhead, employeeCostByClient, includedNames, productivityGapCost])
+  }, [clientExpenses, activeClients, perClientOverhead, employeeCostByClient, includedNames, productivityGapCost, allTimeOverhead])
 
   const activeClientNames = useMemo(() => new Set(activeClients.map(c => c.name)), [activeClients])
 
@@ -853,7 +862,7 @@ export default function ExpensesClient({
     start(async () => { await deleteCommonExpense(id); router.refresh() })
   }
   function handleToggleParticipation(clientId: string, included: boolean) {
-    start(async () => { await setCommonExpenseParticipation(clientId, selectedMonth, included); router.refresh() })
+    start(async () => { await setCommonExpenseParticipation(clientId, actionMonth, included); router.refresh() })
   }
 
   const pctOfTotal = (v: number) => grandTotal > 0 ? Math.round((v / grandTotal) * 100) : 0
@@ -881,10 +890,17 @@ export default function ExpensesClient({
               <h1 className="text-[28px] md:text-[34px] font-black" style={{ color: "#fff", fontFamily: "var(--font-jakarta)", margin: 0, lineHeight: 1.1 }}>Expenses</h1>
               <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>Track client direct, common shared & overhead costs</p>
             </div>
-            <div className="flex items-center gap-1 px-3 py-2 rounded-xl flex-shrink-0" style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.2)" }}>
-              <button onClick={() => goMonth(-1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#fff" }}>‹</button>
-              <span className="text-[13px] font-black px-1" style={{ color: "#fff" }}>{MONTHS_SHORT[mo - 1]} {yr}</span>
-              <button onClick={() => goMonth(1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#fff" }}>›</button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-1 px-3 py-2 rounded-xl" style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.2)", opacity: isAll ? 0.55 : 1 }}>
+                <button onClick={() => goMonth(-1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#fff" }}>‹</button>
+                <span className="text-[13px] font-black px-1" style={{ color: "#fff" }}>{MONTHS_SHORT[mo - 1]} {yr}</span>
+                <button onClick={() => goMonth(1)} className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-[15px]" style={{ color: "#fff" }}>›</button>
+              </div>
+              <button onClick={() => router.push("/admin/expenses?month=all")}
+                className="px-3 py-2 rounded-xl text-[13px] font-black whitespace-nowrap"
+                style={{ background: isAll ? "#fff" : "rgba(0,0,0,0.2)", color: isAll ? "#991111" : "#fff", border: "1px solid rgba(255,255,255,0.2)" }}>
+                All Time
+              </button>
             </div>
           </div>
           {/* Illustration — anchored to the bottom-right of the reserved gutter (the same width the text row's padding leaves empty), so it can never overlap the text/pill row; sized off its own container (not vw, which scales off the full viewport and blew it up past the card's clipped edge) */}
@@ -915,7 +931,7 @@ export default function ExpensesClient({
                 )}
                 <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: isTravelActive ? "rgba(255,255,255,0.75)" : "#6B1D3A", position: "relative" }}>Total Expenses</p>
                 <p className="text-[28px] font-black leading-none mt-2" style={{ fontFamily: "var(--font-jakarta)", color: isTravelActive ? "#fff" : "#DE1A1A", fontVariantNumeric: "tabular-nums", position: "relative" }}>{fmtRupee(grandTotal)}</p>
-                <p className="text-[11px] mt-3" style={{ color: isTravelActive ? "rgba(255,255,255,0.7)" : "#6B1D3A", position: "relative" }}>{MONTHS_SHORT[mo - 1]} {yr}</p>
+                <p className="text-[11px] mt-3" style={{ color: isTravelActive ? "rgba(255,255,255,0.7)" : "#6B1D3A", position: "relative" }}>{periodLabel}</p>
               </div>
             )
           })()}
@@ -1022,12 +1038,12 @@ export default function ExpensesClient({
                 <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Client Direct</span>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => setCopyModal("client")}
+                {!isAll && <button onClick={() => setCopyModal("client")}
                   className="flex items-center gap-1.5 transition-all duration-100 active:translate-y-[3px] shadow-[0_3px_0_#6D28D9] active:shadow-[0_0px_0_#6D28D9] hover:brightness-105 whitespace-nowrap"
                   style={{ border: "none", cursor: "pointer", background: "linear-gradient(180deg, #A78BFA 0%, #8B5CF6 100%)", padding: "8px 12px", borderRadius: 10 }}>
                   <Copy size={12} style={{ color: "#fff" }} strokeWidth={2.5} />
                   <span className="text-[11px] font-black uppercase tracking-wide" style={{ color: "#fff" }}>Copy Expenses</span>
-                </button>
+                </button>}
                 <HeaderClientFilter value={clientFilter} onChange={setClientFilter} options={directClientNames} />
               </div>
             </div>
@@ -1035,7 +1051,7 @@ export default function ExpensesClient({
               <div className="flex flex-col items-center py-12">
                 <AlertCircle size={28} style={{ color: "#E5E7EB" }} className="mb-2" />
                 <p className="text-[13px]" style={{ color: "#6B1D3A" }}>
-                  {clientExpenses.length === 0 ? "No client expenses this month" : "No expenses for this client this month"}
+                  {clientExpenses.length === 0 ? `No client expenses${whenLabel}` : `No expenses for this client${whenLabel}`}
                 </p>
               </div>
             ) : (
@@ -1103,13 +1119,13 @@ export default function ExpensesClient({
                 <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#8B5CF6" }}>Common / Shared</span>
               </div>
               <div className="flex items-center gap-2">
-              <button onClick={() => setCopyModal("common")}
+              {!isAll && <button onClick={() => setCopyModal("common")}
                 className="flex items-center gap-1.5 transition-all duration-100 active:translate-y-[3px] shadow-[0_3px_0_#6D28D9] active:shadow-[0_0px_0_#6D28D9] hover:brightness-105 whitespace-nowrap"
                 style={{ border: "none", cursor: "pointer", background: "linear-gradient(180deg, #A78BFA 0%, #8B5CF6 100%)", padding: "8px 12px", borderRadius: 10 }}>
                 <Copy size={12} style={{ color: "#fff" }} strokeWidth={2.5} />
                 <span className="text-[11px] font-black uppercase tracking-wide" style={{ color: "#fff" }}>Copy Expenses</span>
-              </button>
-              <button onClick={() => setShowParticipation(true)}
+              </button>}
+              {!isAll && <button onClick={() => setShowParticipation(true)}
                 className="flex items-center gap-2 transition-all duration-100 active:translate-y-[3px] shadow-[0_4px_0_#6D28D9] active:shadow-[0_0px_0_#6D28D9] hover:brightness-105"
                 style={{
                   border: "none", cursor: "pointer", flexShrink: 0,
@@ -1123,13 +1139,13 @@ export default function ExpensesClient({
                 <span className="text-[11px] font-black px-2 py-0.5 rounded-full whitespace-nowrap" style={{ color: "#fff", background: "rgba(255,255,255,0.25)" }}>
                   {includedNames.size}/{commonParticipation.length}
                 </span>
-              </button>
+              </button>}
               </div>
             </div>
             {commonExpenses.length === 0 ? (
               <div className="flex flex-col items-center py-12">
                 <AlertCircle size={28} style={{ color: "#E5E7EB" }} className="mb-2" />
-                <p className="text-[13px]" style={{ color: "#6B1D3A" }}>No common expenses this month</p>
+                <p className="text-[13px]" style={{ color: "#6B1D3A" }}>No common expenses{whenLabel}</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -1145,7 +1161,7 @@ export default function ExpensesClient({
                   </thead>
                   <tbody>
                     {commonExpenses.map((e, i) => {
-                      const share = overheadDivisor > 0 ? e.amount / overheadDivisor : 0
+                      const share = !isAll && overheadDivisor > 0 ? e.amount / overheadDivisor : 0
                       return (
                         <tr key={e.id} style={{ borderBottom: i < commonExpenses.length - 1 ? "1px solid #F5F5F5" : "none" }}>
                           <td className="px-6 py-3 text-[12px] font-bold whitespace-nowrap" style={{ color: "#111111" }}>{e.name}</td>
@@ -1303,14 +1319,14 @@ export default function ExpensesClient({
         {modal === "client" && (
           <ClientExpenseModalBody
             clients={clientNames}
-            selectedMonth={selectedMonth}
+            selectedMonth={actionMonth}
             editing={editingClient ?? undefined}
             onClose={() => { setModal(null); setEditClient(null) }}
           />
         )}
         {modal === "common" && (
           <CommonExpenseModalBody
-            selectedMonth={selectedMonth}
+            selectedMonth={actionMonth}
             overheadDivisor={overheadDivisor}
             editing={editingCommon ?? undefined}
             onClose={() => { setModal(null); setEditCommon(null) }}
@@ -1328,9 +1344,9 @@ export default function ExpensesClient({
       >
         {copyModal && (
           <CopyExpensesModalBody
-            key={`${copyModal}-${selectedMonth}`}
+            key={`${copyModal}-${actionMonth}`}
             kind={copyModal}
-            currentMonth={selectedMonth}
+            currentMonth={actionMonth}
             rows={copyModal === "common" ? copyableCommonRows : copyableClientRows}
             onClose={() => setCopyModal(null)}
             onDone={() => { setCopyModal(null); router.refresh() }}
@@ -1421,7 +1437,7 @@ export default function ExpensesClient({
               </FlatCard>
             </div>
             <div>
-              <p className="text-[11px] font-black uppercase tracking-wider mb-2" style={{ color: "#6B1D3A" }}>Direct expense entries this month</p>
+              <p className="text-[11px] font-black uppercase tracking-wider mb-2" style={{ color: "#6B1D3A" }}>Direct expense entries{isAll ? "" : " this month"}</p>
               {viewDetailsEntries.length === 0 ? (
                 <p className="text-[12px]" style={{ color: "#6B1D3A" }}>No direct expenses logged for this client.</p>
               ) : (

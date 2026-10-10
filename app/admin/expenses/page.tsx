@@ -59,10 +59,28 @@ export default async function AdminExpensesPage({
 
   const params = await searchParams
   const now = new Date()
-  const monthParam = params.month ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-  const [yr, mo] = monthParam.split("-").map(Number)
-  const monthStart = `${yr}-${String(mo).padStart(2, "0")}-01`
-  const monthEnd   = new Date(yr, mo, 0).toISOString().split("T")[0]
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+  // "all" = All Time: no date window, every month's data rolled up together.
+  const isAll = params.month === "all"
+  const monthParam = isAll ? "all" : (params.month ?? currentMonth)
+  const [yr, mo] = (isAll ? currentMonth : monthParam).split("-").map(Number)
+  const monthStart = isAll ? "2000-01-01" : `${yr}-${String(mo).padStart(2, "0")}-01`
+  const monthEnd   = isAll ? "9999-12-31" : new Date(yr, mo, 0).toISOString().split("T")[0]
+
+  // Supabase caps a single response at 1000 rows — All Time easily exceeds that, so every
+  // date-ranged query is paged through to the end instead of silently truncating.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function fetchAll(build: () => any): Promise<{ data: any[] }> {
+    const PAGE = 1000
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows: any[] = []
+    for (let from = 0; ; from += PAGE) {
+      const { data } = await build().range(from, from + PAGE - 1)
+      rows.push(...(data ?? []))
+      if (!data || data.length < PAGE) break
+    }
+    return { data: rows }
+  }
 
   const [
     { data: updatesRaw },
@@ -76,64 +94,65 @@ export default async function AdminExpensesPage({
     { data: salaryHistoryRaw },
     { data: collabRaw },
   ] = await Promise.all([
-    admin
+    fetchAll(() => admin
       .from("daily_updates")
       .select("id, user_id, date, work_entries, learning_hours")
       .eq("company_id", cid)
       .gte("date", monthStart)
       .lte("date", monthEnd)
-      .order("date", { ascending: false }),
+      .order("date", { ascending: false })
+      .order("id")),
     admin
       .from("users")
       .select("id, name, employee_id, hourly_rate, monthly_salary, team, is_management, employment_type, role")
       .eq("company_id", cid)
       .eq("status", "active"),
-    admin
+    fetchAll(() => admin
       .from("client_expenses")
       .select("*")
       .eq("company_id", cid)
       .gte("date", monthStart)
       .lte("date", monthEnd)
-      .order("date", { ascending: false }),
-    admin
-      .from("common_expenses")
-      .select("*")
-      .eq("company_id", cid)
-      .eq("month", monthParam)
-      .order("created_at", { ascending: false }),
+      .order("date", { ascending: false })
+      .order("id")),
+    fetchAll(() => {
+      const q = admin.from("common_expenses").select("*").eq("company_id", cid)
+      return (isAll ? q : q.eq("month", monthParam)).order("created_at", { ascending: false }).order("id")
+    }),
     admin
       .from("clients")
       .select("id, name, status, is_internal")
       .eq("company_id", cid),
-    admin
-      .from("client_common_expense_participation")
-      .select("client_id, included")
-      .eq("company_id", cid)
-      .eq("month", monthParam),
+    fetchAll(() => {
+      const q = admin.from("client_common_expense_participation").select("client_id, included, month").eq("company_id", cid)
+      return (isAll ? q : q.eq("month", monthParam)).order("client_id").order("month")
+    }),
     admin
       .from("pricing_rates")
       .select("video_type, rate_per_video")
       .eq("company_id", cid),
-    admin
+    fetchAll(() => admin
       .from("freelancer_work_entries_v2")
       .select("id, date_finished, client_name, title, amount, duration_mins, team, task_description, freelancers(name)")
       .eq("company_id", cid)
       .in("team", NO_LOGIN_TEAMS)
       .gte("date_finished", monthStart)
-      .lte("date_finished", monthEnd),
+      .lte("date_finished", monthEnd)
+      .order("id")),
     admin
       .from("salary_history")
       .select("user_id, monthly_salary, effective_from")
       .eq("company_id", cid),
     // Confirmed collaboration credits — see lib/clients-deliverables.ts for why
     // these must be added on top of the submitter's own entry.
-    admin
+    fetchAll(() => admin
       .from("collaboration_confirmations")
       .select("collaborator_id, date, confirmed_hours, entry_snapshot")
       .eq("company_id", cid)
       .in("status", ["confirmed", "edited_confirmed"])
       .gte("date", monthStart)
-      .lte("date", monthEnd),
+      .lte("date", monthEnd)
+      .order("id")),
   ])
 
   const freelancerEntries: FreelancerWorkEntry[] = (freelancerRaw ?? []).map((r: Record<string, unknown>) => ({
@@ -184,23 +203,70 @@ export default async function AdminExpensesPage({
   type GapWorkEntry = { task_type?: string; start_time?: string; end_time?: string; duration_hours?: number }
   const gapEligibleUsers = ((usersRaw ?? []) as (MemberUser & { is_management?: boolean; employment_type?: string; role?: string })[])
     .filter(u => u.role === "MEMBER" && u.is_management !== true && u.employment_type === "regular")
-  const gapHoursByUser: Record<string, number> = {}
+  // Tracked hours per user per month. All Time sums the same per-month gap for every month
+  // from each person's first logged month through now, so a recent joiner is never charged
+  // for months before they started.
+  const gapEligibleIds = new Set(gapEligibleUsers.map(u => u.id))
+  const gapHours: Record<string, Record<string, number>> = {}
+  const addGapHours = (userId: string, ym: string, hrs: number) => {
+    ;(gapHours[userId] ??= {})[ym] = (gapHours[userId][ym] ?? 0) + hrs
+  }
   for (const row of (updatesRaw ?? []) as UpdateRow[]) {
     if (row.date < monthStart || row.date > monthEnd) continue
-    if (!gapEligibleUsers.some(u => u.id === row.user_id)) continue
+    if (!gapEligibleIds.has(row.user_id)) continue
     const entries = (row.work_entries ?? []) as GapWorkEntry[]
-    gapHoursByUser[row.user_id] = (gapHoursByUser[row.user_id] ?? 0) + calcNetWorkHours(entries as Parameters<typeof calcNetWorkHours>[0])
+    addGapHours(row.user_id, row.date.slice(0, 7), calcNetWorkHours(entries as Parameters<typeof calcNetWorkHours>[0]))
   }
   for (const c of (collabRaw ?? []) as CollabConfirmationRow[]) {
     if (c.date < monthStart || c.date > monthEnd) continue
-    if (!gapEligibleUsers.some(u => u.id === c.collaborator_id)) continue
-    gapHoursByUser[c.collaborator_id] = (gapHoursByUser[c.collaborator_id] ?? 0) + (c.confirmed_hours ?? 0)
+    if (!gapEligibleIds.has(c.collaborator_id)) continue
+    addGapHours(c.collaborator_id, c.date.slice(0, 7), c.confirmed_hours ?? 0)
+  }
+  const monthsBetween = (fromYm: string, toYm: string) => {
+    const out: string[] = []
+    let [y, m] = fromYm.split("-").map(Number)
+    const [ty, tm] = toYm.split("-").map(Number)
+    while (y < ty || (y === ty && m <= tm)) {
+      out.push(`${y}-${String(m).padStart(2, "0")}`)
+      if (++m > 12) { m = 1; y++ }
+    }
+    return out
   }
   let productivityGapCost = 0
   for (const u of gapEligibleUsers) {
-    const tracked = gapHoursByUser[u.id] ?? 0
-    const untracked = Math.max(0, MONTHLY_TARGET_HRS - tracked)
-    productivityGapCost += untracked * hourlyRateOnDate(u, monthStart, salaryHistoryRaw ?? [])
+    const months = isAll
+      ? (Object.keys(gapHours[u.id] ?? {}).sort()[0] ? monthsBetween(Object.keys(gapHours[u.id]).sort()[0], currentMonth) : [])
+      : [monthParam]
+    for (const ym of months) {
+      const tracked = gapHours[u.id]?.[ym] ?? 0
+      const untracked = Math.max(0, MONTHLY_TARGET_HRS - tracked)
+      productivityGapCost += untracked * hourlyRateOnDate(u, `${ym}-01`, salaryHistoryRaw ?? [])
+    }
+  }
+
+  // All Time common-cost split: each month's common total is divided across that month's
+  // own included clients (explicit checklist choice, else active-by-default — same rule as
+  // the single-month view), then summed per client across every month.
+  const overheadByClient: Record<string, number> = {}
+  let allTimePerClient = 0
+  if (isAll) {
+    const partByMonth = new Map<string, Map<string, boolean>>()
+    for (const r of (statusHistoryRaw ?? []) as { client_id: string; included: boolean; month: string }[]) {
+      if (!partByMonth.has(r.month)) partByMonth.set(r.month, new Map())
+      partByMonth.get(r.month)!.set(r.client_id, r.included)
+    }
+    const commonTotalByMonth: Record<string, number> = {}
+    for (const e of (commonExpensesRaw ?? []) as { month: string; amount: number }[]) {
+      commonTotalByMonth[e.month] = (commonTotalByMonth[e.month] ?? 0) + e.amount
+    }
+    for (const [ym, total] of Object.entries(commonTotalByMonth)) {
+      const part = partByMonth.get(ym)
+      const included = allClients.filter(c => part?.has(c.id) ? part.get(c.id)! : c.status === "active")
+      if (included.length === 0) continue
+      const share = total / included.length
+      allTimePerClient += share
+      for (const c of included) overheadByClient[c.name] = (overheadByClient[c.name] ?? 0) + share
+    }
   }
 
   const directExpenseNames = new Set(
@@ -238,10 +304,11 @@ export default async function AdminExpensesPage({
       clientExpenses={clientExpensesRaw ?? []}
       commonExpenses={commonExpensesRaw ?? []}
       activeClients={activeClients.map(c => ({ name: c.name }))}
-      commonParticipation={commonParticipation}
+      commonParticipation={isAll ? [] : commonParticipation}
       productivityGapCost={productivityGapCost}
       selectedMonth={monthParam}
       employeeCostByClient={employeeCostByClient}
+      allTimeOverhead={isAll ? { byClient: overheadByClient, perClient: allTimePerClient } : null}
     />
   )
 }

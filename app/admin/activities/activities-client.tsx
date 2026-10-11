@@ -796,15 +796,18 @@ export default function ActivitiesClient({
 
   void onLeaveIds; void pendingLeaves; void pendingCollabs
 
+  // Local-calendar YYYY-MM-DD. NOT toISOString(): that converts to UTC, and in IST a local
+  // midnight (e.g. 1 Sep 00:00) is still the previous day in UTC — "Last Month" came out as
+  // Aug 31 → Sep 29 and silently dropped the 30th.
+  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
   const todayDate        = new Date()
-  const todayStr         = todayDate.toISOString().split("T")[0]
-  const yesterdayStr     = new Date(todayDate.getTime() - 86400000).toISOString().split("T")[0]
-  const weekStart        = new Date(todayDate); weekStart.setDate(todayDate.getDate() - (todayDate.getDay() || 7) + 1)
-  const weekStartStr     = weekStart.toISOString().split("T")[0]
+  const todayStr         = ymd(todayDate)
+  const yesterdayStr     = ymd(new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate() - 1))
+  const weekStart        = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate() - (todayDate.getDay() || 7) + 1)
+  const weekStartStr     = ymd(weekStart)
   const monthStartStr    = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-01`
-  const prevMonthStart   = new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1)
-  const prevMonthStartStr = prevMonthStart.toISOString().split("T")[0]
-  const prevMonthEndStr  = new Date(todayDate.getFullYear(), todayDate.getMonth(), 0).toISOString().split("T")[0]
+  const prevMonthStartStr = ymd(new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1))
+  const prevMonthEndStr  = ymd(new Date(todayDate.getFullYear(), todayDate.getMonth(), 0))
 
   const DATE_PRESETS = [
     { label: "Today",      from: todayStr,          to: todayStr },

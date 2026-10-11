@@ -89,6 +89,35 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname === '/login' || pathname === '/') {
+    // The cookie looking signed-in (getSession() above only decodes it locally) is NOT
+    // proof the session still exists server-side — Supabase deletes sessions (timebox /
+    // inactivity / revocation) while the browser keeps the old cookie. The layouts do the
+    // authoritative getUser(), fail, and redirect to /login; bouncing straight back to the
+    // dashboard here from a cookie that decodes fine is what produced the
+    // ERR_TOO_MANY_REDIRECTS loop. So before sending anyone away from the login page,
+    // confirm the session is real. Dead session → drop the stale cookies and show the login
+    // form. Can't tell (Supabase slow) → also show the form rather than risk the loop.
+    let sessionAlive = false
+    let sessionDead = false
+    try {
+      const { error } = await supabase.auth.getUser()
+      if (!error) sessionAlive = true
+      else if (error.status === 401 || error.status === 403 || error.name === 'AuthSessionMissingError'
+        || (error as { code?: string }).code === 'session_not_found') sessionDead = true
+    } catch { /* unreachable — treated as "can't tell" */ }
+
+    if (!sessionAlive) {
+      const stale = request.cookies.getAll().filter((c) => c.name.startsWith('sb-'))
+      const target = pathname === '/' ? NextResponse.redirect(new URL('/login', request.url)) : NextResponse.next({ request })
+      if (sessionDead) {
+        for (const c of stale) {
+          request.cookies.delete(c.name)
+          target.cookies.set(c.name, '', { maxAge: 0, path: '/' })
+        }
+      }
+      return target
+    }
+
     // Decode the role straight off the token we already hold — calling
     // getSession() a second time here risked a second refresh round trip.
     let role: string | null = null

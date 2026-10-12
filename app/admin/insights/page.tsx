@@ -185,7 +185,7 @@ export default async function InsightsPage({
       .gte('date', dateFrom)
       .lte('date', dateTo),
     admin.from('clients')
-      .select('id, name, industry, status')
+      .select('id, name, industry, status, is_internal')
       .eq('company_id', cid),
     admin.from('salary_history')
       .select('user_id, monthly_salary, effective_from')
@@ -488,7 +488,7 @@ export default async function InsightsPage({
   // they were real clients) ──────────────────────────────────────────────
   const normalizeKey = (s: string) => s.trim().replace(/\s+/g, ' ').toUpperCase()
   const INTERNAL_NAMES = new Set(['GROFAST DIGITAL', 'GROFAST AI', 'KARTHICK BRANDS'])
-  type ClientMeta = { id: string; name: string; industry: string | null; status: string }
+  type ClientMeta = { id: string; name: string; industry: string | null; status: string; is_internal?: boolean | null }
   const clientMetaMap: Record<string, ClientMeta> = {}
   for (const c of (clientsRaw ?? []) as ClientMeta[]) {
     clientMetaMap[normalizeKey(c.name)] = c
@@ -583,7 +583,7 @@ export default async function InsightsPage({
       }
       const key  = normalizeKey(e.client_name)
       const meta = clientMetaMap[key]
-      if (INTERNAL_NAMES.has(key) || meta?.industry === 'Internal Brand') {
+      if (INTERNAL_NAMES.has(key) || meta?.is_internal === true || meta?.industry === 'Internal Brand') {
         spendCats.internal.hours += hrs; spendCats.internal.cost += cost
       } else if (statusOnDate(meta?.id, du.date, meta?.status ?? 'active') === 'past') {
         spendCats.past.hours += hrs; spendCats.past.cost += cost

@@ -115,7 +115,7 @@ function ClientCard({ c, isSelected, onClick }: { c: ClientRow; isSelected: bool
             {c.name}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
-            {c.industry && <span style={{ fontSize: 10, color: "#37474F" }}>{c.industry}</span>}
+            {(c.is_internal ? 'Internal Brand' : c.industry) && <span style={{ fontSize: 10, color: "#37474F" }}>{c.is_internal ? 'Internal Brand' : c.industry}</span>}
             {c.package_name && (
               <span style={{
                 fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4,
@@ -685,7 +685,7 @@ export default function ClientsUnifiedClient({
 
             {/* ── Stat chips ───────────────────────────────────────────── */}
             {deliverables && (() => {
-              const isInternal = selectedClientRow?.industry === 'Internal Brand' || selectedClientRow?.industry === '__virtual_internal__'
+              const isInternal = selectedClientRow?.is_internal === true || selectedClientRow?.industry === 'Internal Brand' || selectedClientRow?.industry === '__virtual_internal__'
               const d = deliverables
               if (isInternal) {
                 return (

@@ -175,7 +175,13 @@ export default async function AdminExpensesPage({
   // work this month, active or not. Whether they also SHARE this month's common/overhead
   // cost is a separate, deliberate admin decision (see participation below) — a past
   // client's real hours must never silently show ₹0 just because they're not active.
-  const allClientNames = [...INTERNAL_BRAND_NAMES, ...nonInternalClients.map(c => c.name)]
+  // Internal brands come from the DB flag too, not just the 3 hardcoded names — a newly
+  // added internal brand (e.g. Tarika Elite) would otherwise have its work cost dropped.
+  const allClientNames = Array.from(new Set([
+    ...INTERNAL_BRAND_NAMES,
+    ...allClients.filter(c => c.is_internal).map(c => c.name),
+    ...nonInternalClients.map(c => c.name),
+  ]))
 
   const employeeCostByClient: Record<string, number> = {}
   for (const clientName of allClientNames) {

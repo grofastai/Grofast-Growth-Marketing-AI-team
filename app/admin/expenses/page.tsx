@@ -120,7 +120,7 @@ export default async function AdminExpensesPage({
     }),
     admin
       .from("clients")
-      .select("id, name, status, is_internal")
+      .select("id, name, status, is_internal, created_at")
       .eq("company_id", cid),
     fetchAll(() => {
       const q = admin.from("client_common_expense_participation").select("client_id, included, month").eq("company_id", cid)
@@ -166,8 +166,60 @@ export default async function AdminExpensesPage({
     freelancer_name:  (r.freelancers as { name: string } | null)?.name ?? "Freelancer",
   }))
 
-  type ClientRow = { id: string; name: string; status: string; is_internal: boolean }
+  type ClientRow = { id: string; name: string; status: string; is_internal: boolean; created_at: string | null }
   const allClients = (allClientsRaw ?? []) as ClientRow[]
+
+  // ── Default "shares common cost?" for a month with no saved tick ────────────────────────
+  // Used to be the client's status TODAY — so moving a client Past → Active (or adding a new
+  // brand) silently ticked them ON for every earlier month, each needing a manual untick.
+  // Now: was the client Active at any point in THAT month (client_status_history), AND did they
+  // exist yet (created, or already had work/expenses, by that month's end). A saved tick
+  // always wins over this — see the callers.
+  const { data: statusHistRaw } = await admin
+    .from("client_status_history")
+    .select("client_id, status, effective_from")
+    .eq("company_id", cid)
+  const statusRowsByClient = new Map<string, { status: string; effective_from: string }[]>()
+  for (const r of (statusHistRaw ?? []) as { client_id: string; status: string; effective_from: string }[]) {
+    if (!statusRowsByClient.has(r.client_id)) statusRowsByClient.set(r.client_id, [])
+    statusRowsByClient.get(r.client_id)!.push(r)
+  }
+  for (const rows of statusRowsByClient.values()) rows.sort((a, b) => (a.effective_from < b.effective_from ? -1 : 1))
+
+  // Earliest day each client name shows up in real work or expenses within the loaded range.
+  const normName = (n: string) => n.trim().replace(/\s+/g, " ").toUpperCase()
+  const firstSeen = new Map<string, string>()
+  const markSeen = (name: string | null | undefined, date: string) => {
+    if (!name) return
+    const k = normName(name)
+    const cur = firstSeen.get(k)
+    if (!cur || date < cur) firstSeen.set(k, date)
+  }
+  for (const u of (updatesRaw ?? []) as { date: string; work_entries?: { client_name?: string; client_names?: string[] }[] | null }[]) {
+    for (const e of u.work_entries ?? []) {
+      markSeen(e.client_name, u.date)
+      for (const n of e.client_names ?? []) markSeen(n, u.date)
+    }
+  }
+  for (const e of (clientExpensesRaw ?? []) as { client_name: string; date: string }[]) markSeen(e.client_name, e.date)
+
+  const activeInMonth = (c: ClientRow, ym: string): boolean => {
+    const rows = statusRowsByClient.get(c.id)
+    if (!rows?.length) return c.status === "active"
+    const start = `${ym}-01`, end = `${ym}-31`
+    let atStart: { status: string; effective_from: string } | null = null
+    for (const r of rows) if (r.effective_from <= start) atStart = r
+    const base = atStart ?? rows[0] // before tracking began → earliest known status
+    if (base.status === "active") return true
+    return rows.some(r => r.effective_from > start && r.effective_from <= end && r.status === "active")
+  }
+  const existedByMonth = (c: ClientRow, ym: string): boolean => {
+    const end = `${ym}-31`
+    if (c.created_at && c.created_at.slice(0, 10) <= end) return true
+    const seen = firstSeen.get(normName(c.name))
+    return !!seen && seen <= end
+  }
+  const defaultIncluded = (c: ClientRow, ym: string) => existedByMonth(c, ym) && activeInMonth(c, ym)
   const nonInternalClients = allClients.filter(c => !c.is_internal)
   const activeClients = nonInternalClients.filter(c => c.status === "active")
 
@@ -266,7 +318,7 @@ export default async function AdminExpensesPage({
     }
     for (const [ym, total] of Object.entries(commonTotalByMonth)) {
       const part = partByMonth.get(ym)
-      const included = allClients.filter(c => part?.has(c.id) ? part.get(c.id)! : c.status === "active")
+      const included = allClients.filter(c => part?.has(c.id) ? part.get(c.id)! : defaultIncluded(c, ym))
       if (included.length === 0) continue
       const share = total / included.length
       allTimePerClient += share
@@ -293,13 +345,13 @@ export default async function AdminExpensesPage({
   // auto-excluded. Pinned first in the list since they're a fixed, known set.
   const internalClients = allClients.filter(c => c.is_internal)
   const relevantClients = nonInternalClients
-    .filter(c => c.status === "active" || (employeeCostByClient[c.name] ?? 0) > 0 || directExpenseNames.has(c.name))
+    .filter(c => defaultIncluded(c, monthParam) || (employeeCostByClient[c.name] ?? 0) > 0 || directExpenseNames.has(c.name))
   const commonParticipation = [...internalClients, ...relevantClients].map(c => ({
     id: c.id,
     name: c.name,
     status: c.status,
     isInternal: c.is_internal,
-    included: participationMap.has(c.id) ? participationMap.get(c.id)! : c.status === "active",
+    included: participationMap.has(c.id) ? participationMap.get(c.id)! : defaultIncluded(c, monthParam),
   }))
 
   return (

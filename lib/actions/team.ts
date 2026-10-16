@@ -415,10 +415,53 @@ export async function updateMember(input: {
   // If salary is changing, log to salary_history before updating
   if (input.monthly_salary != null && editorProfile?.company_id) {
     const { data: currentUser } = await admin
-      .from('users').select('monthly_salary').eq('id', input.id).single()
+      .from('users').select('monthly_salary, joined_at, created_at').eq('id', input.id).single()
     const oldSalary = (currentUser as { monthly_salary?: number | null } | null)?.monthly_salary
     if (oldSalary != null && oldSalary !== input.monthly_salary) {
       const effectiveFrom = input.salaryEffectiveFrom ?? todayIST()
+      const companyId = editorProfile.company_id
+      const effectiveMonth = effectiveFrom.slice(0, 7)
+
+      // Salary lives in three places that must move together: users.monthly_salary (current),
+      // salary_history (per-day rate for Expenses/Clients/Insights) and monthly_salary_records
+      // (the per-month snapshot Payroll + payslips read). Updating only the first two left every
+      // already-snapshotted month on the old amount.
+
+      // 1) Make sure the OLD salary is on record for the past. With no history row at all,
+      //    "rate on date X" falls back to the CURRENT (new) salary for every earlier date.
+      const { count: histCount } = await admin
+        .from('salary_history').select('id', { count: 'exact', head: true }).eq('user_id', input.id)
+      if (!histCount) {
+        await admin.from('salary_history').insert({
+          company_id: companyId, user_id: input.id, monthly_salary: oldSalary, effective_from: '2000-01-01',
+        })
+      }
+
+      // 2) Lock every month BEFORE the raise at the old salary if it has no snapshot yet —
+      //    Payroll auto-creates a missing snapshot from the current salary, which would
+      //    otherwise stamp the new salary onto old months the next time one is opened.
+      const cu = currentUser as { joined_at?: string | null; created_at?: string | null } | null
+      const startYm = (cu?.joined_at ?? cu?.created_at ?? effectiveFrom).slice(0, 7)
+      const lockRows: { company_id: string; user_id: string; month: string; amount: number }[] = []
+      for (let [y, m] = startYm.split('-').map(Number); `${y}-${String(m).padStart(2, '0')}` < effectiveMonth && lockRows.length < 48; ) {
+        lockRows.push({ company_id: companyId, user_id: input.id, month: `${y}-${String(m).padStart(2, '0')}`, amount: oldSalary })
+        if (++m > 12) { m = 1; y++ }
+      }
+      if (lockRows.length) {
+        await admin.from('monthly_salary_records').upsert(lockRows, { onConflict: 'user_id,month', ignoreDuplicates: true })
+      }
+
+      // 3) Re-price the raise month and every later month that already has a snapshot —
+      //    except months already marked paid, which are history.
+      const { data: paidRuns } = await admin
+        .from('payroll_runs').select('month').eq('user_id', input.id).eq('is_paid', true)
+      const paidMonths = ((paidRuns ?? []) as { month: string }[]).map(r => r.month)
+      let upd = admin.from('monthly_salary_records')
+        .update({ amount: input.monthly_salary })
+        .eq('user_id', input.id).gte('month', effectiveMonth)
+      if (paidMonths.length) upd = upd.not('month', 'in', `(${paidMonths.join(',')})`)
+      await upd
+
       // If a history row already exists for this same effective date, update it
       // instead of inserting a duplicate (e.g. admin edits salary twice in one month).
       const { data: existing } = await admin

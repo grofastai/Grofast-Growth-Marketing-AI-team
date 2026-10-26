@@ -5184,6 +5184,18 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                       <td style={{ padding: "10px 14px", color: "#374151" }}>{fmtDateRange(item.posts.map(p => p.posted_date))}</td>
                       <td style={{ padding: "10px 14px" }}>
                         <div className="flex items-center gap-1 flex-wrap">
+                          {item.edited_drive_link ? (
+                            <a href={item.edited_drive_link} target="_blank" rel="noopener noreferrer" title="Open Drive link"
+                              className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                              style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 8px", borderRadius: 8, border: "1px solid #BFDBFE", background: "#EFF6FF", color: "#2563EB", fontSize: 10, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
+                              <ExternalLink size={12} /> Drive
+                            </a>
+                          ) : (
+                            <span title="No Drive link added — use Edit to add one"
+                              style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 8px", borderRadius: 8, border: "1px dashed #E5E7EB", background: "#F9FAFB", color: "#C0C4CC", fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", cursor: "not-allowed" }}>
+                              <ExternalLink size={12} /> Drive
+                            </span>
+                          )}
                           <button onClick={() => setEditingItem(item)} title="Edit"
                             style={{ display: "flex", padding: 6, borderRadius: 8, border: "1px solid #E5E7EB", background: "#fff", color: "#6B7280", cursor: "pointer" }}>
                             <Pencil size={12} />

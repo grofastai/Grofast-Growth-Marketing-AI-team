@@ -4,6 +4,7 @@ import { sendNotificationViaTemplate, shouldUpgradeDeliveryStatus } from '@/lib/
 import { autoInsertLeaveHistory, formatLeaveDetail } from '@/lib/leave-approval-effects'
 import { findUnresolvedLogoutDate, formatGateDate } from '@/lib/attendance-gate'
 import { todayIST } from '@/lib/utils/ist-date'
+import { leaveRangeError } from '@/lib/utils/leave-range'
 
 // GET — Meta webhook verification handshake
 export async function GET(req: NextRequest) {
@@ -222,6 +223,13 @@ async function handleLeaveAction(leaveId: string, action: 'approve' | 'reject') 
   }
 
   const status = action === 'approve' ? 'approved' : 'rejected'
+  if (status === 'approved') {
+    const rangeError = leaveRangeError(leave.from_date, leave.to_date)
+    if (rangeError) {
+      console.warn(`[whatsapp-webhook] refusing to approve leave ${leaveId}: ${rangeError}`)
+      return
+    }
+  }
   const { error: updateErr } = await supabase
     .from('leaves')
     .update({ status })

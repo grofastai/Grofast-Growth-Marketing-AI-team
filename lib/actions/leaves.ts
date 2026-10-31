@@ -10,6 +10,7 @@ import { formatLeaveDetail } from '@/lib/leave-approval-effects'
 import { sumLeaveDays, overtimeHoursByMonth } from '@/lib/utils/leave-balance'
 import { HALF_DAY_THRESHOLD_HOURS } from '@/lib/utils/attendance-stats'
 import { toISTTimeString } from '@/lib/utils/ist-date'
+import { leaveRangeError } from '@/lib/utils/leave-range'
 import {
   planWorkDayAttendance,
   PLACEHOLDER_CLOCK_IN_UTC,
@@ -48,6 +49,8 @@ const leaveSchema = z.object({
   permission_reason_type: z.enum(['late_login', 'early_logoff', 'other']).optional(),
   reason:              z.string().min(3, 'Please provide a reason'),
 }).superRefine((data, ctx) => {
+  const rangeError = leaveRangeError(data.from_date, data.to_date)
+  if (rangeError) ctx.addIssue({ code: 'custom', path: ['to_date'], message: rangeError })
   if (data.leave_type === 'half_day') {
     if (!data.half_day_from_time) ctx.addIssue({ code: 'custom', path: ['half_day_from_time'], message: 'From time is required for half day leave' })
     if (!data.half_day_to_time)   ctx.addIssue({ code: 'custom', path: ['half_day_to_time'],   message: 'To time is required for half day leave' })
@@ -1008,6 +1011,13 @@ export async function updateLeaveStatus(
     .single()
 
   const leave = leaveRaw as LeaveWithUser | null
+
+  // Approval rewrites attendance for every day in the range — never let an
+  // over-long range (e.g. a wrong-year typo) through, even if it got into the table.
+  if (status === 'approved' && leave) {
+    const rangeError = leaveRangeError(leave.from_date, leave.to_date)
+    if (rangeError) return { success: false, error: `Cannot approve. ${rangeError}` }
+  }
 
   const { error } = await admin
     .from('leaves')

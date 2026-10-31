@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { uploadFileToBackupFolder } from '@/lib/google/drive'
@@ -9,6 +12,29 @@ function adminSupabase() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
+}
+
+// PostgREST caps every response at 1000 rows, so a single select('*') silently
+// truncates once a table grows past that. Page through until a short page comes back.
+const PAGE_SIZE = 1000
+async function selectAll(
+  admin: ReturnType<typeof adminSupabase>,
+  table: string,
+  columns: string,
+  orderBy: string,
+): Promise<{ data: Record<string, unknown>[]; error: { message: string } | null }> {
+  const rows: Record<string, unknown>[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await admin
+      .from(table)
+      .select(columns)
+      .order(orderBy, { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) return { data: rows, error }
+    rows.push(...((data ?? []) as unknown as Record<string, unknown>[]))
+    if (!data || data.length < PAGE_SIZE) return { data: rows, error: null }
+  }
 }
 
 function isAuthorized(req: NextRequest): boolean {
@@ -34,15 +60,16 @@ export async function GET(req: NextRequest) {
     { data: leaves,          error: e3 },
     { data: users,           error: e4 },
   ] = await Promise.all([
-    admin.from('daily_updates').select('*').order('date', { ascending: true }),
-    admin.from('attendance_logs').select('*').order('date', { ascending: true }),
-    admin.from('leaves').select('*').order('created_at', { ascending: true }),
+    selectAll(admin, 'daily_updates', '*', 'date'),
+    selectAll(admin, 'attendance_logs', '*', 'date'),
+    selectAll(admin, 'leaves', '*', 'created_at'),
     // Exclude sensitive auth fields — keep only operational columns
-    admin.from('users').select('id, name, employee_id, role, team, status, email, company_id').order('name'),
+    selectAll(admin, 'users', 'id, name, employee_id, role, team, status, email, company_id', 'name'),
   ])
 
   const fetchError = e1 || e2 || e3 || e4
   if (fetchError) {
+    console.error('[db-backup] FAILED reading tables:', fetchError.message)
     return NextResponse.json({ error: fetchError.message }, { status: 500 })
   }
 
@@ -66,7 +93,15 @@ export async function GET(req: NextRequest) {
   }
 
   const fileName = `${today}_db-backup.json`
-  const fileId = await uploadFileToBackupFolder(year, fileName, JSON.stringify(payload, null, 2))
+  let fileId: string
+  try {
+    fileId = await uploadFileToBackupFolder(year, fileName, JSON.stringify(payload, null, 2))
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[db-backup] FAILED uploading to Drive:', message)
+    return NextResponse.json({ error: message, row_counts: rowCounts }, { status: 500 })
+  }
 
+  console.log(`[db-backup] ${fileName} uploaded`, rowCounts)
   return NextResponse.json({ success: true, file: fileName, drive_file_id: fileId, row_counts: rowCounts })
 }

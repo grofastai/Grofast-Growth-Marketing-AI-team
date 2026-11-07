@@ -363,7 +363,7 @@ export async function submitLeaveRequest(
     // SMS to first admin
     const adminWithPhone = adminUsers?.find(a => a.phone)
     if (adminWithPhone?.phone) {
-      sendNotification({
+      await sendNotification({
         event:         submitEvent,
         leave_id:      inserted.id,
         employee_name: profile.name,
@@ -546,7 +546,7 @@ export async function submitSplitLeaveRequest(
     const { data: adminUsers } = await adminCl.from('users').select('id, phone').eq('company_id', company_id).eq('role', 'ADMIN')
     const adminWithPhone = adminUsers?.find(a => a.phone)
     if (adminWithPhone?.phone) {
-      sendNotification({
+      await sendNotification({
         event: 'leave.submitted', leave_id: insertedHalf?.id ?? '', employee_name: profile.name, employee_id: profile.employee_id,
         from_date, to_date: from_date, reason, admin_phone: adminWithPhone.phone,
       }).catch(console.error)
@@ -1145,7 +1145,7 @@ export async function updateLeaveStatus(
     const leaveType = leave.leave_type ?? 'full_day'
     const approvedEvent = leaveType === 'wfh' ? 'wfh.approved' : leaveType === 'shoot_day' ? 'shoot.approved' : leaveType === 'half_day' ? 'half_day.approved' : 'leave.approved'
     const rejectedEvent = leaveType === 'wfh' ? 'wfh.rejected' : leaveType === 'shoot_day' ? 'shoot.rejected' : leaveType === 'half_day' ? 'half_day.rejected' : 'leave.rejected'
-    sendNotification({
+    await sendNotification({
       event:          status === 'approved' ? approvedEvent : rejectedEvent,
       employee_name:  leave.users.name,
       employee_phone: leave.users.phone,
@@ -1430,7 +1430,7 @@ export async function submitWfhAttendanceRequest(
 
   const adminWithPhone = adminUsers?.find(a => a.phone)
   if (adminWithPhone?.phone) {
-    sendNotification({
+    await sendNotification({
       event:         leaveType === 'shoot_day' ? 'shoot.submitted' : 'wfh.submitted',
       leave_id:      inserted?.id,
       employee_name: profile?.name ?? '',

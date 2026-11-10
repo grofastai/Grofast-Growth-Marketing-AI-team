@@ -679,6 +679,9 @@ export default function ExpensesClient({
   const [showParticipation, setShowParticipation] = useState(false)
   const [clientFilter, setClientFilter] = useState("all")
   const [search, setSearch]            = useState("")
+  // Client Direct has its own word search (client / type / details) — kept apart from `search`,
+  // which belongs to the Per Client tab and would otherwise silently filter this table too.
+  const [directSearch, setDirectSearch] = useState("")
   const [viewDetailsClient, setViewDetailsClient] = useState<string | null>(null)
 
   const isAll = selectedMonth === "all"
@@ -835,8 +838,14 @@ export default function ExpensesClient({
   const filteredClientExpenses = useMemo(() => {
     return clientExpenses
       .filter(e => clientFilter === "all" || e.client_name === clientFilter)
-      .filter(e => !search.trim() || e.client_name.toLowerCase().includes(search.trim().toLowerCase()))
-  }, [clientExpenses, clientFilter, search])
+      .filter(e => {
+        const words = directSearch.toLowerCase().split(/\s+/).filter(Boolean)
+        if (!words.length) return true
+        // Same text the table shows in its Client / Type / Details columns — every typed word must match.
+        const hay = `${e.client_name} ${e.type} ${e.shoot_title ?? ""} ${e.notes ?? ""}`.toLowerCase()
+        return words.every(w => hay.includes(w))
+      })
+  }, [clientExpenses, clientFilter, directSearch])
   const filteredClientDirectTotal = useMemo(
     () => filteredClientExpenses.reduce((s, e) => s + e.amount, 0),
     [filteredClientExpenses]
@@ -1074,6 +1083,12 @@ export default function ExpensesClient({
                   <Copy size={12} style={{ color: "#fff" }} strokeWidth={2.5} />
                   <span className="text-[11px] font-black uppercase tracking-wide" style={{ color: "#fff" }}>Copy Expenses</span>
                 </button>}
+                <div className="relative">
+                  <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#6B1D3A" }} />
+                  <input value={directSearch} onChange={e => setDirectSearch(e.target.value)} placeholder="Search client, type, details..."
+                    className="pl-8 pr-3 py-2 rounded-xl text-[12px] outline-none"
+                    style={{ background: "#fff", border: "1px solid #EDEDED", color: "#111111", width: 220 }} />
+                </div>
                 <HeaderClientFilter value={clientFilter} onChange={setClientFilter} options={directClientNames} />
               </div>
             </div>
@@ -1081,7 +1096,7 @@ export default function ExpensesClient({
               <div className="flex flex-col items-center py-12">
                 <AlertCircle size={28} style={{ color: "#E5E7EB" }} className="mb-2" />
                 <p className="text-[13px]" style={{ color: "#6B1D3A" }}>
-                  {clientExpenses.length === 0 ? `No client expenses${whenLabel}` : `No expenses for this client${whenLabel}`}
+                  {clientExpenses.length === 0 ? `No client expenses${whenLabel}` : directSearch.trim() ? "No expenses match your search" : `No expenses for this client${whenLabel}`}
                 </p>
               </div>
             ) : (

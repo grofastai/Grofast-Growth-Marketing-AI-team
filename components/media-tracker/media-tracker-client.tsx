@@ -1225,6 +1225,49 @@ function ClientStatsBox({ client, stats, contentType = "video" }: {
   )
 }
 
+// ── Per-client shoot summary — shown on the Shoots tab once a single client is picked ──
+export type ShootClientStats = { done: number; minutes: number; untimed: number; scheduled: number }
+
+function fmtShootHours(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = Math.round(minutes % 60)
+  if (h === 0) return `${m}m`
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
+}
+
+function ShootClientStatsBox({ client, period, stats }: { client: string; period: string; stats: ShootClientStats }) {
+  const timed = stats.done - stats.untimed
+  const tiles: { label: string; value: string; color: string }[] = [
+    { label: "Shoots Done", value: String(stats.done), color: "#16A34A" },
+    { label: "Total Hours", value: fmtShootHours(stats.minutes), color: "#2563EB" },
+    { label: "Avg / Shoot", value: timed > 0 ? fmtShootHours(stats.minutes / timed) : "—", color: "#7C3AED" },
+    { label: "Scheduled", value: String(stats.scheduled), color: "#D97706" },
+  ]
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 18, padding: "12px 14px", minWidth: 0 }}>
+      <div className="flex items-center justify-between gap-2 flex-wrap" style={{ marginBottom: 10 }}>
+        <p className="text-[11px] font-black uppercase truncate" style={{ color: "#374151", letterSpacing: "0.06em", margin: 0, minWidth: 0 }} title={client}>
+          {client}
+        </p>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#F3F4F6", color: "#6B7280", flexShrink: 0 }}>{period}</span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {tiles.map(t => (
+          <div key={t.label} style={{ background: `${t.color}0F`, border: `1px solid ${t.color}26`, borderRadius: 12, padding: "10px 12px", minWidth: 0 }}>
+            <p className="text-[10px] font-bold uppercase" style={{ color: "#6B7280", letterSpacing: "0.05em", margin: 0 }}>{t.label}</p>
+            <p className="text-[20px] font-black leading-tight" style={{ color: t.color, margin: "2px 0 0" }}>{t.value}</p>
+          </div>
+        ))}
+      </div>
+      {stats.untimed > 0 && (
+        <p className="text-[10px]" style={{ color: "#9CA3AF", margin: "8px 0 0" }}>
+          {stats.untimed} completed shoot{stats.untimed === 1 ? " has" : "s have"} no end time — not counted in hours.
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ── Card actions menu ────────────────────────────────────────────────────────
 // One kebab on every card, so Edit/Delete live in the same place no matter what you're
 // looking at. onPointerDown is stopped throughout — these cards are drag handles, and
@@ -4531,6 +4574,22 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     })
   }, [shoots, shootsClientFilter, shootsMonthFilter, shootsDayFilter])
 
+  // Same client + month/day filters as the board. Only completed shoots count as "went";
+  // hours come from each shoot's start -> end time.
+  const shootClientStats = useMemo<ShootClientStats | null>(() => {
+    if (shootsClientFilter === "all") return null
+    let done = 0, minutes = 0, untimed = 0, scheduled = 0
+    for (const s of filteredShoots) {
+      if (s.status === "scheduled") scheduled++
+      if (s.status !== "completed") continue
+      done++
+      const diff = s.end_time ? (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / 60000 : NaN
+      if (Number.isFinite(diff) && diff > 0) minutes += diff
+      else untimed++
+    }
+    return { done, minutes, untimed, scheduled }
+  }, [filteredShoots, shootsClientFilter])
+
   // Completing needs the video titles, so it routes through a modal rather than firing
   // the action directly. Cancelled is immediate.
   function handleShootStatus(shootId: string, status: ShootStatus) {
@@ -5336,6 +5395,11 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
               <Plus size={14} /> New Shoot
             </button>
           </div>
+
+          {shootClientStats && (
+            <ShootClientStatsBox client={shootsClientFilter} stats={shootClientStats}
+              period={shootsDayFilter ? fmtDate(shootsDayFilter) : shootsMonthFilter !== "all" ? fmtMonth(shootsMonthFilter) : "All Time"} />
+          )}
 
           {/* Mobile column switcher */}
           <div className="flex md:hidden gap-2 overflow-x-auto pb-1">

@@ -655,13 +655,14 @@ function TravelTab({ shoots, savedTravel, clientFilter, onClientFilterChange, cl
 const PRODUCTIVITY_GAP_NAME = "PRODUCTIVITY GAP"
 
 export default function ExpensesClient({
-  updates, users, clientExpenses, commonExpenses, activeClients, commonParticipation, selectedMonth, employeeCostByClient, productivityGapCost, allTimeOverhead,
+  updates, users, clientExpenses, commonExpenses, activeClients, internalClientNames, commonParticipation, selectedMonth, employeeCostByClient, productivityGapCost, allTimeOverhead,
 }: {
   updates: UpdateRow[]
   users: MemberUser[]
   clientExpenses: ClientExpense[]
   commonExpenses: CommonExpense[]
   activeClients: ActiveClient[]
+  internalClientNames: string[]
   commonParticipation: CommonParticipant[]
   selectedMonth: string
   employeeCostByClient: Record<string, number>
@@ -746,9 +747,11 @@ export default function ExpensesClient({
   const clientNames = useMemo(() => {
     const set = new Set<string>()
     for (const c of activeClients) if (c.name) set.add(c.name)
+    // Internal brands are valid expense targets every month, not only once one already has a row.
+    for (const n of internalClientNames) if (n) set.add(n)
     for (const e of clientExpenses) set.add(e.client_name)
     return Array.from(set).sort()
-  }, [activeClients, clientExpenses])
+  }, [activeClients, internalClientNames, clientExpenses])
 
   // Each tab's filter only lists clients that actually have a row in that tab —
   // the shared clientSummaryRows list (employee cost + roster + direct expenses merged)

@@ -361,6 +361,7 @@ export default async function AdminExpensesPage({
       clientExpenses={clientExpensesRaw ?? []}
       commonExpenses={commonExpensesRaw ?? []}
       activeClients={activeClients.map(c => ({ name: c.name }))}
+      internalClientNames={allClients.filter(c => c.is_internal).map(c => c.name)}
       commonParticipation={isAll ? [] : commonParticipation}
       productivityGapCost={productivityGapCost}
       selectedMonth={monthParam}

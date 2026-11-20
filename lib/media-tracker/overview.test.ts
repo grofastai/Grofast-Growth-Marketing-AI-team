@@ -21,7 +21,7 @@ function item(overrides: Partial<OverviewItem> = {}): OverviewItem {
   }
 }
 function shoot(overrides: Partial<OverviewShoot> = {}): OverviewShoot {
-  return { id: 's1', status: 'scheduled', start_time: `${TODAY}T09:00:00`, created_at: `${TODAY}T09:00:00Z`, source_content_item_id: null, ...overrides }
+  return { id: 's1', status: 'scheduled', start_time: `${TODAY}T09:00:00+05:30`, created_at: `${TODAY}T09:00:00Z`, source_content_item_id: null, ...overrides }
 }
 function ad(overrides: Partial<OverviewAd> = {}): OverviewAd {
   return { id: 'a1', status: 'active', created_at: `${TODAY}T09:00:00Z`, launch_date: null, ...overrides }
@@ -176,14 +176,26 @@ describe('needs attention — shoots today and repeat bounces', () => {
     const o = computeOverview({
       items: [],
       shoots: [
-        shoot({ id: '1', status: 'scheduled', start_time: `${TODAY}T09:00:00` }),
-        shoot({ id: '2', status: 'scheduled', start_time: `${TODAY}T14:00:00` }),
-        shoot({ id: '3', status: 'completed', start_time: `${TODAY}T08:00:00` }),
-        shoot({ id: '4', status: 'scheduled', start_time: '2026-07-20T09:00:00' }),
+        shoot({ id: '1', status: 'scheduled', start_time: `${TODAY}T09:00:00+05:30` }),
+        shoot({ id: '2', status: 'scheduled', start_time: `${TODAY}T14:00:00+05:30` }),
+        shoot({ id: '3', status: 'completed', start_time: `${TODAY}T08:00:00+05:30` }),
+        shoot({ id: '4', status: 'scheduled', start_time: '2026-07-20T09:00:00+05:30' }),
       ],
       ads: [], today: TODAY,
     })
     expect(o.attention.find(a => a.kind === 'shoots-today')?.count).toBe(2)
+  })
+
+  it('counts an early-morning IST shoot on its IST day, even though its UTC date is the day before', () => {
+    // 03:30 IST today is stored by Postgres as 22:00 UTC the previous day.
+    const prevDayUtc = new Date(new Date(`${TODAY}T03:30:00+05:30`).getTime()).toISOString()
+    expect(prevDayUtc.split('T')[0]).not.toBe(TODAY)
+    const o = computeOverview({
+      items: [],
+      shoots: [shoot({ id: '1', status: 'scheduled', start_time: prevDayUtc })],
+      ads: [], today: TODAY,
+    })
+    expect(o.attention.find(a => a.kind === 'shoots-today')?.count).toBe(1)
   })
 
   it('flags items bounced back 2+ times, but not 1', () => {

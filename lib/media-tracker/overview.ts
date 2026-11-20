@@ -1,6 +1,7 @@
 // Pure summary maths for the Tracker's Overview tab. Kept out of the component and
 // unit-tested because the date arithmetic (overdue / this week / days-stuck) is exactly
 // where off-by-one bugs silently misreport the state of the board.
+import { toISTDateString } from '@/lib/utils/ist-date'
 
 export type OverviewStatus =
   | 'scripting' | 'voiceover' | 'design' | 'ready_to_edit' | 'edited'
@@ -149,7 +150,7 @@ export function computeOverview({ items, shoots, ads, today, range }: OverviewIn
   }).length
 
   const shootsToday = shoots.filter(
-    s => s.status === 'scheduled' && s.start_time.split('T')[0] === today
+    s => s.status === 'scheduled' && toISTDateString(s.start_time) === today
   ).length
 
   const repeatCorrections = items.filter(

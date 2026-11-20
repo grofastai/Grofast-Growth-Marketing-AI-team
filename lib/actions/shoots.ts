@@ -7,6 +7,9 @@ import { isValidShootTransition, type ShootStatus } from '@/lib/shoots/status-tr
 import { moveScriptToShootSchema, type MoveScriptToShootInput } from '@/lib/validations/media-tracker'
 import { isValidDriveLink } from '@/lib/utils/drive-link'
 import { resolveShotBy } from '@/lib/shoots/shot-by'
+// shoots.start_time is timestamptz and comes back in UTC — the shoot's calendar date must be
+// read in IST, or anything before 05:30 IST lands on the previous day.
+import { toISTDateString } from '@/lib/utils/ist-date'
 
 function adminSupabase() {
   return createClient(
@@ -108,7 +111,7 @@ export async function updateShootStatus(
   // own — completing it just advances the linked content_item straight to Ready to Edit
   // instead of minting a new one.
   if (status === 'completed' && shoot.source_content_item_id) {
-    const shotDate = shoot.start_time.split('T')[0]
+    const shotDate = toISTDateString(shoot.start_time)
     await admin.from('content_items').update({
       status: 'ready_to_edit', shot_by: resolveShotBy(shoot.going_by, user.id), shot_date: shotDate, updated_at: new Date().toISOString(),
     }).eq('id', shoot.source_content_item_id)
@@ -128,7 +131,7 @@ export async function updateShootStatus(
       .is('content_item_id', null)
 
     if (titles && titles.length > 0) {
-      const shotDate = shoot.start_time.split('T')[0]
+      const shotDate = toISTDateString(shoot.start_time)
       const rows = titles.map(t => ({
         company_id: shoot.company_id,
         client_name: shoot.client,
@@ -264,7 +267,7 @@ export async function completeShootWithTitles(
     return { success: false, error: `Cannot move from ${shoot.status} to completed` }
   }
 
-  const shotDate = shoot.start_time.split('T')[0]
+  const shotDate = toISTDateString(shoot.start_time)
   const finalStart = `${shotDate}T${actualTime.from}:00+05:30`
   const finalEnd = `${shotDate}T${actualTime.to}:00+05:30`
   if (finalStart >= finalEnd) return { success: false, error: 'End time must be after start time' }
@@ -391,7 +394,7 @@ export async function addShootTitle(
   if (!shoot) return { success: false, error: 'Shoot not found' }
   if (shoot.status !== 'completed') return { success: false, error: 'Only a Completed shoot can have videos added here' }
 
-  const shotDate = shoot.start_time.split('T')[0]
+  const shotDate = toISTDateString(shoot.start_time)
   const { data: item, error: itemError } = await admin.from('content_items').insert({
     company_id: shoot.company_id, client_name: shoot.client, title: cleanTitle, content_type: 'video',
     source: 'shoot', status: 'ready_to_edit', shot_by: resolveShotBy(shoot.going_by, user.id), shot_date: shotDate, notes: shoot.notes, created_by: user.id,
@@ -459,7 +462,7 @@ export async function updateShootActualTime(
   const { data: shoot } = await admin.from('shoots').select('id, start_time').eq('id', shootId).single()
   if (!shoot) return { success: false, error: 'Shoot not found' }
 
-  const shotDate = shoot.start_time.split('T')[0]
+  const shotDate = toISTDateString(shoot.start_time)
   const start_time = `${shotDate}T${fromTime}:00+05:30`
   const end_time = `${shotDate}T${toTime}:00+05:30`
   if (start_time >= end_time) return { success: false, error: 'End time must be after start time' }

@@ -17,7 +17,8 @@ import { PageHero } from "@/components/admin/PageHero"
 import ClientSelector from "@/components/ui/ClientSelector"
 import { useConfirm } from "@/components/ui/ConfirmDialog"
 import { buildClientOptions } from "@/lib/utils/client-options"
-import { todayIST } from "@/lib/utils/ist-date"
+import { todayIST, toISTDateString } from "@/lib/utils/ist-date"
+import { shootFormFields, shootInstant } from "@/lib/media-tracker/shoot-time"
 import { latestEntry, isUnderperforming, cpc, cpm, frequency, costPerResult, type AdPerformanceEntry } from "@/lib/ads-tracker/performance-metrics"
 import {
   createContentItem, updateContentItem, updateContentItemStatus, deleteContentItem,
@@ -1494,7 +1495,7 @@ function ShootCardInner({ shoot, isDragging, onStatus, onEdit, onDelete }: {
         <div style={{ minWidth: 0 }}>
           <p className="text-[14px] font-bold leading-snug" style={{ color: "#111827", margin: 0 }}>{shoot.legacyTitle}</p>
           <p className="text-[12px]" style={{ color: "#6B7280", margin: "2px 0 0" }}>
-            {shoot.client} · {fmtDate(shoot.start_time.split("T")[0])}
+            {shoot.client} · {fmtDate(toISTDateString(shoot.start_time))}
           </p>
           {timeLabel && (
             <span className="inline-flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded-md"
@@ -2817,8 +2818,8 @@ function NewShootModal({ clients, pastClients, shootingMembers, currentUserId, o
       id: res.id,
       client,
       legacyTitle: title.trim(),
-      start_time: `${shotDate}T${fromTime}:00`,
-      end_time: `${shotDate}T${toTime}:00`,
+      start_time: shootInstant(shotDate, fromTime),
+      end_time: shootInstant(shotDate, toTime),
       created_at: new Date().toISOString(),
       notes: notes.trim() || null,
       status: "scheduled",
@@ -3281,8 +3282,8 @@ function MoveToShootModal({ item, onClose, onMoved }: {
       id: res.shootId,
       client: item.client_name,
       legacyTitle: item.title,
-      start_time: `${shotDate}T${fromTime}:00`,
-      end_time: `${shotDate}T${toTime}:00`,
+      start_time: shootInstant(shotDate, fromTime),
+      end_time: shootInstant(shotDate, toTime),
       created_at: new Date().toISOString(),
       notes: notes.trim() || null,
       status: "scheduled",
@@ -3461,7 +3462,7 @@ function EditShootModal({ shoot, members, currentUserId, clients, pastClients, o
   currentUserId: string
   clients: { id: string; name: string }[]; pastClients: { id: string; name: string }[]
   onClose: () => void
-  onSaved: (patch: { client: string; legacyTitle: string; start_time: string; notes: string | null; tags: ShootTag[]; crew: Member[] }) => void
+  onSaved: (patch: { client: string; legacyTitle: string; start_time: string; end_time: string; notes: string | null; tags: ShootTag[]; crew: Member[] }) => void
 }) {
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = useMemo(
     () => buildClientOptions(clients.map(c => c.name), pastClients.map(c => c.name)),
@@ -3469,15 +3470,12 @@ function EditShootModal({ shoot, members, currentUserId, clients, pastClients, o
   )
   const [client, setClient] = useState(shoot.client)
   const [title, setTitle] = useState(shoot.legacyTitle)
-  const [shotDate, setShotDate] = useState(shoot.start_time.split("T")[0])
-  const [fromTime, setFromTime] = useState(() => {
-    const t = shoot.start_time.split("T")[1]
-    return t ? t.slice(0, 5) : ""
-  })
-  const [toTime, setToTime] = useState(() => {
-    const t = shoot.end_time?.split("T")[1]
-    return t ? t.slice(0, 5) : ""
-  })
+  // start_time/end_time come back from Postgres in UTC — the form must show IST, or an
+  // untouched Edit → Save shifts the shoot (and, before 11:00 IST, its date).
+  const [initial] = useState(() => shootFormFields(shoot.start_time, shoot.end_time))
+  const [shotDate, setShotDate] = useState(initial.date)
+  const [fromTime, setFromTime] = useState(initial.from)
+  const [toTime, setToTime] = useState(initial.to)
   const [notes, setNotes] = useState(shoot.notes ?? "")
   const [tags, setTags] = useState<ShootTag[]>(shoot.tags)
   const [crew, setCrew] = useState<string[]>(shoot.goingByUsers.map(u => u.id))
@@ -3510,7 +3508,8 @@ function EditShootModal({ shoot, members, currentUserId, clients, pastClients, o
     onSaved({
       client,
       legacyTitle: title.trim(),
-      start_time: `${shotDate}T${fromTime}:00`,
+      start_time: shootInstant(shotDate, fromTime),
+      end_time: shootInstant(shotDate, toTime),
       notes: notes.trim() || null,
       tags,
       crew: members.filter(m => crew.includes(m.id)),
@@ -3633,7 +3632,7 @@ function EditCompletedShootModal({ shoot, members, currentUserId, clients, pastC
     const renamed = titles.filter(t => (titleEdits[t.id] ?? t.title).trim() && titleEdits[t.id] !== t.title)
     const results = await Promise.all([
       updateTrackerShoot(shoot.id, {
-        client, title: shootTitle.trim(), shot_date: shoot.start_time.split("T")[0],
+        client, title: shootTitle.trim(), shot_date: toISTDateString(shoot.start_time),
         shot_time_from: toISTTimeString(shoot.start_time) || "00:00",
         shot_time_to: toISTTimeString(shoot.end_time) || "00:00",
         notes: shoot.notes ?? undefined,
@@ -4361,7 +4360,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const scheduleShootEntries: ScheduleEntry[] = useMemo(() => shoots
     .filter(s => s.status === "scheduled")
     .map(s => {
-      const date = s.start_time.split("T")[0]
+      const date = toISTDateString(s.start_time)
       return {
         id: s.id,
         date,
@@ -4557,7 +4556,7 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     })
   }, [ads, adsClientFilter, adsSearch, adsMonthFilter, adsDayFilter])
 
-  const shootDate = (s: Shoot) => s.start_time.split("T")[0]
+  const shootDate = (s: Shoot) => toISTDateString(s.start_time)
 
   const shootsMonthOptions = useMemo(
     () => Array.from(new Set(shoots.map(s => shootDate(s).slice(0, 7)))).sort().reverse(),
@@ -4709,9 +4708,9 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   function handleShootActualTimeSaved(shootId: string, fromTime: string, toTime: string) {
     const shoot = shoots.find(s => s.id === shootId)
     if (!shoot) return
-    const shotDate = shoot.start_time.split("T")[0]
-    const start_time = `${shotDate}T${fromTime}:00`
-    const end_time = `${shotDate}T${toTime}:00`
+    const shotDate = toISTDateString(shoot.start_time)
+    const start_time = shootInstant(shotDate, fromTime)
+    const end_time = shootInstant(shotDate, toTime)
     setShoots(prev => prev.map(s => s.id === shootId ? { ...s, start_time, end_time } : s))
   }
 
@@ -4745,10 +4744,10 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     })
   }
 
-  function handleShootSaved(shootId: string, patch: { client: string; legacyTitle: string; start_time: string; notes: string | null; tags: ShootTag[]; crew: Member[] }) {
+  function handleShootSaved(shootId: string, patch: { client: string; legacyTitle: string; start_time: string; end_time: string; notes: string | null; tags: ShootTag[]; crew: Member[] }) {
     setShoots(prev => prev.map(s => s.id === shootId ? {
       ...s,
-      client: patch.client, legacyTitle: patch.legacyTitle, start_time: patch.start_time,
+      client: patch.client, legacyTitle: patch.legacyTitle, start_time: patch.start_time, end_time: patch.end_time,
       notes: patch.notes, tags: patch.tags, goingByUsers: patch.crew,
     } : s))
     // A shoot spun off an Ads Video item shares its client — keep the linked item's card

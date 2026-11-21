@@ -3996,6 +3996,8 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
   const [adsVideoMonthFilter, setAdsVideoMonthFilter] = useState<string>(todayIST().slice(0, 7))
   const [adsVideoDayFilter, setAdsVideoDayFilter] = useState("")
   const [pipelineClientFilter, setPipelineClientFilter] = useState<string>("all")
+  // Editor (Designer on the Poster board) — user id, or "all".
+  const [pipelineEditorFilter, setPipelineEditorFilter] = useState<string>("all")
   // Ready to Edit stays "all" (All Time) — deliberately the one exception to the
   // current-month default above (confirmed 2026-07-30).
   const [pipelineMonthFilter, setPipelineMonthFilter] = useState<string>("all")
@@ -4055,16 +4057,32 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
     return itemStageDate(item)?.slice(0, 7) ?? null
   }
 
+  // Editors (Designers on the Poster board) who actually have an item on this board — built
+  // from the items themselves so a former editor who is no longer in the editing-members
+  // list stays filterable, and nobody is offered who would show an empty board.
+  const pipelineEditorOptions = useMemo(() => {
+    const byId = new Map<string, string>()
+    for (const i of items) {
+      if (i.content_type !== contentTypeForMode || !i.editedByUser) continue
+      byId.set(i.editedByUser.id, i.editedByUser.name)
+    }
+    return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [items, contentTypeForMode])
+  // A pick that doesn't exist on this board (e.g. after switching Video <-> Poster) counts
+  // as "all" instead of leaving a blank dropdown over an empty board.
+  const activeEditorFilter = pipelineEditorOptions.some(e => e.id === pipelineEditorFilter) ? pipelineEditorFilter : "all"
+
   const pipelineItems = useMemo(() => {
     return items.filter(i => {
       if (i.content_type !== contentTypeForMode) return false
       if (pipelineClientFilter !== "all" && i.client_name !== pipelineClientFilter) return false
+      if (activeEditorFilter !== "all" && i.editedByUser?.id !== activeEditorFilter) return false
       if (pipelineDayFilter) return itemStageDate(i) === pipelineDayFilter
       if (pipelineMonthFilter !== "all" && itemMonthBucket(i) !== pipelineMonthFilter) return false
       return true
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, pipelineClientFilter, pipelineMonthFilter, pipelineDayFilter, contentTypeForMode])
+  }, [items, pipelineClientFilter, activeEditorFilter, pipelineMonthFilter, pipelineDayFilter, contentTypeForMode])
 
   const pipelineOrder = contentTypeForMode === "poster" ? POSTER_PIPELINE_ORDER : VIDEO_PIPELINE_ORDER
 
@@ -4906,6 +4924,12 @@ export default function MediaTrackerClient({ initialItems, initialAds, initialSh
                   {pastClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
                 </optgroup>
               )}
+            </select>
+            <select value={activeEditorFilter} onChange={e => setPipelineEditorFilter(e.target.value)}
+              aria-label={contentTypeForMode === "poster" ? "Filter by designer" : "Filter by editor"}
+              style={FILTER_FIELD}>
+              <option value="all">{contentTypeForMode === "poster" ? "All Designers" : "All Editors"}</option>
+              {pipelineEditorOptions.map(e => <option key={e.id} value={e.id}>{upper(e.name)}</option>)}
             </select>
             <MonthSelect value={pipelineMonthFilter} onChange={setPipelineMonthFilter} options={allMonthOptions} />
             <DayFilter value={pipelineDayFilter} onChange={setPipelineDayFilter} />
